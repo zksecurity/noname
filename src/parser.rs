@@ -1,8 +1,15 @@
 use crate::error::{Error, ErrorTy};
 use crate::lexer::{Keyword, Token, TokenType};
+use crate::peekable::Peekable;
+
+//
+// Context
+//
 
 #[derive(Debug, Default)]
 pub struct ParserCtx {
+    /// Used mainly for error reporting,
+    /// when we don't have a token to read
     last_token: Option<Token>,
 }
 
@@ -17,18 +24,20 @@ impl ParserCtx {
     }
 }
 
+//
+// Path
+//
+
 #[derive(Debug)]
 pub struct Path(Vec<String>);
 
 impl Path {
     /// Parses a path from a list of tokens.
-    pub fn parse_path<'a>(
-        ctx: &mut ParserCtx,
-        tokens: &mut impl Iterator<Item = &'a Token>,
-    ) -> Result<Self, Error> {
+    pub fn parse_path<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
+    where
+        I: Iterator<Item = Token> + Peekable,
+    {
         let mut path = vec![];
-
-        let mut tokens = tokens.peekable();
         loop {
             // no token to read
             let token = tokens.next().ok_or(Error {
@@ -36,6 +45,8 @@ impl Path {
                 span: ctx.last_span(),
             })?;
             ctx.last_token = Some(token.clone());
+
+            dbg!(&token);
 
             match &token.typ {
                 // a chunk of the path
@@ -64,11 +75,12 @@ impl Path {
                             ..
                         }) => {
                             let token = tokens.next();
-                            ctx.last_token = token.cloned();
+                            ctx.last_token = token;
                             continue;
                         }
                         // end of path
-                        _ => {
+                        x => {
+                            dbg!(x);
                             return Ok(Path(path));
                         }
                     }
@@ -85,12 +97,20 @@ impl Path {
     }
 }
 
+//
+// Type
+//
+
 #[derive(Debug)]
 pub enum Ty {
     Field,
     Array(Box<Self>, usize),
     Bool,
 }
+
+//
+// Expression
+//
 
 #[derive(Debug)]
 pub enum ComparisonOp {
@@ -111,6 +131,10 @@ pub enum Expression {
     False,
 }
 
+//
+// Function
+//
+
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
@@ -120,10 +144,10 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn parse_fn<'a>(
-        ctx: &mut ParserCtx,
-        tokens: &mut impl Iterator<Item = &'a Token>,
-    ) -> Result<Self, Error> {
+    pub fn parse_fn<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
+    where
+        I: Iterator<Item = Token> + Peekable,
+    {
         // parse function name
         let name = tokens.next().ok_or(Error {
             error: ErrorTy::InvalidFunctionSignature,
@@ -149,6 +173,10 @@ impl Function {
     }
 }
 
+//
+// Statement
+//
+
 #[derive(Debug)]
 pub enum Statement {
     Assign { lhs: String, rhs: Expression },
@@ -157,18 +185,24 @@ pub enum Statement {
     Comment(String),
 }
 
+// TODO: where do I enforce that there's not several `use` with the same module name? or several functions with the same names? I guess that's something I need to enforce in any scope anyway...
 #[derive(Debug)]
-pub enum Root {
+
+/// Things you can have in a scope (including the root scope).
+pub enum Scope {
     Use(Path),
     Function(Function),
     Comment(String),
+    //    Struct(Struct)
 }
-
 #[derive(Debug, Default)]
-pub struct AST(Vec<Root>);
+pub struct AST(Vec<Scope>);
 
 impl AST {
-    pub fn parse(tokens: &[Token]) -> Result<AST, Error> {
+    pub fn parse<I>(tokens: I) -> Result<AST, Error>
+    where
+        I: Iterator<Item = Token> + Peekable,
+    {
         let mut ast = vec![];
         let mut ctx = ParserCtx::default();
 
@@ -184,16 +218,19 @@ impl AST {
         match &token.typ {
             TokenType::Keyword(Keyword::Use) => {
                 let path = Path::parse_path(&mut ctx, &mut tokens)?;
-                ast.push(Root::Use(path));
+                dbg!(&path);
+                ast.push(Scope::Use(path));
 
                 // end of line
+                let next_token = tokens.next();
                 if !matches!(
-                    tokens.next(),
+                    next_token,
                     Some(Token {
                         typ: TokenType::SemiColon,
                         ..
                     })
                 ) {
+                    dbg!(next_token);
                     return Err(Error {
                         error: ErrorTy::InvalidEndOfLine,
                         span: token.span,
@@ -202,10 +239,10 @@ impl AST {
             }
             TokenType::Keyword(Keyword::Fn) => {
                 let func = Function::parse_fn(&mut ctx, &mut tokens)?;
-                ast.push(Root::Function(func));
+                ast.push(Scope::Function(func));
             }
             TokenType::Comment(comment) => {
-                ast.push(Root::Comment(comment.clone()));
+                ast.push(Scope::Comment(comment.clone()));
             }
             _ => {
                 return Err(Error {

@@ -10,6 +10,7 @@ pub struct LexerCtx {
 pub enum Keyword {
     Use,
     Fn,
+    Let,
 }
 
 impl Keyword {
@@ -17,6 +18,7 @@ impl Keyword {
         match s {
             "use" => Some(Self::Use),
             "fn" => Some(Self::Fn),
+            "let" => Some(Self::Let),
             _ => None,
         }
     }
@@ -44,6 +46,7 @@ pub enum TokenType {
     Equal,                 // ==
     Plus,                  // +
     Minus,                 // -
+    RightArrow,            // ->
     Mul,                   // *
 }
 
@@ -116,6 +119,7 @@ impl Token {
                     ctx.offset += 1;
                 }
                 ':' => {
+                    // TODO: replace `peek` with `next_if_eq`?
                     let next_c = chars.peek();
                     if matches!(next_c, Some(&':')) {
                         tokens.push(TokenType::DoubleColon.new_token(ctx, 2));
@@ -180,8 +184,10 @@ impl Token {
                     if matches!(next_c, Some(&'=')) {
                         tokens.push(TokenType::Equal.new_token(ctx, 1));
                         chars.next();
+                        ctx.offset += 2;
                     } else {
                         tokens.push(TokenType::Assign.new_token(ctx, 1));
+                        ctx.offset += 1;
                     }
                 }
                 '+' => {
@@ -189,8 +195,14 @@ impl Token {
                     ctx.offset += 1;
                 }
                 '-' => {
-                    tokens.push(TokenType::Minus.new_token(ctx, 1));
-                    ctx.offset += 1
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'>')) {
+                        tokens.push(TokenType::RightArrow.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenType::Minus.new_token(ctx, 1));
+                        ctx.offset += 1;
+                    }
                 }
                 '*' => {
                     tokens.push(TokenType::Mul.new_token(ctx, 1));
@@ -231,6 +243,7 @@ mod tests {
 fn main(public_input: [fel; 3], private_input: [fel; 3]) -> [fel; 8] {
     let digest = poseidon(private_input);
     assert(digest == public_input);
+}
 "#;
 
     #[test]

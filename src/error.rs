@@ -1,10 +1,11 @@
-use miette::{Diagnostic, Result, SourceSpan};
+use miette::Diagnostic;
 use thiserror::Error;
 
 #[derive(Diagnostic, Debug, Error)]
 #[error("oops")]
 #[diagnostic(code(my_lib::random_error))]
 pub struct Error {
+    #[help]
     pub error: ErrorTy,
 
     #[label("here")]
