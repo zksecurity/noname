@@ -1,0 +1,8 @@
+use crypto::poseidon;
+
+// TODO: handle public and private inputs more gracefully
+fn main(public_input: [fel; 3], private_input: [fel; 3]) -> [fel; 8] {
+    let x3 = private_input[0] + private_input[1];
+    let x4 = 3 + x3;
+    assert(x3 == public_input[0]);
+}

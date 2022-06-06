@@ -10,7 +10,7 @@ use crate::peekable::Peekable;
 pub struct ParserCtx {
     /// Used mainly for error reporting,
     /// when we don't have a token to read
-    last_token: Option<Token>,
+    pub last_token: Option<Token>,
 }
 
 impl ParserCtx {
@@ -40,13 +40,11 @@ impl Path {
         let mut path = vec![];
         loop {
             // no token to read
-            let token = tokens.next().ok_or(Error {
+            let token = tokens.bump(ctx).ok_or(Error {
                 error: ErrorTy::InvalidPath,
                 span: ctx.last_span(),
             })?;
             ctx.last_token = Some(token.clone());
-
-            dbg!(&token);
 
             match &token.typ {
                 // a chunk of the path
@@ -74,13 +72,12 @@ impl Path {
                             typ: TokenType::DoubleColon,
                             ..
                         }) => {
-                            let token = tokens.next();
+                            let token = tokens.bump(ctx);
                             ctx.last_token = token;
                             continue;
                         }
                         // end of path
-                        x => {
-                            dbg!(x);
+                        _ => {
                             return Ok(Path(path));
                         }
                     }
@@ -103,9 +100,69 @@ impl Path {
 
 #[derive(Debug)]
 pub enum Ty {
-    Field,
-    Array(Box<Self>, usize),
-    Bool,
+    Struct(String),
+    Array(Box<Self>, u32),
+}
+
+impl Ty {
+    pub fn parse<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
+    where
+        I: Iterator<Item = Token> + Peekable,
+    {
+        let token = tokens.bump_err(ctx, ErrorTy::MissingType)?;
+
+        match token.typ {
+            // struct name
+            TokenType::AlphaNumeric_(name) => {
+                if !is_valid_fn_type(&name) {
+                    return Err(Error {
+                        error: ErrorTy::InvalidTypeName,
+                        span: token.span,
+                    });
+                }
+                Ok(Ty::Struct(name))
+            }
+
+            // array
+            // [type; size]
+            // ^
+            TokenType::LeftBracket => {
+                // [type; size]
+                //   ^
+                let ty = Box::new(Ty::parse(ctx, tokens)?);
+
+                // [type; size]
+                //         ^
+                let siz = tokens.bump_err(ctx, ErrorTy::InvalidToken)?;
+                let siz = match siz.typ {
+                    TokenType::BigInt(s) => s.parse().map_err(|_| Error {
+                        error: ErrorTy::InvalidArraySize,
+                        span: siz.span,
+                    })?,
+                    _ => {
+                        return Err(Error {
+                            error: ErrorTy::InvalidArraySize,
+                            span: siz.span,
+                        })
+                    }
+                };
+
+                // [type; size]
+                //            ^
+                let right_bracket = tokens.bump_expected(ctx, TokenType::RightBracket)?;
+
+                Ok(Ty::Array(ty, siz))
+            }
+
+            // unrecognized
+            _ => {
+                return Err(Error {
+                    error: ErrorTy::InvalidType,
+                    span: token.span,
+                })
+            }
+        }
+    }
 }
 
 //
@@ -144,32 +201,166 @@ pub struct Function {
 }
 
 impl Function {
+    pub fn parse_name<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<String, Error>
+    where
+        I: Iterator<Item = Token> + Peekable,
+    {
+        let token = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
+
+        let name = match token {
+            Token {
+                typ: TokenType::AlphaNumeric_(name),
+                ..
+            } => {
+                if is_valid_fn_name(&name) {
+                    name
+                } else {
+                    return Err(Error {
+                        error: ErrorTy::InvalidFunctionSignature,
+                        span: token.span,
+                    });
+                }
+            }
+            _ => {
+                return Err(Error {
+                    error: ErrorTy::InvalidFunctionSignature,
+                    span: token.span,
+                });
+            }
+        };
+
+        Ok(name)
+    }
+
+    pub fn parse_args<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Vec<(String, Ty)>, Error>
+    where
+        I: Iterator<Item = Token> + Peekable,
+    {
+        // (arg1: type1, arg2: type2)
+        // ^
+        let left_paren = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
+        if !matches!(left_paren.typ, TokenType::LeftParen) {
+            return Err(Error {
+                error: ErrorTy::InvalidFunctionSignature,
+                span: left_paren.span,
+            });
+        }
+
+        // (arg1: type1, arg2: type2)
+        //   ^
+        let mut args = vec![];
+        loop {
+            // arg name
+            let arg_name = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
+
+            let arg_name = match arg_name {
+                Token {
+                    typ: TokenType::AlphaNumeric_(name),
+                    ..
+                } => {
+                    if !is_valid_fn_name(&name) {
+                        return Err(Error {
+                            error: ErrorTy::InvalidFunctionSignature,
+                            span: arg_name.span,
+                        });
+                    }
+                    name
+                }
+                _ => {
+                    return Err(Error {
+                        error: ErrorTy::InvalidFunctionSignature,
+                        span: arg_name.span,
+                    })
+                }
+            };
+
+            // :
+            let colon = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
+            if matches!(colon.typ, TokenType::Colon) {
+                return Err(Error {
+                    error: ErrorTy::InvalidFunctionSignature,
+                    span: colon.span,
+                });
+            }
+
+            // type
+            let arg_typ = Ty::parse(ctx, tokens)?;
+
+            // , or )
+            let separator = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
+            match separator.typ {
+                // (arg1: type1, arg2: type2)
+                //             ^
+                TokenType::Comma => {
+                    args.push((arg_name, arg_typ));
+                }
+                // (arg1: type1, arg2: type2)
+                //                          ^
+                TokenType::RightParen => {
+                    args.push((arg_name, arg_typ));
+                    break;
+                }
+                _ => {
+                    return Err(Error {
+                        error: ErrorTy::InvalidFunctionSignature,
+                        span: separator.span,
+                    });
+                }
+            }
+        }
+
+        Ok(args)
+    }
+
     pub fn parse_fn<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
     where
         I: Iterator<Item = Token> + Peekable,
     {
-        // parse function name
-        let name = tokens.next().ok_or(Error {
-            error: ErrorTy::InvalidFunctionSignature,
-            span: ctx.last_span(),
-        })?;
-
-        // it's possible that there are no spaces: main(first_arg:type,etc.)
-        // or a bunch of spaces: main ( first_arg : type , etc. )
-        // should we enforce a single style?
+        let name = Self::parse_name(ctx, tokens)?;
+        let args = Self::parse_args(ctx, tokens)?;
+        let return_type = Self::parse_fn_return_type(ctx, tokens)?;
+        let body = Self::parse_fn_body(ctx, tokens)?;
 
         let func = Self {
-            name: todo!(),
+            name,
             arguments: vec![],
             return_type: todo!(),
             body: todo!(),
         };
-        let name = tokens.next().ok_or(Error {
+        let name = tokens.bump(ctx).ok_or(Error {
             error: ErrorTy::InvalidModule,
             span: ctx.last_span(),
         })?;
 
         Ok(func)
+    }
+}
+
+// TODO: enforce snake_case?
+pub fn is_valid_fn_name(name: &str) -> bool {
+    if let Some(first_char) = name.chars().next() {
+        // first character is not a number
+        (first_char.is_alphabetic() || first_char == '_')
+            // first character is lowercase
+            && first_char.is_lowercase()
+            // all other characters are alphanumeric or underscore
+            && name.chars().all(|c| c.is_alphanumeric() || c == '_')
+    } else {
+        false
+    }
+}
+
+// TODO: enforce CamelCase?
+pub fn is_valid_fn_type(name: &str) -> bool {
+    if let Some(first_char) = name.chars().next() {
+        // first character is not a number or alpha
+        first_char.is_alphabetic()
+            // first character is uppercase
+            && first_char.is_uppercase()
+            // all other characters are alphanumeric or underscore
+            && name.chars().all(|c| c.is_alphanumeric() || c == '_')
+    } else {
+        false
     }
 }
 
@@ -204,11 +395,11 @@ impl AST {
         I: Iterator<Item = Token> + Peekable,
     {
         let mut ast = vec![];
-        let mut ctx = ParserCtx::default();
+        let ctx = &mut ParserCtx::default();
 
         // get first token
         let mut tokens = tokens.into_iter();
-        let token = if let Some(token) = tokens.next() {
+        let token = if let Some(token) = tokens.bump(ctx) {
             token
         } else {
             return Ok(AST::default()); // empty line
@@ -217,12 +408,11 @@ impl AST {
         // match special keywords
         match &token.typ {
             TokenType::Keyword(Keyword::Use) => {
-                let path = Path::parse_path(&mut ctx, &mut tokens)?;
-                dbg!(&path);
+                let path = Path::parse_path(ctx, &mut tokens)?;
                 ast.push(Scope::Use(path));
 
                 // end of line
-                let next_token = tokens.next();
+                let next_token = tokens.bump(ctx);
                 if !matches!(
                     next_token,
                     Some(Token {
@@ -230,7 +420,6 @@ impl AST {
                         ..
                     })
                 ) {
-                    dbg!(next_token);
                     return Err(Error {
                         error: ErrorTy::InvalidEndOfLine,
                         span: token.span,
@@ -238,7 +427,7 @@ impl AST {
                 }
             }
             TokenType::Keyword(Keyword::Fn) => {
-                let func = Function::parse_fn(&mut ctx, &mut tokens)?;
+                let func = Function::parse_fn(ctx, &mut tokens)?;
                 ast.push(Scope::Function(func));
             }
             TokenType::Comment(comment) => {
@@ -253,7 +442,7 @@ impl AST {
         }
 
         // we should have parsed everything in the line
-        if let Some(token) = tokens.next() {
+        if let Some(token) = tokens.bump(ctx) {
             return Err(Error {
                 error: ErrorTy::InvalidEndOfLine,
                 span: token.span,

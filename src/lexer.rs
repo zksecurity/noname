@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::error::{Error, ErrorTy};
 
 #[derive(Default, Debug)]
@@ -24,22 +26,35 @@ impl Keyword {
     }
 }
 
+impl Display for Keyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let desc = match self {
+            Self::Use => "use",
+            Self::Fn => "fn",
+            Self::Let => "let",
+        };
+
+        write!(f, "{}", desc)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum TokenType {
     Keyword(Keyword),      // reserved keywords
     AlphaNumeric_(String), // (a-zA_Z0-9_)*
+    BigInt(String),        // (0-9)*
     Comma,                 // ,
     Colon,                 // :
     DoubleColon,           // ::
-    OpenParen,             // (
-    CloseParen,            // )
-    OpenBracket,           // [
-    CloseBracket,          // ]
-    OpenCurlyBracket,      // {
-    CloseCurlyBracket,     // }
+    LeftParen,             // (
+    RightParen,            // )
+    LeftBracket,           // [
+    RightBracket,          // ]
+    LeftCurlyBracket,      // {
+    RightCurlyBracket,     // }
     SemiColon,             // ;
     Division,              // /
-    Comment(String),       // //
+    Comment(String),       // // comment
     Greater,               // >
     Less,                  // <
     Assign,                // =
@@ -48,6 +63,40 @@ pub enum TokenType {
     Minus,                 // -
     RightArrow,            // ->
     Mul,                   // *
+    Literal,               // "thing"
+}
+
+impl Display for TokenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let desc = match self {
+            TokenType::Keyword(_) => "keyword (use, let, etc.)",
+            TokenType::AlphaNumeric_(_) => "an alphanumeric (including underscore) string",
+            TokenType::BigInt(_) => "a number",
+            TokenType::Comma => "`,`",
+            TokenType::Colon => "`:`",
+            TokenType::DoubleColon => "`::`",
+            TokenType::LeftParen => "`(`",
+            TokenType::RightParen => "`)`",
+            TokenType::LeftBracket => "`[`",
+            TokenType::RightBracket => "`]`",
+            TokenType::LeftCurlyBracket => "`{`",
+            TokenType::RightCurlyBracket => "`}`",
+            TokenType::SemiColon => "`;`",
+            TokenType::Division => "`/`",
+            TokenType::Comment(_) => "`//`",
+            TokenType::Greater => "`>`",
+            TokenType::Less => "`<`",
+            TokenType::Assign => "`=`",
+            TokenType::Equal => "`==`",
+            TokenType::Plus => "`+`",
+            TokenType::Minus => "`-`",
+            TokenType::RightArrow => "`->`",
+            TokenType::Mul => "`*`",
+            TokenType::Literal => "`\"something\"",
+        };
+
+        write!(f, "{}", desc)
+    }
 }
 
 impl TokenType {
@@ -76,7 +125,13 @@ impl Token {
             if let Some(keyword) = Keyword::parse(&thing) {
                 tokens.push(TokenType::Keyword(keyword).new_token(ctx, 1));
             } else {
-                tokens.push(TokenType::AlphaNumeric_(thing).new_token(ctx, 1));
+                // integer?
+                let len = thing.len();
+                if thing.chars().all(|c| c.is_digit(10)) {
+                    tokens.push(TokenType::BigInt(thing).new_token(ctx, len));
+                } else {
+                    tokens.push(TokenType::AlphaNumeric_(thing).new_token(ctx, len));
+                }
             }
         };
 
@@ -131,27 +186,27 @@ impl Token {
                     }
                 }
                 '(' => {
-                    tokens.push(TokenType::OpenParen.new_token(ctx, 1));
+                    tokens.push(TokenType::LeftParen.new_token(ctx, 1));
                     ctx.offset += 1;
                 }
                 ')' => {
-                    tokens.push(TokenType::CloseParen.new_token(ctx, 1));
+                    tokens.push(TokenType::RightParen.new_token(ctx, 1));
                     ctx.offset += 1;
                 }
                 '[' => {
-                    tokens.push(TokenType::OpenBracket.new_token(ctx, 1));
+                    tokens.push(TokenType::LeftBracket.new_token(ctx, 1));
                     ctx.offset += 1;
                 }
                 ']' => {
-                    tokens.push(TokenType::CloseBracket.new_token(ctx, 1));
+                    tokens.push(TokenType::RightBracket.new_token(ctx, 1));
                     ctx.offset += 1;
                 }
                 '{' => {
-                    tokens.push(TokenType::OpenCurlyBracket.new_token(ctx, 1));
+                    tokens.push(TokenType::LeftCurlyBracket.new_token(ctx, 1));
                     ctx.offset += 1;
                 }
                 '}' => {
-                    tokens.push(TokenType::CloseCurlyBracket.new_token(ctx, 1));
+                    tokens.push(TokenType::RightCurlyBracket.new_token(ctx, 1));
                     ctx.offset += 1;
                 }
                 ';' => {

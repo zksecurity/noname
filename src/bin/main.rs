@@ -9,7 +9,7 @@ fn parse(code: &str) -> Result<AST> {
 }
 
 fn main() -> Result<()> {
-    let code = std::fs::read_to_string("data/example.no")
+    let code = std::fs::read_to_string("data/poseidon.no")
         .into_diagnostic()
         .wrap_err_with(|| format!("could not read file"))?;
 
