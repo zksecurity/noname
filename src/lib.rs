@@ -1,11 +1,13 @@
 //! noname project
 
 use miette::{Diagnostic, Result, SourceSpan};
-use thiserror::Error;
 
 use error::{Error, ErrorTy};
+use lexer::Token;
 
 pub mod error;
+pub mod lexer;
+pub mod parser;
 
 #[derive(Default, Debug)]
 pub struct Context {
@@ -19,17 +21,18 @@ pub struct Path(Vec<String>);
 impl Path {
     /// Parses a path from a list of tokens.
     pub fn parse_path(
-        ctx: &Context,
-        tokens: &mut impl Iterator<Item = Token>,
+        ctx: &mut Context,
+        tokens: &mut impl Iterator<Item = TokenType>,
     ) -> Result<Self, Error> {
         let mut path = vec![];
 
+        let mut tokens = tokens.peekable();
         loop {
             let module_or_leaf = tokens.next();
 
             match module_or_leaf {
                 // a chunk of the path
-                Some(Token::AlphaNumeric_(chunk)) => {
+                Some(TokenType::AlphaNumeric_(chunk)) => {
                     if !is_valid_module(&chunk) {
                         return Err(Error {
                             error: ErrorTy::InvalidModule,
@@ -38,23 +41,30 @@ impl Path {
                     }
 
                     path.push(chunk.to_string());
+                    ctx.inline_offset += chunk.len();
 
                     // next, we expect a `::` to continue the path,
                     // or a separator, for example, `;` or `)`
-                    match tokens.next() {
+                    match tokens.peek() {
                         None => {
                             return Err(Error {
                                 error: ErrorTy::InvalidEndOfLine,
                                 span: (ctx.offset + ctx.inline_offset, 1),
                             })
                         }
-                        Some(Token::DoubleColon) => continue,
-                        Some(Token::SemiColon) => break,
-                        _ => {
+                        Some(TokenType::DoubleColon) => {
+                            tokens.next();
+                            ctx.inline_offset += 2;
+                            continue;
+                        }
+                        Some(TokenType::SemiColon) => break,
+                        x => {
+                            dbg!(&path);
+                            dbg!(x);
                             return Err(Error {
                                 error: ErrorTy::InvalidToken,
                                 span: (ctx.offset + ctx.inline_offset, 1),
-                            })
+                            });
                         }
                     }
                 }
@@ -108,7 +118,7 @@ pub struct Function {
 impl Function {
     pub fn parse_fn(
         ctx: &Context,
-        tokens: &mut impl Iterator<Item = Token>,
+        tokens: &mut impl Iterator<Item = TokenType>,
     ) -> Result<Self, Error> {
         // parse function name
         let name = tokens.next().ok_or(Error {
@@ -156,151 +166,11 @@ pub fn parse(code: &'static str) -> Result<Vec<Root>, Error> {
 
     for line in code.lines() {
         parse_line(&mut ctx, &mut root, line)?;
-        println!("yo");
         ctx.offset += line.len();
         ctx.inline_offset = 0;
-        dbg!(&ctx);
     }
 
     Ok(root)
-}
-
-#[derive(Debug)]
-pub enum Keyword {
-    Use,
-    Fn,
-}
-
-impl Keyword {
-    pub fn parse(s: &str) -> Option<Self> {
-        match s {
-            "use" => Some(Self::Use),
-            "fn" => Some(Self::Fn),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum Token {
-    Keyword(Keyword),
-    AlphaNumeric_(String), // (a-zA_Z0-9_)*
-    Comma,                 // ,
-    Colon,                 // :
-    DoubleColon,           // ::
-    OpenParen,             // (
-    CloseParen,            // )
-    OpenBracket,           // [
-    CloseBracket,          // ]
-    OpenCurlyBracket,      // {
-    CloseCurlyBracket,     // }
-    SemiColon,             // ;
-    Division,              // /
-    Comment,               // //
-    Greater,               // >
-    Less,                  // <
-    Assign,                // =
-    Equal,                 // ==
-    Plus,                  // +
-    Minus,                 // -
-    Mul,                   // *
-}
-
-impl Token {
-    /// No whitespace expected from the argument. This function is called by [Token::parse] internally.
-    fn parse_(ctx: &mut Context, s: &str) -> Result<Vec<Self>, Error> {
-        let mut tokens = vec![];
-        let mut thing = None;
-
-        let mut chars = s.chars().peekable();
-        loop {
-            let c = if let Some(c) = chars.next() { c } else { break };
-
-            let is_alphanumeric = c.is_alphanumeric() || c == '_';
-            match (is_alphanumeric, &mut thing) {
-                (true, None) => {
-                    thing = Some(c.to_string());
-                    continue;
-                }
-                (true, Some(ref mut thing)) => {
-                    thing.push(c);
-                    continue;
-                }
-                (false, Some(_)) => {
-                    let thing = thing.take().unwrap();
-                    if let Some(keyword) = Keyword::parse(&thing) {
-                        tokens.push(Token::Keyword(keyword));
-                    } else {
-                        tokens.push(Token::AlphaNumeric_(thing));
-                    }
-                }
-                (false, None) => (),
-            }
-
-            match c {
-                ',' => tokens.push(Token::Comma),
-                ':' => {
-                    let next_c = chars.peek();
-                    if matches!(next_c, Some(&':')) {
-                        tokens.push(Token::Colon);
-                        chars.next();
-                    } else {
-                        tokens.push(Token::DoubleColon)
-                    }
-                }
-                '(' => tokens.push(Token::OpenParen),
-                ')' => tokens.push(Token::CloseParen),
-                '[' => tokens.push(Token::OpenBracket),
-                ']' => tokens.push(Token::CloseBracket),
-                '{' => tokens.push(Token::OpenCurlyBracket),
-                '}' => tokens.push(Token::CloseCurlyBracket),
-                ';' => tokens.push(Token::SemiColon),
-                '/' => {
-                    let next_c = chars.peek();
-                    if matches!(next_c, Some(&'/')) {
-                        tokens.push(Token::Comment);
-                        chars.next();
-                    } else {
-                        tokens.push(Token::Division);
-                    }
-                }
-                '>' => tokens.push(Token::Greater),
-                '<' => tokens.push(Token::Less),
-                '=' => {
-                    let next_c = chars.peek();
-                    if matches!(next_c, Some(&'=')) {
-                        tokens.push(Token::Equal);
-                        chars.next();
-                    } else {
-                        tokens.push(Token::Assign);
-                    }
-                }
-                '+' => tokens.push(Token::Plus),
-                '-' => tokens.push(Token::Minus),
-                '*' => tokens.push(Token::Mul),
-                _ => {
-                    return Err(Error {
-                        error: ErrorTy::InvalidToken,
-                        span: (ctx.offset + ctx.inline_offset, 1),
-                    })
-                }
-            }
-        }
-
-        Ok(tokens)
-    }
-
-    pub fn parse(ctx: &mut Context, line: &str) -> Result<Vec<Self>, Error> {
-        let line = line.trim();
-        let blocks = line.split_whitespace();
-
-        let mut tokens = vec![];
-        for block in blocks {
-            tokens.extend(Self::parse_(ctx, block)?);
-        }
-
-        Ok(tokens)
-    }
 }
 
 pub fn parse_line(
@@ -309,7 +179,9 @@ pub fn parse_line(
     line: &'static str,
 ) -> Result<(), Error> {
     // parse tokens as vec
-    let mut tokens = Token::parse(ctx, line)?.into_iter().peekable();
+    let tokens = TokenType::parse(ctx, line)?;
+
+    let mut tokens = tokens.into_iter().peekable();
 
     // get first token
     let token = if let Some(token) = tokens.next() {
@@ -320,31 +192,34 @@ pub fn parse_line(
 
     // match special keywords
     match token {
-        Token::Keyword(Keyword::Use) => {
+        TokenType::Keyword(Keyword::Use) => {
+            ctx.inline_offset += 4;
             let path = Path::parse_path(ctx, &mut tokens)?;
             root.push(Root::Use(path));
 
             // end of line
-            if !matches!(tokens.next(), Some(Token::SemiColon)) {
+            if matches!(tokens.next(), Some(TokenType::SemiColon)) {
+                ctx.inline_offset += 1;
+            } else {
                 return Err(Error {
                     error: ErrorTy::InvalidEndOfLine,
                     span: (ctx.offset + ctx.inline_offset, 1),
                 });
             }
         }
-        Token::Keyword(Keyword::Fn) => {
+        TokenType::Keyword(Keyword::Fn) => {
             let func = Function::parse_fn(ctx, &mut tokens)?;
             root.push(Root::Function(func));
         }
-        Token::Comment => {
+        TokenType::Comment => {
             let comment = if line.len() < 3 { "" } else { &line[3..] };
             root.push(Root::Comment(comment.to_string()));
         }
-        _ => {
+        x => {
             return Err(Error {
                 error: ErrorTy::InvalidToken,
                 span: (ctx.offset + ctx.inline_offset, 1),
-            })
+            });
         }
     }
 
