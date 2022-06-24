@@ -17,27 +17,21 @@ pub struct Error {
 #[derive(Error, Diagnostic, Debug)]
 pub enum ErrorTy {
     #[error("invalid token")]
-    #[diagnostic(code(my_lib::io_error))]
     InvalidToken,
 
     #[error("missing type")]
-    #[diagnostic(code(my_lib::io_error))]
     MissingType,
 
     #[error("missing token")]
-    #[diagnostic(code(my_lib::io_error))]
     MissingToken,
 
     #[error("invalid token, expected: {0}")]
-    #[diagnostic(code(my_lib::io_error))]
     ExpectedToken(TokenType),
 
     #[error("invalid path")]
-    #[diagnostic(code(my_lib::io_error))]
     InvalidPath,
 
     #[error("invalid end of line")]
-    #[diagnostic(code(my_lib::io_error))]
     InvalidEndOfLine,
 
     #[error("invalid module")]

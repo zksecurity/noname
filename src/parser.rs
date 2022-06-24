@@ -1,6 +1,8 @@
-use crate::error::{Error, ErrorTy};
-use crate::lexer::{Keyword, Token, TokenType};
-use crate::peekable::Peekable;
+use crate::{
+    error::{Error, ErrorTy},
+    lexer::{Keyword, Token, TokenType},
+    tokens::Tokens,
+};
 
 //
 // Context
@@ -33,10 +35,7 @@ pub struct Path(Vec<String>);
 
 impl Path {
     /// Parses a path from a list of tokens.
-    pub fn parse_path<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
-    where
-        I: Iterator<Item = Token> + Peekable,
-    {
+    pub fn parse_path(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let mut path = vec![];
         loop {
             // no token to read
@@ -113,10 +112,7 @@ pub enum Ty {
 }
 
 impl Ty {
-    pub fn parse<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
-    where
-        I: Iterator<Item = Token> + Peekable,
-    {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let token = tokens.bump_err(ctx, ErrorTy::MissingType)?;
 
         match token.typ {
@@ -223,10 +219,7 @@ pub enum Op2 {
 }
 
 impl Op2 {
-    pub fn parse_maybe<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Option<Self>
-    where
-        I: Iterator<Item = Token> + Peekable,
-    {
+    pub fn parse_maybe(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Option<Self> {
         let token = tokens.peek()?;
 
         match token.typ {
@@ -241,10 +234,7 @@ impl Op2 {
 
 impl Expression {
     /// Parses until it finds something it doesn't know, then returns without consuming the token it doesn't know (the caller will have to make sense of it)
-    pub fn parse<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
-    where
-        I: Iterator<Item = Token> + Peekable,
-    {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let token = tokens.bump_err(ctx, ErrorTy::MissingExpression)?;
         let lhs = match token.typ {
             // numeric
@@ -254,9 +244,15 @@ impl Expression {
             TokenType::Identifier(ident) => {
                 // could be array access, fn call
                 let peeked = match tokens.peek() {
-                    None => panic!("woot"),
+                    None => {
+                        return Err(Error {
+                            error: ErrorTy::InvalidEndOfLine,
+                            span: ctx.last_span(),
+                        })
+                    }
                     Some(x) => x,
                 };
+                dbg!(&peeked);
 
                 match peeked.typ {
                     // array access
@@ -270,14 +266,18 @@ impl Expression {
                         let mut args = vec![];
                         loop {
                             let arg = Expression::parse(ctx, tokens)?;
+                            dbg!(&arg);
                             args.push(arg);
 
-                            match tokens.peek() {
+                            let pp = tokens.peek();
+                            dbg!(&pp);
+                            match pp {
                                 Some(x) => match x.typ {
                                     TokenType::Comma => {
                                         tokens.bump(ctx);
                                     }
                                     TokenType::RightParen => {
+                                        dbg!("yes");
                                         tokens.bump(ctx);
                                         break;
                                     }
@@ -297,6 +297,7 @@ impl Expression {
                         }
                     }
                     _ => {
+                        dbg!("here here");
                         // just a variable
                         Expression::Identifier(ident)
                     }
@@ -359,10 +360,7 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn parse_name<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<String, Error>
-    where
-        I: Iterator<Item = Token> + Peekable,
-    {
+    pub fn parse_name(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<String, Error> {
         let token = tokens.bump_err(
             ctx,
             ErrorTy::InvalidFunctionSignature("expected function name"),
@@ -384,13 +382,10 @@ impl Function {
         Ok(name)
     }
 
-    pub fn parse_args<I>(
+    pub fn parse_args(
         ctx: &mut ParserCtx,
-        tokens: &mut I,
-    ) -> Result<Vec<(bool, String, Ty)>, Error>
-    where
-        I: Iterator<Item = Token> + Peekable,
-    {
+        tokens: &mut Tokens,
+    ) -> Result<Vec<(bool, String, Ty)>, Error> {
         // (pub arg1: type1, arg2: type2)
         // ^
         tokens.bump_expected(ctx, TokenType::LeftParen)?;
@@ -460,10 +455,10 @@ impl Function {
         Ok(args)
     }
 
-    pub fn parse_fn_return_type<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Option<Ty>, Error>
-    where
-        I: Iterator<Item = Token> + Peekable,
-    {
+    pub fn parse_fn_return_type(
+        ctx: &mut ParserCtx,
+        tokens: &mut Tokens,
+    ) -> Result<Option<Ty>, Error> {
         match tokens.peek() {
             Some(Token {
                 typ: TokenType::LeftCurlyBracket,
@@ -480,10 +475,10 @@ impl Function {
         Ok(Some(return_type))
     }
 
-    pub fn parse_fn_body<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Vec<Statement>, Error>
-    where
-        I: Iterator<Item = Token> + Peekable,
-    {
+    pub fn parse_fn_body(
+        ctx: &mut ParserCtx,
+        tokens: &mut Tokens,
+    ) -> Result<Vec<Statement>, Error> {
         let mut body = vec![];
 
         tokens.bump_expected(ctx, TokenType::LeftCurlyBracket)?;
@@ -511,10 +506,7 @@ impl Function {
     }
 
     /// Parse a function, without the `fn` keyword.
-    pub fn parse<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
-    where
-        I: Iterator<Item = Token> + Peekable,
-    {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let name = Self::parse_name(ctx, tokens)?;
         let arguments = Self::parse_args(ctx, tokens)?;
         let return_type = Self::parse_fn_return_type(ctx, tokens)?;
@@ -573,10 +565,7 @@ pub enum Statement {
 
 impl Statement {
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
-    pub fn parse<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
-    where
-        I: Iterator<Item = Token> + Peekable,
-    {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let token = tokens.bump_err(ctx, ErrorTy::InvalidStatement)?;
 
         match token.typ {
@@ -636,13 +625,9 @@ pub enum Scope {
 pub struct AST(Vec<Scope>);
 
 impl AST {
-    pub fn parse<I>(tokens: I) -> Result<AST, Error>
-    where
-        I: Iterator<Item = Token> + Peekable,
-    {
+    pub fn parse(mut tokens: Tokens) -> Result<AST, Error> {
         let mut ast = vec![];
         let ctx = &mut ParserCtx::default();
-        let mut tokens = tokens.into_iter();
 
         // get first token
         loop {
@@ -705,10 +690,7 @@ pub fn is_valid_module(module: &str) -> bool {
 
 // maybe should be implemented on token?
 
-pub fn parse_ident<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<String, Error>
-where
-    I: Iterator<Item = Token> + Peekable,
-{
+pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<String, Error> {
     let token = tokens.bump_err(ctx, ErrorTy::MissingToken)?;
     match token.typ {
         TokenType::Identifier(ident) => Ok(ident),
@@ -721,15 +703,23 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::peekable::Tokens;
+    use crate::tokens::Tokens;
 
     use super::*;
 
     #[test]
     fn fn_signature() {
         let code = r#"main(pub public_input: [Fel; 3], private_input: [Fel; 3]) -> [Fel; 8] { }"#;
-        let tokens = &mut Tokens::new(Token::parse(code).unwrap().into_iter());
+        let tokens = &mut Token::parse(code).unwrap();
         let ctx = &mut ParserCtx::default();
         Function::parse(ctx, tokens).unwrap();
+    }
+
+    #[test]
+    fn statement() {
+        let code = r#"let digest = poseidon(private_input);"#;
+        let tokens = &mut Token::parse(code).unwrap();
+        let ctx = &mut ParserCtx::default();
+        Statement::parse(ctx, tokens).unwrap();
     }
 }

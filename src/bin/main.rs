@@ -1,9 +1,8 @@
 use miette::{IntoDiagnostic, Result, WrapErr};
-use my_programming_language::{lexer::Token, parser::AST, peekable::Tokens};
+use my_programming_language::{lexer::Token, parser::AST};
 
 fn parse(code: &str) -> Result<AST> {
     let tokens = Token::parse(code)?;
-    let tokens = Tokens::new(tokens.into_iter());
     let ast = AST::parse(tokens)?;
     Ok(ast)
 }

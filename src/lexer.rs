@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::error::{Error, ErrorTy};
+use crate::{
+    error::{Error, ErrorTy},
+    tokens::Tokens,
+};
 
 #[derive(Default, Debug)]
 pub struct LexerCtx {
@@ -311,7 +314,7 @@ impl Token {
         Ok(tokens)
     }
 
-    pub fn parse(code: &str) -> Result<Vec<Self>, Error> {
+    pub fn parse(code: &str) -> Result<Tokens, Error> {
         let mut ctx = LexerCtx::default();
         let mut tokens = vec![];
 
@@ -321,7 +324,7 @@ impl Token {
             tokens.extend(line_tokens);
         }
 
-        Ok(tokens)
+        Ok(Tokens::new(tokens))
     }
 }
 
