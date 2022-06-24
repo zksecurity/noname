@@ -639,57 +639,50 @@ impl AST {
     {
         let mut ast = vec![];
         let ctx = &mut ParserCtx::default();
+        let mut tokens = tokens.into_iter();
 
         // get first token
-        let mut tokens = tokens.into_iter();
-        let token = if let Some(token) = tokens.bump(ctx) {
-            token
-        } else {
-            return Ok(AST::default()); // empty line
-        };
+        loop {
+            let token = match tokens.bump(ctx) {
+                Some(token) => token,
+                None => break,
+            };
 
-        // match special keywords
-        match &token.typ {
-            TokenType::Keyword(Keyword::Use) => {
-                let path = Path::parse_path(ctx, &mut tokens)?;
-                ast.push(Scope::Use(path));
+            // match special keywords
+            match &token.typ {
+                TokenType::Keyword(Keyword::Use) => {
+                    let path = Path::parse_path(ctx, &mut tokens)?;
+                    ast.push(Scope::Use(path));
 
-                // end of line
-                let next_token = tokens.bump(ctx);
-                if !matches!(
-                    next_token,
-                    Some(Token {
-                        typ: TokenType::SemiColon,
-                        ..
-                    })
-                ) {
+                    // end of line
+                    let next_token = tokens.bump(ctx);
+                    if !matches!(
+                        next_token,
+                        Some(Token {
+                            typ: TokenType::SemiColon,
+                            ..
+                        })
+                    ) {
+                        return Err(Error {
+                            error: ErrorTy::InvalidEndOfLine,
+                            span: token.span,
+                        });
+                    }
+                }
+                TokenType::Keyword(Keyword::Fn) => {
+                    let func = Function::parse_fn(ctx, &mut tokens)?;
+                    ast.push(Scope::Function(func));
+                }
+                TokenType::Comment(comment) => {
+                    ast.push(Scope::Comment(comment.clone()));
+                }
+                _ => {
                     return Err(Error {
-                        error: ErrorTy::InvalidEndOfLine,
+                        error: ErrorTy::InvalidToken,
                         span: token.span,
                     });
                 }
             }
-            TokenType::Keyword(Keyword::Fn) => {
-                let func = Function::parse_fn(ctx, &mut tokens)?;
-                ast.push(Scope::Function(func));
-            }
-            TokenType::Comment(comment) => {
-                ast.push(Scope::Comment(comment.clone()));
-            }
-            _ => {
-                return Err(Error {
-                    error: ErrorTy::InvalidToken,
-                    span: token.span,
-                });
-            }
-        }
-
-        // we should have parsed everything in the line
-        if let Some(token) = tokens.bump(ctx) {
-            return Err(Error {
-                error: ErrorTy::InvalidEndOfLine,
-                span: token.span,
-            });
         }
 
         Ok(Self(ast))

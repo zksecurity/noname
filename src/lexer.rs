@@ -116,8 +116,6 @@ impl Display for TokenType {
 
 impl TokenType {
     pub fn new_token(self, ctx: &mut LexerCtx, len: usize) -> Token {
-        dbg!(&self, ctx.offset, len);
-
         let token = Token {
             typ: self,
             span: (ctx.offset, len),
@@ -158,10 +156,8 @@ impl Token {
                     if !ident_or_number.chars().next().unwrap().is_alphabetic()
                         || !ident_or_number
                             .chars()
-                            .all(|c| (c.is_alphanumeric() || c == '_') && c.is_lowercase())
+                            .all(|c| (c.is_alphanumeric() && c.is_lowercase()) || c == '_')
                     {
-                        dbg!(tokens);
-                        dbg!(ident_or_number);
                         return Err(Error {
                             error: ErrorTy::InvalidIdentifier,
                             span: (ctx.offset, 1),
