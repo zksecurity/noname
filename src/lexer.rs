@@ -115,11 +115,17 @@ impl Display for TokenType {
 }
 
 impl TokenType {
-    pub fn new_token(self, ctx: &LexerCtx, len: usize) -> Token {
-        Token {
+    pub fn new_token(self, ctx: &mut LexerCtx, len: usize) -> Token {
+        dbg!(&self, ctx.offset, len);
+
+        let token = Token {
             typ: self,
             span: (ctx.offset, len),
-        }
+        };
+
+        ctx.offset += len;
+
+        token
     }
 }
 
@@ -134,35 +140,39 @@ impl Token {
         let mut tokens = vec![];
 
         // keep track of variables
-        let mut thing: Option<String> = None;
-        let add_thing =
-            |ctx: &mut LexerCtx, tokens: &mut Vec<_>, thing: String| -> Result<(), Error> {
-                ctx.offset += thing.len();
-                if let Some(keyword) = Keyword::parse(&thing) {
-                    tokens.push(TokenType::Keyword(keyword).new_token(ctx, 1));
-                } else {
-                    // integer?
-                    let len = thing.len();
-                    if thing.chars().all(|c| c.is_digit(10)) {
-                        tokens.push(TokenType::BigInt(thing).new_token(ctx, len));
-                    } else {
-                        // valid identifier?
-                        if !thing.chars().next().unwrap().is_alphabetic()
-                            || !thing
-                                .chars()
-                                .all(|c| (c.is_alphanumeric() || c == '_') && c.is_lowercase())
-                        {
-                            return Err(Error {
-                                error: ErrorTy::InvalidIdentifier,
-                                span: (ctx.offset, 1),
-                            });
-                        }
+        let mut ident_or_number: Option<String> = None;
 
-                        tokens.push(TokenType::Identifier(thing).new_token(ctx, len));
+        let add_thing = |ctx: &mut LexerCtx,
+                         tokens: &mut Vec<_>,
+                         ident_or_number: String|
+         -> Result<(), Error> {
+            let len = ident_or_number.len();
+            if let Some(keyword) = Keyword::parse(&ident_or_number) {
+                tokens.push(TokenType::Keyword(keyword).new_token(ctx, len));
+            } else {
+                // integer?
+                if ident_or_number.chars().all(|c| c.is_digit(10)) {
+                    tokens.push(TokenType::BigInt(ident_or_number).new_token(ctx, len));
+                } else {
+                    // valid identifier?
+                    if !ident_or_number.chars().next().unwrap().is_alphabetic()
+                        || !ident_or_number
+                            .chars()
+                            .all(|c| (c.is_alphanumeric() || c == '_') && c.is_lowercase())
+                    {
+                        dbg!(tokens);
+                        dbg!(ident_or_number);
+                        return Err(Error {
+                            error: ErrorTy::InvalidIdentifier,
+                            span: (ctx.offset, 1),
+                        });
                     }
+
+                    tokens.push(TokenType::Identifier(ident_or_number).new_token(ctx, len));
                 }
-                Ok(())
-            };
+            }
+            Ok(())
+        };
 
         // go through line char by char
         let mut chars = line.chars().peekable();
@@ -172,35 +182,32 @@ impl Token {
             let c = if let Some(c) = chars.next() {
                 c
             } else {
-                // if no next char, don't forget to add the last thing we saw
+                // if no next char, don't forget to add the last ident_or_number we saw
 
-                if let Some(thing) = thing {
-                    add_thing(ctx, &mut tokens, thing)?;
+                if let Some(ident_or_number) = ident_or_number {
+                    add_thing(ctx, &mut tokens, ident_or_number)?;
                 }
                 break;
             };
 
-            let is_alphanumeric = c.is_alphanumeric() || c == '_';
-            match (is_alphanumeric, &mut thing) {
-                (true, None) => {
-                    thing = Some(c.to_string());
-                    continue;
+            // where we in the middle of parsing an ident or number?
+            if !c.is_alphanumeric() && c != '_' {
+                if let Some(ident_or_number) = ident_or_number.take() {
+                    add_thing(ctx, &mut tokens, ident_or_number)?;
                 }
-                (true, Some(ref mut thing)) => {
-                    thing.push(c);
-                    continue;
-                }
-                (false, Some(_)) => {
-                    let thing = thing.take().unwrap();
-                    add_thing(ctx, &mut tokens, thing)?;
-                }
-                (false, None) => (),
             }
 
+            // other type of token
             match c {
+                c if c.is_alphanumeric() || c == '_' => {
+                    if let Some(ref mut ident_or_number) = &mut ident_or_number {
+                        ident_or_number.push(c);
+                    } else {
+                        ident_or_number = Some(c.to_string());
+                    }
+                }
                 ',' => {
                     tokens.push(TokenType::Comma.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 ':' => {
                     // TODO: replace `peek` with `next_if_eq`?
@@ -208,75 +215,60 @@ impl Token {
                     if matches!(next_c, Some(&':')) {
                         tokens.push(TokenType::DoubleColon.new_token(ctx, 2));
                         chars.next();
-                        ctx.offset += 2;
                     } else {
                         tokens.push(TokenType::Colon.new_token(ctx, 1));
-                        ctx.offset += 1;
                     }
                 }
                 '(' => {
                     tokens.push(TokenType::LeftParen.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 ')' => {
                     tokens.push(TokenType::RightParen.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 '[' => {
                     tokens.push(TokenType::LeftBracket.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 ']' => {
                     tokens.push(TokenType::RightBracket.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 '{' => {
                     tokens.push(TokenType::LeftCurlyBracket.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 '}' => {
                     tokens.push(TokenType::RightCurlyBracket.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 ';' => {
                     tokens.push(TokenType::SemiColon.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 '/' => {
                     let next_c = chars.peek();
                     if matches!(next_c, Some(&'/')) {
                         // TODO: why can't I call chars.as_str().to_string()
                         let comment = chars.collect::<String>();
-                        ctx.offset += comment.len();
-                        tokens.push(TokenType::Comment(comment).new_token(ctx, 2));
+                        let len = comment.len();
+                        tokens.push(TokenType::Comment(comment).new_token(ctx, 2 + len));
                         break;
                     } else {
                         tokens.push(TokenType::Slash.new_token(ctx, 1));
-                        ctx.offset += 1;
                     }
                 }
                 '>' => {
                     tokens.push(TokenType::Greater.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 '<' => {
                     tokens.push(TokenType::Less.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 '=' => {
                     let next_c = chars.peek();
                     if matches!(next_c, Some(&'=')) {
-                        tokens.push(TokenType::Equal.new_token(ctx, 1));
+                        tokens.push(TokenType::Equal.new_token(ctx, 2));
                         chars.next();
-                        ctx.offset += 2;
                     } else {
                         tokens.push(TokenType::Assign.new_token(ctx, 1));
-                        ctx.offset += 1;
                     }
                 }
                 '+' => {
                     tokens.push(TokenType::Plus.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 '-' => {
                     let next_c = chars.peek();
@@ -285,12 +277,10 @@ impl Token {
                         chars.next();
                     } else {
                         tokens.push(TokenType::Minus.new_token(ctx, 1));
-                        ctx.offset += 1;
                     }
                 }
                 '*' => {
                     tokens.push(TokenType::Star.new_token(ctx, 1));
-                    ctx.offset += 1;
                 }
                 ' ' => ctx.offset += 1,
                 _ => {
@@ -311,6 +301,7 @@ impl Token {
 
         for line in code.lines() {
             let line_tokens = Token::parse_line(&mut ctx, line)?;
+            ctx.offset += 1; // newline
             tokens.extend(line_tokens);
         }
 
