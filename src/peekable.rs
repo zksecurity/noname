@@ -40,8 +40,10 @@ pub trait Peekable: Iterator {
     fn bump(&mut self, ctx: &mut ParserCtx) -> Option<Token>;
 
     /// Returns the next token or errors with `err` pointing to the latest token
+    #[must_use]
     fn bump_err(&mut self, ctx: &mut ParserCtx, err: ErrorTy) -> Result<Token, Error>;
 
+    #[must_use]
     fn bump_expected(&mut self, ctx: &mut ParserCtx, typ: TokenType) -> Result<Token, Error>;
 }
 

@@ -1,6 +1,6 @@
 use crypto::poseidon;
 
-fn main(pub public_input: [fel; 3], private_input: [fel; 3]) -> [fel; 8] {
+fn main(pub public_input: [Field; 3], private_input: [Field; 3]) -> [Field; 8] {
     let digest = poseidon(private_input);
     assert(digest == public_input);
 }

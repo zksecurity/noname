@@ -18,7 +18,9 @@ pub enum Keyword {
     Let,
     /// Public input
     Pub,
+    /// Return from a function
     Return,
+    /// Assert a condition
     Assert,
 }
 
@@ -55,6 +57,7 @@ impl Display for Keyword {
 pub enum TokenType {
     Keyword(Keyword),   // reserved keywords
     Identifier(String), // [a-z_](a-z0-9_)*
+    Type(String),       // [A-Z](a-zA-Z0-9)*
     BigInt(String),     // (0-9)*
     Comma,              // ,
     Colon,              // :
@@ -86,6 +89,7 @@ impl Display for TokenType {
             TokenType::Identifier(_) => {
                 "a lowercase alphanumeric (including underscore) string starting with a letter"
             }
+            TokenType::Type(_) => "an alphanumeric string starting with an uppercase letter",
             TokenType::BigInt(_) => "a number",
             TokenType::Comma => "`,`",
             TokenType::Colon => "`:`",
@@ -133,6 +137,28 @@ pub struct Token {
     pub span: (usize, usize),
 }
 
+fn is_numeric(s: &str) -> bool {
+    s.chars().all(|c| c.is_digit(10))
+}
+
+fn is_identifier(s: &str) -> bool {
+    // first char is a letter
+    s.chars().next().unwrap().is_alphabetic()
+    // rest are lowercase alphanumeric or underscore
+        && s.chars()
+            .all(|c| (c.is_alphanumeric() && c.is_lowercase()) || c == '_')
+}
+
+fn is_type(s: &str) -> bool {
+    let first_char = s.chars().next().unwrap();
+    // first char is an uppercase letter
+    // rest are lowercase alphanumeric
+    first_char.is_alphabetic()
+        && first_char.is_uppercase()
+        && s.chars().all(|c| (c.is_alphanumeric()))
+    // TODO: check camel case?
+}
+
 impl Token {
     fn parse_line(ctx: &mut LexerCtx, line: &str) -> Result<Vec<Self>, Error> {
         let mut tokens = vec![];
@@ -148,23 +174,17 @@ impl Token {
             if let Some(keyword) = Keyword::parse(&ident_or_number) {
                 tokens.push(TokenType::Keyword(keyword).new_token(ctx, len));
             } else {
-                // integer?
-                if ident_or_number.chars().all(|c| c.is_digit(10)) {
+                if is_numeric(&ident_or_number) {
                     tokens.push(TokenType::BigInt(ident_or_number).new_token(ctx, len));
-                } else {
-                    // valid identifier?
-                    if !ident_or_number.chars().next().unwrap().is_alphabetic()
-                        || !ident_or_number
-                            .chars()
-                            .all(|c| (c.is_alphanumeric() && c.is_lowercase()) || c == '_')
-                    {
-                        return Err(Error {
-                            error: ErrorTy::InvalidIdentifier,
-                            span: (ctx.offset, 1),
-                        });
-                    }
-
+                } else if is_identifier(&ident_or_number) {
                     tokens.push(TokenType::Identifier(ident_or_number).new_token(ctx, len));
+                } else if is_type(&ident_or_number) {
+                    tokens.push(TokenType::Type(ident_or_number).new_token(ctx, len));
+                } else {
+                    return Err(Error {
+                        error: ErrorTy::InvalidIdentifier,
+                        span: (ctx.offset, 1),
+                    });
                 }
             }
             Ok(())

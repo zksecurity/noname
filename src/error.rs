@@ -4,8 +4,8 @@ use thiserror::Error;
 use crate::lexer::TokenType;
 
 #[derive(Diagnostic, Debug, Error)]
-#[error("oops")]
-#[diagnostic(code(my_lib::random_error))]
+#[error("Parsing error")]
+#[diagnostic()]
 pub struct Error {
     #[help]
     pub error: ErrorTy,
@@ -43,8 +43,8 @@ pub enum ErrorTy {
     #[error("invalid module")]
     InvalidModule,
 
-    #[error("invalid function signature")]
-    InvalidFunctionSignature,
+    #[error("invalid function signature: {0}")]
+    InvalidFunctionSignature(&'static str),
 
     #[error("invalid function name")]
     InvalidFunctionName,
@@ -52,7 +52,7 @@ pub enum ErrorTy {
     #[error("invalid type name")]
     InvalidTypeName,
 
-    #[error("invalid type")]
+    #[error("invalid type, expected an array or a type name (starting with an uppercase letter, and only containing alphanumeric characters)")]
     InvalidType,
 
     #[error("invalid array size")]

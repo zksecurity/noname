@@ -94,9 +94,17 @@ impl Path {
     }
 }
 
-//
-// Type
-//
+//~
+//~ ## Type
+//~
+//~ Backus–Naur Form (BNF) grammar:
+//~
+//~ type ::=
+//~     | /[A-Z] (A-Za-z0-9)*/
+//~     | "[" type ";" numeric "]"
+//~
+//~ numeric ::= /[0-9]+/
+//~
 
 #[derive(Debug)]
 pub enum Ty {
@@ -113,15 +121,7 @@ impl Ty {
 
         match token.typ {
             // struct name
-            TokenType::Identifier(name) => {
-                if !is_valid_fn_type(&name) {
-                    return Err(Error {
-                        error: ErrorTy::InvalidTypeName,
-                        span: token.span,
-                    });
-                }
-                Ok(Ty::Struct(name))
-            }
+            TokenType::Type(name) => Ok(Ty::Struct(name)),
 
             // array
             // [type; size]
@@ -132,24 +132,29 @@ impl Ty {
                 let ty = Box::new(Ty::parse(ctx, tokens)?);
 
                 // [type; size]
+                //      ^
+                tokens.bump_expected(ctx, TokenType::SemiColon)?;
+
+                // [type; size]
                 //         ^
                 let siz = tokens.bump_err(ctx, ErrorTy::InvalidToken)?;
                 let siz = match siz.typ {
-                    TokenType::BigInt(s) => s.parse().map_err(|_| Error {
+                    TokenType::BigInt(s) => s.parse().map_err(|_e| Error {
                         error: ErrorTy::InvalidArraySize,
                         span: siz.span,
                     })?,
-                    _ => {
+                    typ => {
+                        dbg!(typ);
                         return Err(Error {
-                            error: ErrorTy::InvalidArraySize,
+                            error: ErrorTy::ExpectedToken(TokenType::BigInt("".to_string())),
                             span: siz.span,
-                        })
+                        });
                     }
                 };
 
                 // [type; size]
                 //            ^
-                let right_bracket = tokens.bump_expected(ctx, TokenType::RightBracket)?;
+                tokens.bump_expected(ctx, TokenType::RightBracket)?;
 
                 Ok(Ty::Array(ty, siz))
             }
@@ -184,8 +189,6 @@ impl Ty {
 //~ fn_call ::= ident "(" expr { "," expr } ")"
 //~ array_access ::= ident "[" expr "]"
 //~
-//~ powexpr ::= "-" powexpr | "+" powexpr | atom [ "^" powexpr ]
-//~ atom ::= ident [ "(" expr ")" ] | numeric | "(" expr ")"
 #[derive(Debug)]
 pub enum ComparisonOp {
     LessThan,
@@ -259,7 +262,7 @@ impl Expression {
                     // array access
                     TokenType::LeftBracket => {
                         let expr = Expression::parse(ctx, tokens)?;
-                        let right_bracket = tokens.bump_expected(ctx, TokenType::RightBracket)?;
+                        tokens.bump_expected(ctx, TokenType::RightBracket)?;
                         Expression::ArrayAccess(ident, Box::new(expr))
                     }
                     // fn call
@@ -309,7 +312,7 @@ impl Expression {
             // parenthesis
             TokenType::LeftParen => {
                 let expr = Expression::parse(ctx, tokens)?;
-                let right_paren = tokens.bump_expected(ctx, TokenType::RightParen)?;
+                tokens.bump_expected(ctx, TokenType::RightParen)?;
                 expr
             }
 
@@ -332,15 +335,26 @@ impl Expression {
     }
 }
 
-//
-// Function
-//
+//~
+//~ ## Functions
+//~
+//~ Backus–Naur Form (BNF) grammar:
+//~
+//~ fn ::= ident "(" param { "," param } ")" [ return_val ] "{" { stmt ";" } "}"
+//~ return_val ::= "->" type
+//~ parm ::= { "pub" } ident ":" type
+//~ stmt ::= ...
+//~
 
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
-    pub arguments: Vec<(String, Ty)>,
+
+    /// (pub, ident, type)
+    pub arguments: Vec<(bool, String, Ty)>,
+
     pub return_type: Option<Ty>,
+
     pub body: Vec<Statement>,
 }
 
@@ -349,25 +363,19 @@ impl Function {
     where
         I: Iterator<Item = Token> + Peekable,
     {
-        let token = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
+        let token = tokens.bump_err(
+            ctx,
+            ErrorTy::InvalidFunctionSignature("expected function name"),
+        )?;
 
         let name = match token {
             Token {
                 typ: TokenType::Identifier(name),
                 ..
-            } => {
-                if is_valid_fn_name(&name) {
-                    name
-                } else {
-                    return Err(Error {
-                        error: ErrorTy::InvalidFunctionSignature,
-                        span: token.span,
-                    });
-                }
-            }
+            } => name,
             _ => {
                 return Err(Error {
-                    error: ErrorTy::InvalidFunctionSignature,
+                    error: ErrorTy::InvalidFunctionSignature("expected function name to be lowercase alphanumeric (including underscore `_`) and starting with a letter"),
                     span: token.span,
                 });
             }
@@ -376,19 +384,16 @@ impl Function {
         Ok(name)
     }
 
-    pub fn parse_args<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Vec<(String, Ty)>, Error>
+    pub fn parse_args<I>(
+        ctx: &mut ParserCtx,
+        tokens: &mut I,
+    ) -> Result<Vec<(bool, String, Ty)>, Error>
     where
         I: Iterator<Item = Token> + Peekable,
     {
         // (pub arg1: type1, arg2: type2)
         // ^
-        let left_paren = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
-        if !matches!(left_paren.typ, TokenType::LeftParen) {
-            return Err(Error {
-                error: ErrorTy::InvalidFunctionSignature,
-                span: left_paren.span,
-            });
-        }
+        tokens.bump_expected(ctx, TokenType::LeftParen)?;
 
         // (pub arg1: type1, arg2: type2)
         //   ^
@@ -396,68 +401,56 @@ impl Function {
         loop {
             // `pub arg1: type1`
             //   ^   ^
-            let token = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
+            let token = tokens.bump_err(
+                ctx,
+                ErrorTy::InvalidFunctionSignature("expected function arguments"),
+            )?;
 
             let (public, arg_name) = match token.typ {
                 // public input
                 TokenType::Keyword(Keyword::Pub) => {
                     let arg_name = parse_ident(ctx, tokens)?;
-
-                    if !is_valid_fn_name(&arg_name) {
-                        return Err(Error {
-                            error: ErrorTy::InvalidFunctionSignature,
-                            span: token.span,
-                        });
-                    }
                     (true, arg_name)
                 }
                 // private input
-                TokenType::Identifier(name) => {
-                    if !is_valid_fn_name(&name) {
-                        return Err(Error {
-                            error: ErrorTy::InvalidFunctionSignature,
-                            span: token.span,
-                        });
-                    }
-                    (false, name)
-                }
+                TokenType::Identifier(name) => (false, name),
                 _ => {
                     return Err(Error {
-                        error: ErrorTy::InvalidFunctionSignature,
+                        error: ErrorTy::InvalidFunctionSignature("expected identifier"),
                         span: token.span,
-                    })
+                    });
                 }
             };
 
             // :
-            let colon = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
-            if matches!(colon.typ, TokenType::Colon) {
-                return Err(Error {
-                    error: ErrorTy::InvalidFunctionSignature,
-                    span: colon.span,
-                });
-            }
+            tokens.bump_expected(ctx, TokenType::Colon)?;
 
             // type
             let arg_typ = Ty::parse(ctx, tokens)?;
 
             // , or )
-            let separator = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
+            let separator = tokens.bump_err(
+                ctx,
+                ErrorTy::InvalidFunctionSignature("expected end of function or other argument"),
+            )?;
+
             match separator.typ {
                 // (pub arg1: type1, arg2: type2)
                 //                 ^
                 TokenType::Comma => {
-                    args.push((arg_name, arg_typ));
+                    args.push((public, arg_name, arg_typ));
                 }
                 // (pub arg1: type1, arg2: type2)
                 //                              ^
                 TokenType::RightParen => {
-                    args.push((arg_name, arg_typ));
+                    args.push((public, arg_name, arg_typ));
                     break;
                 }
                 _ => {
                     return Err(Error {
-                        error: ErrorTy::InvalidFunctionSignature,
+                        error: ErrorTy::InvalidFunctionSignature(
+                            "expected end of function or other argument",
+                        ),
                         span: separator.span,
                     });
                 }
@@ -481,7 +474,7 @@ impl Function {
             _ => (),
         };
 
-        let _right_arrow = tokens.bump_expected(ctx, TokenType::RightArrow)?;
+        tokens.bump_expected(ctx, TokenType::RightArrow)?;
 
         let return_type = Ty::parse(ctx, tokens)?;
         Ok(Some(return_type))
@@ -491,11 +484,34 @@ impl Function {
     where
         I: Iterator<Item = Token> + Peekable,
     {
-        // should I retrieve all the tokens until I see `}`, then pass that to Statement::parse() ?
-        todo!()
+        let mut body = vec![];
+
+        tokens.bump_expected(ctx, TokenType::LeftCurlyBracket)?;
+
+        loop {
+            // end of the function
+            let next_token = tokens.peek();
+            if matches!(
+                next_token,
+                Some(Token {
+                    typ: TokenType::RightCurlyBracket,
+                    ..
+                })
+            ) {
+                tokens.bump(ctx);
+                break;
+            }
+
+            // parse next statement
+            let statement = Statement::parse(ctx, tokens)?;
+            body.push(statement);
+        }
+
+        Ok(body)
     }
 
-    pub fn parse_fn<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
+    /// Parse a function, without the `fn` keyword.
+    pub fn parse<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
     where
         I: Iterator<Item = Token> + Peekable,
     {
@@ -510,10 +526,6 @@ impl Function {
             return_type,
             body,
         };
-        let name = tokens.bump(ctx).ok_or(Error {
-            error: ErrorTy::InvalidModule,
-            span: ctx.last_span(),
-        })?;
 
         Ok(func)
     }
@@ -561,52 +573,43 @@ pub enum Statement {
 
 impl Statement {
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
-    pub fn parse<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Vec<Self>, Error>
+    pub fn parse<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
     where
         I: Iterator<Item = Token> + Peekable,
     {
-        let mut statements = vec![];
+        let token = tokens.bump_err(ctx, ErrorTy::InvalidStatement)?;
 
-        loop {
-            let token = tokens.bump_err(ctx, ErrorTy::InvalidStatement)?;
-            match token.typ {
-                // end of block
-                TokenType::RightCurlyBracket => break,
-                // assignment
-                TokenType::Keyword(Keyword::Let) => {
-                    let lhs = parse_ident(ctx, tokens)?;
-                    let _equal = tokens.bump_expected(ctx, TokenType::Equal)?;
-                    let rhs = Expression::parse(ctx, tokens)?;
-                    let _semi_colon = tokens.bump_expected(ctx, TokenType::SemiColon)?;
-                    statements.push(Statement::Assign { lhs, rhs });
-                }
-                // assert
-                TokenType::Keyword(Keyword::Assert) => {
-                    let expr = Expression::parse(ctx, tokens)?;
-                    let _semi_colon = tokens.bump_expected(ctx, TokenType::SemiColon)?;
-                    statements.push(Statement::Assert(expr));
-                }
-                // return
-                TokenType::Keyword(Keyword::Return) => {
-                    let expr = Expression::parse(ctx, tokens)?;
-                    let _semi_colon = tokens.bump_expected(ctx, TokenType::SemiColon)?;
-                    statements.push(Statement::Return(expr));
-                }
-                // comment
-                TokenType::Comment(c) => {
-                    statements.push(Statement::Comment(c));
-                }
-                //
-                _ => {
-                    return Err(Error {
-                        error: ErrorTy::InvalidStatement,
-                        span: token.span,
-                    });
-                }
+        match token.typ {
+            // assignment
+            TokenType::Keyword(Keyword::Let) => {
+                let lhs = parse_ident(ctx, tokens)?;
+                tokens.bump_expected(ctx, TokenType::Assign)?;
+                let rhs = Expression::parse(ctx, tokens)?;
+                tokens.bump_expected(ctx, TokenType::SemiColon)?;
+                Ok(Statement::Assign { lhs, rhs })
+            }
+            // assert
+            TokenType::Keyword(Keyword::Assert) => {
+                let expr = Expression::parse(ctx, tokens)?;
+                tokens.bump_expected(ctx, TokenType::SemiColon)?;
+                Ok(Statement::Assert(expr))
+            }
+            // return
+            TokenType::Keyword(Keyword::Return) => {
+                let expr = Expression::parse(ctx, tokens)?;
+                tokens.bump_expected(ctx, TokenType::SemiColon)?;
+                Ok(Statement::Return(expr))
+            }
+            // comment
+            TokenType::Comment(c) => Ok(Statement::Comment(c)),
+            //
+            _ => {
+                return Err(Error {
+                    error: ErrorTy::InvalidStatement,
+                    span: token.span,
+                });
             }
         }
-
-        Ok(statements)
     }
 }
 
@@ -670,7 +673,7 @@ impl AST {
                     }
                 }
                 TokenType::Keyword(Keyword::Fn) => {
-                    let func = Function::parse_fn(ctx, &mut tokens)?;
+                    let func = Function::parse(ctx, &mut tokens)?;
                     ast.push(Scope::Function(func));
                 }
                 TokenType::Comment(comment) => {
@@ -710,8 +713,23 @@ where
     match token.typ {
         TokenType::Identifier(ident) => Ok(ident),
         _ => Err(Error {
-            error: ErrorTy::InvalidFunctionSignature,
+            error: ErrorTy::ExpectedToken(TokenType::Identifier("".to_string())),
             span: token.span,
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::peekable::Tokens;
+
+    use super::*;
+
+    #[test]
+    fn fn_signature() {
+        let code = r#"main(pub public_input: [Fel; 3], private_input: [Fel; 3]) -> [Fel; 8] { }"#;
+        let tokens = &mut Tokens::new(Token::parse(code).unwrap().into_iter());
+        let ctx = &mut ParserCtx::default();
+        Function::parse(ctx, tokens).unwrap();
     }
 }
