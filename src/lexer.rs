@@ -8,11 +8,18 @@ pub struct LexerCtx {
     offset: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Keyword {
+    /// Importing a library
     Use,
+    /// A function
     Fn,
+    /// New variable
     Let,
+    /// Public input
+    Pub,
+    Return,
+    Assert,
 }
 
 impl Keyword {
@@ -21,6 +28,9 @@ impl Keyword {
             "use" => Some(Self::Use),
             "fn" => Some(Self::Fn),
             "let" => Some(Self::Let),
+            "pub" => Some(Self::Pub),
+            "return" => Some(Self::Return),
+            "assert" => Some(Self::Assert),
             _ => None,
         }
     }
@@ -32,45 +42,50 @@ impl Display for Keyword {
             Self::Use => "use",
             Self::Fn => "fn",
             Self::Let => "let",
+            Self::Pub => "pub",
+            Self::Return => "return",
+            Self::Assert => "assert",
         };
 
         write!(f, "{}", desc)
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenType {
-    Keyword(Keyword),      // reserved keywords
-    AlphaNumeric_(String), // (a-zA_Z0-9_)*
-    BigInt(String),        // (0-9)*
-    Comma,                 // ,
-    Colon,                 // :
-    DoubleColon,           // ::
-    LeftParen,             // (
-    RightParen,            // )
-    LeftBracket,           // [
-    RightBracket,          // ]
-    LeftCurlyBracket,      // {
-    RightCurlyBracket,     // }
-    SemiColon,             // ;
-    Division,              // /
-    Comment(String),       // // comment
-    Greater,               // >
-    Less,                  // <
-    Assign,                // =
-    Equal,                 // ==
-    Plus,                  // +
-    Minus,                 // -
-    RightArrow,            // ->
-    Mul,                   // *
-    Literal,               // "thing"
+    Keyword(Keyword),   // reserved keywords
+    Identifier(String), // [a-z_](a-z0-9_)*
+    BigInt(String),     // (0-9)*
+    Comma,              // ,
+    Colon,              // :
+    DoubleColon,        // ::
+    LeftParen,          // (
+    RightParen,         // )
+    LeftBracket,        // [
+    RightBracket,       // ]
+    LeftCurlyBracket,   // {
+    RightCurlyBracket,  // }
+    SemiColon,          // ;
+    Slash,              // /
+    Comment(String),    // // comment
+    Greater,            // >
+    Less,               // <
+    Assign,             // =
+    Equal,              // ==
+    Plus,               // +
+    Minus,              // -
+    RightArrow,         // ->
+    Star,               // *
+                        //    Literal,               // "thing"
 }
 
 impl Display for TokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let desc = match self {
             TokenType::Keyword(_) => "keyword (use, let, etc.)",
-            TokenType::AlphaNumeric_(_) => "an alphanumeric (including underscore) string",
+            TokenType::Identifier(_) => {
+                "a lowercase alphanumeric (including underscore) string starting with a letter"
+            }
             TokenType::BigInt(_) => "a number",
             TokenType::Comma => "`,`",
             TokenType::Colon => "`:`",
@@ -82,7 +97,7 @@ impl Display for TokenType {
             TokenType::LeftCurlyBracket => "`{`",
             TokenType::RightCurlyBracket => "`}`",
             TokenType::SemiColon => "`;`",
-            TokenType::Division => "`/`",
+            TokenType::Slash => "`/`",
             TokenType::Comment(_) => "`//`",
             TokenType::Greater => "`>`",
             TokenType::Less => "`<`",
@@ -91,8 +106,8 @@ impl Display for TokenType {
             TokenType::Plus => "`+`",
             TokenType::Minus => "`-`",
             TokenType::RightArrow => "`->`",
-            TokenType::Mul => "`*`",
-            TokenType::Literal => "`\"something\"",
+            TokenType::Star => "`*`",
+            //            TokenType::Literal => "`\"something\"",
         };
 
         write!(f, "{}", desc)
@@ -120,20 +135,34 @@ impl Token {
 
         // keep track of variables
         let mut thing: Option<String> = None;
-        let add_thing = |ctx: &mut LexerCtx, tokens: &mut Vec<_>, thing: String| {
-            ctx.offset += thing.len();
-            if let Some(keyword) = Keyword::parse(&thing) {
-                tokens.push(TokenType::Keyword(keyword).new_token(ctx, 1));
-            } else {
-                // integer?
-                let len = thing.len();
-                if thing.chars().all(|c| c.is_digit(10)) {
-                    tokens.push(TokenType::BigInt(thing).new_token(ctx, len));
+        let add_thing =
+            |ctx: &mut LexerCtx, tokens: &mut Vec<_>, thing: String| -> Result<(), Error> {
+                ctx.offset += thing.len();
+                if let Some(keyword) = Keyword::parse(&thing) {
+                    tokens.push(TokenType::Keyword(keyword).new_token(ctx, 1));
                 } else {
-                    tokens.push(TokenType::AlphaNumeric_(thing).new_token(ctx, len));
+                    // integer?
+                    let len = thing.len();
+                    if thing.chars().all(|c| c.is_digit(10)) {
+                        tokens.push(TokenType::BigInt(thing).new_token(ctx, len));
+                    } else {
+                        // valid identifier?
+                        if !thing.chars().next().unwrap().is_alphabetic()
+                            || !thing
+                                .chars()
+                                .all(|c| (c.is_alphanumeric() || c == '_') && c.is_lowercase())
+                        {
+                            return Err(Error {
+                                error: ErrorTy::InvalidIdentifier,
+                                span: (ctx.offset, 1),
+                            });
+                        }
+
+                        tokens.push(TokenType::Identifier(thing).new_token(ctx, len));
+                    }
                 }
-            }
-        };
+                Ok(())
+            };
 
         // go through line char by char
         let mut chars = line.chars().peekable();
@@ -146,7 +175,7 @@ impl Token {
                 // if no next char, don't forget to add the last thing we saw
 
                 if let Some(thing) = thing {
-                    add_thing(ctx, &mut tokens, thing);
+                    add_thing(ctx, &mut tokens, thing)?;
                 }
                 break;
             };
@@ -163,7 +192,7 @@ impl Token {
                 }
                 (false, Some(_)) => {
                     let thing = thing.take().unwrap();
-                    add_thing(ctx, &mut tokens, thing);
+                    add_thing(ctx, &mut tokens, thing)?;
                 }
                 (false, None) => (),
             }
@@ -222,7 +251,7 @@ impl Token {
                         tokens.push(TokenType::Comment(comment).new_token(ctx, 2));
                         break;
                     } else {
-                        tokens.push(TokenType::Division.new_token(ctx, 1));
+                        tokens.push(TokenType::Slash.new_token(ctx, 1));
                         ctx.offset += 1;
                     }
                 }
@@ -260,7 +289,7 @@ impl Token {
                     }
                 }
                 '*' => {
-                    tokens.push(TokenType::Mul.new_token(ctx, 1));
+                    tokens.push(TokenType::Star.new_token(ctx, 1));
                     ctx.offset += 1;
                 }
                 ' ' => ctx.offset += 1,

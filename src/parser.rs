@@ -48,7 +48,7 @@ impl Path {
 
             match &token.typ {
                 // a chunk of the path
-                TokenType::AlphaNumeric_(chunk) => {
+                TokenType::Identifier(chunk) => {
                     if !is_valid_module(&chunk) {
                         return Err(Error {
                             error: ErrorTy::InvalidModule,
@@ -113,7 +113,7 @@ impl Ty {
 
         match token.typ {
             // struct name
-            TokenType::AlphaNumeric_(name) => {
+            TokenType::Identifier(name) => {
                 if !is_valid_fn_type(&name) {
                     return Err(Error {
                         error: ErrorTy::InvalidTypeName,
@@ -165,10 +165,27 @@ impl Ty {
     }
 }
 
-//
-// Expression
-//
-
+//~
+//~ ## Expression
+//~
+//~ Backus–Naur Form (BNF) grammar:
+//~
+//~ expr ::=
+//~     | expr { bin_op expr }
+//~     | "-" expr
+//~     | "(" expr ")"
+//~     | numeric
+//~     | ident
+//~     | fn_call
+//~     | array_access
+//~ bin_op ::= "+" | "-" | "/" | "*"
+//~ numeric ::= /[0-9]+/
+//~ ident ::= /[A-Za-z_][A-Za-z_0-9]*/
+//~ fn_call ::= ident "(" expr { "," expr } ")"
+//~ array_access ::= ident "[" expr "]"
+//~
+//~ powexpr ::= "-" powexpr | "+" powexpr | atom [ "^" powexpr ]
+//~ atom ::= ident [ "(" expr ")" ] | numeric | "(" expr ")"
 #[derive(Debug)]
 pub enum ComparisonOp {
     LessThan,
@@ -180,12 +197,139 @@ pub enum ComparisonOp {
 
 #[derive(Debug)]
 pub enum Expression {
-    Literal(String),
-    Function(Function),
+    //    Literal(String),
+    FnCall {
+        function_name: String,
+        args: Vec<Expression>,
+    },
     Variable(String),
     Comparison(ComparisonOp, Box<Expression>, Box<Expression>),
-    True,
-    False,
+    Op(Op2, Box<Expression>, Box<Expression>),
+    Negated(Box<Expression>),
+    BigInt(String),
+    Identifier(String),
+    ArrayAccess(String, Box<Expression>),
+}
+
+#[derive(Debug)]
+pub enum Op2 {
+    Addition,
+    Subtraction,
+    Multiplication,
+    Division,
+}
+
+impl Op2 {
+    pub fn parse_maybe<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Option<Self>
+    where
+        I: Iterator<Item = Token> + Peekable,
+    {
+        let token = tokens.peek()?;
+
+        match token.typ {
+            TokenType::Plus => Some(Op2::Addition),
+            TokenType::Minus => Some(Op2::Subtraction),
+            TokenType::Star => Some(Op2::Multiplication),
+            TokenType::Slash => Some(Op2::Division),
+            _ => None,
+        }
+    }
+}
+
+impl Expression {
+    /// Parses until it finds something it doesn't know, then returns without consuming the token it doesn't know (the caller will have to make sense of it)
+    pub fn parse<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
+    where
+        I: Iterator<Item = Token> + Peekable,
+    {
+        let token = tokens.bump_err(ctx, ErrorTy::MissingExpression)?;
+        let lhs = match token.typ {
+            // numeric
+            TokenType::BigInt(b) => Expression::BigInt(b),
+
+            // identifier
+            TokenType::Identifier(ident) => {
+                // could be array access, fn call
+                let peeked = match tokens.peek() {
+                    None => panic!("woot"),
+                    Some(x) => x,
+                };
+
+                match peeked.typ {
+                    // array access
+                    TokenType::LeftBracket => {
+                        let expr = Expression::parse(ctx, tokens)?;
+                        let right_bracket = tokens.bump_expected(ctx, TokenType::RightBracket)?;
+                        Expression::ArrayAccess(ident, Box::new(expr))
+                    }
+                    // fn call
+                    TokenType::LeftParen => {
+                        let mut args = vec![];
+                        loop {
+                            let arg = Expression::parse(ctx, tokens)?;
+                            args.push(arg);
+
+                            match tokens.peek() {
+                                Some(x) => match x.typ {
+                                    TokenType::Comma => {
+                                        tokens.bump(ctx);
+                                    }
+                                    TokenType::RightParen => {
+                                        tokens.bump(ctx);
+                                        break;
+                                    }
+                                    _ => (),
+                                },
+                                None => {
+                                    return Err(Error {
+                                        error: ErrorTy::InvalidFnCall,
+                                        span: ctx.last_span(),
+                                    })
+                                }
+                            }
+                        }
+                        Expression::FnCall {
+                            function_name: ident,
+                            args,
+                        }
+                    }
+                    _ => {
+                        // just a variable
+                        Expression::Identifier(ident)
+                    }
+                }
+            }
+
+            // negated expr
+            TokenType::Minus => {
+                let expr = Expression::parse(ctx, tokens)?;
+                Expression::Negated(Box::new(expr))
+            }
+
+            // parenthesis
+            TokenType::LeftParen => {
+                let expr = Expression::parse(ctx, tokens)?;
+                let right_paren = tokens.bump_expected(ctx, TokenType::RightParen)?;
+                expr
+            }
+
+            // unrecognized pattern
+            _ => {
+                return Err(Error {
+                    error: ErrorTy::InvalidExpression,
+                    span: token.span,
+                })
+            }
+        };
+
+        // bin op or return lhs
+        if let Some(op) = Op2::parse_maybe(ctx, tokens) {
+            let rhs = Expression::parse(ctx, tokens)?;
+            Ok(Expression::Op(op, Box::new(lhs), Box::new(rhs)))
+        } else {
+            Ok(lhs)
+        }
+    }
 }
 
 //
@@ -209,7 +353,7 @@ impl Function {
 
         let name = match token {
             Token {
-                typ: TokenType::AlphaNumeric_(name),
+                typ: TokenType::Identifier(name),
                 ..
             } => {
                 if is_valid_fn_name(&name) {
@@ -236,7 +380,7 @@ impl Function {
     where
         I: Iterator<Item = Token> + Peekable,
     {
-        // (arg1: type1, arg2: type2)
+        // (pub arg1: type1, arg2: type2)
         // ^
         let left_paren = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
         if !matches!(left_paren.typ, TokenType::LeftParen) {
@@ -246,30 +390,41 @@ impl Function {
             });
         }
 
-        // (arg1: type1, arg2: type2)
+        // (pub arg1: type1, arg2: type2)
         //   ^
         let mut args = vec![];
         loop {
-            // arg name
-            let arg_name = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
+            // `pub arg1: type1`
+            //   ^   ^
+            let token = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
 
-            let arg_name = match arg_name {
-                Token {
-                    typ: TokenType::AlphaNumeric_(name),
-                    ..
-                } => {
+            let (public, arg_name) = match token.typ {
+                // public input
+                TokenType::Keyword(Keyword::Pub) => {
+                    let arg_name = parse_ident(ctx, tokens)?;
+
+                    if !is_valid_fn_name(&arg_name) {
+                        return Err(Error {
+                            error: ErrorTy::InvalidFunctionSignature,
+                            span: token.span,
+                        });
+                    }
+                    (true, arg_name)
+                }
+                // private input
+                TokenType::Identifier(name) => {
                     if !is_valid_fn_name(&name) {
                         return Err(Error {
                             error: ErrorTy::InvalidFunctionSignature,
-                            span: arg_name.span,
+                            span: token.span,
                         });
                     }
-                    name
+                    (false, name)
                 }
                 _ => {
                     return Err(Error {
                         error: ErrorTy::InvalidFunctionSignature,
-                        span: arg_name.span,
+                        span: token.span,
                     })
                 }
             };
@@ -289,13 +444,13 @@ impl Function {
             // , or )
             let separator = tokens.bump_err(ctx, ErrorTy::InvalidFunctionSignature)?;
             match separator.typ {
-                // (arg1: type1, arg2: type2)
-                //             ^
+                // (pub arg1: type1, arg2: type2)
+                //                 ^
                 TokenType::Comma => {
                     args.push((arg_name, arg_typ));
                 }
-                // (arg1: type1, arg2: type2)
-                //                          ^
+                // (pub arg1: type1, arg2: type2)
+                //                              ^
                 TokenType::RightParen => {
                     args.push((arg_name, arg_typ));
                     break;
@@ -312,20 +467,48 @@ impl Function {
         Ok(args)
     }
 
+    pub fn parse_fn_return_type<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Option<Ty>, Error>
+    where
+        I: Iterator<Item = Token> + Peekable,
+    {
+        match tokens.peek() {
+            Some(Token {
+                typ: TokenType::LeftCurlyBracket,
+                ..
+            }) => {
+                return Ok(None);
+            }
+            _ => (),
+        };
+
+        let _right_arrow = tokens.bump_expected(ctx, TokenType::RightArrow)?;
+
+        let return_type = Ty::parse(ctx, tokens)?;
+        Ok(Some(return_type))
+    }
+
+    pub fn parse_fn_body<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Vec<Statement>, Error>
+    where
+        I: Iterator<Item = Token> + Peekable,
+    {
+        // should I retrieve all the tokens until I see `}`, then pass that to Statement::parse() ?
+        todo!()
+    }
+
     pub fn parse_fn<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Self, Error>
     where
         I: Iterator<Item = Token> + Peekable,
     {
         let name = Self::parse_name(ctx, tokens)?;
-        let args = Self::parse_args(ctx, tokens)?;
+        let arguments = Self::parse_args(ctx, tokens)?;
         let return_type = Self::parse_fn_return_type(ctx, tokens)?;
         let body = Self::parse_fn_body(ctx, tokens)?;
 
         let func = Self {
             name,
-            arguments: vec![],
-            return_type: todo!(),
-            body: todo!(),
+            arguments,
+            return_type,
+            body,
         };
         let name = tokens.bump(ctx).ok_or(Error {
             error: ErrorTy::InvalidModule,
@@ -376,6 +559,61 @@ pub enum Statement {
     Comment(String),
 }
 
+impl Statement {
+    /// Returns a list of statement parsed until seeing the end of a block (`}`).
+    pub fn parse<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<Vec<Self>, Error>
+    where
+        I: Iterator<Item = Token> + Peekable,
+    {
+        let mut statements = vec![];
+
+        loop {
+            let token = tokens.bump_err(ctx, ErrorTy::InvalidStatement)?;
+            match token.typ {
+                // end of block
+                TokenType::RightCurlyBracket => break,
+                // assignment
+                TokenType::Keyword(Keyword::Let) => {
+                    let lhs = parse_ident(ctx, tokens)?;
+                    let _equal = tokens.bump_expected(ctx, TokenType::Equal)?;
+                    let rhs = Expression::parse(ctx, tokens)?;
+                    let _semi_colon = tokens.bump_expected(ctx, TokenType::SemiColon)?;
+                    statements.push(Statement::Assign { lhs, rhs });
+                }
+                // assert
+                TokenType::Keyword(Keyword::Assert) => {
+                    let expr = Expression::parse(ctx, tokens)?;
+                    let _semi_colon = tokens.bump_expected(ctx, TokenType::SemiColon)?;
+                    statements.push(Statement::Assert(expr));
+                }
+                // return
+                TokenType::Keyword(Keyword::Return) => {
+                    let expr = Expression::parse(ctx, tokens)?;
+                    let _semi_colon = tokens.bump_expected(ctx, TokenType::SemiColon)?;
+                    statements.push(Statement::Return(expr));
+                }
+                // comment
+                TokenType::Comment(c) => {
+                    statements.push(Statement::Comment(c));
+                }
+                //
+                _ => {
+                    return Err(Error {
+                        error: ErrorTy::InvalidStatement,
+                        span: token.span,
+                    });
+                }
+            }
+        }
+
+        Ok(statements)
+    }
+}
+
+//
+// Scope
+//
+
 // TODO: where do I enforce that there's not several `use` with the same module name? or several functions with the same names? I guess that's something I need to enforce in any scope anyway...
 #[derive(Debug)]
 
@@ -386,6 +624,11 @@ pub enum Scope {
     Comment(String),
     //    Struct(Struct)
 }
+
+//
+// AST
+//
+
 #[derive(Debug, Default)]
 pub struct AST(Vec<Scope>);
 
@@ -453,9 +696,29 @@ impl AST {
     }
 }
 
+//
+// Helpers
+//
+
 pub fn is_valid_module(module: &str) -> bool {
     let mut chars = module.chars();
     !module.is_empty()
         && chars.next().unwrap().is_ascii_alphabetic()
         && chars.all(|c| c.is_alphanumeric() || c == '_')
+}
+
+// maybe should be implemented on token?
+
+pub fn parse_ident<I>(ctx: &mut ParserCtx, tokens: &mut I) -> Result<String, Error>
+where
+    I: Iterator<Item = Token> + Peekable,
+{
+    let token = tokens.bump_err(ctx, ErrorTy::MissingToken)?;
+    match token.typ {
+        TokenType::Identifier(ident) => Ok(ident),
+        _ => Err(Error {
+            error: ErrorTy::InvalidFunctionSignature,
+            span: token.span,
+        }),
+    }
 }

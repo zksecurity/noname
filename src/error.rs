@@ -57,4 +57,19 @@ pub enum ErrorTy {
 
     #[error("invalid array size")]
     InvalidArraySize,
+
+    #[error("invalid statement")]
+    InvalidStatement,
+
+    #[error("missing expression")]
+    MissingExpression,
+
+    #[error("invalid expression")]
+    InvalidExpression,
+
+    #[error("invalid identifier, expected lowercase alphanumeric string (including underscore `_`) and starting with a letter")]
+    InvalidIdentifier,
+
+    #[error("invalid function call")]
+    InvalidFnCall,
 }

@@ -39,6 +39,7 @@ pub trait Peekable: Iterator {
     /// (useful for debugging)
     fn bump(&mut self, ctx: &mut ParserCtx) -> Option<Token>;
 
+    /// Returns the next token or errors with `err` pointing to the latest token
     fn bump_err(&mut self, ctx: &mut ParserCtx, err: ErrorTy) -> Result<Token, Error>;
 
     fn bump_expected(&mut self, ctx: &mut ParserCtx, typ: TokenType) -> Result<Token, Error>;
@@ -81,7 +82,7 @@ where
 
     fn bump_expected(&mut self, ctx: &mut ParserCtx, typ: TokenType) -> Result<Token, Error> {
         let token = self.bump_err(ctx, ErrorTy::MissingToken)?;
-        if matches!(token, typ) {
+        if token.typ == typ {
             Ok(token)
         } else {
             Err(Error {
