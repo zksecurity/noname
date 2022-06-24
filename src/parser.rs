@@ -409,7 +409,7 @@ pub struct Function {
 
     pub return_type: Option<Ty>,
 
-    pub body: Vec<Statement>,
+    pub body: Vec<Stmt>,
 }
 
 impl Function {
@@ -528,10 +528,7 @@ impl Function {
         Ok(Some(return_type))
     }
 
-    pub fn parse_fn_body(
-        ctx: &mut ParserCtx,
-        tokens: &mut Tokens,
-    ) -> Result<Vec<Statement>, Error> {
+    pub fn parse_fn_body(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<Stmt>, Error> {
         let mut body = vec![];
 
         tokens.bump_expected(ctx, TokenType::LeftCurlyBracket)?;
@@ -551,7 +548,7 @@ impl Function {
             }
 
             // parse next statement
-            let statement = Statement::parse(ctx, tokens)?;
+            let statement = Stmt::parse(ctx, tokens)?;
             body.push(statement);
         }
 
@@ -605,21 +602,28 @@ pub fn is_valid_fn_type(name: &str) -> bool {
 }
 
 //
-// Statement
+// Stmt
 //
 
 #[derive(Debug)]
-pub enum Statement {
+pub struct Stmt {
+    pub typ: StmtKind,
+    pub span: (usize, usize),
+}
+
+#[derive(Debug)]
+pub enum StmtKind {
     Assign { lhs: String, rhs: Expr },
     Assert(Expr),
     Return(Expr),
     Comment(String),
 }
 
-impl Statement {
+impl Stmt {
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let token = tokens.bump_err(ctx, ErrorTy::InvalidStatement)?;
+        let span = token.span;
 
         match token.typ {
             // assignment
@@ -628,7 +632,10 @@ impl Statement {
                 tokens.bump_expected(ctx, TokenType::Equal)?;
                 let rhs = Expr::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::SemiColon)?;
-                Ok(Statement::Assign { lhs, rhs })
+                Ok(Stmt {
+                    typ: StmtKind::Assign { lhs, rhs },
+                    span,
+                })
             }
             // assert
             TokenType::Keyword(Keyword::Assert) => {
@@ -636,16 +643,25 @@ impl Statement {
                 let expr = Expr::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::RightParen)?;
                 tokens.bump_expected(ctx, TokenType::SemiColon)?;
-                Ok(Statement::Assert(expr))
+                Ok(Stmt {
+                    typ: StmtKind::Assert(expr),
+                    span,
+                })
             }
             // return
             TokenType::Keyword(Keyword::Return) => {
                 let expr = Expr::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::SemiColon)?;
-                Ok(Statement::Return(expr))
+                Ok(Stmt {
+                    typ: StmtKind::Return(expr),
+                    span,
+                })
             }
             // comment
-            TokenType::Comment(c) => Ok(Statement::Comment(c)),
+            TokenType::Comment(c) => Ok(Stmt {
+                typ: StmtKind::Comment(c),
+                span,
+            }),
             //
             _ => {
                 return Err(Error {
@@ -786,7 +802,7 @@ mod tests {
         let code = r#"let digest = poseidon(private_input);"#;
         let tokens = &mut Token::parse(code).unwrap();
         let ctx = &mut ParserCtx::default();
-        let parsed = Statement::parse(ctx, tokens).unwrap();
+        let parsed = Stmt::parse(ctx, tokens).unwrap();
         println!("{:?}", parsed);
     }
 
@@ -795,7 +811,7 @@ mod tests {
         let code = r#"assert(digest == public_input);"#;
         let tokens = &mut Token::parse(code).unwrap();
         let ctx = &mut ParserCtx::default();
-        let parsed = Statement::parse(ctx, tokens).unwrap();
+        let parsed = Stmt::parse(ctx, tokens).unwrap();
         println!("{:?}", parsed);
     }
 }
