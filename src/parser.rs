@@ -199,6 +199,7 @@ pub enum ComparisonOp {
     Equal,
 }
 
+#[derive(Debug)]
 pub struct Expr {
     typ: ExprKind,
     span: (usize, usize),
@@ -209,15 +210,15 @@ pub enum ExprKind {
     //    Literal(String),
     FnCall {
         function_name: String,
-        args: Vec<ExprKind>,
+        args: Vec<Expr>,
     },
     Variable(String),
-    Comparison(ComparisonOp, Box<ExprKind>, Box<ExprKind>),
-    Op(Op2, Box<ExprKind>, Box<ExprKind>),
-    Negated(Box<ExprKind>),
+    Comparison(ComparisonOp, Box<Expr>, Box<Expr>),
+    Op(Op2, Box<Expr>, Box<Expr>),
+    Negated(Box<Expr>),
     BigInt(String),
     Identifier(String),
-    ArrayAccess(String, Box<ExprKind>),
+    ArrayAccess(String, Box<Expr>),
 }
 
 #[derive(Debug)]
@@ -250,13 +251,18 @@ impl Op2 {
     }
 }
 
-impl ExprKind {
+impl Expr {
     /// Parses until it finds something it doesn't know, then returns without consuming the token it doesn't know (the caller will have to make sense of it)
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let token = tokens.bump_err(ctx, ErrorTy::MissingExpression)?;
+        let span = token.span;
+
         let lhs = match token.typ {
             // numeric
-            TokenType::BigInt(b) => ExprKind::BigInt(b),
+            TokenType::BigInt(b) => Expr {
+                typ: ExprKind::BigInt(b),
+                span,
+            },
 
             // identifier
             TokenType::Identifier(ident) => {
@@ -276,9 +282,13 @@ impl ExprKind {
                     TokenType::LeftBracket => {
                         tokens.bump(ctx); // [
 
-                        let expr = ExprKind::parse(ctx, tokens)?;
+                        let expr = Expr::parse(ctx, tokens)?;
                         tokens.bump_expected(ctx, TokenType::RightBracket)?;
-                        ExprKind::ArrayAccess(ident, Box::new(expr))
+
+                        Expr {
+                            typ: ExprKind::ArrayAccess(ident, Box::new(expr)),
+                            span,
+                        }
                     }
                     // fn call
                     TokenType::LeftParen => {
@@ -286,7 +296,7 @@ impl ExprKind {
 
                         let mut args = vec![];
                         loop {
-                            let arg = ExprKind::parse(ctx, tokens)?;
+                            let arg = Expr::parse(ctx, tokens)?;
 
                             args.push(arg);
 
@@ -311,27 +321,38 @@ impl ExprKind {
                                 }
                             }
                         }
-                        ExprKind::FnCall {
-                            function_name: ident,
-                            args,
+
+                        Expr {
+                            typ: ExprKind::FnCall {
+                                function_name: ident,
+                                args,
+                            },
+                            span,
                         }
                     }
                     _ => {
                         // just a variable
-                        ExprKind::Identifier(ident)
+                        Expr {
+                            typ: ExprKind::Identifier(ident),
+                            span,
+                        }
                     }
                 }
             }
 
             // negated expr
             TokenType::Minus => {
-                let expr = ExprKind::parse(ctx, tokens)?;
-                ExprKind::Negated(Box::new(expr))
+                let expr = Expr::parse(ctx, tokens)?;
+
+                Expr {
+                    typ: ExprKind::Negated(Box::new(expr)),
+                    span,
+                }
             }
 
             // parenthesis
             TokenType::LeftParen => {
-                let expr = ExprKind::parse(ctx, tokens)?;
+                let expr = Expr::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::RightParen)?;
                 expr
             }
@@ -347,8 +368,11 @@ impl ExprKind {
 
         // bin op or return lhs
         if let Some(op) = Op2::parse_maybe(ctx, tokens) {
-            let rhs = ExprKind::parse(ctx, tokens)?;
-            Ok(ExprKind::Op(op, Box::new(lhs), Box::new(rhs)))
+            let rhs = Expr::parse(ctx, tokens)?;
+            Ok(Expr {
+                typ: ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
+                span,
+            })
         } else {
             Ok(lhs)
         }
@@ -586,9 +610,9 @@ pub fn is_valid_fn_type(name: &str) -> bool {
 
 #[derive(Debug)]
 pub enum Statement {
-    Assign { lhs: String, rhs: ExprKind },
-    Assert(ExprKind),
-    Return(ExprKind),
+    Assign { lhs: String, rhs: Expr },
+    Assert(Expr),
+    Return(Expr),
     Comment(String),
 }
 
@@ -602,21 +626,21 @@ impl Statement {
             TokenType::Keyword(Keyword::Let) => {
                 let lhs = parse_ident(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::Equal)?;
-                let rhs = ExprKind::parse(ctx, tokens)?;
+                let rhs = Expr::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::SemiColon)?;
                 Ok(Statement::Assign { lhs, rhs })
             }
             // assert
             TokenType::Keyword(Keyword::Assert) => {
                 tokens.bump_expected(ctx, TokenType::LeftParen)?;
-                let expr = ExprKind::parse(ctx, tokens)?;
+                let expr = Expr::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::RightParen)?;
                 tokens.bump_expected(ctx, TokenType::SemiColon)?;
                 Ok(Statement::Assert(expr))
             }
             // return
             TokenType::Keyword(Keyword::Return) => {
-                let expr = ExprKind::parse(ctx, tokens)?;
+                let expr = Expr::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::SemiColon)?;
                 Ok(Statement::Return(expr))
             }
