@@ -1,10 +1,11 @@
 use miette::{IntoDiagnostic, Result, WrapErr};
-use my_programming_language::{lexer::Token, parser::AST};
+use my_programming_language::{ast::Compiler, lexer::Token, parser::AST};
 
-fn parse(code: &str) -> Result<AST> {
+fn parse(code: &str) -> Result<()> {
     let tokens = Token::parse(code)?;
     let ast = AST::parse(tokens)?;
-    Ok(ast)
+    let asm = Compiler::compile(ast)?;
+    Ok(asm)
 }
 
 fn main() -> Result<()> {

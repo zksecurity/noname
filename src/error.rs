@@ -66,4 +66,7 @@ pub enum ErrorTy {
 
     #[error("invalid function call")]
     InvalidFnCall,
+
+    #[error("imports via `use` keyword must appear before anything else")]
+    UseAfterFn,
 }

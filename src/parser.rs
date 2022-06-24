@@ -31,7 +31,7 @@ impl ParserCtx {
 //
 
 #[derive(Debug)]
-pub struct Path(Vec<String>);
+pub struct Path(pub Vec<String>);
 
 impl Path {
     /// Parses a path from a list of tokens.
@@ -48,13 +48,6 @@ impl Path {
             match &token.typ {
                 // a chunk of the path
                 TokenType::Identifier(chunk) => {
-                    if !is_valid_module(&chunk) {
-                        return Err(Error {
-                            error: ErrorTy::InvalidModule,
-                            span: token.span,
-                        });
-                    }
-
                     path.push(chunk.to_string());
 
                     // next, we expect a `::` to continue the path,
@@ -105,7 +98,8 @@ impl Path {
 //~ numeric ::= /[0-9]+/
 //~
 
-#[derive(Debug)]
+// TODO: feels weird to have type = type or array
+#[derive(Debug, Clone)]
 pub enum Ty {
     Struct(String),
     Array(Box<Self>, u32),
@@ -354,6 +348,16 @@ impl Expression {
 //~ parm ::= { "pub" } ident ":" type
 //~ stmt ::= ...
 //~
+
+#[derive(Debug)]
+pub struct FunctionSig {
+    pub name: String,
+
+    /// (pub, ident, type)
+    pub arguments: Vec<(bool, String, Ty)>,
+
+    pub return_type: Option<Ty>,
+}
 
 #[derive(Debug)]
 pub struct Function {
@@ -620,7 +624,7 @@ impl Statement {
 #[derive(Debug)]
 
 /// Things you can have in a scope (including the root scope).
-pub enum Scope {
+pub enum Root {
     Use(Path),
     Function(Function),
     Comment(String),
@@ -632,25 +636,34 @@ pub enum Scope {
 //
 
 #[derive(Debug, Default)]
-pub struct AST(Vec<Scope>);
+pub struct AST(pub Vec<Root>);
 
 impl AST {
     pub fn parse(mut tokens: Tokens) -> Result<AST, Error> {
         let mut ast = vec![];
         let ctx = &mut ParserCtx::default();
 
-        // get first token
+        // use statements must appear first
+        let mut function_observed = false;
+
         loop {
             let token = match tokens.bump(ctx) {
                 Some(token) => token,
                 None => break,
             };
 
-            // match special keywords
             match &token.typ {
+                // `use crypto::poseidon;`
                 TokenType::Keyword(Keyword::Use) => {
+                    if function_observed {
+                        return Err(Error {
+                            error: ErrorTy::UseAfterFn,
+                            span: token.span,
+                        });
+                    }
+
                     let path = Path::parse_path(ctx, &mut tokens)?;
-                    ast.push(Scope::Use(path));
+                    ast.push(Root::Use(path));
 
                     // end of line
                     let next_token = tokens.bump(ctx);
@@ -667,13 +680,21 @@ impl AST {
                         });
                     }
                 }
+
+                // `fn main() { }`
                 TokenType::Keyword(Keyword::Fn) => {
+                    function_observed = true;
+
                     let func = Function::parse(ctx, &mut tokens)?;
-                    ast.push(Scope::Function(func));
+                    ast.push(Root::Function(func));
                 }
+
+                // `// some comment`
                 TokenType::Comment(comment) => {
-                    ast.push(Scope::Comment(comment.clone()));
+                    ast.push(Root::Comment(comment.clone()));
                 }
+
+                // unrecognized
                 _ => {
                     return Err(Error {
                         error: ErrorTy::InvalidToken,
@@ -691,15 +712,6 @@ impl AST {
 // Helpers
 //
 
-pub fn is_valid_module(module: &str) -> bool {
-    let mut chars = module.chars();
-    !module.is_empty()
-        && chars.next().unwrap().is_ascii_alphabetic()
-        && chars.all(|c| c.is_alphanumeric() || c == '_')
-}
-
-// maybe should be implemented on token?
-
 pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<String, Error> {
     let token = tokens.bump_err(ctx, ErrorTy::MissingToken)?;
     match token.typ {
@@ -710,6 +722,10 @@ pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<String, E
         }),
     }
 }
+
+//
+// Tests
+//
 
 #[cfg(test)]
 mod tests {

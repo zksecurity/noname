@@ -1,4 +1,4 @@
-use crypto::poseidon;
+use std::crypto::poseidon;
 
 fn main(pub public_input: [Field; 3], private_input: [Field; 3]) {
     let digest = poseidon(private_input);
