@@ -7,3 +7,9 @@ TODO:
 - [ ] AST -> type system analysis 
 - [ ] AST -> compile -> circuit
 - [ ] AST -> compile -> witness generator
+
+RESOURCES:
+
+- https://github.com/lalrpop/lalrpop and https://github.com/pest-parser/pest
+- https://rustc-dev-guide.rust-lang.org/the-parser.html
+

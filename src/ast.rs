@@ -1,13 +1,14 @@
 use crate::{
-    error::Error,
-    parser::{Root, AST},
+    parser::{FunctionSig, Root, AST},
     stdlib,
 };
 
 pub struct Compiler;
 
 impl Compiler {
-    pub fn compile(ast: AST) -> Result<(), ()> {
+    pub fn compile(ast: AST) -> Result<(), &'static str> {
+        let mut scope = Scope::default();
+
         for root in ast.0 {
             match root {
                 // `use crypto::poseidon;`
@@ -15,21 +16,26 @@ impl Compiler {
                     let path = &mut path.0.into_iter();
                     let root_module = path.next().expect("empty imports can't be parsed");
 
-                    if root_module == "std" {
-                        stdlib::parse_std_import(path)?;
+                    let (functions, types) = if root_module == "std" {
+                        stdlib::parse_std_import(path)?
                     } else {
-                        unimplemented!();
-                    }
+                        unimplemented!()
+                    };
+
+                    scope.functions.extend(functions);
+                    scope.types.extend(types);
                 }
 
                 // `fn main() { ... }`
                 Root::Function(function) => {
-                    println!("fn {}() {{", function.name);
-                    println!("}}");
+                    // TODO: support other functions
+                    if function.name != "main" {
+                        unimplemented!();
+                    }
                 }
 
                 // ignore comments
-                Root::Comment(comment) => (),
+                Root::Comment(_comment) => (),
             }
         }
 
@@ -37,20 +43,15 @@ impl Compiler {
 
         Ok(())
     }
+
+    fn analyze_function() {}
 }
 
+#[derive(Default)]
 struct Scope {
     pub variables: Vec<String>,
-    pub functions: Vec<String>,
+    pub functions: Vec<FunctionSig>,
     pub types: Vec<String>,
 }
 
-impl Scope {
-    pub fn new() -> Self {
-        Self {
-            variables: Vec::new(),
-            functions: Vec::new(),
-            types: Vec::new(),
-        }
-    }
-}
+impl Scope {}

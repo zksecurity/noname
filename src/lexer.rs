@@ -262,6 +262,8 @@ impl Token {
                 '/' => {
                     let next_c = chars.peek();
                     if matches!(next_c, Some(&'/')) {
+                        chars.next(); // ignore the second /
+
                         // TODO: why can't I call chars.as_str().to_string()
                         let comment = chars.collect::<String>();
                         let len = comment.len();

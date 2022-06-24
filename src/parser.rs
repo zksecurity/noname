@@ -98,11 +98,17 @@ impl Path {
 //~ numeric ::= /[0-9]+/
 //~
 
-// TODO: feels weird to have type = type or array
 #[derive(Debug, Clone)]
-pub enum Ty {
-    Struct(String),
-    Array(Box<Self>, u32),
+pub struct Ty {
+    pub typ: TyKind,
+    pub span: (usize, usize),
+}
+
+#[derive(Debug, Clone)]
+pub enum TyKind {
+    Custom(String),
+    Field,
+    Array(Box<Ty>, u32),
 }
 
 impl Ty {
@@ -111,7 +117,10 @@ impl Ty {
 
         match token.typ {
             // struct name
-            TokenType::Type(name) => Ok(Ty::Struct(name)),
+            TokenType::Type(name) => Ok(Self {
+                typ: TyKind::Custom(name.to_string()),
+                span: token.span,
+            }),
 
             // array
             // [type; size]
@@ -145,7 +154,10 @@ impl Ty {
                 //            ^
                 tokens.bump_expected(ctx, TokenType::RightBracket)?;
 
-                Ok(Ty::Array(ty, siz))
+                Ok(Ty {
+                    typ: TyKind::Array(ty, siz),
+                    span: token.span,
+                })
             }
 
             // unrecognized
@@ -187,20 +199,25 @@ pub enum ComparisonOp {
     Equal,
 }
 
+pub struct Expr {
+    typ: ExprKind,
+    span: (usize, usize),
+}
+
 #[derive(Debug)]
-pub enum Expression {
+pub enum ExprKind {
     //    Literal(String),
     FnCall {
         function_name: String,
-        args: Vec<Expression>,
+        args: Vec<ExprKind>,
     },
     Variable(String),
-    Comparison(ComparisonOp, Box<Expression>, Box<Expression>),
-    Op(Op2, Box<Expression>, Box<Expression>),
-    Negated(Box<Expression>),
+    Comparison(ComparisonOp, Box<ExprKind>, Box<ExprKind>),
+    Op(Op2, Box<ExprKind>, Box<ExprKind>),
+    Negated(Box<ExprKind>),
     BigInt(String),
     Identifier(String),
-    ArrayAccess(String, Box<Expression>),
+    ArrayAccess(String, Box<ExprKind>),
 }
 
 #[derive(Debug)]
@@ -233,13 +250,13 @@ impl Op2 {
     }
 }
 
-impl Expression {
+impl ExprKind {
     /// Parses until it finds something it doesn't know, then returns without consuming the token it doesn't know (the caller will have to make sense of it)
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let token = tokens.bump_err(ctx, ErrorTy::MissingExpression)?;
         let lhs = match token.typ {
             // numeric
-            TokenType::BigInt(b) => Expression::BigInt(b),
+            TokenType::BigInt(b) => ExprKind::BigInt(b),
 
             // identifier
             TokenType::Identifier(ident) => {
@@ -259,9 +276,9 @@ impl Expression {
                     TokenType::LeftBracket => {
                         tokens.bump(ctx); // [
 
-                        let expr = Expression::parse(ctx, tokens)?;
+                        let expr = ExprKind::parse(ctx, tokens)?;
                         tokens.bump_expected(ctx, TokenType::RightBracket)?;
-                        Expression::ArrayAccess(ident, Box::new(expr))
+                        ExprKind::ArrayAccess(ident, Box::new(expr))
                     }
                     // fn call
                     TokenType::LeftParen => {
@@ -269,7 +286,7 @@ impl Expression {
 
                         let mut args = vec![];
                         loop {
-                            let arg = Expression::parse(ctx, tokens)?;
+                            let arg = ExprKind::parse(ctx, tokens)?;
 
                             args.push(arg);
 
@@ -294,27 +311,27 @@ impl Expression {
                                 }
                             }
                         }
-                        Expression::FnCall {
+                        ExprKind::FnCall {
                             function_name: ident,
                             args,
                         }
                     }
                     _ => {
                         // just a variable
-                        Expression::Identifier(ident)
+                        ExprKind::Identifier(ident)
                     }
                 }
             }
 
             // negated expr
             TokenType::Minus => {
-                let expr = Expression::parse(ctx, tokens)?;
-                Expression::Negated(Box::new(expr))
+                let expr = ExprKind::parse(ctx, tokens)?;
+                ExprKind::Negated(Box::new(expr))
             }
 
             // parenthesis
             TokenType::LeftParen => {
-                let expr = Expression::parse(ctx, tokens)?;
+                let expr = ExprKind::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::RightParen)?;
                 expr
             }
@@ -330,8 +347,8 @@ impl Expression {
 
         // bin op or return lhs
         if let Some(op) = Op2::parse_maybe(ctx, tokens) {
-            let rhs = Expression::parse(ctx, tokens)?;
-            Ok(Expression::Op(op, Box::new(lhs), Box::new(rhs)))
+            let rhs = ExprKind::parse(ctx, tokens)?;
+            Ok(ExprKind::Op(op, Box::new(lhs), Box::new(rhs)))
         } else {
             Ok(lhs)
         }
@@ -569,9 +586,9 @@ pub fn is_valid_fn_type(name: &str) -> bool {
 
 #[derive(Debug)]
 pub enum Statement {
-    Assign { lhs: String, rhs: Expression },
-    Assert(Expression),
-    Return(Expression),
+    Assign { lhs: String, rhs: ExprKind },
+    Assert(ExprKind),
+    Return(ExprKind),
     Comment(String),
 }
 
@@ -585,21 +602,21 @@ impl Statement {
             TokenType::Keyword(Keyword::Let) => {
                 let lhs = parse_ident(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::Equal)?;
-                let rhs = Expression::parse(ctx, tokens)?;
+                let rhs = ExprKind::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::SemiColon)?;
                 Ok(Statement::Assign { lhs, rhs })
             }
             // assert
             TokenType::Keyword(Keyword::Assert) => {
                 tokens.bump_expected(ctx, TokenType::LeftParen)?;
-                let expr = Expression::parse(ctx, tokens)?;
+                let expr = ExprKind::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::RightParen)?;
                 tokens.bump_expected(ctx, TokenType::SemiColon)?;
                 Ok(Statement::Assert(expr))
             }
             // return
             TokenType::Keyword(Keyword::Return) => {
-                let expr = Expression::parse(ctx, tokens)?;
+                let expr = ExprKind::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::SemiColon)?;
                 Ok(Statement::Return(expr))
             }

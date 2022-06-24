@@ -1,7 +1,5 @@
-use crypto::poseidon;
-
-fn main(pub public_input: [fel; 3], private_input: [fel; 3]) -> [fel; 8] {
-    let x3 = private_input[0] + private_input[1];
-    let x4 = 3 + x3;
-    assert(x3 == public_input[0]);
+// main should never have a return type right?
+fn main(pub public_input: Field, private_input: Field) {
+    let x = private_input[0] + private_input[1];
+    assert(x == 2);
 }
