@@ -139,7 +139,7 @@ impl Ty {
                         error: ErrorTy::InvalidArraySize,
                         span: siz.span,
                     })?,
-                    typ => {
+                    _ => {
                         return Err(Error {
                             error: ErrorTy::ExpectedToken(TokenType::BigInt("".to_string())),
                             span: siz.span,
@@ -178,7 +178,7 @@ impl Ty {
 //~     | ident
 //~     | fn_call
 //~     | array_access
-//~ bin_op ::= "+" | "-" | "/" | "*"
+//~ bin_op ::= "+" | "-" | "/" | "*" | "=="
 //~ numeric ::= /[0-9]+/
 //~ ident ::= /[A-Za-z_][A-Za-z_0-9]*/
 //~ fn_call ::= ident "(" expr { "," expr } ")"
@@ -215,19 +215,27 @@ pub enum Op2 {
     Subtraction,
     Multiplication,
     Division,
+    Equality,
 }
 
 impl Op2 {
     pub fn parse_maybe(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Option<Self> {
         let token = tokens.peek()?;
 
-        match token.typ {
+        let token = match token.typ {
             TokenType::Plus => Some(Op2::Addition),
             TokenType::Minus => Some(Op2::Subtraction),
             TokenType::Star => Some(Op2::Multiplication),
             TokenType::Slash => Some(Op2::Division),
+            TokenType::DoubleEqual => Some(Op2::Equality),
             _ => None,
+        };
+
+        if token.is_some() {
+            tokens.bump(ctx);
         }
+
+        token
     }
 }
 
@@ -572,14 +580,16 @@ impl Statement {
             // assignment
             TokenType::Keyword(Keyword::Let) => {
                 let lhs = parse_ident(ctx, tokens)?;
-                tokens.bump_expected(ctx, TokenType::Assign)?;
+                tokens.bump_expected(ctx, TokenType::Equal)?;
                 let rhs = Expression::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenType::SemiColon)?;
                 Ok(Statement::Assign { lhs, rhs })
             }
             // assert
             TokenType::Keyword(Keyword::Assert) => {
+                tokens.bump_expected(ctx, TokenType::LeftParen)?;
                 let expr = Expression::parse(ctx, tokens)?;
+                tokens.bump_expected(ctx, TokenType::RightParen)?;
                 tokens.bump_expected(ctx, TokenType::SemiColon)?;
                 Ok(Statement::Assert(expr))
             }
@@ -703,8 +713,6 @@ pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<String, E
 
 #[cfg(test)]
 mod tests {
-    use crate::tokens::Tokens;
-
     use super::*;
 
     #[test]
@@ -717,8 +725,17 @@ mod tests {
     }
 
     #[test]
-    fn statement() {
+    fn statement_assign() {
         let code = r#"let digest = poseidon(private_input);"#;
+        let tokens = &mut Token::parse(code).unwrap();
+        let ctx = &mut ParserCtx::default();
+        let parsed = Statement::parse(ctx, tokens).unwrap();
+        println!("{:?}", parsed);
+    }
+
+    #[test]
+    fn statement_assert() {
+        let code = r#"assert(digest == public_input);"#;
         let tokens = &mut Token::parse(code).unwrap();
         let ctx = &mut ParserCtx::default();
         let parsed = Statement::parse(ctx, tokens).unwrap();

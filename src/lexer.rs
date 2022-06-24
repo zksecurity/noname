@@ -76,8 +76,8 @@ pub enum TokenType {
     Comment(String),    // // comment
     Greater,            // >
     Less,               // <
-    Assign,             // =
-    Equal,              // ==
+    Equal,              // =
+    DoubleEqual,        // ==
     Plus,               // +
     Minus,              // -
     RightArrow,         // ->
@@ -108,8 +108,8 @@ impl Display for TokenType {
             TokenType::Comment(_) => "`//`",
             TokenType::Greater => "`>`",
             TokenType::Less => "`<`",
-            TokenType::Assign => "`=`",
-            TokenType::Equal => "`==`",
+            TokenType::Equal => "`=`",
+            TokenType::DoubleEqual => "`==`",
             TokenType::Plus => "`+`",
             TokenType::Minus => "`-`",
             TokenType::RightArrow => "`->`",
@@ -280,10 +280,10 @@ impl Token {
                 '=' => {
                     let next_c = chars.peek();
                     if matches!(next_c, Some(&'=')) {
-                        tokens.push(TokenType::Equal.new_token(ctx, 2));
+                        tokens.push(TokenType::DoubleEqual.new_token(ctx, 2));
                         chars.next();
                     } else {
-                        tokens.push(TokenType::Assign.new_token(ctx, 1));
+                        tokens.push(TokenType::Equal.new_token(ctx, 1));
                     }
                 }
                 '+' => {
