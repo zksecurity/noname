@@ -13,7 +13,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Tokens {
-    peeked: Option<Token>,
+    pub peeked: Option<Token>,
     inner: IntoIter<Token>,
 }
 

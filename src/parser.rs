@@ -140,7 +140,6 @@ impl Ty {
                         span: siz.span,
                     })?,
                     typ => {
-                        dbg!(typ);
                         return Err(Error {
                             error: ErrorTy::ExpectedToken(TokenType::BigInt("".to_string())),
                             span: siz.span,
@@ -252,32 +251,34 @@ impl Expression {
                     }
                     Some(x) => x,
                 };
-                dbg!(&peeked);
 
                 match peeked.typ {
                     // array access
                     TokenType::LeftBracket => {
+                        tokens.bump(ctx); // [
+
                         let expr = Expression::parse(ctx, tokens)?;
                         tokens.bump_expected(ctx, TokenType::RightBracket)?;
                         Expression::ArrayAccess(ident, Box::new(expr))
                     }
                     // fn call
                     TokenType::LeftParen => {
+                        tokens.bump(ctx); // (
+
                         let mut args = vec![];
                         loop {
                             let arg = Expression::parse(ctx, tokens)?;
-                            dbg!(&arg);
+
                             args.push(arg);
 
                             let pp = tokens.peek();
-                            dbg!(&pp);
+
                             match pp {
                                 Some(x) => match x.typ {
                                     TokenType::Comma => {
                                         tokens.bump(ctx);
                                     }
                                     TokenType::RightParen => {
-                                        dbg!("yes");
                                         tokens.bump(ctx);
                                         break;
                                     }
@@ -297,7 +298,6 @@ impl Expression {
                         }
                     }
                     _ => {
-                        dbg!("here here");
                         // just a variable
                         Expression::Identifier(ident)
                     }
@@ -712,7 +712,8 @@ mod tests {
         let code = r#"main(pub public_input: [Fel; 3], private_input: [Fel; 3]) -> [Fel; 8] { }"#;
         let tokens = &mut Token::parse(code).unwrap();
         let ctx = &mut ParserCtx::default();
-        Function::parse(ctx, tokens).unwrap();
+        let parsed = Function::parse(ctx, tokens).unwrap();
+        println!("{:?}", parsed);
     }
 
     #[test]
@@ -720,6 +721,7 @@ mod tests {
         let code = r#"let digest = poseidon(private_input);"#;
         let tokens = &mut Token::parse(code).unwrap();
         let ctx = &mut ParserCtx::default();
-        Statement::parse(ctx, tokens).unwrap();
+        let parsed = Statement::parse(ctx, tokens).unwrap();
+        println!("{:?}", parsed);
     }
 }
