@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
+use itertools::Itertools;
+
 use crate::{
+    error::{Error, ErrorTy},
     parser::{Expr, ExprKind, FunctionSig, Op2, Root, Stmt, TyKind, AST},
-    stdlib,
+    stdlib::{self, utils_functions},
 };
 
 //
@@ -114,10 +117,25 @@ impl std::fmt::Debug for Value {
 
 impl Compiler {
     pub fn compile(ast: AST) -> Result<(), &'static str> {
+        dbg!("hey");
         let mut compiler = Compiler::default();
         let scope = &mut Scope::default();
 
         let mut main_function_observed = false;
+
+        // inject some utility functions in the scope
+        // TODO: should we really import them by default?
+        {
+            dbg!("hey");
+            let t = utils_functions();
+            for (name, sig) in t {
+                dbg!(&name, &sig);
+                scope.functions.insert(name, FuncInScope::BuiltIn(sig));
+            }
+            dbg!("hey");
+        }
+
+        dbg!("hey");
 
         for root in ast.0 {
             match root {
@@ -126,6 +144,7 @@ impl Compiler {
                     let path = &mut path.0.into_iter();
                     let root_module = path.next().expect("empty imports can't be parsed");
 
+                    /*
                     let (functions, types) = if root_module == "std" {
                         stdlib::parse_std_import(path)?
                     } else {
@@ -134,6 +153,7 @@ impl Compiler {
 
                     scope.functions.extend(functions);
                     scope.types.extend(types);
+                    */
                 }
 
                 // `fn main() { ... }`
@@ -147,7 +167,7 @@ impl Compiler {
 
                     // create public and private inputs
                     for (public, name, typ) in function.arguments {
-                        if !matches!(typ.typ, TyKind::Field) {
+                        if !matches!(typ.kind, TyKind::Field) {
                             unimplemented!();
                         }
 
@@ -179,25 +199,83 @@ impl Compiler {
         Ok(())
     }
 
-    fn analyze_function(&mut self, scope: &mut Scope, stmts: Vec<Stmt>) {
+    fn analyze_function(&mut self, scope: &mut Scope, stmts: Vec<Stmt>) -> Result<(), Error> {
         for stmt in stmts {
-            match stmt.typ {
+            match stmt.kind {
                 crate::parser::StmtKind::Assign { lhs, rhs } => {
                     // compute the rhs
-                    let var = self.compute_expr(scope, rhs).unwrap();
+                    let var = self.compute_expr(scope, *rhs).unwrap();
 
                     // store the new variable
                     scope.variables.insert(lhs.clone(), var);
                 }
+                /*
                 crate::parser::StmtKind::Assert(expr) => {
                     let lhs = self.compute_expr(scope, expr).unwrap();
                     let one = self.constant(F::one());
                     self.assert_eq(lhs, one);
                 }
+                */
+                crate::parser::StmtKind::FnCall { name, args } => {
+                    // compute the arguments
+                    let mut vars = Vec::with_capacity(args.len());
+                    for arg in &args {
+                        let var = self.compute_expr(scope, **arg).ok_or(Error {
+                            error: ErrorTy::CannotComputeExpression,
+                            span: arg.span,
+                        })?;
+                        vars.push(var);
+                    }
+
+                    // check if it's the scope
+                    match scope.functions.get(&name) {
+                        None => {
+                            return Err(Error {
+                                error: ErrorTy::UnknownFunction(name),
+                                span: stmt.span,
+                            })
+                        }
+                        Some(FuncInScope::BuiltIn(sig)) => {
+                            // compute the expressions
+
+                            // compare sig
+                            if sig.arguments.len() != args.len() {
+                                return Err(Error {
+                                    error: ErrorTy::WrongNumberOfArguments {
+                                        name,
+                                        expected_args: sig.arguments.len(),
+                                        observed_args: args.len(),
+                                    },
+                                    span: stmt.span,
+                                });
+                            }
+
+                            for ((_pub, arg_name, typ), arg) in sig.arguments.iter().zip_eq(args) {
+                                let tt = arg.kind;
+                                if !matches!(&typ.kind, tt) {
+                                    return Err(Error {
+                                        error: ErrorTy::WrongArgumentType {
+                                            fn_name: name,
+                                            arg_name: arg_name.clone(),
+                                            expected_ty: typ.kind.to_string(),
+                                            observed_ty: arg.typ.unwrap().to_string(),
+                                        },
+                                        span: stmt.span,
+                                    });
+                                }
+                            }
+
+                            // run function
+                        }
+                        Some(FuncInScope::Library(_, _)) => todo!(),
+                    }
+                }
                 crate::parser::StmtKind::Return(_) => todo!(),
                 crate::parser::StmtKind::Comment(_) => todo!(),
             }
         }
+
+        Ok(())
     }
 
     fn new_internal_var(&mut self, val: Value) -> Var {
@@ -213,7 +291,7 @@ impl Compiler {
 
     fn compute_expr(&mut self, scope: &mut Scope, expr: Expr) -> Option<Var> {
         // HOW TO DO THAT XD??
-        match expr.typ {
+        match expr.kind {
             ExprKind::FnCall {
                 function_name,
                 args,
@@ -297,11 +375,17 @@ impl Compiler {
     }
 }
 
+// TODO: right now there's only one scope, but if we want to deal with multiple scopes then we'll need to make sure child scopes have access to parent scope, shadowing, etc.
 #[derive(Default)]
-struct Scope {
+pub struct Scope {
     pub variables: HashMap<String, Var>,
-    pub functions: Vec<FunctionSig>,
+    pub functions: HashMap<String, FuncInScope>,
     pub types: Vec<String>,
 }
 
-impl Scope {}
+pub enum FuncInScope {
+    /// signature of the function
+    BuiltIn(FunctionSig),
+    /// path, and signature of the function
+    Library(Vec<String>, FunctionSig),
+}

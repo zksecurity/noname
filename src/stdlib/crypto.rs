@@ -8,13 +8,7 @@ pub fn parse_crypto_import(
     match module.as_ref() {
         "poseidon" => {
             let array_of_3_fel = Ty {
-                typ: TyKind::Array(
-                    Box::new(Ty {
-                        typ: TyKind::Custom("Field".to_string()),
-                        span: (0, 0),
-                    }),
-                    3,
-                ),
+                kind: TyKind::Array(Box::new(TyKind::Field), 3),
                 span: (0, 0),
             };
 

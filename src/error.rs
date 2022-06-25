@@ -1,7 +1,7 @@
 use miette::Diagnostic;
 use thiserror::Error;
 
-use crate::lexer::TokenType;
+use crate::lexer::TokenKind;
 
 #[derive(Diagnostic, Debug, Error)]
 #[error("Parsing error")]
@@ -26,7 +26,7 @@ pub enum ErrorTy {
     MissingToken,
 
     #[error("invalid token, expected: {0}")]
-    ExpectedToken(TokenType),
+    ExpectedToken(TokenKind),
 
     #[error("invalid path")]
     InvalidPath,
@@ -69,4 +69,25 @@ pub enum ErrorTy {
 
     #[error("imports via `use` keyword must appear before anything else")]
     UseAfterFn,
+
+    #[error("function {0} is not recognized")]
+    UnknownFunction(String),
+
+    #[error("function {name} expected {expected_args} arguments but was passed {observed_args}")]
+    WrongNumberOfArguments {
+        name: String,
+        expected_args: usize,
+        observed_args: usize,
+    },
+
+    #[error("argument `{arg_name}` of function {fn_name} was passed a type {observed_ty} when it expected a {expected_ty}")]
+    WrongArgumentType {
+        fn_name: String,
+        arg_name: String,
+        expected_ty: String,
+        observed_ty: String,
+    },
+
+    #[error("cannot compute the expression")]
+    CannotComputeExpression,
 }

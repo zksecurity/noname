@@ -1,5 +1,9 @@
 use std::crypto::poseidon;
 
+# it'd be nice if instead of importing the poseidon fn directly
+# we have to import modules like in Golang
+# so we'd import crypto and call crypto::poseidon
+
 fn main(pub public_input: [Field; 3], private_input: [Field; 3]) {
     let digest = poseidon(private_input);
     assert(digest == public_input);

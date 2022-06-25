@@ -23,8 +23,6 @@ pub enum Keyword {
     Pub,
     /// Return from a function
     Return,
-    /// Assert a condition
-    Assert,
 }
 
 impl Keyword {
@@ -35,7 +33,6 @@ impl Keyword {
             "let" => Some(Self::Let),
             "pub" => Some(Self::Pub),
             "return" => Some(Self::Return),
-            "assert" => Some(Self::Assert),
             _ => None,
         }
     }
@@ -49,7 +46,6 @@ impl Display for Keyword {
             Self::Let => "let",
             Self::Pub => "pub",
             Self::Return => "return",
-            Self::Assert => "assert",
         };
 
         write!(f, "{}", desc)
@@ -57,7 +53,7 @@ impl Display for Keyword {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TokenType {
+pub enum TokenKind {
     Keyword(Keyword),   // reserved keywords
     Identifier(String), // [a-z_](a-z0-9_)*
     Type(String),       // [A-Z](a-zA-Z0-9)*
@@ -85,35 +81,35 @@ pub enum TokenType {
                         //    Literal,               // "thing"
 }
 
-impl Display for TokenType {
+impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let desc = match self {
-            TokenType::Keyword(_) => "keyword (use, let, etc.)",
-            TokenType::Identifier(_) => {
+            TokenKind::Keyword(_) => "keyword (use, let, etc.)",
+            TokenKind::Identifier(_) => {
                 "a lowercase alphanumeric (including underscore) string starting with a letter"
             }
-            TokenType::Type(_) => "an alphanumeric string starting with an uppercase letter",
-            TokenType::BigInt(_) => "a number",
-            TokenType::Comma => "`,`",
-            TokenType::Colon => "`:`",
-            TokenType::DoubleColon => "`::`",
-            TokenType::LeftParen => "`(`",
-            TokenType::RightParen => "`)`",
-            TokenType::LeftBracket => "`[`",
-            TokenType::RightBracket => "`]`",
-            TokenType::LeftCurlyBracket => "`{`",
-            TokenType::RightCurlyBracket => "`}`",
-            TokenType::SemiColon => "`;`",
-            TokenType::Slash => "`/`",
-            TokenType::Comment(_) => "`//`",
-            TokenType::Greater => "`>`",
-            TokenType::Less => "`<`",
-            TokenType::Equal => "`=`",
-            TokenType::DoubleEqual => "`==`",
-            TokenType::Plus => "`+`",
-            TokenType::Minus => "`-`",
-            TokenType::RightArrow => "`->`",
-            TokenType::Star => "`*`",
+            TokenKind::Type(_) => "an alphanumeric string starting with an uppercase letter",
+            TokenKind::BigInt(_) => "a number",
+            TokenKind::Comma => "`,`",
+            TokenKind::Colon => "`:`",
+            TokenKind::DoubleColon => "`::`",
+            TokenKind::LeftParen => "`(`",
+            TokenKind::RightParen => "`)`",
+            TokenKind::LeftBracket => "`[`",
+            TokenKind::RightBracket => "`]`",
+            TokenKind::LeftCurlyBracket => "`{`",
+            TokenKind::RightCurlyBracket => "`}`",
+            TokenKind::SemiColon => "`;`",
+            TokenKind::Slash => "`/`",
+            TokenKind::Comment(_) => "`//`",
+            TokenKind::Greater => "`>`",
+            TokenKind::Less => "`<`",
+            TokenKind::Equal => "`=`",
+            TokenKind::DoubleEqual => "`==`",
+            TokenKind::Plus => "`+`",
+            TokenKind::Minus => "`-`",
+            TokenKind::RightArrow => "`->`",
+            TokenKind::Star => "`*`",
             //            TokenType::Literal => "`\"something\"",
         };
 
@@ -121,10 +117,10 @@ impl Display for TokenType {
     }
 }
 
-impl TokenType {
+impl TokenKind {
     pub fn new_token(self, ctx: &mut LexerCtx, len: usize) -> Token {
         let token = Token {
-            typ: self,
+            kind: self,
             span: (ctx.offset, len),
         };
 
@@ -136,7 +132,7 @@ impl TokenType {
 
 #[derive(Debug, Clone)]
 pub struct Token {
-    pub typ: TokenType,
+    pub kind: TokenKind,
     pub span: (usize, usize),
 }
 
@@ -175,14 +171,14 @@ impl Token {
          -> Result<(), Error> {
             let len = ident_or_number.len();
             if let Some(keyword) = Keyword::parse(&ident_or_number) {
-                tokens.push(TokenType::Keyword(keyword).new_token(ctx, len));
+                tokens.push(TokenKind::Keyword(keyword).new_token(ctx, len));
             } else {
                 if is_numeric(&ident_or_number) {
-                    tokens.push(TokenType::BigInt(ident_or_number).new_token(ctx, len));
+                    tokens.push(TokenKind::BigInt(ident_or_number).new_token(ctx, len));
                 } else if is_identifier(&ident_or_number) {
-                    tokens.push(TokenType::Identifier(ident_or_number).new_token(ctx, len));
+                    tokens.push(TokenKind::Identifier(ident_or_number).new_token(ctx, len));
                 } else if is_type(&ident_or_number) {
-                    tokens.push(TokenType::Type(ident_or_number).new_token(ctx, len));
+                    tokens.push(TokenKind::Type(ident_or_number).new_token(ctx, len));
                 } else {
                     return Err(Error {
                         error: ErrorTy::InvalidIdentifier,
@@ -226,38 +222,38 @@ impl Token {
                     }
                 }
                 ',' => {
-                    tokens.push(TokenType::Comma.new_token(ctx, 1));
+                    tokens.push(TokenKind::Comma.new_token(ctx, 1));
                 }
                 ':' => {
                     // TODO: replace `peek` with `next_if_eq`?
                     let next_c = chars.peek();
                     if matches!(next_c, Some(&':')) {
-                        tokens.push(TokenType::DoubleColon.new_token(ctx, 2));
+                        tokens.push(TokenKind::DoubleColon.new_token(ctx, 2));
                         chars.next();
                     } else {
-                        tokens.push(TokenType::Colon.new_token(ctx, 1));
+                        tokens.push(TokenKind::Colon.new_token(ctx, 1));
                     }
                 }
                 '(' => {
-                    tokens.push(TokenType::LeftParen.new_token(ctx, 1));
+                    tokens.push(TokenKind::LeftParen.new_token(ctx, 1));
                 }
                 ')' => {
-                    tokens.push(TokenType::RightParen.new_token(ctx, 1));
+                    tokens.push(TokenKind::RightParen.new_token(ctx, 1));
                 }
                 '[' => {
-                    tokens.push(TokenType::LeftBracket.new_token(ctx, 1));
+                    tokens.push(TokenKind::LeftBracket.new_token(ctx, 1));
                 }
                 ']' => {
-                    tokens.push(TokenType::RightBracket.new_token(ctx, 1));
+                    tokens.push(TokenKind::RightBracket.new_token(ctx, 1));
                 }
                 '{' => {
-                    tokens.push(TokenType::LeftCurlyBracket.new_token(ctx, 1));
+                    tokens.push(TokenKind::LeftCurlyBracket.new_token(ctx, 1));
                 }
                 '}' => {
-                    tokens.push(TokenType::RightCurlyBracket.new_token(ctx, 1));
+                    tokens.push(TokenKind::RightCurlyBracket.new_token(ctx, 1));
                 }
                 ';' => {
-                    tokens.push(TokenType::SemiColon.new_token(ctx, 1));
+                    tokens.push(TokenKind::SemiColon.new_token(ctx, 1));
                 }
                 '/' => {
                     let next_c = chars.peek();
@@ -267,41 +263,41 @@ impl Token {
                         // TODO: why can't I call chars.as_str().to_string()
                         let comment = chars.collect::<String>();
                         let len = comment.len();
-                        tokens.push(TokenType::Comment(comment).new_token(ctx, 2 + len));
+                        tokens.push(TokenKind::Comment(comment).new_token(ctx, 2 + len));
                         break;
                     } else {
-                        tokens.push(TokenType::Slash.new_token(ctx, 1));
+                        tokens.push(TokenKind::Slash.new_token(ctx, 1));
                     }
                 }
                 '>' => {
-                    tokens.push(TokenType::Greater.new_token(ctx, 1));
+                    tokens.push(TokenKind::Greater.new_token(ctx, 1));
                 }
                 '<' => {
-                    tokens.push(TokenType::Less.new_token(ctx, 1));
+                    tokens.push(TokenKind::Less.new_token(ctx, 1));
                 }
                 '=' => {
                     let next_c = chars.peek();
                     if matches!(next_c, Some(&'=')) {
-                        tokens.push(TokenType::DoubleEqual.new_token(ctx, 2));
+                        tokens.push(TokenKind::DoubleEqual.new_token(ctx, 2));
                         chars.next();
                     } else {
-                        tokens.push(TokenType::Equal.new_token(ctx, 1));
+                        tokens.push(TokenKind::Equal.new_token(ctx, 1));
                     }
                 }
                 '+' => {
-                    tokens.push(TokenType::Plus.new_token(ctx, 1));
+                    tokens.push(TokenKind::Plus.new_token(ctx, 1));
                 }
                 '-' => {
                     let next_c = chars.peek();
                     if matches!(next_c, Some(&'>')) {
-                        tokens.push(TokenType::RightArrow.new_token(ctx, 2));
+                        tokens.push(TokenKind::RightArrow.new_token(ctx, 2));
                         chars.next();
                     } else {
-                        tokens.push(TokenType::Minus.new_token(ctx, 1));
+                        tokens.push(TokenKind::Minus.new_token(ctx, 1));
                     }
                 }
                 '*' => {
-                    tokens.push(TokenType::Star.new_token(ctx, 1));
+                    tokens.push(TokenKind::Star.new_token(ctx, 1));
                 }
                 ' ' => ctx.offset += 1,
                 _ => {

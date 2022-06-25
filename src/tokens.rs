@@ -7,7 +7,7 @@ use std::vec::IntoIter;
 
 use crate::{
     error::{Error, ErrorTy},
-    lexer::{Token, TokenType},
+    lexer::{Token, TokenKind},
     parser::ParserCtx,
 };
 
@@ -32,8 +32,9 @@ impl Tokens {
             Some(token.clone())
         } else {
             // otherwise get from iterator and store in peeked
-            self.peeked = self.inner.next();
-            self.peek()
+            let token = self.inner.next();
+            self.peeked = token.clone();
+            token
         }
     }
 
@@ -62,9 +63,9 @@ impl Tokens {
 
     /// Like [bump] but errors if the token is not `typ`
     #[must_use]
-    pub fn bump_expected(&mut self, ctx: &mut ParserCtx, typ: TokenType) -> Result<Token, Error> {
+    pub fn bump_expected(&mut self, ctx: &mut ParserCtx, typ: TokenKind) -> Result<Token, Error> {
         let token = self.bump_err(ctx, ErrorTy::MissingToken)?;
-        if token.typ == typ {
+        if token.kind == typ {
             Ok(token)
         } else {
             Err(Error {

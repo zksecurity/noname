@@ -1,6 +1,8 @@
+use std::fmt::Display;
+
 use crate::{
     error::{Error, ErrorTy},
-    lexer::{Keyword, Token, TokenType},
+    lexer::{Keyword, Token, TokenKind},
     tokens::Tokens,
 };
 
@@ -45,9 +47,9 @@ impl Path {
             })?;
             ctx.last_token = Some(token.clone());
 
-            match &token.typ {
+            match &token.kind {
                 // a chunk of the path
-                TokenType::Identifier(chunk) => {
+                TokenKind::Identifier(chunk) => {
                     path.push(chunk.to_string());
 
                     // next, we expect a `::` to continue the path,
@@ -61,7 +63,7 @@ impl Path {
                         }
                         // path separator
                         Some(Token {
-                            typ: TokenType::DoubleColon,
+                            kind: TokenKind::DoubleColon,
                             ..
                         }) => {
                             let token = tokens.bump(ctx);
@@ -100,7 +102,7 @@ impl Path {
 
 #[derive(Debug, Clone)]
 pub struct Ty {
-    pub typ: TyKind,
+    pub kind: TyKind,
     pub span: (usize, usize),
 }
 
@@ -108,24 +110,36 @@ pub struct Ty {
 pub enum TyKind {
     Custom(String),
     Field,
-    Array(Box<Ty>, u32),
+    BigInt,
+    Array(Box<TyKind>, u32),
+}
+
+impl Display for TyKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TyKind::Custom(name) => write!(f, "{}", name),
+            TyKind::Field => write!(f, "Field"),
+            TyKind::BigInt => write!(f, "BigInt"),
+            TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
+        }
+    }
 }
 
 impl Ty {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let token = tokens.bump_err(ctx, ErrorTy::MissingType)?;
 
-        match token.typ {
+        match token.kind {
             // struct name
-            TokenType::Type(name) => {
+            TokenKind::Type(name) => {
                 if name == "Field" {
                     Ok(Self {
-                        typ: TyKind::Field,
+                        kind: TyKind::Field,
                         span: token.span,
                     })
                 } else {
                     Ok(Self {
-                        typ: TyKind::Custom(name.to_string()),
+                        kind: TyKind::Custom(name.to_string()),
                         span: token.span,
                     })
                 }
@@ -134,26 +148,26 @@ impl Ty {
             // array
             // [type; size]
             // ^
-            TokenType::LeftBracket => {
+            TokenKind::LeftBracket => {
                 // [type; size]
                 //   ^
-                let ty = Box::new(Ty::parse(ctx, tokens)?);
+                let ty = Ty::parse(ctx, tokens)?;
 
                 // [type; size]
                 //      ^
-                tokens.bump_expected(ctx, TokenType::SemiColon)?;
+                tokens.bump_expected(ctx, TokenKind::SemiColon)?;
 
                 // [type; size]
                 //         ^
                 let siz = tokens.bump_err(ctx, ErrorTy::InvalidToken)?;
-                let siz = match siz.typ {
-                    TokenType::BigInt(s) => s.parse().map_err(|_e| Error {
+                let siz = match siz.kind {
+                    TokenKind::BigInt(s) => s.parse().map_err(|_e| Error {
                         error: ErrorTy::InvalidArraySize,
                         span: siz.span,
                     })?,
                     _ => {
                         return Err(Error {
-                            error: ErrorTy::ExpectedToken(TokenType::BigInt("".to_string())),
+                            error: ErrorTy::ExpectedToken(TokenKind::BigInt("".to_string())),
                             span: siz.span,
                         });
                     }
@@ -161,10 +175,10 @@ impl Ty {
 
                 // [type; size]
                 //            ^
-                tokens.bump_expected(ctx, TokenType::RightBracket)?;
+                tokens.bump_expected(ctx, TokenKind::RightBracket)?;
 
                 Ok(Ty {
-                    typ: TyKind::Array(ty, siz),
+                    kind: TyKind::Array(Box::new(ty.kind), siz),
                     span: token.span,
                 })
             }
@@ -210,7 +224,8 @@ pub enum ComparisonOp {
 
 #[derive(Debug)]
 pub struct Expr {
-    pub typ: ExprKind,
+    pub kind: ExprKind,
+    pub typ: Option<TyKind>,
     pub span: (usize, usize),
 }
 
@@ -243,12 +258,12 @@ impl Op2 {
     pub fn parse_maybe(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Option<Self> {
         let token = tokens.peek()?;
 
-        let token = match token.typ {
-            TokenType::Plus => Some(Op2::Addition),
-            TokenType::Minus => Some(Op2::Subtraction),
-            TokenType::Star => Some(Op2::Multiplication),
-            TokenType::Slash => Some(Op2::Division),
-            TokenType::DoubleEqual => Some(Op2::Equality),
+        let token = match token.kind {
+            TokenKind::Plus => Some(Op2::Addition),
+            TokenKind::Minus => Some(Op2::Subtraction),
+            TokenKind::Star => Some(Op2::Multiplication),
+            TokenKind::Slash => Some(Op2::Division),
+            TokenKind::DoubleEqual => Some(Op2::Equality),
             _ => None,
         };
 
@@ -266,15 +281,16 @@ impl Expr {
         let token = tokens.bump_err(ctx, ErrorTy::MissingExpression)?;
         let span = token.span;
 
-        let lhs = match token.typ {
+        let lhs = match token.kind {
             // numeric
-            TokenType::BigInt(b) => Expr {
-                typ: ExprKind::BigInt(b),
+            TokenKind::BigInt(b) => Expr {
+                kind: ExprKind::BigInt(b),
+                typ: Some(TyKind::BigInt),
                 span,
             },
 
             // identifier
-            TokenType::Identifier(ident) => {
+            TokenKind::Identifier(ident) => {
                 // could be array access, fn call
                 let peeked = match tokens.peek() {
                     None => {
@@ -286,21 +302,22 @@ impl Expr {
                     Some(x) => x,
                 };
 
-                match peeked.typ {
+                match peeked.kind {
                     // array access
-                    TokenType::LeftBracket => {
+                    TokenKind::LeftBracket => {
                         tokens.bump(ctx); // [
 
                         let expr = Expr::parse(ctx, tokens)?;
-                        tokens.bump_expected(ctx, TokenType::RightBracket)?;
+                        tokens.bump_expected(ctx, TokenKind::RightBracket)?;
 
                         Expr {
-                            typ: ExprKind::ArrayAccess(ident, Box::new(expr)),
+                            kind: ExprKind::ArrayAccess(ident, Box::new(expr)),
+                            typ: None,
                             span,
                         }
                     }
                     // fn call
-                    TokenType::LeftParen => {
+                    TokenKind::LeftParen => {
                         tokens.bump(ctx); // (
 
                         let mut args = vec![];
@@ -312,11 +329,11 @@ impl Expr {
                             let pp = tokens.peek();
 
                             match pp {
-                                Some(x) => match x.typ {
-                                    TokenType::Comma => {
+                                Some(x) => match x.kind {
+                                    TokenKind::Comma => {
                                         tokens.bump(ctx);
                                     }
-                                    TokenType::RightParen => {
+                                    TokenKind::RightParen => {
                                         tokens.bump(ctx);
                                         break;
                                     }
@@ -332,17 +349,19 @@ impl Expr {
                         }
 
                         Expr {
-                            typ: ExprKind::FnCall {
+                            kind: ExprKind::FnCall {
                                 function_name: ident,
                                 args,
                             },
+                            typ: None,
                             span,
                         }
                     }
                     _ => {
                         // just a variable
                         Expr {
-                            typ: ExprKind::Identifier(ident),
+                            kind: ExprKind::Identifier(ident),
+                            typ: None,
                             span,
                         }
                     }
@@ -350,19 +369,20 @@ impl Expr {
             }
 
             // negated expr
-            TokenType::Minus => {
+            TokenKind::Minus => {
                 let expr = Expr::parse(ctx, tokens)?;
 
                 Expr {
-                    typ: ExprKind::Negated(Box::new(expr)),
+                    kind: ExprKind::Negated(Box::new(expr)),
+                    typ: None,
                     span,
                 }
             }
 
             // parenthesis
-            TokenType::LeftParen => {
+            TokenKind::LeftParen => {
                 let expr = Expr::parse(ctx, tokens)?;
-                tokens.bump_expected(ctx, TokenType::RightParen)?;
+                tokens.bump_expected(ctx, TokenKind::RightParen)?;
                 expr
             }
 
@@ -379,7 +399,8 @@ impl Expr {
         if let Some(op) = Op2::parse_maybe(ctx, tokens) {
             let rhs = Expr::parse(ctx, tokens)?;
             Ok(Expr {
-                typ: ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
+                kind: ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
+                typ: None,
                 span,
             })
         } else {
@@ -409,6 +430,22 @@ pub struct FunctionSig {
     pub return_type: Option<Ty>,
 }
 
+impl FunctionSig {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
+        let name = Function::parse_name(ctx, tokens)?;
+
+        let arguments = Function::parse_args(ctx, tokens)?;
+
+        let return_type = Function::parse_fn_return_type(ctx, tokens)?;
+
+        Ok(Self {
+            name,
+            arguments,
+            return_type,
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
@@ -430,7 +467,7 @@ impl Function {
 
         let name = match token {
             Token {
-                typ: TokenType::Identifier(name),
+                kind: TokenKind::Identifier(name),
                 ..
             } => name,
             _ => {
@@ -450,7 +487,7 @@ impl Function {
     ) -> Result<Vec<(bool, String, Ty)>, Error> {
         // (pub arg1: type1, arg2: type2)
         // ^
-        tokens.bump_expected(ctx, TokenType::LeftParen)?;
+        tokens.bump_expected(ctx, TokenKind::LeftParen)?;
 
         // (pub arg1: type1, arg2: type2)
         //   ^
@@ -463,14 +500,14 @@ impl Function {
                 ErrorTy::InvalidFunctionSignature("expected function arguments"),
             )?;
 
-            let (public, arg_name) = match token.typ {
+            let (public, arg_name) = match token.kind {
                 // public input
-                TokenType::Keyword(Keyword::Pub) => {
+                TokenKind::Keyword(Keyword::Pub) => {
                     let arg_name = parse_ident(ctx, tokens)?;
                     (true, arg_name)
                 }
                 // private input
-                TokenType::Identifier(name) => (false, name),
+                TokenKind::Identifier(name) => (false, name),
                 _ => {
                     return Err(Error {
                         error: ErrorTy::InvalidFunctionSignature("expected identifier"),
@@ -480,7 +517,7 @@ impl Function {
             };
 
             // :
-            tokens.bump_expected(ctx, TokenType::Colon)?;
+            tokens.bump_expected(ctx, TokenKind::Colon)?;
 
             // type
             let arg_typ = Ty::parse(ctx, tokens)?;
@@ -491,15 +528,15 @@ impl Function {
                 ErrorTy::InvalidFunctionSignature("expected end of function or other argument"),
             )?;
 
-            match separator.typ {
+            match separator.kind {
                 // (pub arg1: type1, arg2: type2)
                 //                 ^
-                TokenType::Comma => {
+                TokenKind::Comma => {
                     args.push((public, arg_name, arg_typ));
                 }
                 // (pub arg1: type1, arg2: type2)
                 //                              ^
-                TokenType::RightParen => {
+                TokenKind::RightParen => {
                     args.push((public, arg_name, arg_typ));
                     break;
                 }
@@ -523,24 +560,22 @@ impl Function {
     ) -> Result<Option<Ty>, Error> {
         match tokens.peek() {
             Some(Token {
-                typ: TokenType::LeftCurlyBracket,
+                kind: TokenKind::RightArrow,
                 ..
             }) => {
-                return Ok(None);
+                tokens.bump(ctx);
+
+                let return_type = Ty::parse(ctx, tokens)?;
+                Ok(Some(return_type))
             }
-            _ => (),
-        };
-
-        tokens.bump_expected(ctx, TokenType::RightArrow)?;
-
-        let return_type = Ty::parse(ctx, tokens)?;
-        Ok(Some(return_type))
+            _ => Ok(None),
+        }
     }
 
     pub fn parse_fn_body(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<Stmt>, Error> {
         let mut body = vec![];
 
-        tokens.bump_expected(ctx, TokenType::LeftCurlyBracket)?;
+        tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
 
         loop {
             // end of the function
@@ -548,7 +583,7 @@ impl Function {
             if matches!(
                 next_token,
                 Some(Token {
-                    typ: TokenType::RightCurlyBracket,
+                    kind: TokenKind::RightCurlyBracket,
                     ..
                 })
             ) {
@@ -616,15 +651,15 @@ pub fn is_valid_fn_type(name: &str) -> bool {
 
 #[derive(Debug)]
 pub struct Stmt {
-    pub typ: StmtKind,
+    pub kind: StmtKind,
     pub span: (usize, usize),
 }
 
 #[derive(Debug)]
 pub enum StmtKind {
-    Assign { lhs: String, rhs: Expr },
-    Assert(Expr),
-    Return(Expr),
+    Assign { lhs: String, rhs: Box<Expr> },
+    FnCall { name: String, args: Vec<Box<Expr>> },
+    Return(Box<Expr>),
     Comment(String),
 }
 
@@ -634,19 +669,59 @@ impl Stmt {
         let token = tokens.bump_err(ctx, ErrorTy::InvalidStatement)?;
         let span = token.span;
 
-        match token.typ {
+        match token.kind {
             // assignment
-            TokenType::Keyword(Keyword::Let) => {
+            TokenKind::Keyword(Keyword::Let) => {
                 let lhs = parse_ident(ctx, tokens)?;
-                tokens.bump_expected(ctx, TokenType::Equal)?;
-                let rhs = Expr::parse(ctx, tokens)?;
-                tokens.bump_expected(ctx, TokenType::SemiColon)?;
+                tokens.bump_expected(ctx, TokenKind::Equal)?;
+                let rhs = Box::new(Expr::parse(ctx, tokens)?);
+                tokens.bump_expected(ctx, TokenKind::SemiColon)?;
                 Ok(Stmt {
-                    typ: StmtKind::Assign { lhs, rhs },
+                    kind: StmtKind::Assign { lhs, rhs },
+                    span,
+                })
+            }
+            // function call
+            TokenKind::Identifier(name) => {
+                tokens.bump_expected(ctx, TokenKind::LeftParen)?;
+
+                let mut args = vec![];
+                loop {
+                    let arg = Expr::parse(ctx, tokens)?;
+
+                    args.push(Box::new(arg));
+
+                    let pp = tokens.peek();
+
+                    match pp {
+                        Some(x) => match x.kind {
+                            TokenKind::Comma => {
+                                tokens.bump(ctx);
+                            }
+                            TokenKind::RightParen => {
+                                tokens.bump(ctx);
+                                break;
+                            }
+                            _ => (),
+                        },
+                        None => {
+                            return Err(Error {
+                                error: ErrorTy::InvalidFnCall,
+                                span: ctx.last_span(),
+                            })
+                        }
+                    }
+                }
+
+                tokens.bump_expected(ctx, TokenKind::SemiColon)?;
+
+                Ok(Stmt {
+                    kind: StmtKind::FnCall { name, args },
                     span,
                 })
             }
             // assert
+            /*
             TokenType::Keyword(Keyword::Assert) => {
                 tokens.bump_expected(ctx, TokenType::LeftParen)?;
                 let expr = Expr::parse(ctx, tokens)?;
@@ -657,18 +732,19 @@ impl Stmt {
                     span,
                 })
             }
+            */
             // return
-            TokenType::Keyword(Keyword::Return) => {
+            TokenKind::Keyword(Keyword::Return) => {
                 let expr = Expr::parse(ctx, tokens)?;
-                tokens.bump_expected(ctx, TokenType::SemiColon)?;
+                tokens.bump_expected(ctx, TokenKind::SemiColon)?;
                 Ok(Stmt {
-                    typ: StmtKind::Return(expr),
+                    kind: StmtKind::Return(Box::new(expr)),
                     span,
                 })
             }
             // comment
-            TokenType::Comment(c) => Ok(Stmt {
-                typ: StmtKind::Comment(c),
+            TokenKind::Comment(c) => Ok(Stmt {
+                kind: StmtKind::Comment(c),
                 span,
             }),
             //
@@ -718,9 +794,9 @@ impl AST {
                 None => break,
             };
 
-            match &token.typ {
+            match &token.kind {
                 // `use crypto::poseidon;`
-                TokenType::Keyword(Keyword::Use) => {
+                TokenKind::Keyword(Keyword::Use) => {
                     if function_observed {
                         return Err(Error {
                             error: ErrorTy::UseAfterFn,
@@ -736,7 +812,7 @@ impl AST {
                     if !matches!(
                         next_token,
                         Some(Token {
-                            typ: TokenType::SemiColon,
+                            kind: TokenKind::SemiColon,
                             ..
                         })
                     ) {
@@ -748,7 +824,7 @@ impl AST {
                 }
 
                 // `fn main() { }`
-                TokenType::Keyword(Keyword::Fn) => {
+                TokenKind::Keyword(Keyword::Fn) => {
                     function_observed = true;
 
                     let func = Function::parse(ctx, &mut tokens)?;
@@ -756,7 +832,7 @@ impl AST {
                 }
 
                 // `// some comment`
-                TokenType::Comment(comment) => {
+                TokenKind::Comment(comment) => {
                     ast.push(Root::Comment(comment.clone()));
                 }
 
@@ -780,10 +856,10 @@ impl AST {
 
 pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<String, Error> {
     let token = tokens.bump_err(ctx, ErrorTy::MissingToken)?;
-    match token.typ {
-        TokenType::Identifier(ident) => Ok(ident),
+    match token.kind {
+        TokenKind::Identifier(ident) => Ok(ident),
         _ => Err(Error {
-            error: ErrorTy::ExpectedToken(TokenType::Identifier("".to_string())),
+            error: ErrorTy::ExpectedToken(TokenKind::Identifier("".to_string())),
             span: token.span,
         }),
     }
