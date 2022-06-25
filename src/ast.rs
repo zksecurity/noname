@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    parser::{Expr, ExprKind, FunctionSig, Op2, Root, Stmt, AST},
+    parser::{Expr, ExprKind, FunctionSig, Op2, Root, Stmt, TyKind, AST},
     stdlib,
 };
 
@@ -76,7 +76,11 @@ pub struct Compiler {
     gates: Vec<Gate>,
 
     /// Size of the public input.
-    pub public_size_input: usize,
+    pub public_input_size: usize,
+
+    /// Size of the private input.
+    // TODO: bit weird isn't it?
+    pub private_input_size: usize,
     // Wiring here? or inside gate?
     // pub wiring: ()
 }
@@ -94,6 +98,12 @@ pub enum Value {
 
     /// Or it's a linear combination of other circuit variables.
     LinearCombination(Vec<(F, Var)>),
+
+    /// A public input
+    Public(usize),
+
+    /// A private input
+    Private(usize),
 }
 
 impl std::fmt::Debug for Value {
@@ -135,6 +145,24 @@ impl Compiler {
 
                     main_function_observed = true;
 
+                    // create public and private inputs
+                    for (public, name, typ) in function.arguments {
+                        if !matches!(typ.typ, TyKind::Field) {
+                            unimplemented!();
+                        }
+
+                        // create the variable in the circuit
+                        let var = if public {
+                            compiler.public_input()
+                        } else {
+                            compiler.private_input()
+                        };
+
+                        // store it in the scope
+                        scope.variables.insert(name, var);
+                    }
+
+                    // compile function
                     compiler.analyze_function(scope, function.body);
                 }
 
@@ -161,7 +189,11 @@ impl Compiler {
                     // store the new variable
                     scope.variables.insert(lhs.clone(), var);
                 }
-                crate::parser::StmtKind::Assert(_) => todo!(),
+                crate::parser::StmtKind::Assert(expr) => {
+                    let lhs = self.compute_expr(scope, expr).unwrap();
+                    let one = self.constant(F::one());
+                    self.assert_eq(lhs, one);
+                }
                 crate::parser::StmtKind::Return(_) => todo!(),
                 crate::parser::StmtKind::Comment(_) => todo!(),
             }
@@ -201,7 +233,10 @@ impl Compiler {
             },
             ExprKind::Negated(_) => todo!(),
             ExprKind::BigInt(_) => todo!(),
-            ExprKind::Identifier(_) => todo!(),
+            ExprKind::Identifier(name) => {
+                let var = scope.variables.get(&name).unwrap();
+                Some(*var)
+            }
             ExprKind::ArrayAccess(_, _) => todo!(),
         }
     }
@@ -215,22 +250,50 @@ impl Compiler {
 
         self.gates(
             GateKind::DoubleGeneric,
+            vec![Some(lhs), Some(rhs), Some(res)],
             vec![F::one(), F::one(), F::one().neg()],
         );
-
-        self.witness_rows(vec![Some(lhs), Some(rhs), Some(res)]);
 
         res
     }
 
-    pub fn witness_rows(&mut self, vars: Vec<Option<Var>>) {
-        assert!(vars.len() <= COLUMNS);
-        self.witness_rows.push(vars);
+    fn assert_eq(&mut self, lhs: Var, rhs: Var) {
+        self.gates(
+            GateKind::DoubleGeneric,
+            vec![Some(lhs), Some(rhs)],
+            vec![F::one(), F::one().neg()],
+        );
     }
 
-    pub fn gates(&mut self, typ: GateKind, coeffs: Vec<F>) {
+    pub fn constant(&mut self, value: F) -> Var {
+        self.new_internal_var(Value::Constant(value))
+    }
+
+    /// creates a new gate, and the associated row in the witness/execution trace.
+    pub fn gates(&mut self, typ: GateKind, vars: Vec<Option<Var>>, coeffs: Vec<F>) {
         assert!(coeffs.len() <= COLUMNS);
+        assert!(vars.len() <= COLUMNS);
+        self.witness_rows.push(vars);
         self.gates.push(Gate { typ, coeffs })
+    }
+
+    pub fn public_input(&mut self) -> Var {
+        // create the var
+        let var = self.new_internal_var(Value::Public(self.public_input_size));
+        self.public_input_size += 1;
+
+        // create the associated generic gate
+        self.gates(GateKind::DoubleGeneric, vec![Some(var)], vec![F::one()]);
+
+        var
+    }
+
+    pub fn private_input(&mut self) -> Var {
+        // create the var
+        let var = self.new_internal_var(Value::Private(self.private_input_size));
+        self.private_input_size += 1;
+
+        var
     }
 }
 

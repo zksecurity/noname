@@ -117,10 +117,19 @@ impl Ty {
 
         match token.typ {
             // struct name
-            TokenType::Type(name) => Ok(Self {
-                typ: TyKind::Custom(name.to_string()),
-                span: token.span,
-            }),
+            TokenType::Type(name) => {
+                if name == "Field" {
+                    Ok(Self {
+                        typ: TyKind::Field,
+                        span: token.span,
+                    })
+                } else {
+                    Ok(Self {
+                        typ: TyKind::Custom(name.to_string()),
+                        span: token.span,
+                    })
+                }
+            }
 
             // array
             // [type; size]
