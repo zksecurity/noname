@@ -106,7 +106,7 @@ pub struct Ty {
     pub span: (usize, usize),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TyKind {
     Custom(String),
     Field,
@@ -213,7 +213,7 @@ impl Ty {
 //~ fn_call ::= ident "(" expr { "," expr } ")"
 //~ array_access ::= ident "[" expr "]"
 //~
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ComparisonOp {
     LessThan,
     LessThanOrEqual,
@@ -222,14 +222,14 @@ pub enum ComparisonOp {
     Equal,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
     pub typ: Option<TyKind>,
     pub span: (usize, usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExprKind {
     //    Literal(String),
     FnCall {
@@ -237,6 +237,7 @@ pub enum ExprKind {
         args: Vec<Expr>,
     },
     Variable(String),
+    // TODO: move to Op?
     Comparison(ComparisonOp, Box<Expr>, Box<Expr>),
     Op(Op2, Box<Expr>, Box<Expr>),
     Negated(Box<Expr>),
@@ -245,7 +246,7 @@ pub enum ExprKind {
     ArrayAccess(String, Box<Expr>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Op2 {
     Addition,
     Subtraction,

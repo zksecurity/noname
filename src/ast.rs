@@ -36,6 +36,15 @@ impl F {
     }
 }
 
+impl TryFrom<String> for F {
+    type Error = Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let v: i64 = value.parse().unwrap();
+        Ok(Self(v))
+    }
+}
+
 //
 // Data structures
 //
@@ -116,8 +125,7 @@ impl std::fmt::Debug for Value {
 }
 
 impl Compiler {
-    pub fn compile(ast: AST) -> Result<(), &'static str> {
-        dbg!("hey");
+    pub fn compile(ast: AST) -> Result<(), Error> {
         let mut compiler = Compiler::default();
         let scope = &mut Scope::default();
 
@@ -126,16 +134,11 @@ impl Compiler {
         // inject some utility functions in the scope
         // TODO: should we really import them by default?
         {
-            dbg!("hey");
             let t = utils_functions();
             for (name, sig) in t {
-                dbg!(&name, &sig);
                 scope.functions.insert(name, FuncInScope::BuiltIn(sig));
             }
-            dbg!("hey");
         }
-
-        dbg!("hey");
 
         for root in ast.0 {
             match root {
@@ -157,7 +160,7 @@ impl Compiler {
                 }
 
                 // `fn main() { ... }`
-                Root::Function(function) => {
+                Root::Function(mut function) => {
                     // TODO: support other functions
                     if function.name != "main" {
                         unimplemented!();
@@ -182,8 +185,11 @@ impl Compiler {
                         scope.variables.insert(name, var);
                     }
 
+                    // type system pass!!!
+                    compiler.fillout_type_info(scope, &mut function.body)?;
+
                     // compile function
-                    compiler.analyze_function(scope, function.body);
+                    compiler.compile_function(scope, function.body)?;
                 }
 
                 // ignore comments
@@ -199,12 +205,16 @@ impl Compiler {
         Ok(())
     }
 
-    fn analyze_function(&mut self, scope: &mut Scope, stmts: Vec<Stmt>) -> Result<(), Error> {
+    fn fillout_type_info(&mut self, scope: &mut Scope, stmts: &mut [Stmt]) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn compile_function(&mut self, scope: &mut Scope, stmts: Vec<Stmt>) -> Result<(), Error> {
         for stmt in stmts {
             match stmt.kind {
                 crate::parser::StmtKind::Assign { lhs, rhs } => {
                     // compute the rhs
-                    let var = self.compute_expr(scope, *rhs).unwrap();
+                    let var = self.compute_expr(scope, *rhs)?.unwrap();
 
                     // store the new variable
                     scope.variables.insert(lhs.clone(), var);
@@ -220,7 +230,8 @@ impl Compiler {
                     // compute the arguments
                     let mut vars = Vec::with_capacity(args.len());
                     for arg in &args {
-                        let var = self.compute_expr(scope, **arg).ok_or(Error {
+                        let arg = &**arg;
+                        let var = self.compute_expr(scope, arg.clone())?.ok_or(Error {
                             error: ErrorTy::CannotComputeExpression,
                             span: arg.span,
                         })?;
@@ -251,14 +262,14 @@ impl Compiler {
                             }
 
                             for ((_pub, arg_name, typ), arg) in sig.arguments.iter().zip_eq(args) {
-                                let tt = arg.kind;
-                                if !matches!(&typ.kind, tt) {
+                                let arg_typ = arg.typ.unwrap();
+                                if typ.kind != arg_typ {
                                     return Err(Error {
                                         error: ErrorTy::WrongArgumentType {
                                             fn_name: name,
                                             arg_name: arg_name.clone(),
                                             expected_ty: typ.kind.to_string(),
-                                            observed_ty: arg.typ.unwrap().to_string(),
+                                            observed_ty: arg_typ.to_string(),
                                         },
                                         span: stmt.span,
                                     });
@@ -289,9 +300,9 @@ impl Compiler {
         var
     }
 
-    fn compute_expr(&mut self, scope: &mut Scope, expr: Expr) -> Option<Var> {
+    fn compute_expr(&mut self, scope: &mut Scope, expr: Expr) -> Result<Option<Var>, Error> {
         // HOW TO DO THAT XD??
-        match expr.kind {
+        let var = match expr.kind {
             ExprKind::FnCall {
                 function_name,
                 args,
@@ -300,8 +311,8 @@ impl Compiler {
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
-                    let lhs = self.compute_expr(scope, *lhs).unwrap();
-                    let rhs = self.compute_expr(scope, *rhs).unwrap();
+                    let lhs = self.compute_expr(scope, *lhs)?.unwrap();
+                    let rhs = self.compute_expr(scope, *rhs)?.unwrap();
                     Some(self.add(scope, lhs, rhs))
                 }
                 Op2::Subtraction => todo!(),
@@ -310,13 +321,18 @@ impl Compiler {
                 Op2::Equality => todo!(),
             },
             ExprKind::Negated(_) => todo!(),
-            ExprKind::BigInt(_) => todo!(),
+            ExprKind::BigInt(b) => {
+                let f = F::try_from(b)?;
+                Some(self.new_internal_var(Value::Constant(f)))
+            }
             ExprKind::Identifier(name) => {
                 let var = scope.variables.get(&name).unwrap();
                 Some(*var)
             }
             ExprKind::ArrayAccess(_, _) => todo!(),
-        }
+        };
+
+        Ok(var)
     }
 
     fn add(&mut self, scope: &mut Scope, lhs: Var, rhs: Var) -> Var {
