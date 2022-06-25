@@ -201,8 +201,8 @@ pub enum ComparisonOp {
 
 #[derive(Debug)]
 pub struct Expr {
-    typ: ExprKind,
-    span: (usize, usize),
+    pub typ: ExprKind,
+    pub span: (usize, usize),
 }
 
 #[derive(Debug)]
