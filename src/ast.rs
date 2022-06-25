@@ -206,6 +206,33 @@ impl Compiler {
     }
 
     fn fillout_type_info(&mut self, scope: &mut Scope, stmts: &mut [Stmt]) -> Result<(), Error> {
+        // only expressions need type info?
+        for stmt in stmts {
+            match &mut stmt.kind {
+                crate::parser::StmtKind::Assign { lhs, ref mut rhs } => {
+                    // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
+
+                    // but first we need to compute the type of the rhs expression
+                    rhs.compute_type(scope);
+                    unimplemented!();
+
+                    // ooch... lhs here doesn't even have a type... we can't give it a type o_O
+                    // either we replace this String with a Ty
+                    // or we keep a map of variables and their types in scope? (ugly, we can't shadow)
+                    // so...
+                    // but a Ty what? it's not a type, it's like a variable
+                    // so Assign { lhs: Variable, rhs: Expr }
+                    // with Variable { typ: Option<TyKind> }
+                }
+                crate::parser::StmtKind::FnCall { name, args } => todo!(),
+                crate::parser::StmtKind::Return(_) => {
+                    // infer the return type and check if it's the same as the function return type?
+                    unimplemented!();
+                }
+                crate::parser::StmtKind::Comment(_) => (),
+            }
+        }
+
         Ok(())
     }
 
@@ -397,6 +424,12 @@ pub struct Scope {
     pub variables: HashMap<String, Var>,
     pub functions: HashMap<String, FuncInScope>,
     pub types: Vec<String>,
+}
+
+impl Scope {
+    pub fn get_type(&self, ident: &str) -> Option<&TyKind> {
+        self.variables.get(name)
+    }
 }
 
 pub enum FuncInScope {

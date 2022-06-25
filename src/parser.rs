@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
+    ast::Scope,
     error::{Error, ErrorTy},
     lexer::{Keyword, Token, TokenKind},
     tokens::Tokens,
@@ -407,6 +408,43 @@ impl Expr {
         } else {
             Ok(lhs)
         }
+    }
+
+    pub fn compute_type(&mut self, scope: &mut Scope) -> Result<(), Error> {
+        match &mut self.kind {
+            ExprKind::FnCall {
+                function_name,
+                args,
+            } => todo!(),
+            ExprKind::Variable(_) => todo!(),
+            ExprKind::Comparison(_, _, _) => todo!(),
+            ExprKind::Op(_, ref mut lhs, ref mut rhs) => {
+                lhs.compute_type(scope)?;
+                rhs.compute_type(scope)?;
+
+                let lhs_typ = lhs.typ.unwrap();
+                let rhs_typ = rhs.typ.unwrap();
+                if lhs_typ != rhs_typ {
+                    return Err(Error {
+                        error: ErrorTy::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
+                        span: self.span,
+                    });
+                }
+            }
+            ExprKind::Negated(_) => todo!(),
+            ExprKind::BigInt(_) => todo!(),
+            ExprKind::Identifier(ident) => {
+                let typ = scope.get_type(ident).ok_or(Error {
+                    error: ErrorTy::UndefinedVariable,
+                    span: self.span,
+                })?;
+
+                self.typ = Some(typ);
+            }
+            ExprKind::ArrayAccess(_, _) => todo!(),
+        }
+
+        Ok(())
     }
 }
 

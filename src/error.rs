@@ -1,7 +1,7 @@
 use miette::Diagnostic;
 use thiserror::Error;
 
-use crate::lexer::TokenKind;
+use crate::{lexer::TokenKind, parser::TyKind};
 
 #[derive(Diagnostic, Debug, Error)]
 #[error("Parsing error")]
@@ -90,4 +90,10 @@ pub enum ErrorTy {
 
     #[error("cannot compute the expression")]
     CannotComputeExpression,
+
+    #[error("type {0} and {1} are not compatible")]
+    MismatchType(TyKind, TyKind),
+
+    #[error("variable used is not defined anywhere")]
+    UndefinedVariable,
 }
