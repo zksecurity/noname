@@ -7,7 +7,7 @@ use my_programming_language::{ast::Compiler, lexer::Token, parser::AST};
 fn parse(code: &str) -> Result<()> {
     let tokens = Token::parse(code)?;
     let ast = AST::parse(tokens)?;
-    println!("{:#?}", ast);
+    //    println!("{:#?}", ast);
     let asm = Compiler::compile(ast)?;
     Ok(asm)
 }

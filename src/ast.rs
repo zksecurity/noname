@@ -135,8 +135,9 @@ impl Compiler {
         // TODO: should we really import them by default?
         {
             let t = utils_functions();
-            for (name, sig) in t {
-                env.functions.insert(name, FuncInScope::BuiltIn(sig));
+            for (sig, func) in t {
+                env.functions
+                    .insert(sig.name.clone(), FuncInScope::BuiltIn(sig, func));
             }
         }
 
@@ -211,7 +212,7 @@ impl Compiler {
                 // `fn main() { ... }`
                 Root::Function(mut function) => {
                     // create public and private inputs
-                    for (public, name, typ) in &function.arguments {
+                    for (public, name, _typ) in &function.arguments {
                         // create the variable in the circuit
                         let var = if *public {
                             compiler.public_input()
@@ -219,7 +220,7 @@ impl Compiler {
                             compiler.private_input()
                         };
 
-                        // store it in the scope
+                        // store it in the env
                         env.variables.insert(name.clone(), var);
                     }
 
@@ -232,7 +233,7 @@ impl Compiler {
             }
         }
 
-        println!("asm: {:#?}", compiler);
+        //        println!("asm: {:#?}", compiler);
 
         Ok(())
     }
@@ -273,10 +274,31 @@ impl Compiler {
                                 span: stmt.span,
                             });
                         }
-                        Some(FuncInScope::BuiltIn(sig)) => {
+                        Some(FuncInScope::BuiltIn(sig, _func)) => {
+                            // argument length
+                            if sig.arguments.len() != typs.len() {
+                                return Err(Error {
+                                    error: ErrorTy::WrongNumberOfArguments {
+                                        fn_name: name.clone(),
+                                        expected_args: sig.arguments.len(),
+                                        observed_args: typs.len(),
+                                    },
+                                    span: stmt.span,
+                                });
+                            }
+
                             // compare argument types with the function signature
                             for ((_, _, typ1), (typ2, span)) in sig.arguments.iter().zip(typs) {
                                 if typ1.kind != typ2 {
+                                    // it's ok if a bigint is supposed to be a field no?
+                                    // TODO: replace bigint -> constant?
+                                    if matches!(
+                                        (&typ1.kind, &typ2),
+                                        (TyKind::Field, TyKind::BigInt)
+                                    ) {
+                                        continue;
+                                    }
+
                                     return Err(Error {
                                         error: ErrorTy::ArgumentTypeMismatch(
                                             typ1.kind.clone(),
@@ -312,7 +334,7 @@ impl Compiler {
 
     fn compile_function(
         &mut self,
-        scope: &mut Environment,
+        env: &mut Environment,
         function: &mut Function,
     ) -> Result<(), Error> {
         let in_main = function.name == "main";
@@ -321,11 +343,11 @@ impl Compiler {
             match &stmt.kind {
                 crate::parser::StmtKind::Assign { lhs, rhs } => {
                     // compute the rhs
-                    let var = self.compute_expr(scope, rhs)?.unwrap();
+                    let var = self.compute_expr(env, rhs)?.unwrap();
 
                     // store the new variable
                     // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
-                    // scope.variables.insert(lhs.clone(), var);
+                    env.variables.insert(lhs.clone(), var);
                 }
                 /*
                 crate::parser::StmtKind::Assert(expr) => {
@@ -338,7 +360,7 @@ impl Compiler {
                     // compute the arguments
                     let mut vars = Vec::with_capacity(args.len());
                     for arg in args {
-                        let var = self.compute_expr(scope, arg)?.ok_or(Error {
+                        let var = self.compute_expr(env, arg)?.ok_or(Error {
                             error: ErrorTy::CannotComputeExpression,
                             span: arg.span,
                         })?;
@@ -346,45 +368,16 @@ impl Compiler {
                     }
 
                     // check if it's the scope
-                    match scope.functions.get(name) {
+                    match env.functions.get(name) {
                         None => {
                             return Err(Error {
                                 error: ErrorTy::UnknownFunction(name.clone()),
                                 span: stmt.span,
                             })
                         }
-                        Some(FuncInScope::BuiltIn(sig)) => {
-                            // compute the expressions
-                            dbg!(sig);
-                            panic!("hey");
-                            // compare sig
-                            if sig.arguments.len() != args.len() {
-                                return Err(Error {
-                                    error: ErrorTy::WrongNumberOfArguments {
-                                        fn_name: name.clone(),
-                                        expected_args: sig.arguments.len(),
-                                        observed_args: args.len(),
-                                    },
-                                    span: stmt.span,
-                                });
-                            }
-
-                            for ((_pub, arg_name, typ), arg) in sig.arguments.iter().zip_eq(args) {
-                                let arg_typ = arg.typ.clone().unwrap();
-                                if typ.kind != arg_typ {
-                                    return Err(Error {
-                                        error: ErrorTy::WrongArgumentType {
-                                            fn_name: name.clone(),
-                                            arg_name: arg_name.clone(),
-                                            expected_ty: typ.kind.to_string(),
-                                            observed_ty: arg_typ.to_string(),
-                                        },
-                                        span: stmt.span,
-                                    });
-                                }
-                            }
-
+                        Some(FuncInScope::BuiltIn(sig, func)) => {
                             // run function
+                            func(self, &vars);
                         }
                         Some(FuncInScope::Library(_, _)) => todo!(),
                     }
@@ -444,7 +437,6 @@ impl Compiler {
                 Some(self.new_internal_var(Value::Constant(f)))
             }
             ExprKind::Identifier(name) => {
-                dbg!(&name, &scope);
                 let var = scope.get_var(&name).unwrap();
                 Some(var)
             }
@@ -468,14 +460,6 @@ impl Compiler {
         );
 
         res
-    }
-
-    fn assert_eq(&mut self, lhs: Var, rhs: Var) {
-        self.gates(
-            GateKind::DoubleGeneric,
-            vec![Some(lhs), Some(rhs)],
-            vec![F::one(), F::one().neg()],
-        );
     }
 
     pub fn constant(&mut self, value: F) -> Var {
@@ -533,10 +517,18 @@ impl Environment {
     }
 }
 
-#[derive(Debug)]
 pub enum FuncInScope {
     /// signature of the function
-    BuiltIn(FunctionSig),
+    BuiltIn(FunctionSig, fn(&mut Compiler, &[Var])),
     /// path, and signature of the function
     Library(Vec<String>, FunctionSig),
+}
+
+impl std::fmt::Debug for FuncInScope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::BuiltIn(arg0, _arg1) => f.debug_tuple("BuiltIn").field(arg0).field(&"_").finish(),
+            Self::Library(arg0, arg1) => f.debug_tuple("Library").field(arg0).field(arg1).finish(),
+        }
+    }
 }

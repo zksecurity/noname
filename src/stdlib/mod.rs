@@ -1,4 +1,5 @@
 use crate::{
+    ast::{Compiler, GateKind, Var, F},
     lexer::Token,
     parser::{FunctionSig, ParserCtx},
 };
@@ -29,18 +30,28 @@ pub fn parse_std_import(
 const ASSERT_FN: &str = "assert(condition: Field)";
 const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 
-pub fn utils_functions() -> Vec<(String, FunctionSig)> {
+pub fn utils_functions() -> Vec<(FunctionSig, fn(&mut Compiler, &[Var]))> {
     let to_parse = [ASSERT_FN, ASSERT_EQ_FN];
-    let mut functions = vec![];
+    let mut functions: Vec<(FunctionSig, fn(&mut Compiler, &[Var]))> = vec![];
     let ctx = &mut ParserCtx::default();
 
     for function in to_parse {
         let mut tokens = Token::parse(function).unwrap();
 
-        let function = FunctionSig::parse(ctx, &mut tokens).unwrap();
+        let sig = FunctionSig::parse(ctx, &mut tokens).unwrap();
 
-        functions.push((function.name.clone(), function));
+        functions.push((sig, assert_eq));
     }
 
     functions
+}
+
+fn assert_eq(compiler: &mut Compiler, vars: &[Var]) {
+    let lhs = vars[0];
+    let rhs = vars[1];
+    compiler.gates(
+        GateKind::DoubleGeneric,
+        vec![Some(lhs), Some(rhs)],
+        vec![F::one(), F::one().neg()],
+    );
 }
