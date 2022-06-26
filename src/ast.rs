@@ -454,7 +454,8 @@ impl Compiler {
             env.add_value(name.clone(), *val);
         }
 
-        for row in &self.witness_rows {
+        for (row, gate) in self.witness_rows.iter().zip(&self.gates) {
+            // create the witness row
             let mut res = [F::zero(); COLUMNS];
             for (i, var) in row.iter().enumerate() {
                 let val = if let Some(var) = var {
@@ -464,6 +465,10 @@ impl Compiler {
                 };
                 res[i] = val;
             }
+
+            // TODO: test the row with the gate
+
+            //
             witness.push(res);
         }
 
