@@ -107,4 +107,7 @@ pub enum ErrorTy {
 
     #[error("the function `{0}` return value must be used")]
     FunctionReturnsType(String),
+
+    #[error("missing argument `{0}`")]
+    MissingArg(String),
 }

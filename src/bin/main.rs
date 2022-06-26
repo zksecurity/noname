@@ -1,15 +1,26 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use clap::Parser;
 use miette::{IntoDiagnostic, Result, WrapErr};
-use my_programming_language::{ast::Compiler, lexer::Token, parser::AST};
+use my_programming_language::{
+    ast::{Compiler, F},
+    lexer::Token,
+    parser::AST,
+};
 
 fn parse(code: &str) -> Result<()> {
     let tokens = Token::parse(code)?;
     let ast = AST::parse(tokens)?;
-    //    println!("{:#?}", ast);
-    let asm = Compiler::compile(ast)?;
-    Ok(asm)
+    let (circuit, compiler) = Compiler::analyze_and_compile(ast)?;
+
+    println!("circuit: {circuit}");
+
+    let mut args = HashMap::new();
+    args.insert("public_input", F::one());
+    args.insert("private_input", F::one());
+    let witness = compiler.generate_witness(args);
+
+    Ok(())
 }
 
 #[derive(Parser)]
