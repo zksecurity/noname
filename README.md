@@ -2,6 +2,13 @@
 
 No really, this is all for me, not for you.
 
+The idea: a rust-inspired programming language to write circuits for kimchi.
+
+Status: I can parse an extremely simple circuit, produce the circuit (in some made-up asm language), link each gate to the source, and generate a witness for that circuit.
+
+![image](https://user-images.githubusercontent.com/1316043/175832784-b77ae752-4513-4bae-9268-0d75eb558495.png)
+
+
 It'd be good to write a proof of concept that works, even if ugly, to compile one very simple circuit. For now, I'm trying this with `data/arithmetic.no`:
 
 ```rust
