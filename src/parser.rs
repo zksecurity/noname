@@ -438,15 +438,15 @@ impl Expr {
         }
     }
 
-    pub fn compute_type(&mut self, scope: &mut Environment) -> Result<Option<TyKind>, Error> {
-        match &mut self.kind {
+    pub fn compute_type(&self, scope: &mut Environment) -> Result<Option<TyKind>, Error> {
+        match &self.kind {
             ExprKind::FnCall {
                 function_name,
                 args,
             } => todo!(),
             ExprKind::Variable(_) => todo!(),
             ExprKind::Comparison(_, _, _) => todo!(),
-            ExprKind::Op(_, ref mut lhs, ref mut rhs) => {
+            ExprKind::Op(_, lhs, rhs) => {
                 let lhs_typ = lhs.compute_type(scope)?.unwrap();
                 let rhs_typ = rhs.compute_type(scope)?.unwrap();
 
@@ -466,8 +466,6 @@ impl Expr {
                     error: ErrorTy::UndefinedVariable,
                     span: self.span,
                 })?;
-
-                self.typ = Some(typ.clone());
 
                 Ok(Some(typ.clone()))
             }
@@ -833,7 +831,13 @@ impl Stmt {
 #[derive(Debug)]
 
 /// Things you can have in a scope (including the root scope).
-pub enum Root {
+pub struct Root {
+    pub kind: RootKind,
+    pub span: (usize, usize),
+}
+
+#[derive(Debug)]
+pub enum RootKind {
     Use(Path),
     Function(Function),
     Comment(String),
@@ -872,7 +876,10 @@ impl AST {
                     }
 
                     let path = Path::parse_path(ctx, &mut tokens)?;
-                    ast.push(Root::Use(path));
+                    ast.push(Root {
+                        kind: RootKind::Use(path),
+                        span: token.span,
+                    });
 
                     // end of line
                     let next_token = tokens.bump(ctx);
@@ -895,12 +902,18 @@ impl AST {
                     function_observed = true;
 
                     let func = Function::parse(ctx, &mut tokens)?;
-                    ast.push(Root::Function(func));
+                    ast.push(Root {
+                        kind: RootKind::Function(func),
+                        span: token.span,
+                    });
                 }
 
                 // `// some comment`
                 TokenKind::Comment(comment) => {
-                    ast.push(Root::Comment(comment.clone()));
+                    ast.push(Root {
+                        kind: RootKind::Comment(comment.clone()),
+                        span: token.span,
+                    });
                 }
 
                 // unrecognized

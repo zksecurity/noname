@@ -7,8 +7,8 @@ use itertools::Itertools;
 
 use crate::{
     error::{Error, ErrorTy},
-    parser::{Expr, ExprKind, Function, FunctionSig, Op2, Root, Stmt, TyKind, AST},
-    stdlib::{self, utils_functions},
+    parser::{Expr, ExprKind, Function, FunctionSig, Op2, Root, RootKind, Stmt, TyKind, AST},
+    stdlib::utils_functions,
 };
 
 //
@@ -90,10 +90,13 @@ pub struct Gate {
 
     /// Coefficients
     pub coeffs: Vec<F>,
+    pub span: Span,
 }
 
 #[derive(Default, Debug)]
 pub struct Compiler {
+    pub source: String,
+
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
     // TODO: is this useful?
     pub finalized: bool,
@@ -150,8 +153,10 @@ impl std::fmt::Debug for Value {
 
 impl Compiler {
     // TODO: perhaps don't return Self, but return a new type that only contains what's necessary to create the witness?
-    pub fn analyze_and_compile(mut ast: AST) -> Result<(String, Self), Error> {
+    pub fn analyze_and_compile(mut ast: AST, code: &str) -> Result<(String, Self), Error> {
         let mut compiler = Compiler::default();
+        compiler.source = code.to_string();
+
         let env = &mut Environment::default();
 
         // inject some utility functions in the scope
@@ -171,20 +176,20 @@ impl Compiler {
 
     fn compile(mut self, env: &mut Environment, ast: &AST) -> Result<(String, Self), Error> {
         for root in &ast.0 {
-            match root {
+            match &root.kind {
                 // `use crypto::poseidon;`
-                Root::Use(_path) => {
+                RootKind::Use(_path) => {
                     unimplemented!();
                 }
 
                 // `fn main() { ... }`
-                Root::Function(function) => {
+                RootKind::Function(function) => {
                     // create public and private inputs
                     dbg!(&function.arguments);
-                    for (public, name, _typ) in &function.arguments {
+                    for (public, name, typ) in &function.arguments {
                         // create the variable in the circuit
                         let var = if *public {
-                            self.public_input(name.clone())
+                            self.public_input(name.clone(), typ.span)
                         } else {
                             self.private_input(name.clone())
                         };
@@ -198,7 +203,7 @@ impl Compiler {
                 }
 
                 // ignore comments
-                Root::Comment(_comment) => (),
+                RootKind::Comment(_comment) => (),
             }
         }
 
@@ -214,9 +219,9 @@ impl Compiler {
         //
 
         for root in &mut ast.0 {
-            match root {
+            match &root.kind {
                 // `use crypto::poseidon;`
-                Root::Use(path) => {
+                RootKind::Use(path) => {
                     unimplemented!();
                     let path = &mut path.0.into_iter();
                     let root_module = path.next().expect("empty imports can't be parsed");
@@ -234,7 +239,7 @@ impl Compiler {
                 }
 
                 // `fn main() { ... }`
-                Root::Function(function) => {
+                RootKind::Function(function) => {
                     // TODO: support other functions
                     if function.name != "main" {
                         unimplemented!();
@@ -256,11 +261,11 @@ impl Compiler {
                     }
 
                     // type system pass!!!
-                    self.type_check_fn(env, &mut function.body)?;
+                    self.type_check_fn(env, &function.body)?;
                 }
 
                 // ignore comments
-                Root::Comment(_comment) => (),
+                RootKind::Comment(_comment) => (),
             }
         }
 
@@ -270,11 +275,11 @@ impl Compiler {
         Ok(())
     }
 
-    fn type_check_fn(&mut self, env: &mut Environment, stmts: &mut [Stmt]) -> Result<(), Error> {
+    fn type_check_fn(&mut self, env: &mut Environment, stmts: &[Stmt]) -> Result<(), Error> {
         // only expressions need type info?
         for stmt in stmts {
-            match &mut stmt.kind {
-                crate::parser::StmtKind::Assign { lhs, ref mut rhs } => {
+            match &stmt.kind {
+                crate::parser::StmtKind::Assign { lhs, rhs } => {
                     // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
 
                     // but first we need to compute the type of the rhs expression
@@ -409,7 +414,7 @@ impl Compiler {
                         }
                         Some(FuncInScope::BuiltIn(sig, func)) => {
                             // run function
-                            func(self, &vars);
+                            func(self, &vars, stmt.span);
                         }
                         Some(FuncInScope::Library(_, _)) => todo!(),
                     }
@@ -468,7 +473,13 @@ impl Compiler {
     pub fn asm(&self) -> String {
         let mut res = "".to_string();
 
-        for Gate { typ, coeffs } in &self.gates {
+        for Gate { typ, coeffs, span } in &self.gates {
+            // source
+            res.push_str("\n\n----\n");
+            res.push_str(&self.source[span.0..(span.0 + span.1)]);
+            res.push_str("\n----\n");
+
+            // gate
             res.push_str(&format!("{typ:?}"));
             res.push_str("<");
             let coeffs = coeffs.iter().join(",");
@@ -504,7 +515,7 @@ impl Compiler {
                 Op2::Addition => {
                     let lhs = self.compute_expr(env, lhs)?.unwrap();
                     let rhs = self.compute_expr(env, rhs)?.unwrap();
-                    Some(self.add(lhs, rhs))
+                    Some(self.add(lhs, rhs, expr.span))
                 }
                 Op2::Subtraction => todo!(),
                 Op2::Multiplication => todo!(),
@@ -541,7 +552,7 @@ impl Compiler {
         }
     }
 
-    fn add(&mut self, lhs: Var, rhs: Var) -> Var {
+    fn add(&mut self, lhs: Var, rhs: Var, span: Span) -> Var {
         // create a new variable to store the result
         let res = self.new_internal_var(Value::LinearCombination(vec![
             (F::one(), lhs),
@@ -552,6 +563,7 @@ impl Compiler {
             GateKind::DoubleGeneric,
             vec![Some(lhs), Some(rhs), Some(res)],
             vec![F::one(), F::one(), F::one().neg()],
+            span,
         );
 
         res
@@ -562,20 +574,25 @@ impl Compiler {
     }
 
     /// creates a new gate, and the associated row in the witness/execution trace.
-    pub fn gates(&mut self, typ: GateKind, vars: Vec<Option<Var>>, coeffs: Vec<F>) {
+    pub fn gates(&mut self, typ: GateKind, vars: Vec<Option<Var>>, coeffs: Vec<F>, span: Span) {
         assert!(coeffs.len() <= COLUMNS);
         assert!(vars.len() <= COLUMNS);
         self.witness_rows.push(vars);
-        self.gates.push(Gate { typ, coeffs })
+        self.gates.push(Gate { typ, coeffs, span })
     }
 
-    pub fn public_input(&mut self, name: String) -> Var {
+    pub fn public_input(&mut self, name: String, span: Span) -> Var {
         // create the var
         let var = self.new_internal_var(Value::External(name));
         self.public_input_size += 1;
 
         // create the associated generic gate
-        self.gates(GateKind::DoubleGeneric, vec![Some(var)], vec![F::one()]);
+        self.gates(
+            GateKind::DoubleGeneric,
+            vec![Some(var)],
+            vec![F::one()],
+            span,
+        );
 
         var
     }
@@ -614,9 +631,12 @@ impl Environment {
     }
 }
 
+pub type Span = (usize, usize);
+pub type FuncType = fn(&mut Compiler, &[Var], Span);
+
 pub enum FuncInScope {
     /// signature of the function
-    BuiltIn(FunctionSig, fn(&mut Compiler, &[Var])),
+    BuiltIn(FunctionSig, FuncType),
     /// path, and signature of the function
     Library(Vec<String>, FunctionSig),
 }

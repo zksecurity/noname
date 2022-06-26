@@ -11,7 +11,7 @@ use my_programming_language::{
 fn parse(code: &str) -> Result<()> {
     let tokens = Token::parse(code)?;
     let ast = AST::parse(tokens)?;
-    let (circuit, compiler) = Compiler::analyze_and_compile(ast)?;
+    let (circuit, compiler) = Compiler::analyze_and_compile(ast, code)?;
 
     println!("circuit: {circuit}");
 
