@@ -473,11 +473,34 @@ impl Compiler {
     pub fn asm(&self) -> String {
         let mut res = "".to_string();
 
+        fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
+            let ss = source.as_bytes();
+            let mut start = span.0;
+            let mut end = span.0 + span.1;
+            while start > 0 && (ss[start - 1] as char) != '\n' {
+                start -= 1;
+            }
+            while end < source.len() && (ss[end] as char) != '\n' {
+                end += 1;
+            }
+
+            let line = &source[start..end];
+
+            let line_number = source[..start].matches('\n').count() + 1;
+
+            (line_number, start, line)
+        }
+
         for Gate { typ, coeffs, span } in &self.gates {
             // source
+            let (line_number, start, line) = find_exact_line(&self.source, *span);
             res.push_str("\n\n----\n");
-            res.push_str(&self.source[span.0..(span.0 + span.1)]);
-            res.push_str("\n----\n");
+            res.push_str(&format!("{line_number}: {line}\n"));
+            for _ in start..span.0 {
+                res.push_str(" ");
+            }
+            res.push_str("^\n");
+            res.push_str("----\n");
 
             // gate
             res.push_str(&format!("{typ:?}"));
