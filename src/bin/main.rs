@@ -8,7 +8,7 @@ fn parse(code: &str) -> Result<()> {
     let tokens = Token::parse(code)?;
     let ast = AST::parse(tokens)?;
     println!("{:#?}", ast);
-    let asm = Compiler::compile(ast).unwrap();
+    let asm = Compiler::compile(ast)?;
     Ok(asm)
 }
 

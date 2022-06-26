@@ -73,9 +73,11 @@ pub enum ErrorTy {
     #[error("function {0} is not recognized")]
     UnknownFunction(String),
 
-    #[error("function {name} expected {expected_args} arguments but was passed {observed_args}")]
+    #[error(
+        "function {fn_name} expected {expected_args} arguments but was passed {observed_args}"
+    )]
     WrongNumberOfArguments {
-        name: String,
+        fn_name: String,
         expected_args: usize,
         observed_args: usize,
     },
@@ -96,4 +98,13 @@ pub enum ErrorTy {
 
     #[error("variable used is not defined anywhere")]
     UndefinedVariable,
+
+    #[error("you cannot have a return statement in the `main` function")]
+    ReturnInMain,
+
+    #[error("unexpected argument type in function call. Expected: {0} and got {1}")]
+    ArgumentTypeMismatch(TyKind, TyKind),
+
+    #[error("the function `{0}` return value must be used")]
+    FunctionReturnsType(String),
 }

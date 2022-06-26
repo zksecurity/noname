@@ -1,11 +1,39 @@
 use std::fmt::Display;
 
 use crate::{
-    ast::Scope,
+    ast::Environment,
     error::{Error, ErrorTy},
     lexer::{Keyword, Token, TokenKind},
     tokens::Tokens,
 };
+
+//~
+//~ # Grammar
+//~
+//~ ## Notation
+//~
+//~ We use a notation similar to the Backus-Naur Form (BNF)
+//~ to describe the grammar:
+//~
+//~ <pre>
+//~ land := city "|"
+//~  ^        ^   ^
+//~  |        |  terminal: a token
+//~  |        |
+//~  |      another non-terminal
+//~  |
+//~  non-terminal: definition of a piece of code
+//~
+//~ city := [ sign ] "," { house }
+//~         ^            ^
+//~         optional     |
+//~                     0r or more houses
+//~
+//~ sign := /a-zA-Z_/
+//~         ^
+//~         regex-style definition
+//~ </pre>
+//~
 
 //
 // Context
@@ -410,7 +438,7 @@ impl Expr {
         }
     }
 
-    pub fn compute_type(&mut self, scope: &mut Scope) -> Result<(), Error> {
+    pub fn compute_type(&mut self, scope: &mut Environment) -> Result<Option<TyKind>, Error> {
         match &mut self.kind {
             ExprKind::FnCall {
                 function_name,
@@ -419,32 +447,32 @@ impl Expr {
             ExprKind::Variable(_) => todo!(),
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(_, ref mut lhs, ref mut rhs) => {
-                lhs.compute_type(scope)?;
-                rhs.compute_type(scope)?;
+                let lhs_typ = lhs.compute_type(scope)?.unwrap();
+                let rhs_typ = rhs.compute_type(scope)?.unwrap();
 
-                let lhs_typ = lhs.typ.unwrap();
-                let rhs_typ = rhs.typ.unwrap();
                 if lhs_typ != rhs_typ {
                     return Err(Error {
                         error: ErrorTy::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
                         span: self.span,
                     });
                 }
+
+                Ok(Some(lhs_typ))
             }
             ExprKind::Negated(_) => todo!(),
-            ExprKind::BigInt(_) => todo!(),
+            ExprKind::BigInt(_) => Ok(Some(TyKind::BigInt)),
             ExprKind::Identifier(ident) => {
                 let typ = scope.get_type(ident).ok_or(Error {
                     error: ErrorTy::UndefinedVariable,
                     span: self.span,
                 })?;
 
-                self.typ = Some(typ);
+                self.typ = Some(typ.clone());
+
+                Ok(Some(typ.clone()))
             }
             ExprKind::ArrayAccess(_, _) => todo!(),
         }
-
-        Ok(())
     }
 }
 

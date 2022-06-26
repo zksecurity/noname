@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use crate::{
     error::{Error, ErrorTy},
-    parser::{Expr, ExprKind, FunctionSig, Op2, Root, Stmt, TyKind, AST},
+    parser::{Expr, ExprKind, Function, FunctionSig, Op2, Root, Stmt, TyKind, AST},
     stdlib::{self, utils_functions},
 };
 
@@ -36,10 +36,10 @@ impl F {
     }
 }
 
-impl TryFrom<String> for F {
+impl TryFrom<&str> for F {
     type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         let v: i64 = value.parse().unwrap();
         Ok(Self(v))
     }
@@ -125,9 +125,9 @@ impl std::fmt::Debug for Value {
 }
 
 impl Compiler {
-    pub fn compile(ast: AST) -> Result<(), Error> {
+    pub fn compile(mut ast: AST) -> Result<(), Error> {
         let mut compiler = Compiler::default();
-        let scope = &mut Scope::default();
+        let env = &mut Environment::default();
 
         let mut main_function_observed = false;
 
@@ -136,14 +136,21 @@ impl Compiler {
         {
             let t = utils_functions();
             for (name, sig) in t {
-                scope.functions.insert(name, FuncInScope::BuiltIn(sig));
+                env.functions.insert(name, FuncInScope::BuiltIn(sig));
             }
         }
 
-        for root in ast.0 {
+        //
+        // Semantic analysis includes:
+        // - type checking
+        // - ?
+        //
+
+        for root in &mut ast.0 {
             match root {
                 // `use crypto::poseidon;`
                 Root::Use(path) => {
+                    unimplemented!();
                     let path = &mut path.0.into_iter();
                     let root_module = path.next().expect("empty imports can't be parsed");
 
@@ -160,7 +167,7 @@ impl Compiler {
                 }
 
                 // `fn main() { ... }`
-                Root::Function(mut function) => {
+                Root::Function(function) => {
                     // TODO: support other functions
                     if function.name != "main" {
                         unimplemented!();
@@ -169,27 +176,17 @@ impl Compiler {
                     main_function_observed = true;
 
                     // create public and private inputs
-                    for (public, name, typ) in function.arguments {
+                    for (public, name, typ) in &function.arguments {
                         if !matches!(typ.kind, TyKind::Field) {
                             unimplemented!();
                         }
 
-                        // create the variable in the circuit
-                        let var = if public {
-                            compiler.public_input()
-                        } else {
-                            compiler.private_input()
-                        };
-
                         // store it in the scope
-                        scope.variables.insert(name, var);
+                        env.var_types.insert(name.clone(), typ.kind.clone());
                     }
 
                     // type system pass!!!
-                    compiler.fillout_type_info(scope, &mut function.body)?;
-
-                    // compile function
-                    compiler.compile_function(scope, function.body)?;
+                    compiler.type_check(env, &mut function.body)?;
                 }
 
                 // ignore comments
@@ -200,12 +197,47 @@ impl Compiler {
         // enforce that there's a main function
         assert!(main_function_observed);
 
+        //
+        // Compile
+        //
+
+        for root in ast.0 {
+            match root {
+                // `use crypto::poseidon;`
+                Root::Use(_path) => {
+                    unimplemented!();
+                }
+
+                // `fn main() { ... }`
+                Root::Function(mut function) => {
+                    // create public and private inputs
+                    for (public, name, typ) in &function.arguments {
+                        // create the variable in the circuit
+                        let var = if *public {
+                            compiler.public_input()
+                        } else {
+                            compiler.private_input()
+                        };
+
+                        // store it in the scope
+                        env.variables.insert(name.clone(), var);
+                    }
+
+                    // compile function
+                    compiler.compile_function(env, &mut function)?;
+                }
+
+                // ignore comments
+                Root::Comment(_comment) => (),
+            }
+        }
+
         println!("asm: {:#?}", compiler);
 
         Ok(())
     }
 
-    fn fillout_type_info(&mut self, scope: &mut Scope, stmts: &mut [Stmt]) -> Result<(), Error> {
+    fn type_check(&mut self, env: &mut Environment, stmts: &mut [Stmt]) -> Result<(), Error> {
         // only expressions need type info?
         for stmt in stmts {
             match &mut stmt.kind {
@@ -213,18 +245,60 @@ impl Compiler {
                     // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
 
                     // but first we need to compute the type of the rhs expression
-                    rhs.compute_type(scope);
-                    unimplemented!();
+                    let typ = rhs.compute_type(env)?.unwrap();
 
-                    // ooch... lhs here doesn't even have a type... we can't give it a type o_O
-                    // either we replace this String with a Ty
-                    // or we keep a map of variables and their types in scope? (ugly, we can't shadow)
-                    // so...
-                    // but a Ty what? it's not a type, it's like a variable
-                    // so Assign { lhs: Variable, rhs: Expr }
-                    // with Variable { typ: Option<TyKind> }
+                    // store the type of lhs in the env
+                    env.store_type(lhs.clone(), typ);
                 }
-                crate::parser::StmtKind::FnCall { name, args } => todo!(),
+                crate::parser::StmtKind::FnCall { name, args } => {
+                    // compute the arguments
+                    let mut typs = Vec::with_capacity(args.len());
+                    for arg in args {
+                        if let Some(typ) = arg.compute_type(env)? {
+                            typs.push((typ.clone(), arg.span));
+                        } else {
+                            return Err(Error {
+                                error: ErrorTy::CannotComputeExpression,
+                                span: arg.span,
+                            });
+                        }
+                    }
+
+                    // check if it's the env
+                    match env.functions.get(name) {
+                        None => {
+                            // TODO: type checking already checked that
+                            return Err(Error {
+                                error: ErrorTy::UnknownFunction(name.clone()),
+                                span: stmt.span,
+                            });
+                        }
+                        Some(FuncInScope::BuiltIn(sig)) => {
+                            // compare argument types with the function signature
+                            for ((_, _, typ1), (typ2, span)) in sig.arguments.iter().zip(typs) {
+                                if typ1.kind != typ2 {
+                                    return Err(Error {
+                                        error: ErrorTy::ArgumentTypeMismatch(
+                                            typ1.kind.clone(),
+                                            typ2,
+                                        ),
+                                        span,
+                                    });
+                                }
+                            }
+
+                            // make sure the function does not return any type
+                            // (it's a statement, it should only work via side effect)
+                            if sig.return_type.is_some() {
+                                return Err(Error {
+                                    error: ErrorTy::FunctionReturnsType(name.clone()),
+                                    span: stmt.span,
+                                });
+                            }
+                        }
+                        Some(FuncInScope::Library(_, _)) => todo!(),
+                    }
+                }
                 crate::parser::StmtKind::Return(_) => {
                     // infer the return type and check if it's the same as the function return type?
                     unimplemented!();
@@ -236,15 +310,22 @@ impl Compiler {
         Ok(())
     }
 
-    fn compile_function(&mut self, scope: &mut Scope, stmts: Vec<Stmt>) -> Result<(), Error> {
-        for stmt in stmts {
-            match stmt.kind {
+    fn compile_function(
+        &mut self,
+        scope: &mut Environment,
+        function: &mut Function,
+    ) -> Result<(), Error> {
+        let in_main = function.name == "main";
+
+        for stmt in &function.body {
+            match &stmt.kind {
                 crate::parser::StmtKind::Assign { lhs, rhs } => {
                     // compute the rhs
-                    let var = self.compute_expr(scope, *rhs)?.unwrap();
+                    let var = self.compute_expr(scope, rhs)?.unwrap();
 
                     // store the new variable
-                    scope.variables.insert(lhs.clone(), var);
+                    // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
+                    // scope.variables.insert(lhs.clone(), var);
                 }
                 /*
                 crate::parser::StmtKind::Assert(expr) => {
@@ -256,9 +337,8 @@ impl Compiler {
                 crate::parser::StmtKind::FnCall { name, args } => {
                     // compute the arguments
                     let mut vars = Vec::with_capacity(args.len());
-                    for arg in &args {
-                        let arg = &**arg;
-                        let var = self.compute_expr(scope, arg.clone())?.ok_or(Error {
+                    for arg in args {
+                        let var = self.compute_expr(scope, arg)?.ok_or(Error {
                             error: ErrorTy::CannotComputeExpression,
                             span: arg.span,
                         })?;
@@ -266,21 +346,22 @@ impl Compiler {
                     }
 
                     // check if it's the scope
-                    match scope.functions.get(&name) {
+                    match scope.functions.get(name) {
                         None => {
                             return Err(Error {
-                                error: ErrorTy::UnknownFunction(name),
+                                error: ErrorTy::UnknownFunction(name.clone()),
                                 span: stmt.span,
                             })
                         }
                         Some(FuncInScope::BuiltIn(sig)) => {
                             // compute the expressions
-
+                            dbg!(sig);
+                            panic!("hey");
                             // compare sig
                             if sig.arguments.len() != args.len() {
                                 return Err(Error {
                                     error: ErrorTy::WrongNumberOfArguments {
-                                        name,
+                                        fn_name: name.clone(),
                                         expected_args: sig.arguments.len(),
                                         observed_args: args.len(),
                                     },
@@ -289,11 +370,11 @@ impl Compiler {
                             }
 
                             for ((_pub, arg_name, typ), arg) in sig.arguments.iter().zip_eq(args) {
-                                let arg_typ = arg.typ.unwrap();
+                                let arg_typ = arg.typ.clone().unwrap();
                                 if typ.kind != arg_typ {
                                     return Err(Error {
                                         error: ErrorTy::WrongArgumentType {
-                                            fn_name: name,
+                                            fn_name: name.clone(),
                                             arg_name: arg_name.clone(),
                                             expected_ty: typ.kind.to_string(),
                                             observed_ty: arg_typ.to_string(),
@@ -308,7 +389,16 @@ impl Compiler {
                         Some(FuncInScope::Library(_, _)) => todo!(),
                     }
                 }
-                crate::parser::StmtKind::Return(_) => todo!(),
+                crate::parser::StmtKind::Return(_) => {
+                    if in_main {
+                        return Err(Error {
+                            error: ErrorTy::ReturnInMain,
+                            span: stmt.span,
+                        });
+                    }
+
+                    todo!();
+                }
                 crate::parser::StmtKind::Comment(_) => todo!(),
             }
         }
@@ -327,9 +417,10 @@ impl Compiler {
         var
     }
 
-    fn compute_expr(&mut self, scope: &mut Scope, expr: Expr) -> Result<Option<Var>, Error> {
-        // HOW TO DO THAT XD??
-        let var = match expr.kind {
+    fn compute_expr(&mut self, scope: &mut Environment, expr: &Expr) -> Result<Option<Var>, Error> {
+        // TODO: why would we return a Var, when types could be represented by several vars?
+        // I guess for the moment we're only dealing with Field...
+        let var = match &expr.kind {
             ExprKind::FnCall {
                 function_name,
                 args,
@@ -338,8 +429,8 @@ impl Compiler {
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
-                    let lhs = self.compute_expr(scope, *lhs)?.unwrap();
-                    let rhs = self.compute_expr(scope, *rhs)?.unwrap();
+                    let lhs = self.compute_expr(scope, lhs)?.unwrap();
+                    let rhs = self.compute_expr(scope, rhs)?.unwrap();
                     Some(self.add(scope, lhs, rhs))
                 }
                 Op2::Subtraction => todo!(),
@@ -349,12 +440,13 @@ impl Compiler {
             },
             ExprKind::Negated(_) => todo!(),
             ExprKind::BigInt(b) => {
-                let f = F::try_from(b)?;
+                let f = F::try_from(b.as_str())?;
                 Some(self.new_internal_var(Value::Constant(f)))
             }
             ExprKind::Identifier(name) => {
-                let var = scope.variables.get(&name).unwrap();
-                Some(*var)
+                dbg!(&name, &scope);
+                let var = scope.get_var(&name).unwrap();
+                Some(var)
             }
             ExprKind::ArrayAccess(_, _) => todo!(),
         };
@@ -362,7 +454,7 @@ impl Compiler {
         Ok(var)
     }
 
-    fn add(&mut self, scope: &mut Scope, lhs: Var, rhs: Var) -> Var {
+    fn add(&mut self, scope: &mut Environment, lhs: Var, rhs: Var) -> Var {
         // create a new variable to store the result
         let res = self.new_internal_var(Value::LinearCombination(vec![
             (F::one(), lhs),
@@ -419,19 +511,29 @@ impl Compiler {
 }
 
 // TODO: right now there's only one scope, but if we want to deal with multiple scopes then we'll need to make sure child scopes have access to parent scope, shadowing, etc.
-#[derive(Default)]
-pub struct Scope {
+#[derive(Default, Debug)]
+pub struct Environment {
+    pub var_types: HashMap<String, TyKind>,
     pub variables: HashMap<String, Var>,
     pub functions: HashMap<String, FuncInScope>,
     pub types: Vec<String>,
 }
 
-impl Scope {
+impl Environment {
+    pub fn store_type(&mut self, ident: String, ty: TyKind) {
+        self.var_types.insert(ident, ty);
+    }
+
     pub fn get_type(&self, ident: &str) -> Option<&TyKind> {
-        self.variables.get(name)
+        self.var_types.get(ident)
+    }
+
+    pub fn get_var(&self, ident: &str) -> Option<Var> {
+        self.variables.get(ident).cloned()
     }
 }
 
+#[derive(Debug)]
 pub enum FuncInScope {
     /// signature of the function
     BuiltIn(FunctionSig),
