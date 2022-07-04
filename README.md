@@ -4,7 +4,7 @@ No really, this is all for me, not for you.
 
 The idea: a rust-inspired programming language to write circuits for kimchi.
 
-Status: I can parse an extremely simple circuit, produce the circuit (in some made-up asm language), link each gate to the source, and generate a witness for that circuit.
+Status: I can parse an extremely simple circuit, produce the circuit (in some made-up asm language), link each gate to the source, generate a witness for that circuit, and a proof with kimchi, and verify it with kimchi.
 
 ![image](https://user-images.githubusercontent.com/1316043/175832784-b77ae752-4513-4bae-9268-0d75eb558495.png)
 
@@ -49,7 +49,10 @@ Files I should be able to parse:
 More specific tasks:
 
 - [x] fix the bug (the 2 isn't constrained in arithmetic.no). Probably I need to handle constants differently (I don't constrain them yet).
-- [ ] the witness should be verified as it is created (either we run the circuit with the witness, or when we construct the circuit we also info on what needs to be checked when the witness is created? the latter solution seems more elegant/efficient)
+- [ ] the witness should be verified as it is created
+  - either we run the circuit with the witness (wasteful?)
+  - or when we construct the circuit we also saves some info on what needs to be checked when the witness is created? I think essentially we need to check assert_equals and that the public output is well constructed
+  - or... we just use kimchi to verify the witness, and if it returns an error on row i we use the `span` info in our `Gate` type to figure out where in the source that happened (easiest solution to implement, but maybe wasteful to verify each gate as well? heh)
 - [ ] implement the wiring
 - [ ] the returned compiled circuit (that can be used to produce witnesses) should be a new type (not Compiler) to prevent adding new gates? Or perhaps it's useless?
 - [ ] handle function call in a statement differently? I could simply say that a statement can be an expression, only if it's a function call (to dedup code, although semantically I don't like it... maybe better to just factor out the code in a function)

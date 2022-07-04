@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 ark-ff = "0.3.0" # finite field library
+ena = "0.14.0" # union-find implementation for the wiring
 num-bigint = "0.4.3" # big int library
 clap = { version = "3.2.6", features = ["derive"] } # CLI library
 itertools = "0.10.3" # useful iter traits

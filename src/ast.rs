@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Neg, vec};
 
-use ark_ff::{One, Zero};
+use ark_ff::{One, PrimeField, Zero};
 use itertools::Itertools as _;
 use num_bigint::BigUint;
 use num_traits::Num as _;
@@ -461,19 +461,17 @@ impl Compiler {
             env.add_value(name.clone(), *val);
         }
 
-        for (row, gate) in self.witness_rows.iter().zip(&self.gates) {
+        for row in &self.witness_rows {
             // create the witness row
             let mut res = [Field::zero(); COLUMNS];
-            for (i, var) in row.iter().enumerate() {
+            for (col, var) in row.iter().enumerate() {
                 let val = if let Some(var) = var {
                     self.compute_var(&env, *var)
                 } else {
                     Field::zero()
                 };
-                res[i] = val;
+                res[col] = val;
             }
-
-            // TODO: test the row with the gate
 
             //
             witness.push(res);
@@ -503,6 +501,35 @@ impl Compiler {
             (line_number, start, line)
         }
 
+        fn parse_coeff(x: Field) -> String {
+            // TODO: if it's bigger than n/2 then it should be a negative number
+            let bigint: BigUint = x.into();
+            let inv: BigUint = x.neg().into(); // gettho way of splitting the field into positive and negative elements
+            if inv < bigint {
+                format!("-{}", inv)
+            } else {
+                bigint.to_string()
+            }
+        }
+
+        fn parse_coeffs(coeffs: &[Field]) -> (String, Vec<String>) {
+            let mut vars = String::new();
+            let coeffs = coeffs
+                .iter()
+                .map(|x| {
+                    let s = parse_coeff(*x);
+                    if s.len() < 5 {
+                        s
+                    } else {
+                        let var = format!("c{}", vars.len());
+                        vars.push_str(&format!("{var}={s}\n"));
+                        var
+                    }
+                })
+                .collect();
+            (vars, coeffs)
+        }
+
         for Gate { typ, coeffs, span } in &self.gates {
             // source
             let (line_number, start, line) = find_exact_line(&self.source, *span);
@@ -514,11 +541,14 @@ impl Compiler {
             res.push_str("^\n");
             res.push_str("----\n");
 
+            // gate coeffs
+            let (vars, coeffs) = parse_coeffs(coeffs);
+            res.push_str(&vars);
+
             // gate
             res.push_str(&format!("{typ:?}"));
             res.push_str("<");
-            let coeffs = coeffs.iter().join(",");
-            res.push_str(&coeffs);
+            res.push_str(&coeffs.join(","));
             res.push_str(">\n");
         }
 
