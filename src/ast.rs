@@ -1,4 +1,9 @@
-use std::{collections::HashMap, ops::Neg, vec};
+use std::{
+    collections::HashMap,
+    fmt::{Display, Formatter},
+    ops::Neg,
+    vec,
+};
 
 use ark_ff::{One, PrimeField, Zero};
 use itertools::Itertools as _;
@@ -85,6 +90,12 @@ impl Gate {
 pub struct Cell {
     pub row: usize,
     pub col: usize,
+}
+
+impl Display for Cell {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({},{})", self.row, self.col)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -489,7 +500,7 @@ impl Compiler {
     }
 
     pub fn asm(&self) -> String {
-        asm::generate_asm(&self.source, &self.gates)
+        asm::generate_asm(&self.source, &self.gates, &self.wiring, true)
     }
 
     fn new_internal_var(&mut self, val: Value) -> Var {

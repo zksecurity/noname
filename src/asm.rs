@@ -1,43 +1,42 @@
-use std::ops::Neg;
+use std::{collections::HashMap, ops::Neg};
 
+use itertools::Itertools;
 use num_bigint::BigUint;
 
 use crate::{
-    ast::Gate,
+    ast::{Gate, Var, Wiring},
     constants::{Field, Span},
 };
 
-pub fn generate_asm(source: &str, gates: &[Gate]) -> String {
+pub fn generate_asm(
+    source: &str,
+    gates: &[Gate],
+    wiring: &HashMap<Var, Wiring>,
+    debug: bool,
+) -> String {
     let mut res = "".to_string();
 
-    fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
-        let ss = source.as_bytes();
-        let mut start = span.0;
-        let mut end = span.0 + span.1;
-        while start > 0 && (ss[start - 1] as char) != '\n' {
-            start -= 1;
-        }
-        while end < source.len() && (ss[end] as char) != '\n' {
-            end += 1;
-        }
+    // version
+    res.push_str("# noname.0.1.0\n\n");
 
-        let line = &source[start..end];
-
-        let line_number = source[..start].matches('\n').count() + 1;
-
-        (line_number, start, line)
+    if debug {
+        res.push_str("# gates\n\n");
     }
 
+    // gates
     for Gate { typ, coeffs, span } in gates {
         // source
-        let (line_number, start, line) = find_exact_line(source, *span);
-        res.push_str("\n\n----\n");
-        res.push_str(&format!("{line_number}: {line}\n"));
-        for _ in start..span.0 {
-            res.push_str(" ");
+        if debug {
+            res.push_str(&"-".repeat(80));
+            res.push_str("\n");
+            let (line_number, start, line) = find_exact_line(source, *span);
+            res.push_str(&format!("{line_number}: {line}\n"));
+            for _ in start..span.0 {
+                res.push_str(" ");
+            }
+            res.push_str(&"^".repeat(span.1));
+            res.push_str("\n");
         }
-        res.push_str(&"^".repeat(span.1));
-        res.push_str("----\n");
 
         // gate coeffs
         let (vars, coeffs) = parse_coeffs(coeffs);
@@ -48,6 +47,21 @@ pub fn generate_asm(source: &str, gates: &[Gate]) -> String {
         res.push_str("<");
         res.push_str(&coeffs.join(","));
         res.push_str(">\n");
+    }
+
+    // wiring
+    if debug {
+        res.push_str("\n# wiring\n\n");
+    }
+
+    for wires in wiring.values() {
+        match wires {
+            Wiring::NotWired(_) => (),
+            Wiring::Wired(cells) => {
+                let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
+                res.push_str(&format!("{s}\n"));
+            }
+        }
     }
 
     res
@@ -80,4 +94,22 @@ fn parse_coeffs(coeffs: &[Field]) -> (String, Vec<String>) {
         })
         .collect();
     (vars, coeffs)
+}
+
+fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
+    let ss = source.as_bytes();
+    let mut start = span.0;
+    let mut end = span.0 + span.1;
+    while start > 0 && (ss[start - 1] as char) != '\n' {
+        start -= 1;
+    }
+    while end < source.len() && (ss[end] as char) != '\n' {
+        end += 1;
+    }
+
+    let line = &source[start..end];
+
+    let line_number = source[..start].matches('\n').count() + 1;
+
+    (line_number, start, line)
 }

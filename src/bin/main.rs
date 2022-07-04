@@ -17,9 +17,9 @@ fn parse(name: impl std::fmt::Display, code: &str) -> Result<()> {
 
     println!("compiled {name} to {} gates", compiler.num_gates());
 
-    println!("\n========\n");
+    println!("\n==== circuit ====\n");
 
-    println!("circuit: {circuit}");
+    println!("{circuit}");
 
     println!("\n========\n");
 
