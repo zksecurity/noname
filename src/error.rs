@@ -99,9 +99,6 @@ pub enum ErrorTy {
     #[error("variable used is not defined anywhere")]
     UndefinedVariable,
 
-    #[error("you cannot have a return statement in the `main` function")]
-    ReturnInMain,
-
     #[error("unexpected argument type in function call. Expected: {0} and got {1}")]
     ArgumentTypeMismatch(TyKind, TyKind),
 
@@ -113,4 +110,13 @@ pub enum ErrorTy {
 
     #[error("cannot convert `{0}` to field element")]
     CannotConvertToField(String),
+
+    #[error("return value is `{0}` when `{1}` was expected")]
+    ReturnTypeMismatch(TyKind, TyKind),
+
+    #[error("public output not set as part of the circuit")]
+    MissingPublicOutput,
+
+    #[error("missing public output type in the function signature")]
+    NoPublicOutput,
 }

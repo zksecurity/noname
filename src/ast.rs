@@ -106,21 +106,23 @@ pub enum Wiring {
 
 #[derive(Default, Debug)]
 pub struct Compiler {
+    /// The source code that created this circuit. Useful for debugging and displaying errors.
     pub source: String,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
     // TODO: is this useful?
     pub finalized: bool,
 
-    ///
+    /// This is used to give a distinct number to each variable.
     pub next_variable: usize,
 
     /// This is how you compute the value of each variable, for witness generation.
     pub witness_vars: HashMap<Var, Value>,
 
+    /// The wiring of the circuit.
     pub wiring: HashMap<Var, Wiring>,
 
-    /// This can be used to compute the witness.
+    /// This is used to compute the witness row by row.
     witness_rows: Vec<Vec<Option<Var>>>,
 
     /// the arguments expected by main
@@ -133,11 +135,14 @@ pub struct Compiler {
     /// Size of the public input.
     pub public_input_size: usize,
 
+    /// If a public output is set, this will be used to store a temporary variable
+    /// (we need one to create the associated public input gate)
+    /// Later on, when the actual value is returned, the way to compute the var will be stored in `self.witness_vars`
+    pub public_output: Option<Var>,
+
     /// Size of the private input.
     // TODO: bit weird isn't it?
     pub private_input_size: usize,
-    // Wiring here? or inside gate?
-    // pub wiring: ()
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -156,6 +161,8 @@ pub enum Value {
 
     /// A public or private input to the function
     External(String),
+
+    PublicOutput(Option<Var>),
 }
 
 impl std::fmt::Debug for Value {
@@ -182,8 +189,10 @@ impl Compiler {
             }
         }
 
+        // this will type check everything
         compiler.type_check(env, &mut ast)?;
 
+        // this will convert everything to {gates, wiring, witness_vars}
         compiler.compile(env, &ast)
     }
 
@@ -204,8 +213,18 @@ impl Compiler {
 
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
+                    let in_main = function.name == "main";
+
+                    if !in_main {
+                        unimplemented!();
+                    }
+
                     // create public and private inputs
                     for (public, name, typ) in &function.arguments {
+                        if typ.kind != TyKind::Field {
+                            unimplemented!();
+                        }
+
                         // create the variable in the circuit
                         let var = if *public {
                             self.public_input(name.clone(), typ.span)
@@ -217,11 +236,22 @@ impl Compiler {
                         env.variables.insert(name.clone(), var);
                     }
 
+                    // create public output
+                    if let Some(typ) = &function.return_type {
+                        if typ.kind != TyKind::Field {
+                            unimplemented!();
+                        }
+
+                        // create it
+                        self.public_output(typ.span);
+                    }
+
                     // compile function
                     self.compile_function(env, &function)?;
                 }
 
                 // ignore comments
+                // TODO: we could actually preserve the comment in the ASM!
                 RootKind::Comment(_comment) => (),
             }
         }
@@ -274,6 +304,10 @@ impl Compiler {
                             unimplemented!();
                         }
 
+                        if name == "public_output" {
+                            panic!("public_output is a reserved name");
+                        }
+
                         // store it in the env
                         env.var_types.insert(name.clone(), typ.kind.clone());
 
@@ -281,8 +315,20 @@ impl Compiler {
                         self.main_args.insert(name.clone(), typ.kind.clone());
                     }
 
+                    // the output value returned by the main function is also a main_args with a special name (public_output)
+                    if let Some(typ) = &function.return_type {
+                        if !matches!(typ.kind, TyKind::Field) {
+                            unimplemented!();
+                        }
+
+                        let name = "public_output";
+
+                        env.var_types.insert(name.to_string(), typ.kind.clone());
+                        //                        self.main_args.insert(name.to_string(), typ.kind.clone());
+                    }
+
                     // type system pass!!!
-                    self.type_check_fn(env, &function.body)?;
+                    self.type_check_fn(env, function)?;
                 }
 
                 // ignore comments
@@ -296,9 +342,11 @@ impl Compiler {
         Ok(())
     }
 
-    fn type_check_fn(&mut self, env: &mut Environment, stmts: &[Stmt]) -> Result<(), Error> {
+    fn type_check_fn(&mut self, env: &mut Environment, function: &Function) -> Result<(), Error> {
+        let in_main = function.name == "main";
+
         // only expressions need type info?
-        for stmt in stmts {
+        for stmt in &function.body {
             match &stmt.kind {
                 crate::parser::StmtKind::Assign { lhs, rhs } => {
                     // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
@@ -380,11 +428,25 @@ impl Compiler {
                         Some(FuncInScope::Library(_, _)) => todo!(),
                     }
                 }
-                crate::parser::StmtKind::Return(_) => {
+                crate::parser::StmtKind::Return(res) => {
                     // TODO: warn if there's code after the return?
 
                     // infer the return type and check if it's the same as the function return type?
-                    unimplemented!();
+                    if !in_main {
+                        unimplemented!();
+                    }
+
+                    let typ = res.compute_type(env)?.unwrap();
+
+                    if env.var_types["public_output"] != typ {
+                        return Err(Error {
+                            error: ErrorTy::ReturnTypeMismatch(
+                                env.var_types["public_output"].clone(),
+                                typ,
+                            ),
+                            span: stmt.span,
+                        });
+                    }
                 }
                 crate::parser::StmtKind::Comment(_) => (),
             }
@@ -404,7 +466,10 @@ impl Compiler {
             match &stmt.kind {
                 crate::parser::StmtKind::Assign { lhs, rhs } => {
                     // compute the rhs
-                    let var = self.compute_expr(env, rhs)?.unwrap();
+                    let var = self.compute_expr(env, rhs)?.ok_or(Error {
+                        error: ErrorTy::CannotComputeExpression,
+                        span: stmt.span,
+                    })?;
 
                     // store the new variable
                     // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
@@ -443,15 +508,25 @@ impl Compiler {
                         Some(FuncInScope::Library(_, _)) => todo!(),
                     }
                 }
-                crate::parser::StmtKind::Return(_) => {
-                    if in_main {
-                        return Err(Error {
-                            error: ErrorTy::ReturnInMain,
-                            span: stmt.span,
-                        });
+                crate::parser::StmtKind::Return(res) => {
+                    if !in_main {
+                        unimplemented!();
                     }
 
-                    todo!();
+                    let var = self.compute_expr(env, res)?.ok_or(Error {
+                        error: ErrorTy::CannotComputeExpression,
+                        span: stmt.span,
+                    })?;
+
+                    // store the return value in the public input that was created for that ^
+                    let public_output = self.public_output.ok_or(Error {
+                        error: ErrorTy::NoPublicOutput,
+                        span: stmt.span,
+                    })?;
+                    assert!(self
+                        .witness_vars
+                        .insert(public_output, Value::PublicOutput(Some(var)))
+                        .is_some());
                 }
                 crate::parser::StmtKind::Comment(_) => todo!(),
             }
@@ -480,12 +555,21 @@ impl Compiler {
             env.add_value(name.clone(), *val);
         }
 
+        // compute each rows' vars, except for the deferred ones (public output)
+        let mut public_output: Option<Var> = None;
+
         for row in &self.witness_rows {
             // create the witness row
             let mut res = [Field::zero(); COLUMNS];
             for (col, var) in row.iter().enumerate() {
                 let val = if let Some(var) = var {
-                    self.compute_var(&env, *var)
+                    // if it's a public output, defer it's computation
+                    if matches!(self.witness_vars[&var], Value::PublicOutput(_)) {
+                        public_output = Some(*var);
+                        Field::zero()
+                    } else {
+                        self.compute_var(&env, *var)?
+                    }
                 } else {
                     Field::zero()
                 };
@@ -496,6 +580,13 @@ impl Compiler {
             witness.push(res);
         }
 
+        // compute public output at last
+        if let Some(var) = public_output {
+            let val = self.compute_var(&env, var)?;
+            witness.push([val; COLUMNS]);
+        }
+
+        //
         Ok(Witness(witness))
     }
 
@@ -555,18 +646,25 @@ impl Compiler {
         Ok(var)
     }
 
-    pub fn compute_var(&self, env: &WitnessEnv, var: Var) -> Field {
+    pub fn compute_var(&self, env: &WitnessEnv, var: Var) -> Result<Field, Error> {
         match &self.witness_vars[&var] {
-            Value::Hint(func) => func(),
-            Value::Constant(c) => *c,
+            Value::Hint(func) => Ok(func()),
+            Value::Constant(c) => Ok(*c),
             Value::LinearCombination(lc) => {
                 let mut res = Field::zero();
                 for (coeff, var) in lc {
-                    res += self.compute_var(env, *var) * *coeff;
+                    res += self.compute_var(env, *var)? * *coeff;
                 }
-                res
+                Ok(res)
             }
-            Value::External(name) => env.get_external(name),
+            Value::External(name) => Ok(env.get_external(name)),
+            Value::PublicOutput(var) => {
+                let var = var.ok_or(Error {
+                    error: ErrorTy::MissingPublicOutput,
+                    span: (0, 0),
+                })?;
+                self.compute_var(env, var)
+            }
         }
     }
 
@@ -661,6 +759,25 @@ impl Compiler {
         var
     }
 
+    pub fn public_output(&mut self, span: Span) {
+        assert!(self.public_output.is_none());
+
+        // create the var
+        let var = self.new_internal_var(Value::PublicOutput(None));
+        self.public_input_size += 1;
+
+        // store it
+        self.public_output = Some(var);
+
+        // create the associated generic gate
+        self.gates(
+            GateKind::DoubleGeneric,
+            vec![Some(var)],
+            vec![Field::one()],
+            span,
+        );
+    }
+
     pub fn private_input(&mut self, name: String) -> Var {
         // create the var
         let var = self.new_internal_var(Value::External(name));
@@ -720,7 +837,7 @@ pub struct WitnessEnv {
 
 impl WitnessEnv {
     pub fn add_value(&mut self, name: String, value: Field) {
-        self.var_values.insert(name, value);
+        assert!(self.var_values.insert(name, value).is_none());
     }
 
     pub fn get_external(&self, name: &str) -> Field {

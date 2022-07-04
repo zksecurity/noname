@@ -32,6 +32,7 @@ fn parse(name: impl std::fmt::Display, code: &str) -> Result<()> {
     // create proof
 
     let public_inputs = vec![Field::one()];
+
     //witness.scramble();
     prove_and_verify(
         &compiler.compiled_gates(),
@@ -65,6 +66,8 @@ fn prove_and_verify(gates: &[Gate], witness: [Vec<Field>; COLUMNS], public: Vec<
     let mut srs = kimchi::commitment_dlog::srs::SRS::<Curve>::create(cs.domain.d1.size as usize);
     srs.add_lagrange_basis(cs.domain.d1);
     let srs = std::sync::Arc::new(srs);
+
+    println!("using an SRS of size {}", srs.g.len());
 
     // create index
     let fq_sponge_params = kimchi::oracle::pasta::fq_kimchi::params();

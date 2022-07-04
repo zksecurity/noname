@@ -1,3 +1,21 @@
+//! ASM-like language:
+//!
+//! ```
+//! @ noname.0.1.0
+//! # gates
+//!
+//! DoubleGeneric<1>
+//! DoubleGeneric<1,1,-1>
+//! DoubleGeneric<1,0,0,0,-2>
+//! DoubleGeneric<1,-1>
+//!
+//! # wiring
+//!
+//! (2,0) -> (3,1)
+//! (1,2) -> (3,0)
+//! (0,0) -> (1,1)
+//! ```
+
 use std::{collections::HashMap, ops::Neg};
 
 use itertools::Itertools;
@@ -17,7 +35,7 @@ pub fn generate_asm(
     let mut res = "".to_string();
 
     // version
-    res.push_str("# noname.0.1.0\n\n");
+    res.push_str("@ noname.0.1.0\n\n");
 
     if debug {
         res.push_str("# gates\n\n");
