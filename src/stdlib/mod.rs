@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Compiler, FuncType, GateKind, Var, F},
+    ast::{Compiler, FuncType, GateKind, Value, Var, F},
     lexer::Token,
     parser::{FunctionSig, ParserCtx},
 };
@@ -49,6 +49,30 @@ pub fn utils_functions() -> Vec<(FunctionSig, FuncType)> {
 fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: (usize, usize)) {
     let lhs = vars[0];
     let rhs = vars[1];
+
+    // TODO: handle one being a constant or not
+    // the problem here: I want to avoid being able to create a gate if the value needs to be constrained further
+    // I need Var to tell me what it is (not just its index)
+    /*
+    let lhs = match compiler.witness_vars[&lhs] {
+        Value::Hint(_) => todo!(),
+        // constant: need to constraint it? Or already constrained?
+        Value::Constant(_) => todo!(),
+        // linear combination of other variables: already constrained?
+        Value::LinearCombination(_) => lhs,
+        // external: no need to constrain
+        Value::External(_) => lhs,
+    };
+
+    let rhs = match compiler.witness_vars[&rhs] {
+        Value::Hint(_) => todo!(),
+        Value::Constant(_) => todo!(),
+        Value::LinearCombination(_) => lhs,
+        // external: no need to constrain
+        Value::External(_) => rhs,
+    };
+    */
+
     compiler.gates(
         GateKind::DoubleGeneric,
         vec![Some(lhs), Some(rhs)],

@@ -185,7 +185,6 @@ impl Compiler {
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
                     // create public and private inputs
-                    dbg!(&function.arguments);
                     for (public, name, typ) in &function.arguments {
                         // create the variable in the circuit
                         let var = if *public {
@@ -332,6 +331,7 @@ impl Compiler {
                                     if matches!(
                                         (&typ1.kind, &typ2),
                                         (TyKind::Field, TyKind::BigInt)
+                                            | (TyKind::BigInt, TyKind::Field)
                                     ) {
                                         continue;
                                     }
@@ -359,6 +359,8 @@ impl Compiler {
                     }
                 }
                 crate::parser::StmtKind::Return(_) => {
+                    // TODO: warn if there's code after the return?
+
                     // infer the return type and check if it's the same as the function return type?
                     unimplemented!();
                 }
@@ -435,6 +437,8 @@ impl Compiler {
 
         Ok(())
     }
+
+    //     pub fn constrain(compiler: &mut Compiler)
 
     // TODO: how to pass arguments?
     pub fn generate_witness(&self, args: HashMap<&str, F>) -> Result<Vec<[F; COLUMNS]>, Error> {
@@ -553,7 +557,7 @@ impl Compiler {
             ExprKind::Negated(_) => todo!(),
             ExprKind::BigInt(b) => {
                 let f = F::try_from(b.as_str())?;
-                Some(self.new_internal_var(Value::Constant(f)))
+                Some(self.constant(f, expr.span))
             }
             ExprKind::Identifier(name) => {
                 let var = env.get_var(&name).unwrap();
@@ -597,8 +601,18 @@ impl Compiler {
         res
     }
 
-    pub fn constant(&mut self, value: F) -> Var {
-        self.new_internal_var(Value::Constant(value))
+    pub fn constant(&mut self, value: F, span: Span) -> Var {
+        let var = self.new_internal_var(Value::Constant(value));
+
+        let zero = F::zero();
+        self.gates(
+            GateKind::DoubleGeneric,
+            vec![Some(var)],
+            vec![F::one(), zero, zero, zero, value.neg()],
+            span,
+        );
+
+        var
     }
 
     /// creates a new gate, and the associated row in the witness/execution trace.

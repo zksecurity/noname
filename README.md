@@ -8,28 +8,9 @@ Status: I can parse an extremely simple circuit, produce the circuit (in some ma
 
 ![image](https://user-images.githubusercontent.com/1316043/175832784-b77ae752-4513-4bae-9268-0d75eb558495.png)
 
+## Concept
 
-It'd be good to write a proof of concept that works, even if ugly, to compile one very simple circuit. For now, I'm trying this with `data/arithmetic.no`:
-
-```rust
-fn main(pub public_input: Field, private_input: Field) {
-    let x = private_input + private_input;
-    assert_eq(x, 2);
-}
-```
-
-Roadmap of the proof of concept:
-
-- [x] code -> lexer -> token
-- [x] token -> parser -> AST
-- [ ] AST -> semantic analysis -> AST + type info
-  - [ ] type checking
-  - [ ] name binding
-  - [ ] flow checking (CFG?)
-- [ ] AST + type info -> compile -> circuit + witness info
-- [ ] witness info -> interpreter -> witness
-
-then I reuse kimchi for the following flows:
+kimchi is reused for the following flows:
 
 - circuit -> kimchi compiler -> prover/verifier index
 - prover index + witness -> kimchi prover -> proof
@@ -45,13 +26,40 @@ Some mentras:
 - easy to compile/use something on any machine (like go/cargo)
 - make it composable (let people create their libraries)
 
-Questions:
+## Roadmap
+
+Roadmap of the proof of concept:
+
+- [x] code -> lexer -> token
+- [x] token -> parser -> AST
+- [ ] AST -> semantic analysis -> AST + type info
+  - [ ] type checking
+  - [ ] name binding
+  - [ ] flow checking (CFG?)
+- [ ] AST + type info -> compile -> circuit + witness info
+- [ ] witness info -> interpreter -> witness
+
+Files I should be able to parse:
+
+- [x] `arithmetic.no`
+- [ ] `public_output.no`
+- [ ] `poseidon.no`
+- [ ] `types.no`
+
+More specific tasks:
+
+- [x] fix the bug (the 2 isn't constrained in arithmetic.no). Probably I need to handle constants differently (I don't constrain them yet).
+- [ ] the witness should be verified as it is created (either we run the circuit with the witness, or when we construct the circuit we also info on what needs to be checked when the witness is created? the latter solution seems more elegant/efficient)
+- [ ] handle function call in a statement differently? I could simply say that a statement can be an expression, only if it's a function call (to dedup code, although semantically I don't like it... maybe better to just factor out the code in a function)
+- [ ] handle public output when generating witness
+
+## Questions
 
 - interestingly, it seems like other languages have expression as statements, but check that the expression actually has a type (different than unit). Why do this just for a function call expression type? I find it better to include the function call as part of a statement as well as part of an expression, voila
 - interestingly, looks like the type system either creates a different AST or stores the information elsewhere. I think for our PoC we can either: 1) not store it or 2) store it within the Expr as an `Option<TyKind>`
 - do I need an ASG? CFG?
 
-More resources that I found useful or relevant:
+## Relevant resources
 
 - maybe I should have used one of the easy parser library: https://github.com/lalrpop/lalrpop and https://github.com/pest-parser/pest (but a bit too late for that)
 - rustc has some explanation on its inners: https://rustc-dev-guide.rust-lang.org/the-parser.html
