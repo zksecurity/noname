@@ -4,7 +4,8 @@ use ark_ff::One;
 use clap::Parser;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use my_programming_language::{
-    ast::{Compiler, Field, Gate, COLUMNS},
+    ast::{Compiler, Gate},
+    constants::{Field, COLUMNS},
     lexer::Token,
     parser::AST,
 };
@@ -27,11 +28,6 @@ fn parse(name: impl std::fmt::Display, code: &str) -> Result<()> {
     args.insert("public_input", Field::one());
     args.insert("private_input", Field::one());
     let witness = compiler.generate_witness(args)?;
-
-    // wiring
-
-    println!("\n========\n");
-    dbg!(&compiler.wiring);
 
     // create proof
 

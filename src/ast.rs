@@ -6,22 +6,12 @@ use num_bigint::BigUint;
 use num_traits::Num as _;
 
 use crate::{
+    asm,
+    constants::{Field, Span, COLUMNS},
     error::{Error, ErrorTy},
     parser::{Expr, ExprKind, Function, FunctionSig, Op2, RootKind, Stmt, TyKind, AST},
     stdlib::utils_functions,
 };
-
-//
-// Constants
-//
-
-pub const COLUMNS: usize = kimchi::circuits::wires::COLUMNS;
-
-//
-// Aliases
-//
-
-pub type Field = kimchi::mina_curves::pasta::Fp;
 
 //
 // Data structures
@@ -215,7 +205,6 @@ impl Compiler {
                         // store it in the env
                         env.variables.insert(name.clone(), var);
                     }
-                    dbg!(&env);
 
                     // compile function
                     self.compile_function(env, &function)?;
@@ -500,78 +489,7 @@ impl Compiler {
     }
 
     pub fn asm(&self) -> String {
-        let mut res = "".to_string();
-
-        fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
-            let ss = source.as_bytes();
-            let mut start = span.0;
-            let mut end = span.0 + span.1;
-            while start > 0 && (ss[start - 1] as char) != '\n' {
-                start -= 1;
-            }
-            while end < source.len() && (ss[end] as char) != '\n' {
-                end += 1;
-            }
-
-            let line = &source[start..end];
-
-            let line_number = source[..start].matches('\n').count() + 1;
-
-            (line_number, start, line)
-        }
-
-        fn parse_coeff(x: Field) -> String {
-            // TODO: if it's bigger than n/2 then it should be a negative number
-            let bigint: BigUint = x.into();
-            let inv: BigUint = x.neg().into(); // gettho way of splitting the field into positive and negative elements
-            if inv < bigint {
-                format!("-{}", inv)
-            } else {
-                bigint.to_string()
-            }
-        }
-
-        fn parse_coeffs(coeffs: &[Field]) -> (String, Vec<String>) {
-            let mut vars = String::new();
-            let coeffs = coeffs
-                .iter()
-                .map(|x| {
-                    let s = parse_coeff(*x);
-                    if s.len() < 5 {
-                        s
-                    } else {
-                        let var = format!("c{}", vars.len());
-                        vars.push_str(&format!("{var}={s}\n"));
-                        var
-                    }
-                })
-                .collect();
-            (vars, coeffs)
-        }
-
-        for Gate { typ, coeffs, span } in &self.gates {
-            // source
-            let (line_number, start, line) = find_exact_line(&self.source, *span);
-            res.push_str("\n\n----\n");
-            res.push_str(&format!("{line_number}: {line}\n"));
-            for _ in start..span.0 {
-                res.push_str(" ");
-            }
-            res.push_str("^\n");
-            res.push_str("----\n");
-
-            // gate coeffs
-            let (vars, coeffs) = parse_coeffs(coeffs);
-            res.push_str(&vars);
-
-            // gate
-            res.push_str(&format!("{typ:?}"));
-            res.push_str("<");
-            res.push_str(&coeffs.join(","));
-            res.push_str(">\n");
-        }
-
-        res
+        asm::generate_asm(&self.source, &self.gates)
     }
 
     fn new_internal_var(&mut self, val: Value) -> Var {
@@ -597,7 +515,6 @@ impl Compiler {
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
-                    dbg!(&lhs, &rhs);
                     let lhs = self.compute_expr(env, lhs)?.unwrap();
                     let rhs = self.compute_expr(env, rhs)?.unwrap();
                     Some(self.add(lhs, rhs, expr.span))
@@ -670,7 +587,6 @@ impl Compiler {
         */
 
         // create a gate to store the result
-        dbg!(self.gates.len(), &lhs, &rhs);
         self.gates(
             GateKind::DoubleGeneric,
             vec![Some(lhs), Some(rhs), Some(res)],
@@ -698,7 +614,6 @@ impl Compiler {
     /// creates a new gate, and the associated row in the witness/execution trace.
     // TODO: add_gate instead of gates?
     pub fn gates(&mut self, typ: GateKind, vars: Vec<Option<Var>>, coeffs: Vec<Field>, span: Span) {
-        dbg!(self.gates.len(), &vars);
         assert!(coeffs.len() <= COLUMNS);
         assert!(vars.len() <= COLUMNS);
         self.witness_rows.push(vars.clone());
@@ -769,7 +684,6 @@ impl Environment {
     }
 }
 
-pub type Span = (usize, usize);
 pub type FuncType = fn(&mut Compiler, &[Var], Span);
 
 pub enum FuncInScope {

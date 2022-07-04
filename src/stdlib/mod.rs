@@ -3,7 +3,8 @@ use std::ops::Neg as _;
 use ark_ff::One as _;
 
 use crate::{
-    ast::{Compiler, Field, FuncType, GateKind, Var},
+    ast::{Compiler, FuncType, GateKind, Var},
+    constants::Field,
     lexer::Token,
     parser::{FunctionSig, ParserCtx},
 };
