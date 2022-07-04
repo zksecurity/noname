@@ -6,7 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "3.2.6", features = ["derive"] }
-itertools = "0.10.3"
-miette = { version = "5.0.0", features = ["fancy"] }
-thiserror = "1.0.31"
+ark-ff = "0.3.0" # finite field library
+num-bigint = "0.4.3" # big int library
+clap = { version = "3.2.6", features = ["derive"] } # CLI library
+itertools = "0.10.3" # useful iter traits
+kimchi = { git = "https://github.com/o1-labs/proof-systems" } # ZKP
+miette = { version = "5.0.0", features = ["fancy"] } # nice errors
+num-traits = "0.2.15" # useful traits on big ints
+thiserror = "1.0.31" # helpful error traits

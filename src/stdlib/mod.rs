@@ -1,5 +1,9 @@
+use std::ops::Neg as _;
+
+use ark_ff::One as _;
+
 use crate::{
-    ast::{Compiler, FuncType, GateKind, Value, Var, F},
+    ast::{Compiler, Field, FuncType, GateKind, Var},
     lexer::Token,
     parser::{FunctionSig, ParserCtx},
 };
@@ -76,7 +80,7 @@ fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: (usize, usize)) {
     compiler.gates(
         GateKind::DoubleGeneric,
         vec![Some(lhs), Some(rhs)],
-        vec![F::one(), F::one().neg()],
+        vec![Field::one(), Field::one().neg()],
         span,
     );
 }

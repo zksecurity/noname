@@ -110,4 +110,7 @@ pub enum ErrorTy {
 
     #[error("missing argument `{0}`")]
     MissingArg(String),
+
+    #[error("cannot convert `{0}` to field element")]
+    CannotConvertToField(String),
 }

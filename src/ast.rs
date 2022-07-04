@@ -1,13 +1,13 @@
-use std::{
-    collections::HashMap,
-    ops::{AddAssign, Mul},
-};
+use std::{collections::HashMap, ops::Neg, vec};
 
-use itertools::Itertools;
+use ark_ff::{One, Zero};
+use itertools::Itertools as _;
+use num_bigint::BigUint;
+use num_traits::Num as _;
 
 use crate::{
     error::{Error, ErrorTy},
-    parser::{Expr, ExprKind, Function, FunctionSig, Op2, Root, RootKind, Stmt, TyKind, AST},
+    parser::{Expr, ExprKind, Function, FunctionSig, Op2, RootKind, Stmt, TyKind, AST},
     stdlib::utils_functions,
 };
 
@@ -15,67 +15,48 @@ use crate::{
 // Constants
 //
 
-pub const COLUMNS: usize = 15;
+pub const COLUMNS: usize = kimchi::circuits::wires::COLUMNS;
 
 //
-// Mocking the field for now
+// Aliases
 //
 
-/// We'll probably want to hardcode the field no?
-#[derive(Debug, Clone, Copy)]
-pub struct F(i64);
-
-impl F {
-    pub fn zero() -> Self {
-        F(0)
-    }
-
-    pub fn one() -> Self {
-        F(1)
-    }
-
-    pub fn neg(self) -> Self {
-        Self(-self.0)
-    }
-}
-
-impl Mul for F {
-    type Output = Self;
-
-    fn mul(self, other: Self) -> Self {
-        Self(self.0 * other.0)
-    }
-}
-
-impl AddAssign for F {
-    fn add_assign(&mut self, other: Self) {
-        *self = Self(self.0 + other.0);
-    }
-}
-
-impl TryFrom<&str> for F {
-    type Error = Error;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let v: i64 = value.parse().unwrap();
-        Ok(Self(v))
-    }
-}
-
-impl std::fmt::Display for F {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+pub type Field = kimchi::mina_curves::pasta::Fp;
 
 //
 // Data structures
 //
 
-#[derive(Debug)]
+pub struct Witness(Vec<[Field; COLUMNS]>);
+
+impl Witness {
+    /// kimchi uses a transposed witness
+    pub fn to_kimchi_witness(&self) -> [Vec<Field>; COLUMNS] {
+        let transposed = vec![Vec::with_capacity(self.0.len()); COLUMNS];
+        let mut transposed: [_; COLUMNS] = transposed.try_into().unwrap();
+        for row in &self.0 {
+            for (col, field) in row.iter().enumerate() {
+                transposed[col].push(*field);
+            }
+        }
+        transposed
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum GateKind {
     DoubleGeneric,
     Poseidon,
+}
+
+impl Into<kimchi::circuits::gate::GateType> for GateKind {
+    fn into(self) -> kimchi::circuits::gate::GateType {
+        use kimchi::circuits::gate::GateType::*;
+        match self {
+            GateKind::DoubleGeneric => Generic,
+            GateKind::Poseidon => Poseidon,
+        }
+    }
 }
 
 // TODO: this could also contain the span that defined the gate!
@@ -89,8 +70,21 @@ pub struct Gate {
     //    wiring: HashMap<u8, (u64, u8)>,
 
     /// Coefficients
-    pub coeffs: Vec<F>,
+    pub coeffs: Vec<Field>,
+
+    /// The place in the original source code that created that gate.
     pub span: Span,
+}
+
+impl Gate {
+    pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<Field> {
+        kimchi::circuits::gate::CircuitGate {
+            typ: self.typ.into(),
+            // TODO: wiring!!
+            wires: kimchi::circuits::wires::Wire::new(row),
+            coeffs: self.coeffs.clone(),
+        }
+    }
 }
 
 #[derive(Default, Debug)]
@@ -133,13 +127,13 @@ pub struct Var(usize);
 /// A variable's actual value in the witness can be computed in different ways.
 pub enum Value {
     /// Either it's a hint and can be computed from the outside.
-    Hint(Box<dyn Fn() -> F>),
+    Hint(Box<dyn Fn() -> Field>),
 
     /// Or it's a constant.
-    Constant(F),
+    Constant(Field),
 
     /// Or it's a linear combination of internal circuit variables.
-    LinearCombination(Vec<(F, Var)>),
+    LinearCombination(Vec<(Field, Var)>),
 
     /// A public or private input to the function
     External(String),
@@ -169,9 +163,16 @@ impl Compiler {
             }
         }
 
-        compiler.type_check(env, &mut ast);
+        compiler.type_check(env, &mut ast)?;
 
         compiler.compile(env, &ast)
+    }
+
+    pub fn compiled_gates(&self) -> &[Gate] {
+        if !self.finalized {
+            panic!("Circuit not finalized yet!");
+        }
+        &self.gates
     }
 
     fn compile(mut self, env: &mut Environment, ast: &AST) -> Result<(String, Self), Error> {
@@ -205,6 +206,8 @@ impl Compiler {
                 RootKind::Comment(_comment) => (),
             }
         }
+
+        self.finalized = true;
 
         Ok((self.asm(), self))
     }
@@ -441,7 +444,7 @@ impl Compiler {
     //     pub fn constrain(compiler: &mut Compiler)
 
     // TODO: how to pass arguments?
-    pub fn generate_witness(&self, args: HashMap<&str, F>) -> Result<Vec<[F; COLUMNS]>, Error> {
+    pub fn generate_witness(&self, args: HashMap<&str, Field>) -> Result<Witness, Error> {
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
 
@@ -460,12 +463,12 @@ impl Compiler {
 
         for (row, gate) in self.witness_rows.iter().zip(&self.gates) {
             // create the witness row
-            let mut res = [F::zero(); COLUMNS];
+            let mut res = [Field::zero(); COLUMNS];
             for (i, var) in row.iter().enumerate() {
                 let val = if let Some(var) = var {
                     self.compute_var(&env, *var)
                 } else {
-                    F::zero()
+                    Field::zero()
                 };
                 res[i] = val;
             }
@@ -476,7 +479,7 @@ impl Compiler {
             witness.push(res);
         }
 
-        Ok(witness)
+        Ok(Witness(witness))
     }
 
     pub fn asm(&self) -> String {
@@ -556,7 +559,12 @@ impl Compiler {
             },
             ExprKind::Negated(_) => todo!(),
             ExprKind::BigInt(b) => {
-                let f = F::try_from(b.as_str())?;
+                let biguint = BigUint::from_str_radix(b, 10).expect("failed to parse number.");
+                let f = Field::try_from(biguint).map_err(|_| Error {
+                    error: ErrorTy::CannotConvertToField(b.to_string()),
+                    span: expr.span,
+                })?;
+
                 Some(self.constant(f, expr.span))
             }
             ExprKind::Identifier(name) => {
@@ -569,12 +577,12 @@ impl Compiler {
         Ok(var)
     }
 
-    pub fn compute_var(&self, env: &WitnessEnv, var: Var) -> F {
+    pub fn compute_var(&self, env: &WitnessEnv, var: Var) -> Field {
         match &self.witness_vars[&var] {
             Value::Hint(func) => func(),
             Value::Constant(c) => *c,
             Value::LinearCombination(lc) => {
-                let mut res = F::zero();
+                let mut res = Field::zero();
                 for (coeff, var) in lc {
                     res += self.compute_var(env, *var) * *coeff;
                 }
@@ -584,31 +592,35 @@ impl Compiler {
         }
     }
 
+    pub fn num_gates(&self) -> usize {
+        self.gates.len()
+    }
+
     fn add(&mut self, lhs: Var, rhs: Var, span: Span) -> Var {
         // create a new variable to store the result
         let res = self.new_internal_var(Value::LinearCombination(vec![
-            (F::one(), lhs),
-            (F::one(), rhs),
+            (Field::one(), lhs),
+            (Field::one(), rhs),
         ]));
 
         self.gates(
             GateKind::DoubleGeneric,
             vec![Some(lhs), Some(rhs), Some(res)],
-            vec![F::one(), F::one(), F::one().neg()],
+            vec![Field::one(), Field::one(), Field::one().neg()],
             span,
         );
 
         res
     }
 
-    pub fn constant(&mut self, value: F, span: Span) -> Var {
+    pub fn constant(&mut self, value: Field, span: Span) -> Var {
         let var = self.new_internal_var(Value::Constant(value));
 
-        let zero = F::zero();
+        let zero = Field::zero();
         self.gates(
             GateKind::DoubleGeneric,
             vec![Some(var)],
-            vec![F::one(), zero, zero, zero, value.neg()],
+            vec![Field::one(), zero, zero, zero, value.neg()],
             span,
         );
 
@@ -616,7 +628,7 @@ impl Compiler {
     }
 
     /// creates a new gate, and the associated row in the witness/execution trace.
-    pub fn gates(&mut self, typ: GateKind, vars: Vec<Option<Var>>, coeffs: Vec<F>, span: Span) {
+    pub fn gates(&mut self, typ: GateKind, vars: Vec<Option<Var>>, coeffs: Vec<Field>, span: Span) {
         assert!(coeffs.len() <= COLUMNS);
         assert!(vars.len() <= COLUMNS);
         self.witness_rows.push(vars);
@@ -632,7 +644,7 @@ impl Compiler {
         self.gates(
             GateKind::DoubleGeneric,
             vec![Some(var)],
-            vec![F::one()],
+            vec![Field::one()],
             span,
         );
 
@@ -694,15 +706,15 @@ impl std::fmt::Debug for FuncInScope {
 
 #[derive(Debug, Default)]
 pub struct WitnessEnv {
-    pub var_values: HashMap<String, F>,
+    pub var_values: HashMap<String, Field>,
 }
 
 impl WitnessEnv {
-    pub fn add_value(&mut self, name: String, value: F) {
+    pub fn add_value(&mut self, name: String, value: Field) {
         self.var_values.insert(name, value);
     }
 
-    pub fn get_external(&self, name: &str) -> F {
+    pub fn get_external(&self, name: &str) -> Field {
         self.var_values.get(name).unwrap().clone()
     }
 }

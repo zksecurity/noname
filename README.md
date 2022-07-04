@@ -50,6 +50,8 @@ More specific tasks:
 
 - [x] fix the bug (the 2 isn't constrained in arithmetic.no). Probably I need to handle constants differently (I don't constrain them yet).
 - [ ] the witness should be verified as it is created (either we run the circuit with the witness, or when we construct the circuit we also info on what needs to be checked when the witness is created? the latter solution seems more elegant/efficient)
+- [ ] implement the wiring
+- [ ] the returned compiled circuit (that can be used to produce witnesses) should be a new type (not Compiler) to prevent adding new gates? Or perhaps it's useless?
 - [ ] handle function call in a statement differently? I could simply say that a statement can be an expression, only if it's a function call (to dedup code, although semantically I don't like it... maybe better to just factor out the code in a function)
 - [ ] handle public output when generating witness
 
