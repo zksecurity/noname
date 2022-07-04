@@ -22,10 +22,18 @@ fn parse(name: impl std::fmt::Display, code: &str) -> Result<()> {
 
     println!("\n========\n");
 
+    // generate witness
     let mut args = HashMap::new();
     args.insert("public_input", Field::one());
     args.insert("private_input", Field::one());
-    let mut witness = compiler.generate_witness(args)?;
+    let witness = compiler.generate_witness(args)?;
+
+    // wiring
+
+    println!("\n========\n");
+    dbg!(&compiler.wiring);
+
+    // create proof
 
     let public_inputs = vec![Field::one()];
     //witness.scramble();

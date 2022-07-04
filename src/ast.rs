@@ -91,6 +91,18 @@ impl Gate {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Cell {
+    pub row: usize,
+    pub col: usize,
+}
+
+#[derive(Debug, Clone)]
+pub enum Wiring {
+    NotWired(Cell),
+    Wired(Vec<Cell>),
+}
+
 #[derive(Default, Debug)]
 pub struct Compiler {
     pub source: String,
@@ -104,6 +116,8 @@ pub struct Compiler {
 
     /// This is how you compute the value of each variable, for witness generation.
     pub witness_vars: HashMap<Var, Value>,
+
+    pub wiring: HashMap<Var, Wiring>,
 
     /// This can be used to compute the witness.
     witness_rows: Vec<Vec<Option<Var>>>,
@@ -637,6 +651,23 @@ impl Compiler {
             (Field::one(), rhs),
         ]));
 
+        // wire the lhs and rhs to where they're really from
+        /*
+        let res = match (&self.witness_vars[&lhs], &self.witness_vars[&rhs]) {
+            (Value::Hint(_), _) => todo!(),
+            (Value::Constant(a), Value::Constant(b)) => self.constant(*a + *b, span),
+            (Value::Constant(_), _) | (_, Value::Constant(_)) => {
+                self.new_internal_var(Value::LinearCombination(vec![
+                    (Field::one(), lhs),
+                    (Field::one(), rhs),
+                ]))
+            }
+            (Value::LinearCombination(_), _) => todo!(),
+            (Value::External(_), _) => todo!(),
+        };
+        */
+
+        // create a gate to store the result
         self.gates(
             GateKind::DoubleGeneric,
             vec![Some(lhs), Some(rhs), Some(res)],
@@ -665,8 +696,22 @@ impl Compiler {
     pub fn gates(&mut self, typ: GateKind, vars: Vec<Option<Var>>, coeffs: Vec<Field>, span: Span) {
         assert!(coeffs.len() <= COLUMNS);
         assert!(vars.len() <= COLUMNS);
-        self.witness_rows.push(vars);
-        self.gates.push(Gate { typ, coeffs, span })
+        self.witness_rows.push(vars.clone());
+        let row = self.gates.len();
+        self.gates.push(Gate { typ, coeffs, span });
+
+        for (col, var) in vars.iter().enumerate() {
+            if let Some(var) = var {
+                let curr_cell = Cell { row, col };
+                self.wiring
+                    .entry(*var)
+                    .and_modify(|w| match w {
+                        Wiring::NotWired(cell) => *w = Wiring::Wired(vec![cell.clone(), curr_cell]),
+                        Wiring::Wired(ref mut cells) => cells.push(curr_cell),
+                    })
+                    .or_insert(Wiring::NotWired(curr_cell));
+            }
+        }
     }
 
     pub fn public_input(&mut self, name: String, span: Span) -> Var {
