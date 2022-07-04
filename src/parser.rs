@@ -427,6 +427,7 @@ impl Expr {
 
         // bin op or return lhs
         if let Some(op) = Op2::parse_maybe(ctx, tokens) {
+            // TODO: there's a bug here, rhs parses the lhs again
             let rhs = Expr::parse(ctx, tokens)?;
             Ok(Expr {
                 kind: ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),

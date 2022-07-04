@@ -215,6 +215,7 @@ impl Compiler {
                         // store it in the env
                         env.variables.insert(name.clone(), var);
                     }
+                    dbg!(&env);
 
                     // compile function
                     self.compile_function(env, &function)?;
@@ -273,7 +274,7 @@ impl Compiler {
                             unimplemented!();
                         }
 
-                        // store it in the scope
+                        // store it in the env
                         env.var_types.insert(name.clone(), typ.kind.clone());
 
                         //
@@ -596,6 +597,7 @@ impl Compiler {
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
+                    dbg!(&lhs, &rhs);
                     let lhs = self.compute_expr(env, lhs)?.unwrap();
                     let rhs = self.compute_expr(env, rhs)?.unwrap();
                     Some(self.add(lhs, rhs, expr.span))
@@ -668,6 +670,7 @@ impl Compiler {
         */
 
         // create a gate to store the result
+        dbg!(self.gates.len(), &lhs, &rhs);
         self.gates(
             GateKind::DoubleGeneric,
             vec![Some(lhs), Some(rhs), Some(res)],
@@ -693,7 +696,9 @@ impl Compiler {
     }
 
     /// creates a new gate, and the associated row in the witness/execution trace.
+    // TODO: add_gate instead of gates?
     pub fn gates(&mut self, typ: GateKind, vars: Vec<Option<Var>>, coeffs: Vec<Field>, span: Span) {
+        dbg!(self.gates.len(), &vars);
         assert!(coeffs.len() <= COLUMNS);
         assert!(vars.len() <= COLUMNS);
         self.witness_rows.push(vars.clone());
