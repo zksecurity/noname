@@ -25,9 +25,10 @@ fn parse(name: impl std::fmt::Display, code: &str) -> Result<()> {
     let mut args = HashMap::new();
     args.insert("public_input", Field::one());
     args.insert("private_input", Field::one());
-    let witness = compiler.generate_witness(args)?;
+    let mut witness = compiler.generate_witness(args)?;
 
     let public_inputs = vec![Field::one()];
+    //witness.scramble();
     prove_and_verify(
         &compiler.compiled_gates(),
         witness.to_kimchi_witness(),

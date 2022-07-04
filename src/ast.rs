@@ -41,6 +41,10 @@ impl Witness {
         }
         transposed
     }
+
+    pub fn scramble(&mut self) {
+        self.0[3][0] = Field::from(8u64);
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
