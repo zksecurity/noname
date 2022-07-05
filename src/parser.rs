@@ -63,13 +63,18 @@ impl ParserCtx {
 // Path
 //
 
-#[derive(Debug)]
-pub struct Path(pub Vec<String>);
+#[derive(Debug, Clone)]
+pub struct Path {
+    pub path: Vec<String>,
+    pub span: Span,
+}
 
 impl Path {
     /// Parses a path from a list of tokens.
     pub fn parse_path(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let mut path = vec![];
+        let mut span: Option<Span> = None;
+
         loop {
             // no token to read
             let token = tokens.bump(ctx).ok_or(Error {
@@ -81,6 +86,11 @@ impl Path {
             match &token.kind {
                 // a chunk of the path
                 TokenKind::Identifier(chunk) => {
+                    if let Some(span) = &mut span {
+                        span.1 += token.span.1 + 2 /* double colon */;
+                    } else {
+                        span = Some(token.span);
+                    }
                     path.push(chunk.to_string());
 
                     // next, we expect a `::` to continue the path,
@@ -103,7 +113,10 @@ impl Path {
                         }
                         // end of path
                         _ => {
-                            return Ok(Path(path));
+                            return Ok(Path {
+                                path,
+                                span: span.unwrap(),
+                            });
                         }
                     }
                 }
@@ -264,7 +277,7 @@ pub struct Expr {
 pub enum ExprKind {
     //    Literal(String),
     FnCall {
-        function_name: String,
+        function_name: Path,
         args: Vec<Expr>,
     },
     Variable(String),
@@ -274,7 +287,7 @@ pub enum ExprKind {
     Negated(Box<Expr>),
     BigInt(String),
     Identifier(String),
-    ArrayAccess(String, Box<Expr>),
+    ArrayAccess(Path, Box<Expr>),
 }
 
 #[derive(Debug, Clone)]
@@ -323,7 +336,11 @@ impl Expr {
 
             // identifier
             TokenKind::Identifier(ident) => {
-                // could be array access, fn call
+                let mut path = Path {
+                    path: vec![ident],
+                    span: span,
+                };
+
                 let peeked = match tokens.peek() {
                     None => {
                         return Err(Error {
@@ -334,6 +351,28 @@ impl Expr {
                     Some(x) => x,
                 };
 
+                // ident could be path
+                let peeked = if matches!(peeked.kind, TokenKind::DoubleColon) {
+                    path.span.1 += 2; // double colon
+                    tokens.bump(ctx);
+                    let rest = Path::parse_path(ctx, tokens)?;
+                    path.span.1 += rest.span.1;
+                    path.path.extend(rest.path);
+
+                    match tokens.peek() {
+                        None => {
+                            return Err(Error {
+                                error: ErrorTy::InvalidEndOfLine,
+                                span: ctx.last_span(),
+                            })
+                        }
+                        Some(x) => x,
+                    }
+                } else {
+                    peeked
+                };
+
+                // could be array access, fn call
                 match peeked.kind {
                     // array access
                     TokenKind::LeftBracket => {
@@ -343,7 +382,7 @@ impl Expr {
                         tokens.bump_expected(ctx, TokenKind::RightBracket)?;
 
                         Expr {
-                            kind: ExprKind::ArrayAccess(ident, Box::new(expr)),
+                            kind: ExprKind::ArrayAccess(path, Box::new(expr)),
                             typ: None,
                             span,
                         }
@@ -382,7 +421,7 @@ impl Expr {
 
                         Expr {
                             kind: ExprKind::FnCall {
-                                function_name: ident,
+                                function_name: path,
                                 args,
                             },
                             typ: None,
@@ -392,7 +431,7 @@ impl Expr {
                     _ => {
                         // just a variable
                         Expr {
-                            kind: ExprKind::Identifier(ident),
+                            kind: ExprKind::Identifier(path.path[0].clone()),
                             typ: None,
                             span,
                         }

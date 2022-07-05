@@ -280,7 +280,7 @@ impl Compiler {
                 // `use crypto::poseidon;`
                 RootKind::Use(path) => {
                     unimplemented!();
-                    let path = &mut path.0.into_iter();
+                    let path = &mut path.path.into_iter();
                     let root_module = path.next().expect("empty imports can't be parsed");
 
                     /*
