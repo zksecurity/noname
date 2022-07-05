@@ -40,6 +40,10 @@ impl Witness {
     pub fn scramble(&mut self) {
         self.0[3][0] = Field::from(8u64);
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -345,6 +349,8 @@ impl Compiler {
     fn type_check_fn(&mut self, env: &mut Environment, function: &Function) -> Result<(), Error> {
         let in_main = function.name == "main";
 
+        let mut still_need_to_check_return_type = function.return_type.is_some();
+
         // only expressions need type info?
         for stmt in &function.body {
             match &stmt.kind {
@@ -436,6 +442,8 @@ impl Compiler {
                         unimplemented!();
                     }
 
+                    assert!(still_need_to_check_return_type);
+
                     let typ = res.compute_type(env)?.unwrap();
 
                     if env.var_types["public_output"] != typ {
@@ -447,9 +455,18 @@ impl Compiler {
                             span: stmt.span,
                         });
                     }
+
+                    still_need_to_check_return_type = false;
                 }
                 crate::parser::StmtKind::Comment(_) => (),
             }
+        }
+
+        if still_need_to_check_return_type {
+            return Err(Error {
+                error: ErrorTy::MissingPublicOutput,
+                span: function.span,
+            });
         }
 
         Ok(())
@@ -556,16 +573,16 @@ impl Compiler {
         }
 
         // compute each rows' vars, except for the deferred ones (public output)
-        let mut public_output: Option<Var> = None;
+        let mut public_output: Option<(usize, Var)> = None;
 
-        for row in &self.witness_rows {
+        for (row, witness_row) in self.witness_rows.iter().enumerate() {
             // create the witness row
             let mut res = [Field::zero(); COLUMNS];
-            for (col, var) in row.iter().enumerate() {
+            for (col, var) in witness_row.iter().enumerate() {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
                     if matches!(self.witness_vars[&var], Value::PublicOutput(_)) {
-                        public_output = Some(*var);
+                        public_output = Some((row, *var));
                         Field::zero()
                     } else {
                         self.compute_var(&env, *var)?
@@ -581,9 +598,9 @@ impl Compiler {
         }
 
         // compute public output at last
-        if let Some(var) = public_output {
+        if let Some((row, var)) = public_output {
             let val = self.compute_var(&env, var)?;
-            witness.push([val; COLUMNS]);
+            witness[0][0] = val;
         }
 
         //

@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     ast::Environment,
+    constants::Span,
     error::{Error, ErrorTy},
     lexer::{Keyword, Token, TokenKind},
     tokens::Tokens,
@@ -47,6 +48,7 @@ pub struct ParserCtx {
 }
 
 impl ParserCtx {
+    // TODO: I think I don't need this, I should always be able to use the last token I read if I don't see anything, otherwise maybe just write -1 to say "EOF"
     pub fn last_span(&self) -> (usize, usize) {
         let span = self
             .last_token
@@ -522,6 +524,8 @@ pub struct Function {
     pub return_type: Option<Ty>,
 
     pub body: Vec<Stmt>,
+
+    pub span: Span,
 }
 
 impl Function {
@@ -667,16 +671,36 @@ impl Function {
 
     /// Parse a function, without the `fn` keyword.
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
+        // ghetto way of getting the span of the function: get the span of the first token (name), then try to get the span of the last token
+        let mut span = tokens
+            .peek()
+            .ok_or(Error {
+                error: ErrorTy::InvalidFunctionSignature("expected function name"),
+                span: ctx.last_span(),
+            })?
+            .span;
+
         let name = Self::parse_name(ctx, tokens)?;
         let arguments = Self::parse_args(ctx, tokens)?;
         let return_type = Self::parse_fn_return_type(ctx, tokens)?;
         let body = Self::parse_fn_body(ctx, tokens)?;
+
+        // here's the last token, that is if the function is not empty (maybe we should disallow empty functions?)
+        if let Some(t) = body.last() {
+            span.1 = t.span.1;
+        } else {
+            return Err(Error {
+                error: ErrorTy::InvalidFunctionSignature("expected function body"),
+                span: ctx.last_span(),
+            });
+        }
 
         let func = Self {
             name,
             arguments,
             return_type,
             body,
+            span,
         };
 
         Ok(func)

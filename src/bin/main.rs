@@ -28,6 +28,7 @@ fn parse(name: impl std::fmt::Display, code: &str) -> Result<()> {
     args.insert("public_input", Field::one());
     args.insert("private_input", Field::one());
     let witness = compiler.generate_witness(args)?;
+    println!("witness size: {}", witness.len());
 
     // create proof
 
