@@ -28,14 +28,18 @@ fn parse(name: impl std::fmt::Display, code: &str) -> Result<()> {
     let mut args = HashMap::new();
     args.insert("public_input", Field::one());
     args.insert("private_input", Field::one());
-    let witness = compiler.generate_witness(args)?;
+    let (witness, public_output) = compiler.generate_witness(args)?;
     println!("witness size: {}", witness.len());
 
     witness.debug();
 
     // create proof
 
-    let public_inputs = vec![Field::one()];
+    let public_inputs = if let Some(public_output) = public_output {
+        vec![Field::one(), public_output]
+    } else {
+        vec![Field::one()]
+    };
 
     prove_and_verify(
         &compiler.compiled_gates(),

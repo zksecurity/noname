@@ -553,7 +553,10 @@ impl Compiler {
     //     pub fn constrain(compiler: &mut Compiler)
 
     // TODO: how to pass arguments?
-    pub fn generate_witness(&self, args: HashMap<&str, Field>) -> Result<Witness, Error> {
+    pub fn generate_witness(
+        &self,
+        args: HashMap<&str, Field>,
+    ) -> Result<(Witness, Option<Field>), Error> {
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
 
@@ -596,15 +599,17 @@ impl Compiler {
         }
 
         // compute public output at last
-        if let Some((row, var)) = public_output {
+        let public_output = if let Some((row, var)) = public_output {
             let val = self.compute_var(&env, var)?;
-            witness[0][0] = val;
-        }
-
-        assert_eq!(witness.len(), self.gates.len());
+            witness[row][0] = val;
+            Some(val)
+        } else {
+            None
+        };
 
         //
-        Ok(Witness(witness))
+        assert_eq!(witness.len(), self.gates.len());
+        Ok((Witness(witness), public_output))
     }
 
     pub fn asm(&self) -> String {
