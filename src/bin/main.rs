@@ -5,7 +5,8 @@ use clap::Parser;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use my_programming_language::{
     ast::{Compiler, Gate},
-    constants::{Field, COLUMNS},
+    constants::COLUMNS,
+    field::Field,
     lexer::Token,
     parser::AST,
 };
@@ -30,11 +31,12 @@ fn parse(name: impl std::fmt::Display, code: &str) -> Result<()> {
     let witness = compiler.generate_witness(args)?;
     println!("witness size: {}", witness.len());
 
+    witness.debug();
+
     // create proof
 
     let public_inputs = vec![Field::one()];
 
-    //witness.scramble();
     prove_and_verify(
         &compiler.compiled_gates(),
         witness.to_kimchi_witness(),

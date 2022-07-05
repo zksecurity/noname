@@ -23,7 +23,8 @@ use num_bigint::BigUint;
 
 use crate::{
     ast::{Gate, Var, Wiring},
-    constants::{Field, Span},
+    constants::Span,
+    field::{Field, PrettyField as _},
 };
 
 pub fn generate_asm(
@@ -84,23 +85,12 @@ pub fn generate_asm(
     res
 }
 
-fn parse_coeff(x: Field) -> String {
-    // TODO: if it's bigger than n/2 then it should be a negative number
-    let bigint: BigUint = x.into();
-    let inv: BigUint = x.neg().into(); // gettho way of splitting the field into positive and negative elements
-    if inv < bigint {
-        format!("-{}", inv)
-    } else {
-        bigint.to_string()
-    }
-}
-
 fn parse_coeffs(coeffs: &[Field]) -> (String, Vec<String>) {
     let mut vars = String::new();
     let coeffs = coeffs
         .iter()
         .map(|x| {
-            let s = parse_coeff(*x);
+            let s = x.pretty();
             if s.len() < 5 {
                 s
             } else {

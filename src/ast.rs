@@ -12,8 +12,9 @@ use num_traits::Num as _;
 
 use crate::{
     asm,
-    constants::{Field, Span, COLUMNS},
+    constants::{Span, COLUMNS},
     error::{Error, ErrorTy},
+    field::{Field, PrettyField as _},
     parser::{Expr, ExprKind, Function, FunctionSig, Op2, RootKind, Stmt, TyKind, AST},
     stdlib::utils_functions,
 };
@@ -37,12 +38,15 @@ impl Witness {
         transposed
     }
 
-    pub fn scramble(&mut self) {
-        self.0[3][0] = Field::from(8u64);
-    }
-
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    pub fn debug(&self) {
+        for (row, values) in self.0.iter().enumerate() {
+            let values = values.iter().map(|v| v.pretty()).join(" | ");
+            println!("{row} - {values}");
+        }
     }
 }
 
@@ -596,6 +600,8 @@ impl Compiler {
             let val = self.compute_var(&env, var)?;
             witness[0][0] = val;
         }
+
+        assert_eq!(witness.len(), self.gates.len());
 
         //
         Ok(Witness(witness))

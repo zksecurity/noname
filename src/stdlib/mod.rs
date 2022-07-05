@@ -4,7 +4,7 @@ use ark_ff::One as _;
 
 use crate::{
     ast::{Compiler, FuncType, GateKind, Var},
-    constants::Field,
+    field::Field,
     lexer::Token,
     parser::{FunctionSig, ParserCtx},
 };
