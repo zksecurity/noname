@@ -54,7 +54,7 @@ More specific tasks:
   - or when we construct the circuit we also saves some info on what needs to be checked when the witness is created? I think essentially we need to check assert_equals and that the public output is well constructed
   - or... we just use kimchi to verify the witness, and if it returns an error on row i we use the `span` info in our `Gate` type to figure out where in the source that happened (easiest solution to implement, but maybe wasteful to verify each gate as well? also I think we're going to deprecate this verify function anyway...)
 - [x] implement the wiring
-- [ ] fix span on debug
+- [x] fix span on debug
 - [ ] the returned compiled circuit (that can be used to produce witnesses) should be a new type (not Compiler) to prevent adding new gates? Or perhaps it's useless?
 - [ ] handle function call in a statement differently? I could simply say that a statement can be an expression, only if it's a function call (to dedup code, although semantically I don't like it... maybe better to just factor out the code in a function)
 - [x] handle public output when generating witness
