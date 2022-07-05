@@ -48,10 +48,9 @@ pub fn generate_asm(
             res.push_str(&"-".repeat(80));
             res.push_str("\n");
             let (line_number, start, line) = find_exact_line(source, *span);
-            res.push_str(&format!("{line_number}: {line}\n"));
-            for _ in start..span.0 {
-                res.push_str(" ");
-            }
+            let header = format!("{line_number}: ");
+            res.push_str(&format!("{header}{line}\n"));
+            res.push_str(&" ".repeat(header.len() + span.0 - start));
             res.push_str(&"^".repeat(span.1));
             res.push_str("\n");
         }
@@ -130,4 +129,22 @@ fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
     let line_number = source[..start].matches('\n').count() + 1;
 
     (line_number, start, line)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn find_lines() {
+        const SRC: &str = "abcd
+efgh
+ijkl
+mnop
+qrst
+uvwx
+yz
+";
+        assert_eq!(find_exact_line(&SRC, (5, 6)), (2, 5, "efgh\nijkl"));
+    }
 }

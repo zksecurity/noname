@@ -1,4 +1,4 @@
-use crate::parser::{FunctionSig, Ty, TyKind};
+use crate::parser::{Attribute, FunctionSig, Ident, Ty, TyKind};
 
 pub fn parse_crypto_import(
     path: &mut impl Iterator<Item = String>,
@@ -13,8 +13,18 @@ pub fn parse_crypto_import(
             };
 
             let poseidon = FunctionSig {
-                name: "poseidon".to_string(),
-                arguments: vec![(true, "input".to_string(), array_of_3_fel.clone())],
+                name: Ident {
+                    value: "poseidon".to_string(),
+                    span: (0, 0),
+                },
+                arguments: vec![(
+                    Attribute::Pub,
+                    Ident {
+                        value: "input".to_string(),
+                        span: (0, 0),
+                    },
+                    array_of_3_fel.clone(),
+                )],
                 return_type: Some(array_of_3_fel),
             };
             let functions = vec![poseidon];

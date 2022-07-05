@@ -189,7 +189,7 @@ impl Compiler {
             let t = utils_functions();
             for (sig, func) in t {
                 env.functions
-                    .insert(sig.name.clone(), FuncInScope::BuiltIn(sig, func));
+                    .insert(sig.name.value.clone(), FuncInScope::BuiltIn(sig, func));
             }
         }
 
@@ -217,27 +217,25 @@ impl Compiler {
 
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
-                    let in_main = function.name == "main";
-
-                    if !in_main {
+                    if !function.is_main() {
                         unimplemented!();
                     }
 
                     // create public and private inputs
-                    for (public, name, typ) in &function.arguments {
+                    for (attr, name, typ) in &function.arguments {
                         if typ.kind != TyKind::Field {
                             unimplemented!();
                         }
 
                         // create the variable in the circuit
-                        let var = if *public {
-                            self.public_input(name.clone(), typ.span)
+                        let var = if attr.is_public() {
+                            self.public_input(name.value.clone(), name.span)
                         } else {
-                            self.private_input(name.clone())
+                            self.private_input(name.value.clone())
                         };
 
                         // store it in the env
-                        env.variables.insert(name.clone(), var);
+                        env.variables.insert(name.value.clone(), var);
                     }
 
                     // create public output
@@ -296,7 +294,7 @@ impl Compiler {
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
                     // TODO: support other functions
-                    if function.name != "main" {
+                    if !function.is_main() {
                         unimplemented!();
                     }
 
@@ -308,15 +306,15 @@ impl Compiler {
                             unimplemented!();
                         }
 
-                        if name == "public_output" {
+                        if name.value == "public_output" {
                             panic!("public_output is a reserved name");
                         }
 
                         // store it in the env
-                        env.var_types.insert(name.clone(), typ.kind.clone());
+                        env.var_types.insert(name.value.clone(), typ.kind.clone());
 
                         //
-                        self.main_args.insert(name.clone(), typ.kind.clone());
+                        self.main_args.insert(name.value.clone(), typ.kind.clone());
                     }
 
                     // the output value returned by the main function is also a main_args with a special name (public_output)
@@ -347,8 +345,6 @@ impl Compiler {
     }
 
     fn type_check_fn(&mut self, env: &mut Environment, function: &Function) -> Result<(), Error> {
-        let in_main = function.name == "main";
-
         let mut still_need_to_check_return_type = function.return_type.is_some();
 
         // only expressions need type info?
@@ -361,7 +357,7 @@ impl Compiler {
                     let typ = rhs.compute_type(env)?.unwrap();
 
                     // store the type of lhs in the env
-                    env.store_type(lhs.clone(), typ);
+                    env.store_type(lhs.value.clone(), typ);
                 }
                 crate::parser::StmtKind::FnCall { name, args } => {
                     // compute the arguments
@@ -378,11 +374,11 @@ impl Compiler {
                     }
 
                     // check if it's the env
-                    match env.functions.get(name) {
+                    match env.functions.get(&name.value) {
                         None => {
                             // TODO: type checking already checked that
                             return Err(Error {
-                                error: ErrorTy::UnknownFunction(name.clone()),
+                                error: ErrorTy::UnknownFunction(name.value.clone()),
                                 span: stmt.span,
                             });
                         }
@@ -391,7 +387,7 @@ impl Compiler {
                             if sig.arguments.len() != typs.len() {
                                 return Err(Error {
                                     error: ErrorTy::WrongNumberOfArguments {
-                                        fn_name: name.clone(),
+                                        fn_name: name.value.clone(),
                                         expected_args: sig.arguments.len(),
                                         observed_args: typs.len(),
                                     },
@@ -426,7 +422,7 @@ impl Compiler {
                             // (it's a statement, it should only work via side effect)
                             if sig.return_type.is_some() {
                                 return Err(Error {
-                                    error: ErrorTy::FunctionReturnsType(name.clone()),
+                                    error: ErrorTy::FunctionReturnsType(name.value.clone()),
                                     span: stmt.span,
                                 });
                             }
@@ -438,7 +434,7 @@ impl Compiler {
                     // TODO: warn if there's code after the return?
 
                     // infer the return type and check if it's the same as the function return type?
-                    if !in_main {
+                    if !function.is_main() {
                         unimplemented!();
                     }
 
@@ -477,8 +473,6 @@ impl Compiler {
         env: &mut Environment,
         function: &Function,
     ) -> Result<(), Error> {
-        let in_main = function.name == "main";
-
         for stmt in &function.body {
             match &stmt.kind {
                 crate::parser::StmtKind::Assign { lhs, rhs } => {
@@ -490,7 +484,7 @@ impl Compiler {
 
                     // store the new variable
                     // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
-                    env.variables.insert(lhs.clone(), var);
+                    env.variables.insert(lhs.value.clone(), var);
                 }
                 /*
                 crate::parser::StmtKind::Assert(expr) => {
@@ -511,10 +505,10 @@ impl Compiler {
                     }
 
                     // check if it's the scope
-                    match env.functions.get(name) {
+                    match env.functions.get(&name.value) {
                         None => {
                             return Err(Error {
-                                error: ErrorTy::UnknownFunction(name.clone()),
+                                error: ErrorTy::UnknownFunction(name.value.clone()),
                                 span: stmt.span,
                             })
                         }
@@ -526,7 +520,7 @@ impl Compiler {
                     }
                 }
                 crate::parser::StmtKind::Return(res) => {
-                    if !in_main {
+                    if !function.is_main() {
                         unimplemented!();
                     }
 

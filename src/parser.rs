@@ -431,6 +431,10 @@ impl Expr {
         if let Some(op) = Op2::parse_maybe(ctx, tokens) {
             // TODO: there's a bug here, rhs parses the lhs again
             let rhs = Expr::parse(ctx, tokens)?;
+            let span = {
+                let end = rhs.span.0 + rhs.span.1;
+                (span.0, end - span.0)
+            };
             Ok(Expr {
                 kind: ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
                 typ: None,
@@ -454,10 +458,16 @@ impl Expr {
                 let rhs_typ = rhs.compute_type(scope)?.unwrap();
 
                 if lhs_typ != rhs_typ {
-                    return Err(Error {
-                        error: ErrorTy::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
-                        span: self.span,
-                    });
+                    // only allow bigint mixed with field
+                    match (&lhs_typ, &rhs_typ) {
+                        (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => (),
+                        _ => {
+                            return Err(Error {
+                                error: ErrorTy::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
+                                span: self.span,
+                            })
+                        }
+                    }
                 }
 
                 Ok(Some(lhs_typ))
@@ -482,18 +492,17 @@ impl Expr {
 //~
 //~ Backus–Naur Form (BNF) grammar:
 //~
-//~ fn ::= ident "(" param { "," param } ")" [ return_val ] "{" { stmt ";" } "}"
+//~ fn_sig ::= ident "(" param { "," param } ")" [ return_val ]
 //~ return_val ::= "->" type
-//~ parm ::= { "pub" } ident ":" type
-//~ stmt ::= ...
+//~ param ::= { "pub" } ident ":" type
 //~
 
 #[derive(Debug)]
 pub struct FunctionSig {
-    pub name: String,
+    pub name: Ident,
 
     /// (pub, ident, type)
-    pub arguments: Vec<(bool, String, Ty)>,
+    pub arguments: Vec<(Attribute, Ident, Ty)>,
 
     pub return_type: Option<Ty>,
 }
@@ -514,12 +523,31 @@ impl FunctionSig {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct Ident {
+    pub value: String,
+    pub span: Span,
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub enum Attribute {
+    #[default]
+    Priv,
+    Pub,
+}
+
+impl Attribute {
+    pub fn is_public(&self) -> bool {
+        matches!(self, Self::Pub)
+    }
+}
+
 #[derive(Debug)]
 pub struct Function {
-    pub name: String,
+    pub name: Ident,
 
     /// (pub, ident, type)
-    pub arguments: Vec<(bool, String, Ty)>,
+    pub arguments: Vec<(Attribute, Ident, Ty)>,
 
     pub return_type: Option<Ty>,
 
@@ -529,7 +557,11 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn parse_name(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<String, Error> {
+    pub fn is_main(&self) -> bool {
+        self.name.value == "main"
+    }
+
+    pub fn parse_name(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident, Error> {
         let token = tokens.bump_err(
             ctx,
             ErrorTy::InvalidFunctionSignature("expected function name"),
@@ -548,13 +580,16 @@ impl Function {
             }
         };
 
-        Ok(name)
+        Ok(Ident {
+            value: name,
+            span: token.span,
+        })
     }
 
     pub fn parse_args(
         ctx: &mut ParserCtx,
         tokens: &mut Tokens,
-    ) -> Result<Vec<(bool, String, Ty)>, Error> {
+    ) -> Result<Vec<(Attribute, Ident, Ty)>, Error> {
         // (pub arg1: type1, arg2: type2)
         // ^
         tokens.bump_expected(ctx, TokenKind::LeftParen)?;
@@ -574,10 +609,16 @@ impl Function {
                 // public input
                 TokenKind::Keyword(Keyword::Pub) => {
                     let arg_name = parse_ident(ctx, tokens)?;
-                    (true, arg_name)
+                    (Attribute::Pub, arg_name)
                 }
                 // private input
-                TokenKind::Identifier(name) => (false, name),
+                TokenKind::Identifier(name) => (
+                    Attribute::Priv,
+                    Ident {
+                        value: name,
+                        span: token.span,
+                    },
+                ),
                 _ => {
                     return Err(Error {
                         error: ErrorTy::InvalidFunctionSignature("expected identifier"),
@@ -747,8 +788,8 @@ pub struct Stmt {
 
 #[derive(Debug)]
 pub enum StmtKind {
-    Assign { lhs: String, rhs: Box<Expr> },
-    FnCall { name: String, args: Vec<Box<Expr>> },
+    Assign { lhs: Ident, rhs: Box<Expr> },
+    FnCall { name: Ident, args: Vec<Box<Expr>> },
     Return(Box<Expr>),
     Comment(String),
 }
@@ -773,6 +814,11 @@ impl Stmt {
             }
             // function call
             TokenKind::Identifier(name) => {
+                let name = Ident {
+                    value: name,
+                    span: token.span,
+                };
+
                 tokens.bump_expected(ctx, TokenKind::LeftParen)?;
 
                 let mut args = vec![];
@@ -959,10 +1005,13 @@ impl AST {
 // Helpers
 //
 
-pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<String, Error> {
+pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident, Error> {
     let token = tokens.bump_err(ctx, ErrorTy::MissingToken)?;
     match token.kind {
-        TokenKind::Identifier(ident) => Ok(ident),
+        TokenKind::Identifier(ident) => Ok(Ident {
+            value: ident,
+            span: token.span,
+        }),
         _ => Err(Error {
             error: ErrorTy::ExpectedToken(TokenKind::Identifier("".to_string())),
             span: token.span,
