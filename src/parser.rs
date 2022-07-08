@@ -70,6 +70,10 @@ pub struct Path {
 }
 
 impl Path {
+    pub fn len(&self) -> usize {
+        self.path.len()
+    }
+
     /// Parses a path from a list of tokens.
     pub fn parse_path(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let mut path = vec![];
@@ -592,7 +596,28 @@ impl Expr {
 
                 Ok(Some(typ.clone()))
             }
-            ExprKind::ArrayAccess(_, _) => todo!(),
+            ExprKind::ArrayAccess(path, _expr) => {
+                // only support scoped variable for now
+                if path.len() != 1 {
+                    unimplemented!();
+                }
+
+                // figure out if variable is in scope
+                let name = &path.path[0].value;
+                let typ = env.get_type(&name).ok_or(Error {
+                    kind: ErrorKind::UndefinedVariable,
+                    span: self.span,
+                })?;
+
+                // access is on correct value?
+                // can't check here since we need to evaluate expr
+
+                //
+                match typ {
+                    TyKind::Array(typkind, _) => Ok(Some(*typkind.clone())),
+                    _ => panic!("not an array"),
+                }
+            }
         }
     }
 }

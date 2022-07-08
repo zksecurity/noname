@@ -234,9 +234,9 @@ impl Compiler {
 
                         // create the variable in the circuit
                         let var = if attr.is_public() {
-                            self.public_input(name.value.clone(), name.span)
+                            self.public_input(name.value.clone(), name.span, size)
                         } else {
-                            self.private_input(name.value.clone())
+                            self.private_input(name.value.clone(), size)
                         };
 
                         // store it in the env
@@ -641,6 +641,15 @@ impl Compiler {
         var
     }
 
+    fn new_internal_vars(&mut self, val: Value, num: usize) -> Vec<Var> {
+        let mut vars = Vec::with_capacity(num);
+        for _ in 0..num {
+            vars.push(self.new_internal_var(val));
+        }
+
+        vars
+    }
+
     fn compute_expr(&mut self, env: &Environment, expr: &Expr) -> Result<Option<Var>, Error> {
         // TODO: why would we return a Var, when types could be represented by several vars?
         // I guess for the moment we're only dealing with Field...
@@ -779,18 +788,20 @@ impl Compiler {
         }
     }
 
-    pub fn public_input(&mut self, name: String, span: Span) -> Var {
+    pub fn public_inputs(&mut self, name: String, num: usize, span: Span) -> Var {
         // create the var
-        let var = self.new_internal_var(Value::External(name));
-        self.public_input_size += 1;
+        let vars = self.new_internal_vars(Value::External(name), num);
+        self.public_input_size += num;
 
         // create the associated generic gate
-        self.gates(
-            GateKind::DoubleGeneric,
-            vec![Some(var)],
-            vec![Field::one()],
-            span,
-        );
+        for var in vars {
+            self.gates(
+                GateKind::DoubleGeneric,
+                vec![Some(var)],
+                vec![Field::one()],
+                span,
+            );
+        }
 
         var
     }
