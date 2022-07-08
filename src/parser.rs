@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::{
     ast::Environment,
     constants::Span,
-    error::{Error, ErrorTy},
+    error::{Error, ErrorKind},
     lexer::{Keyword, Token, TokenKind},
     tokens::Tokens,
 };
@@ -65,7 +65,7 @@ impl ParserCtx {
 
 #[derive(Debug, Clone)]
 pub struct Path {
-    pub path: Vec<String>,
+    pub path: Vec<Ident>,
     pub span: Span,
 }
 
@@ -78,7 +78,7 @@ impl Path {
         loop {
             // no token to read
             let token = tokens.bump(ctx).ok_or(Error {
-                error: ErrorTy::InvalidPath,
+                kind: ErrorKind::InvalidPath,
                 span: ctx.last_span(),
             })?;
             ctx.last_token = Some(token.clone());
@@ -91,14 +91,17 @@ impl Path {
                     } else {
                         span = Some(token.span);
                     }
-                    path.push(chunk.to_string());
+                    path.push(Ident {
+                        value: chunk.to_string(),
+                        span: token.span,
+                    });
 
                     // next, we expect a `::` to continue the path,
                     // or a separator, for example, `;` or `)`
                     match tokens.peek() {
                         None => {
                             return Err(Error {
-                                error: ErrorTy::InvalidEndOfLine,
+                                kind: ErrorKind::InvalidEndOfLine,
                                 span: token.span,
                             })
                         }
@@ -123,7 +126,7 @@ impl Path {
                 // path must start with an alphanumeric thing
                 _ => {
                     return Err(Error {
-                        error: ErrorTy::InvalidPath,
+                        kind: ErrorKind::InvalidPath,
                         span: token.span,
                     });
                 }
@@ -171,8 +174,7 @@ impl Display for TyKind {
 
 impl Ty {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
-        let token = tokens.bump_err(ctx, ErrorTy::MissingType)?;
-
+        let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
         match token.kind {
             // struct name
             TokenKind::Type(name) => {
@@ -193,6 +195,7 @@ impl Ty {
             // [type; size]
             // ^
             TokenKind::LeftBracket => {
+                let mut span = (token.span.0, 0);
                 // [type; size]
                 //   ^
                 let ty = Ty::parse(ctx, tokens)?;
@@ -203,15 +206,15 @@ impl Ty {
 
                 // [type; size]
                 //         ^
-                let siz = tokens.bump_err(ctx, ErrorTy::InvalidToken)?;
+                let siz = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
                 let siz = match siz.kind {
                     TokenKind::BigInt(s) => s.parse().map_err(|_e| Error {
-                        error: ErrorTy::InvalidArraySize,
+                        kind: ErrorKind::InvalidArraySize,
                         span: siz.span,
                     })?,
                     _ => {
                         return Err(Error {
-                            error: ErrorTy::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            kind: ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
                             span: siz.span,
                         });
                     }
@@ -219,18 +222,20 @@ impl Ty {
 
                 // [type; size]
                 //            ^
-                tokens.bump_expected(ctx, TokenKind::RightBracket)?;
+                let right_paren = tokens.bump_expected(ctx, TokenKind::RightBracket)?;
+
+                span.1 = right_paren.span.1 + right_paren.span.0 - span.0;
 
                 Ok(Ty {
                     kind: TyKind::Array(Box::new(ty.kind), siz),
-                    span: token.span,
+                    span,
                 })
             }
 
             // unrecognized
             _ => {
                 return Err(Error {
-                    error: ErrorTy::InvalidType,
+                    kind: ErrorKind::InvalidType,
                     span: token.span,
                 })
             }
@@ -323,7 +328,7 @@ impl Op2 {
 impl Expr {
     /// Parses until it finds something it doesn't know, then returns without consuming the token it doesn't know (the caller will have to make sense of it)
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
-        let token = tokens.bump_err(ctx, ErrorTy::MissingExpression)?;
+        let token = tokens.bump_err(ctx, ErrorKind::MissingExpression)?;
         let span = token.span;
 
         let lhs = match token.kind {
@@ -337,14 +342,17 @@ impl Expr {
             // identifier
             TokenKind::Identifier(ident) => {
                 let mut path = Path {
-                    path: vec![ident],
+                    path: vec![Ident {
+                        value: ident,
+                        span: token.span,
+                    }],
                     span: span,
                 };
 
                 let peeked = match tokens.peek() {
                     None => {
                         return Err(Error {
-                            error: ErrorTy::InvalidEndOfLine,
+                            kind: ErrorKind::InvalidEndOfLine,
                             span: ctx.last_span(),
                         })
                     }
@@ -362,7 +370,7 @@ impl Expr {
                     match tokens.peek() {
                         None => {
                             return Err(Error {
-                                error: ErrorTy::InvalidEndOfLine,
+                                kind: ErrorKind::InvalidEndOfLine,
                                 span: ctx.last_span(),
                             })
                         }
@@ -412,7 +420,7 @@ impl Expr {
                                 },
                                 None => {
                                     return Err(Error {
-                                        error: ErrorTy::InvalidFnCall,
+                                        kind: ErrorKind::InvalidFnCall,
                                         span: ctx.last_span(),
                                     })
                                 }
@@ -431,7 +439,7 @@ impl Expr {
                     _ => {
                         // just a variable
                         Expr {
-                            kind: ExprKind::Identifier(path.path[0].clone()),
+                            kind: ExprKind::Identifier(path.path[0].value.clone()),
                             typ: None,
                             span,
                         }
@@ -460,7 +468,7 @@ impl Expr {
             // unrecognized pattern
             _ => {
                 return Err(Error {
-                    error: ErrorTy::InvalidExpression,
+                    kind: ErrorKind::InvalidExpression,
                     span: token.span,
                 })
             }
@@ -502,7 +510,7 @@ impl Expr {
                         (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => (),
                         _ => {
                             return Err(Error {
-                                error: ErrorTy::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
+                                kind: ErrorKind::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
                                 span: self.span,
                             })
                         }
@@ -515,7 +523,7 @@ impl Expr {
             ExprKind::BigInt(_) => Ok(Some(TyKind::BigInt)),
             ExprKind::Identifier(ident) => {
                 let typ = scope.get_type(ident).ok_or(Error {
-                    error: ErrorTy::UndefinedVariable,
+                    kind: ErrorKind::UndefinedVariable,
                     span: self.span,
                 })?;
 
@@ -536,7 +544,7 @@ impl Expr {
 //~ param ::= { "pub" } ident ":" type
 //~
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionSig {
     pub name: Ident,
 
@@ -603,7 +611,7 @@ impl Function {
     pub fn parse_name(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident, Error> {
         let token = tokens.bump_err(
             ctx,
-            ErrorTy::InvalidFunctionSignature("expected function name"),
+            ErrorKind::InvalidFunctionSignature("expected function name"),
         )?;
 
         let name = match token {
@@ -613,7 +621,7 @@ impl Function {
             } => name,
             _ => {
                 return Err(Error {
-                    error: ErrorTy::InvalidFunctionSignature("expected function name to be lowercase alphanumeric (including underscore `_`) and starting with a letter"),
+                    kind: ErrorKind::InvalidFunctionSignature("expected function name to be lowercase alphanumeric (including underscore `_`) and starting with a letter"),
                     span: token.span,
                 });
             }
@@ -641,7 +649,7 @@ impl Function {
             //   ^   ^
             let token = tokens.bump_err(
                 ctx,
-                ErrorTy::InvalidFunctionSignature("expected function arguments"),
+                ErrorKind::InvalidFunctionSignature("expected function arguments"),
             )?;
 
             let (public, arg_name) = match token.kind {
@@ -660,7 +668,7 @@ impl Function {
                 ),
                 _ => {
                     return Err(Error {
-                        error: ErrorTy::InvalidFunctionSignature("expected identifier"),
+                        kind: ErrorKind::InvalidFunctionSignature("expected identifier"),
                         span: token.span,
                     });
                 }
@@ -675,7 +683,7 @@ impl Function {
             // , or )
             let separator = tokens.bump_err(
                 ctx,
-                ErrorTy::InvalidFunctionSignature("expected end of function or other argument"),
+                ErrorKind::InvalidFunctionSignature("expected end of function or other argument"),
             )?;
 
             match separator.kind {
@@ -692,7 +700,7 @@ impl Function {
                 }
                 _ => {
                     return Err(Error {
-                        error: ErrorTy::InvalidFunctionSignature(
+                        kind: ErrorKind::InvalidFunctionSignature(
                             "expected end of function or other argument",
                         ),
                         span: separator.span,
@@ -755,7 +763,7 @@ impl Function {
         let mut span = tokens
             .peek()
             .ok_or(Error {
-                error: ErrorTy::InvalidFunctionSignature("expected function name"),
+                kind: ErrorKind::InvalidFunctionSignature("expected function name"),
                 span: ctx.last_span(),
             })?
             .span;
@@ -770,7 +778,7 @@ impl Function {
             span.1 = t.span.1;
         } else {
             return Err(Error {
-                error: ErrorTy::InvalidFunctionSignature("expected function body"),
+                kind: ErrorKind::InvalidFunctionSignature("expected function body"),
                 span: ctx.last_span(),
             });
         }
@@ -836,7 +844,7 @@ pub enum StmtKind {
 impl Stmt {
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
-        let token = tokens.bump_err(ctx, ErrorTy::InvalidStatement)?;
+        let token = tokens.bump_err(ctx, ErrorKind::InvalidStatement)?;
         let span = token.span;
 
         match token.kind {
@@ -881,7 +889,7 @@ impl Stmt {
                         },
                         None => {
                             return Err(Error {
-                                error: ErrorTy::InvalidFnCall,
+                                kind: ErrorKind::InvalidFnCall,
                                 span: ctx.last_span(),
                             })
                         }
@@ -925,7 +933,7 @@ impl Stmt {
             //
             _ => {
                 return Err(Error {
-                    error: ErrorTy::InvalidStatement,
+                    kind: ErrorKind::InvalidStatement,
                     span: token.span,
                 });
             }
@@ -980,7 +988,7 @@ impl AST {
                 TokenKind::Keyword(Keyword::Use) => {
                     if function_observed {
                         return Err(Error {
-                            error: ErrorTy::UseAfterFn,
+                            kind: ErrorKind::UseAfterFn,
                             span: token.span,
                         });
                     }
@@ -1001,7 +1009,7 @@ impl AST {
                         })
                     ) {
                         return Err(Error {
-                            error: ErrorTy::InvalidEndOfLine,
+                            kind: ErrorKind::InvalidEndOfLine,
                             span: token.span,
                         });
                     }
@@ -1029,7 +1037,7 @@ impl AST {
                 // unrecognized
                 _ => {
                     return Err(Error {
-                        error: ErrorTy::InvalidToken,
+                        kind: ErrorKind::InvalidToken,
                         span: token.span,
                     });
                 }
@@ -1045,14 +1053,14 @@ impl AST {
 //
 
 pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident, Error> {
-    let token = tokens.bump_err(ctx, ErrorTy::MissingToken)?;
+    let token = tokens.bump_err(ctx, ErrorKind::MissingToken)?;
     match token.kind {
         TokenKind::Identifier(ident) => Ok(Ident {
             value: ident,
             span: token.span,
         }),
         _ => Err(Error {
-            error: ErrorTy::ExpectedToken(TokenKind::Identifier("".to_string())),
+            kind: ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
             span: token.span,
         }),
     }

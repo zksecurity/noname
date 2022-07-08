@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
-    error::{Error, ErrorTy},
+    error::{Error, ErrorKind},
     tokens::Tokens,
 };
 
@@ -181,7 +181,7 @@ impl Token {
                     tokens.push(TokenKind::Type(ident_or_number).new_token(ctx, len));
                 } else {
                     return Err(Error {
-                        error: ErrorTy::InvalidIdentifier,
+                        kind: ErrorKind::InvalidIdentifier,
                         span: (ctx.offset, 1),
                     });
                 }
@@ -302,7 +302,7 @@ impl Token {
                 ' ' => ctx.offset += 1,
                 _ => {
                     return Err(Error {
-                        error: ErrorTy::InvalidToken,
+                        kind: ErrorKind::InvalidToken,
                         span: (ctx.offset, 1),
                     });
                 }

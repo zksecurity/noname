@@ -13,10 +13,10 @@ use num_traits::Num as _;
 use crate::{
     asm,
     constants::{Span, COLUMNS},
-    error::{Error, ErrorTy},
+    error::{Error, ErrorKind},
     field::{Field, PrettyField as _},
     parser::{Expr, ExprKind, Function, FunctionSig, Op2, RootKind, Stmt, TyKind, AST},
-    stdlib::utils_functions,
+    stdlib::{self, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
 };
 
 //
@@ -190,8 +190,8 @@ impl Compiler {
         // inject some utility functions in the scope
         // TODO: should we really import them by default?
         {
-            let t = utils_functions();
-            for (sig, func) in t {
+            let builtin_functions = parse_fn_sigs(&BUILTIN_FNS);
+            for (sig, func) in builtin_functions {
                 env.functions
                     .insert(sig.name.value.clone(), FuncInScope::BuiltIn(sig, func));
             }
@@ -216,7 +216,8 @@ impl Compiler {
             match &root.kind {
                 // `use crypto::poseidon;`
                 RootKind::Use(_path) => {
-                    unimplemented!();
+                    // we already dealt with that in the type check pass
+                    ()
                 }
 
                 // `fn main() { ... }`
@@ -279,20 +280,25 @@ impl Compiler {
             match &root.kind {
                 // `use crypto::poseidon;`
                 RootKind::Use(path) => {
-                    unimplemented!();
-                    let path = &mut path.path.into_iter();
-                    let root_module = path.next().expect("empty imports can't be parsed");
+                    let path_iter = &mut path.path.iter();
+                    let root_module = path_iter.next().expect("empty imports can't be parsed");
 
-                    /*
-                    let (functions, types) = if root_module == "std" {
-                        stdlib::parse_std_import(path)?
+                    if root_module.value == "std" {
+                        let module = stdlib::parse_std_import(path, path_iter)?;
+                        if env
+                            .modules
+                            .insert(module.name.clone(), module.clone())
+                            .is_some()
+                        {
+                            return Err(Error {
+                                kind: ErrorKind::DuplicateModule(module.name.clone()),
+                                span: module.span,
+                            });
+                        }
                     } else {
+                        // we only support std root module for now
                         unimplemented!()
                     };
-
-                    scope.functions.extend(functions);
-                    scope.types.extend(types);
-                    */
                 }
 
                 // `fn main() { ... }`
@@ -305,13 +311,19 @@ impl Compiler {
                     main_function_observed = true;
 
                     // create public and private inputs
-                    for (public, name, typ) in &function.arguments {
+                    for (_attr, name, typ) in &function.arguments {
                         if !matches!(typ.kind, TyKind::Field) {
-                            unimplemented!();
+                            return Err(Error {
+                                kind: ErrorKind::TestError,
+                                span: typ.span,
+                            });
                         }
 
                         if name.value == "public_output" {
-                            panic!("public_output is a reserved name");
+                            return Err(Error {
+                                kind: ErrorKind::PublicOutputReserved,
+                                span: name.span,
+                            });
                         }
 
                         // store it in the env
@@ -371,7 +383,7 @@ impl Compiler {
                             typs.push((typ.clone(), arg.span));
                         } else {
                             return Err(Error {
-                                error: ErrorTy::CannotComputeExpression,
+                                kind: ErrorKind::CannotComputeExpression,
                                 span: arg.span,
                             });
                         }
@@ -382,7 +394,7 @@ impl Compiler {
                         None => {
                             // TODO: type checking already checked that
                             return Err(Error {
-                                error: ErrorTy::UnknownFunction(name.value.clone()),
+                                kind: ErrorKind::UnknownFunction(name.value.clone()),
                                 span: stmt.span,
                             });
                         }
@@ -390,7 +402,7 @@ impl Compiler {
                             // argument length
                             if sig.arguments.len() != typs.len() {
                                 return Err(Error {
-                                    error: ErrorTy::WrongNumberOfArguments {
+                                    kind: ErrorKind::WrongNumberOfArguments {
                                         fn_name: name.value.clone(),
                                         expected_args: sig.arguments.len(),
                                         observed_args: typs.len(),
@@ -413,7 +425,7 @@ impl Compiler {
                                     }
 
                                     return Err(Error {
-                                        error: ErrorTy::ArgumentTypeMismatch(
+                                        kind: ErrorKind::ArgumentTypeMismatch(
                                             typ1.kind.clone(),
                                             typ2,
                                         ),
@@ -426,7 +438,7 @@ impl Compiler {
                             // (it's a statement, it should only work via side effect)
                             if sig.return_type.is_some() {
                                 return Err(Error {
-                                    error: ErrorTy::FunctionReturnsType(name.value.clone()),
+                                    kind: ErrorKind::FunctionReturnsType(name.value.clone()),
                                     span: stmt.span,
                                 });
                             }
@@ -448,7 +460,7 @@ impl Compiler {
 
                     if env.var_types["public_output"] != typ {
                         return Err(Error {
-                            error: ErrorTy::ReturnTypeMismatch(
+                            kind: ErrorKind::ReturnTypeMismatch(
                                 env.var_types["public_output"].clone(),
                                 typ,
                             ),
@@ -464,7 +476,7 @@ impl Compiler {
 
         if still_need_to_check_return_type {
             return Err(Error {
-                error: ErrorTy::MissingPublicOutput,
+                kind: ErrorKind::MissingPublicOutput,
                 span: function.span,
             });
         }
@@ -482,7 +494,7 @@ impl Compiler {
                 crate::parser::StmtKind::Assign { lhs, rhs } => {
                     // compute the rhs
                     let var = self.compute_expr(env, rhs)?.ok_or(Error {
-                        error: ErrorTy::CannotComputeExpression,
+                        kind: ErrorKind::CannotComputeExpression,
                         span: stmt.span,
                     })?;
 
@@ -502,7 +514,7 @@ impl Compiler {
                     let mut vars = Vec::with_capacity(args.len());
                     for arg in args {
                         let var = self.compute_expr(env, arg)?.ok_or(Error {
-                            error: ErrorTy::CannotComputeExpression,
+                            kind: ErrorKind::CannotComputeExpression,
                             span: arg.span,
                         })?;
                         vars.push(var);
@@ -512,7 +524,7 @@ impl Compiler {
                     match env.functions.get(&name.value) {
                         None => {
                             return Err(Error {
-                                error: ErrorTy::UnknownFunction(name.value.clone()),
+                                kind: ErrorKind::UnknownFunction(name.value.clone()),
                                 span: stmt.span,
                             })
                         }
@@ -529,13 +541,13 @@ impl Compiler {
                     }
 
                     let var = self.compute_expr(env, res)?.ok_or(Error {
-                        error: ErrorTy::CannotComputeExpression,
+                        kind: ErrorKind::CannotComputeExpression,
                         span: stmt.span,
                     })?;
 
                     // store the return value in the public input that was created for that ^
                     let public_output = self.public_output.ok_or(Error {
-                        error: ErrorTy::NoPublicOutput,
+                        kind: ErrorKind::NoPublicOutput,
                         span: stmt.span,
                     })?;
                     assert!(self
@@ -566,7 +578,7 @@ impl Compiler {
             assert_eq!(typ, &TyKind::Field);
 
             let val = args.get(name.as_str()).ok_or(Error {
-                error: ErrorTy::MissingArg(name.clone()),
+                kind: ErrorKind::MissingArg(name.clone()),
                 span: (0, 0),
             })?;
 
@@ -652,7 +664,7 @@ impl Compiler {
             ExprKind::BigInt(b) => {
                 let biguint = BigUint::from_str_radix(b, 10).expect("failed to parse number.");
                 let f = Field::try_from(biguint).map_err(|_| Error {
-                    error: ErrorTy::CannotConvertToField(b.to_string()),
+                    kind: ErrorKind::CannotConvertToField(b.to_string()),
                     span: expr.span,
                 })?;
 
@@ -682,7 +694,7 @@ impl Compiler {
             Value::External(name) => Ok(env.get_external(name)),
             Value::PublicOutput(var) => {
                 let var = var.ok_or(Error {
-                    error: ErrorTy::MissingPublicOutput,
+                    kind: ErrorKind::MissingPublicOutput,
                     span: (0, 0),
                 })?;
                 self.compute_var(env, var)
@@ -817,6 +829,7 @@ pub struct Environment {
     pub var_types: HashMap<String, TyKind>,
     pub variables: HashMap<String, Var>,
     pub functions: HashMap<String, FuncInScope>,
+    pub modules: HashMap<String, ImportedModule>,
     pub types: Vec<String>,
 }
 

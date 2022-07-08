@@ -8,14 +8,17 @@ use crate::{lexer::TokenKind, parser::TyKind};
 #[diagnostic()]
 pub struct Error {
     #[help]
-    pub error: ErrorTy,
+    pub kind: ErrorKind,
 
     #[label("here")]
     pub span: (usize, usize),
 }
 
 #[derive(Error, Diagnostic, Debug)]
-pub enum ErrorTy {
+pub enum ErrorKind {
+    #[error("error used for tests only")]
+    TestError,
+
     #[error("invalid token")]
     InvalidToken,
 
@@ -119,4 +122,13 @@ pub enum ErrorTy {
 
     #[error("missing public output type in the function signature")]
     NoPublicOutput,
+
+    #[error("error while importing std path: {0}")]
+    StdImport(&'static str),
+
+    #[error("tried to import the same module `{0}` twice")]
+    DuplicateModule(String),
+
+    #[error("`public_output` is a reserved argument name")]
+    PublicOutputReserved,
 }

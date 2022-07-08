@@ -6,7 +6,7 @@
 use std::vec::IntoIter;
 
 use crate::{
-    error::{Error, ErrorTy},
+    error::{Error, ErrorKind},
     lexer::{Token, TokenKind},
     parser::ParserCtx,
 };
@@ -54,9 +54,9 @@ impl Tokens {
     }
     /// Like [bump] but errors with `err` pointing to the latest token
     #[must_use]
-    pub fn bump_err(&mut self, ctx: &mut ParserCtx, err: ErrorTy) -> Result<Token, Error> {
+    pub fn bump_err(&mut self, ctx: &mut ParserCtx, err: ErrorKind) -> Result<Token, Error> {
         self.bump(ctx).ok_or(Error {
-            error: err,
+            kind: err,
             span: ctx.last_span(),
         })
     }
@@ -64,12 +64,12 @@ impl Tokens {
     /// Like [bump] but errors if the token is not `typ`
     #[must_use]
     pub fn bump_expected(&mut self, ctx: &mut ParserCtx, typ: TokenKind) -> Result<Token, Error> {
-        let token = self.bump_err(ctx, ErrorTy::MissingToken)?;
+        let token = self.bump_err(ctx, ErrorKind::MissingToken)?;
         if token.kind == typ {
             Ok(token)
         } else {
             Err(Error {
-                error: ErrorTy::ExpectedToken(typ),
+                kind: ErrorKind::ExpectedToken(typ),
                 span: ctx.last_span(),
             })
         }
