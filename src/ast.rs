@@ -133,7 +133,7 @@ pub struct Compiler {
     /// This is used to compute the witness row by row.
     witness_rows: Vec<Vec<Option<Var>>>,
 
-    /// the arguments expected by main
+    /// the arguments expected by main (I think it's used by the witness generator to make sure we passed the arguments)
     pub main_args: HashMap<String, TyKind>,
 
     /// The gates created by the circuit
@@ -310,15 +310,10 @@ impl Compiler {
 
                     main_function_observed = true;
 
-                    // create public and private inputs
+                    // store variables and their types in the env
                     for (_attr, name, typ) in &function.arguments {
-                        if !matches!(typ.kind, TyKind::Field) {
-                            return Err(Error {
-                                kind: ErrorKind::TestError,
-                                span: typ.span,
-                            });
-                        }
-
+                        // public_output is a reserved name,
+                        // associated automatically to the public output of the main function
                         if name.value == "public_output" {
                             return Err(Error {
                                 kind: ErrorKind::PublicOutputReserved,
@@ -326,8 +321,16 @@ impl Compiler {
                             });
                         }
 
-                        // store it in the env
-                        env.var_types.insert(name.value.clone(), typ.kind.clone());
+                        match typ.kind {
+                            TyKind::Field => {
+                                env.var_types.insert(name.value.clone(), typ.kind.clone());
+                            }
+
+                            TyKind::Array(..) => {
+                                env.var_types.insert(name.value.clone(), typ.kind.clone());
+                            }
+                            _ => unimplemented!(),
+                        }
 
                         //
                         self.main_args.insert(name.value.clone(), typ.kind.clone());
@@ -342,7 +345,6 @@ impl Compiler {
                         let name = "public_output";
 
                         env.var_types.insert(name.to_string(), typ.kind.clone());
-                        //                        self.main_args.insert(name.to_string(), typ.kind.clone());
                     }
 
                     // type system pass!!!
@@ -823,12 +825,33 @@ impl Compiler {
     }
 }
 
+/*
+/// The primitive type in a circuit is a field element.
+/// If you want to create another type built on a field element,
+/// the only thing we ask you to do is implement this trait on it.
+pub trait CircuitTy {
+    /// Where is this useful?
+    fn from_vars(vars: &[Var]) -> Self;
+
+    /// This is needed to store the variable as a public input, or public output
+    fn vars(&self) -> Vec<Var>;
+}
+*/
+
 // TODO: right now there's only one scope, but if we want to deal with multiple scopes then we'll need to make sure child scopes have access to parent scope, shadowing, etc.
 #[derive(Default, Debug)]
 pub struct Environment {
+    /// created by the type checker, gives a type to every external variable
     pub var_types: HashMap<String, TyKind>,
+
+    /// ?
     pub variables: HashMap<String, Var>,
+
+    /// the functions present in the scope
+    /// contains at least the set of builtin functions (like assert_eq)
     pub functions: HashMap<String, FuncInScope>,
+
+    /// stores the imported modules
     pub modules: HashMap<String, ImportedModule>,
     pub types: Vec<String>,
 }
@@ -864,6 +887,10 @@ impl std::fmt::Debug for FuncInScope {
         }
     }
 }
+
+//
+// Witness stuff
+//
 
 #[derive(Debug, Default)]
 pub struct WitnessEnv {

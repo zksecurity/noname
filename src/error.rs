@@ -67,8 +67,8 @@ pub enum ErrorKind {
     #[error("invalid identifier, expected lowercase alphanumeric string (including underscore `_`) and starting with a letter")]
     InvalidIdentifier,
 
-    #[error("invalid function call")]
-    InvalidFnCall,
+    #[error("invalid function call: {0}")]
+    InvalidFnCall(&'static str),
 
     #[error("imports via `use` keyword must appear before anything else")]
     UseAfterFn,
@@ -131,4 +131,10 @@ pub enum ErrorKind {
 
     #[error("`public_output` is a reserved argument name")]
     PublicOutputReserved,
+
+    #[error("function `{0}` not present in scope")]
+    UndefinedFunction(String),
+
+    #[error("module `{0}` not present in scope")]
+    UndefinedModule(String),
 }

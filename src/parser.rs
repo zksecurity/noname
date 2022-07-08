@@ -329,7 +329,7 @@ impl Expr {
     /// Parses until it finds something it doesn't know, then returns without consuming the token it doesn't know (the caller will have to make sense of it)
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
         let token = tokens.bump_err(ctx, ErrorKind::MissingExpression)?;
-        let span = token.span;
+        let mut span = token.span;
 
         let lhs = match token.kind {
             // numeric
@@ -346,7 +346,7 @@ impl Expr {
                         value: ident,
                         span: token.span,
                     }],
-                    span: span,
+                    span,
                 };
 
                 let peeked = match tokens.peek() {
@@ -361,11 +361,11 @@ impl Expr {
 
                 // ident could be path
                 let peeked = if matches!(peeked.kind, TokenKind::DoubleColon) {
-                    path.span.1 += 2; // double colon
                     tokens.bump(ctx);
                     let rest = Path::parse_path(ctx, tokens)?;
-                    path.span.1 += rest.span.1;
                     path.path.extend(rest.path);
+
+                    path.span.1 = rest.span.1 + rest.span.0 - path.span.0;
 
                     match tokens.peek() {
                         None => {
@@ -389,6 +389,8 @@ impl Expr {
                         let expr = Expr::parse(ctx, tokens)?;
                         tokens.bump_expected(ctx, TokenKind::RightBracket)?;
 
+                        let span = (path.span.0, expr.span.1 + expr.span.0 - path.span.0);
+
                         Expr {
                             kind: ExprKind::ArrayAccess(path, Box::new(expr)),
                             typ: None,
@@ -400,6 +402,7 @@ impl Expr {
                         tokens.bump(ctx); // (
 
                         let mut args = vec![];
+                        let mut end_span = span;
                         loop {
                             let arg = Expr::parse(ctx, tokens)?;
 
@@ -408,24 +411,31 @@ impl Expr {
                             let pp = tokens.peek();
 
                             match pp {
-                                Some(x) => match x.kind {
-                                    TokenKind::Comma => {
-                                        tokens.bump(ctx);
+                                Some(x) => {
+                                    end_span = x.span;
+                                    match x.kind {
+                                        TokenKind::Comma => {
+                                            tokens.bump(ctx);
+                                        }
+                                        TokenKind::RightParen => {
+                                            tokens.bump(ctx);
+                                            break;
+                                        }
+                                        _ => (),
                                     }
-                                    TokenKind::RightParen => {
-                                        tokens.bump(ctx);
-                                        break;
-                                    }
-                                    _ => (),
-                                },
+                                }
                                 None => {
                                     return Err(Error {
-                                        kind: ErrorKind::InvalidFnCall,
+                                        kind: ErrorKind::InvalidFnCall(
+                                            "unexpected end of function call",
+                                        ),
                                         span: ctx.last_span(),
                                     })
                                 }
                             }
                         }
+
+                        let span = (path.span.0, end_span.1 + end_span.0 - path.span.0);
 
                         Expr {
                             kind: ExprKind::FnCall {
@@ -492,17 +502,70 @@ impl Expr {
         }
     }
 
-    pub fn compute_type(&self, scope: &mut Environment) -> Result<Option<TyKind>, Error> {
+    pub fn compute_type(&self, env: &mut Environment) -> Result<Option<TyKind>, Error> {
         match &self.kind {
             ExprKind::FnCall {
                 function_name,
                 args,
-            } => todo!(),
+            } => {
+                // retrieve the function sig in the env
+                let path_len = function_name.path.len();
+                let sig: FunctionSig = if path_len == 1 {
+                    // functions present in the scope
+                    let fn_name = &function_name.path[0].value;
+                    match env.functions.get(fn_name).ok_or(Error {
+                        kind: ErrorKind::UndefinedFunction(fn_name.clone()),
+                        span: function_name.span,
+                    })? {
+                        crate::ast::FuncInScope::BuiltIn(sig, _) => sig.clone(),
+                        crate::ast::FuncInScope::Library(_, _) => todo!(),
+                    }
+                } else if path_len == 2 {
+                    // check module present in the scope
+                    let module = &function_name.path[0];
+                    let fn_name = &function_name.path[1];
+                    let module = env.modules.get(&module.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedModule(module.value.clone()),
+                        span: module.span,
+                    })?;
+                    let (sig, _) = module.functions.get(&fn_name.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                        span: fn_name.span,
+                    })?;
+                    sig.clone()
+                } else {
+                    return Err(Error {
+                        kind: ErrorKind::InvalidFnCall("sub-sub modules unsupported"),
+                        span: function_name.span,
+                    });
+                };
+
+                // verify that each argument makes sense with the function sig
+                if args.len() != sig.arguments.len() {
+                    return Err(Error {
+                        kind: ErrorKind::InvalidFnCall("wrong number of arguments"),
+                        span: self.span,
+                    });
+                }
+
+                for (arg, (_, _, expected_typ)) in args.iter().zip(sig.arguments) {
+                    let typ = arg.compute_type(env)?.unwrap();
+                    if typ != expected_typ.kind {
+                        return Err(Error {
+                            kind: ErrorKind::InvalidFnCall("argument type mismatch"),
+                            span: arg.span,
+                        });
+                    }
+                }
+
+                // return the type of the function
+                Ok(sig.return_type.map(|ty| ty.kind.clone()))
+            }
             ExprKind::Variable(_) => todo!(),
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(_, lhs, rhs) => {
-                let lhs_typ = lhs.compute_type(scope)?.unwrap();
-                let rhs_typ = rhs.compute_type(scope)?.unwrap();
+                let lhs_typ = lhs.compute_type(env)?.unwrap();
+                let rhs_typ = rhs.compute_type(env)?.unwrap();
 
                 if lhs_typ != rhs_typ {
                     // only allow bigint mixed with field
@@ -522,7 +585,7 @@ impl Expr {
             ExprKind::Negated(_) => todo!(),
             ExprKind::BigInt(_) => Ok(Some(TyKind::BigInt)),
             ExprKind::Identifier(ident) => {
-                let typ = scope.get_type(ident).ok_or(Error {
+                let typ = env.get_type(ident).ok_or(Error {
                     kind: ErrorKind::UndefinedVariable,
                     span: self.span,
                 })?;
@@ -889,7 +952,7 @@ impl Stmt {
                         },
                         None => {
                             return Err(Error {
-                                kind: ErrorKind::InvalidFnCall,
+                                kind: ErrorKind::InvalidFnCall("unexpected end of function call"),
                                 span: ctx.last_span(),
                             })
                         }

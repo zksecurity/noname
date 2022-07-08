@@ -2,5 +2,5 @@ use std::crypto;
 
 fn main(pub public_input: [Field; 3], private_input: [Field; 3]) {
     let digest = crypto::poseidon(private_input);
-    assert(digest == public_input);
+    assert_eq(digest, public_input);
 }
