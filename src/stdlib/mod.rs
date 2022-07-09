@@ -11,6 +11,10 @@ use crate::{
     parser::{FunctionSig, Ident, ParserCtx, Path},
 };
 
+use self::crypto::CRYPTO_FNS;
+
+pub mod crypto;
+
 #[derive(Clone)]
 pub struct ImportedModule {
     pub name: String,
@@ -80,26 +84,6 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FuncType)]) -> Vec<(FunctionSig, FuncType
     }
 
     functions
-}
-
-//
-// Crypto
-//
-
-const POSEIDON_FN: &str = "poseidon(input: [Field; 3]) -> [Field; 3]";
-
-pub const CRYPTO_FNS: [(&str, FuncType); 1] = [(POSEIDON_FN, poseidon)];
-
-fn poseidon(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) -> Option<CircuitVar> {
-    assert_eq!(vars.len(), 1);
-    let input = &vars[0].vars;
-
-    assert_eq!(input.len(), 3);
-    let x0 = input[0];
-    let x1 = input[1];
-    let x2 = input[2];
-
-    unimplemented!();
 }
 
 //
