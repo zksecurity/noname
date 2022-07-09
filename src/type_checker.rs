@@ -121,7 +121,10 @@ impl Compiler {
                     main_function_observed = true;
 
                     // store variables and their types in the env
-                    for FuncArg { name, typ, .. } in &function.arguments {
+                    for FuncArg {
+                        name, typ, span, ..
+                    } in &function.arguments
+                    {
                         // public_output is a reserved name,
                         // associated automatically to the public output of the main function
                         if name.value == "public_output" {
@@ -143,7 +146,8 @@ impl Compiler {
                         }
 
                         //
-                        self.main_args.insert(name.value.clone(), typ.kind.clone());
+                        self.main_args
+                            .insert(name.value.clone(), (typ.kind.clone(), *span));
                     }
 
                     // the output value returned by the main function is also a main_args with a special name (public_output)

@@ -227,7 +227,7 @@ pub struct Compiler {
     pub witness_rows: Vec<Vec<Option<CellVar>>>,
 
     /// the arguments expected by main (I think it's used by the witness generator to make sure we passed the arguments)
-    pub main_args: HashMap<String, TyKind>,
+    pub main_args: HashMap<String, (TyKind, Span)>,
 
     /// The gates created by the circuit
     // TODO: replace by enum and merge with finalized?

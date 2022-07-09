@@ -85,16 +85,26 @@ impl Compiler {
         let mut env = WitnessEnv::default();
 
         // create the argument's variables?
-        for (name, typ) in &self.main_args {
-            // TODO: support more types
-            assert_eq!(typ, &TyKind::Field);
+        for (name, (typ, span)) in &self.main_args {
+            let cval = match typ {
+                TyKind::Field => args.get(name.as_str()).ok_or(Error {
+                    kind: ErrorKind::MissingArg(name.clone()),
+                    span: *span,
+                })?,
+                TyKind::Array(array_typ, size) if **array_typ == TyKind::Field => {
+                    let cval = args.get(name.as_str()).ok_or(Error {
+                        kind: ErrorKind::MissingArg(name.clone()),
+                        span: *span,
+                    })?;
+                    if cval.values.len() != *size as usize {
+                        panic!("convert this to an error");
+                    }
+                    cval
+                }
+                _ => unimplemented!(),
+            };
 
-            let val = args.get(name.as_str()).ok_or(Error {
-                kind: ErrorKind::MissingArg(name.clone()),
-                span: (0, 0),
-            })?;
-
-            env.add_value(name.clone(), val.clone());
+            env.add_value(name.clone(), cval.clone());
         }
 
         // compute each rows' vars, except for the deferred ones (public output)

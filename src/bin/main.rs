@@ -27,7 +27,10 @@ fn parse(name: impl std::fmt::Display, code: &str, debug: bool) -> Result<()> {
     // generate witness
     let mut args = HashMap::new();
     args.insert("public_input", CircuitValue::new(vec![Field::one()]));
-    args.insert("private_input", CircuitValue::new(vec![Field::one()]));
+    args.insert(
+        "private_input",
+        CircuitValue::new(vec![Field::one(), Field::one(), Field::one()]),
+    );
     let (witness, public_output) = compiler.generate_witness(args)?;
     println!("witness size: {}", witness.len());
 
