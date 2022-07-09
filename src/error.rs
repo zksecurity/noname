@@ -6,6 +6,8 @@ use crate::{
     parser::{AttributeKind, TyKind},
 };
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Diagnostic, Debug, Error)]
 #[error("Parsing error")]
 #[diagnostic()]
@@ -146,4 +148,13 @@ pub enum ErrorKind {
 
     #[error("array indexes must be constants in circuits")]
     ExpectedConstant,
+
+    #[error("kimchi setup: {0}")]
+    KimchiSetup(#[from] kimchi::error::SetupError),
+
+    #[error("kimchi prover: {0}")]
+    KimchiProver(#[from] kimchi::error::ProverError),
+
+    #[error("kimchi verifier: {0}")]
+    KimchiVerifier(#[from] kimchi::error::VerifyError),
 }

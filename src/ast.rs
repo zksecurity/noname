@@ -13,7 +13,7 @@ use num_traits::Num as _;
 use crate::{
     asm,
     constants::{Span, IO_REGISTERS},
-    error::{Error, ErrorKind},
+    error::{Error, ErrorKind, Result},
     field::{Field, PrettyField as _},
     parser::{
         AttributeKind, Expr, ExprKind, FuncArg, Function, FunctionSig, Ident, Op2, Path, RootKind,
@@ -37,7 +37,7 @@ pub struct CellVar(usize);
 /// A variable's actual value in the witness can be computed in different ways.
 pub enum Value {
     /// Either it's a hint and can be computed from the outside.
-    Hint(Box<dyn Fn(&Compiler, &WitnessEnv) -> Result<Field, Error>>),
+    Hint(Box<dyn Fn(&Compiler, &WitnessEnv) -> Result<Field>>),
 
     /// Or it's a constant.
     Constant(Field),
@@ -65,12 +65,12 @@ impl fmt::Debug for Value {
 /// we abstract any variable in the circuit as a [CircuitVar]
 /// which can contain one or more variables.
 #[derive(Debug, Clone)]
-pub struct CircuitVar {
+pub struct CellVars {
     pub vars: Vec<CellVar>,
     pub span: Span,
 }
 
-impl CircuitVar {
+impl CellVars {
     pub fn new(vars: Vec<CellVar>, span: Span) -> Self {
         Self { vars, span }
     }
@@ -90,7 +90,7 @@ pub enum Var {
     /// Either a constant
     Constant(Constant),
     /// Or a [CircuitVar]
-    CircuitVar(CircuitVar),
+    CircuitVar(CellVars),
 }
 
 #[derive(Debug, Clone)]
@@ -101,7 +101,7 @@ pub struct Constant {
 
 impl Var {
     pub fn new_circuit_var(vars: Vec<CellVar>, span: Span) -> Self {
-        Var::CircuitVar(CircuitVar::new(vars, span))
+        Var::CircuitVar(CellVars::new(vars, span))
     }
 
     pub fn new_constant(value: Field, span: Span) -> Self {
@@ -115,7 +115,7 @@ impl Var {
         }
     }
 
-    pub fn circuit_var(&self) -> Option<CircuitVar> {
+    pub fn circuit_var(&self) -> Option<CellVars> {
         match self {
             Var::CircuitVar(circuit_var) => Some(circuit_var.clone()),
             _ => None,
@@ -244,7 +244,7 @@ pub struct Compiler {
     ///    it will set this `public_output` variable again to the correct vars.
     /// 3. During witness generation, the public output computation
     ///    is delayed until the very end.
-    pub public_output: Option<CircuitVar>,
+    pub public_output: Option<CellVars>,
 
     /// Size of the private input.
     // TODO: bit weird isn't it?
@@ -253,11 +253,7 @@ pub struct Compiler {
 
 impl Compiler {
     // TODO: perhaps don't return Self, but return a new type that only contains what's necessary to create the witness?
-    pub fn analyze_and_compile(
-        mut ast: AST,
-        code: &str,
-        debug: bool,
-    ) -> Result<(String, Self), Error> {
+    pub fn analyze_and_compile(mut ast: AST, code: &str, debug: bool) -> Result<(String, Self)> {
         let mut compiler = Compiler::default();
         compiler.source = code.to_string();
 
@@ -287,12 +283,7 @@ impl Compiler {
         &self.gates
     }
 
-    fn compile(
-        mut self,
-        env: &mut Environment,
-        ast: &AST,
-        debug: bool,
-    ) -> Result<(String, Self), Error> {
+    fn compile(mut self, env: &mut Environment, ast: &AST, debug: bool) -> Result<(String, Self)> {
         for root in &ast.0 {
             match &root.kind {
                 // `use crypto::poseidon;`
@@ -367,11 +358,7 @@ impl Compiler {
         Ok((self.asm(debug), self))
     }
 
-    fn compile_function(
-        &mut self,
-        env: &mut Environment,
-        function: &Function,
-    ) -> Result<(), Error> {
+    fn compile_function(&mut self, env: &mut Environment, function: &Function) -> Result<()> {
         for stmt in &function.body {
             match &stmt.kind {
                 StmtKind::Assign { lhs, rhs } => {
@@ -439,7 +426,7 @@ impl Compiler {
         var
     }
 
-    fn compute_expr(&mut self, env: &Environment, expr: &Expr) -> Result<Option<Var>, Error> {
+    fn compute_expr(&mut self, env: &Environment, expr: &Expr) -> Result<Option<Var>> {
         let var: Option<Var> = match &expr.kind {
             ExprKind::FnCall { name, args } => {
                 // retrieve the function in the env
@@ -516,7 +503,7 @@ impl Compiler {
             }
             ExprKind::ArrayAccess(path, expr) => {
                 // retrieve the CircuitVar at the path
-                let array: CircuitVar = if path.len() == 1 {
+                let array: CellVars = if path.len() == 1 {
                     // var present in the scope
                     let name = &path.path[0].value;
                     let array_var = env.variables.get(name).ok_or(Error {
@@ -572,7 +559,7 @@ impl Compiler {
         Ok(var)
     }
 
-    pub fn compute_constant(&self, var: CellVar, span: Span) -> Result<Field, Error> {
+    pub fn compute_constant(&self, var: CellVar, span: Span) -> Result<Field> {
         match &self.witness_vars.get(&var) {
             Some(Value::Constant(c)) => Ok(*c),
             Some(Value::LinearCombination(lc, cst)) => {
@@ -653,7 +640,7 @@ impl Compiler {
         }
     }
 
-    pub fn constant(&mut self, value: Field, span: Span) -> CircuitVar {
+    pub fn constant(&mut self, value: Field, span: Span) -> CellVars {
         let var = self.new_internal_var(Value::Constant(value));
 
         let zero = Field::zero();
@@ -664,7 +651,7 @@ impl Compiler {
             span,
         );
 
-        CircuitVar::new(vec![var], span)
+        CellVars::new(vec![var], span)
     }
 
     /// creates a new gate, and the associated row in the witness/execution trace.
@@ -696,7 +683,7 @@ impl Compiler {
         }
     }
 
-    pub fn public_inputs(&mut self, name: String, num: usize, span: Span) -> CircuitVar {
+    pub fn public_inputs(&mut self, name: String, num: usize, span: Span) -> CellVars {
         let mut vars = Vec::with_capacity(num);
 
         for idx in 0..num {
@@ -715,7 +702,7 @@ impl Compiler {
 
         self.public_input_size += num;
 
-        CircuitVar::new(vars, span)
+        CellVars::new(vars, span)
     }
 
     pub fn public_outputs(&mut self, num: usize, span: Span) {
@@ -738,11 +725,11 @@ impl Compiler {
         self.public_input_size += num;
 
         // store it
-        let cvar = CircuitVar::new(vars, span);
+        let cvar = CellVars::new(vars, span);
         self.public_output = Some(cvar);
     }
 
-    pub fn private_inputs(&mut self, name: String, num: usize, span: Span) -> CircuitVar {
+    pub fn private_inputs(&mut self, name: String, num: usize, span: Span) -> CellVars {
         let mut vars = Vec::with_capacity(num);
 
         for idx in 0..num {
@@ -754,7 +741,7 @@ impl Compiler {
         // TODO: do we really need this?
         self.private_input_size += num;
 
-        CircuitVar::new(vars, span)
+        CellVars::new(vars, span)
     }
 }
 

@@ -13,7 +13,7 @@ use kimchi::{
 };
 
 use crate::{
-    ast::{CircuitVar, Compiler, FuncType, GateKind, Value, Var},
+    ast::{CellVars, Compiler, FuncType, GateKind, Value, Var},
     constants::{self, Span},
     field::Field,
 };

@@ -7,6 +7,7 @@ pub mod error;
 pub mod field;
 pub mod lexer;
 pub mod parser;
+pub mod prover;
 pub mod stdlib;
 pub mod tokens;
 pub mod type_checker;

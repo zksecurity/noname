@@ -6,7 +6,7 @@ use itertools::Itertools;
 use crate::{
     ast::{CellVar, CircuitValue, Compiler, Value},
     constants::IO_REGISTERS,
-    error::{Error, ErrorKind},
+    error::{Error, ErrorKind, Result},
     field::{Field, PrettyField},
     parser::TyKind,
 };
@@ -55,7 +55,7 @@ impl Witness {
 }
 
 impl Compiler {
-    pub fn compute_var(&self, env: &WitnessEnv, var: CellVar) -> Result<Field, Error> {
+    pub fn compute_var(&self, env: &WitnessEnv, var: CellVar) -> Result<Field> {
         match &self.witness_vars[&var] {
             Value::Hint(func) => func(self, env),
             Value::Constant(c) => Ok(*c),
@@ -80,7 +80,8 @@ impl Compiler {
     pub fn generate_witness(
         &self,
         args: HashMap<&str, CircuitValue>,
-    ) -> Result<(Witness, Vec<Field>), Error> {
+    ) -> Result<(Witness, Vec<Field>, Vec<Field>)> {
+        dbg!("yo");
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
 
@@ -141,9 +142,15 @@ impl Compiler {
             public_output.push(val);
         }
 
+        // extract full public input (containing the public output)
+        let mut full_public_inputs = Vec::with_capacity(self.public_input_size);
+        for row in 0..self.public_input_size {
+            full_public_inputs.push(witness[row][0]);
+        }
+
         //
         assert_eq!(witness.len(), self.num_gates());
 
-        Ok((Witness(witness), public_output))
+        Ok((Witness(witness), full_public_inputs, public_output))
     }
 }

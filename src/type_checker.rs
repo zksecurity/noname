@@ -1,7 +1,7 @@
 use crate::{
     ast::{Compiler, Environment},
     constants::Span,
-    error::{Error, ErrorKind},
+    error::{Error, ErrorKind, Result},
     parser::{
         Expr, ExprKind, FuncArg, Function, FunctionSig, Path, RootKind, StmtKind, TyKind, AST,
     },
@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl Expr {
-    pub fn compute_type(&self, env: &Environment) -> Result<Option<TyKind>, Error> {
+    pub fn compute_type(&self, env: &Environment) -> Result<Option<TyKind>> {
         match &self.kind {
             ExprKind::FnCall { name, args } => typecheck_fn_call(env, name, args, self.span),
             ExprKind::Variable(_) => todo!(),
@@ -78,7 +78,7 @@ impl Expr {
 }
 
 impl Compiler {
-    pub fn type_check(&mut self, env: &mut Environment, ast: &mut AST) -> Result<(), Error> {
+    pub fn type_check(&mut self, env: &mut Environment, ast: &mut AST) -> Result<()> {
         let mut main_function_observed = false;
         //
         // Semantic analysis includes:
@@ -176,11 +176,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn type_check_fn_body(
-        &mut self,
-        env: &mut Environment,
-        function: &Function,
-    ) -> Result<(), Error> {
+    pub fn type_check_fn_body(&mut self, env: &mut Environment, function: &Function) -> Result<()> {
         let mut still_need_to_check_return_type = function.return_type.is_some();
 
         // only expressions need type info?
@@ -251,7 +247,7 @@ pub fn typecheck_fn_call(
     name: &Path,
     args: &[Expr],
     span: Span,
-) -> Result<Option<TyKind>, Error> {
+) -> Result<Option<TyKind>> {
     // retrieve the function sig in the env
     let path_len = name.path.len();
     let sig: FunctionSig = if path_len == 1 {

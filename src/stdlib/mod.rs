@@ -3,9 +3,9 @@ use std::{collections::HashMap, ops::Neg as _};
 use ark_ff::One as _;
 
 use crate::{
-    ast::{CellVar, CircuitVar, Compiler, Constant, FuncType, GateKind, Var},
+    ast::{CellVar, CellVars, Compiler, Constant, FuncType, GateKind, Var},
     constants::Span,
-    error::{Error, ErrorKind},
+    error::{Error, ErrorKind, Result},
     field::Field,
     lexer::Token,
     parser::{FunctionSig, Ident, ParserCtx, Path},
@@ -38,7 +38,7 @@ impl std::fmt::Debug for ImportedModule {
 pub fn parse_std_import<'a>(
     path: &'a Path,
     path_iter: &mut impl Iterator<Item = &'a Ident>,
-) -> Result<ImportedModule, Error> {
+) -> Result<ImportedModule> {
     let module = path_iter.next().ok_or(Error {
         kind: ErrorKind::StdImport("no module name found"),
         span: path.span,

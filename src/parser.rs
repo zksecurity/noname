@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::{
     ast::Environment,
     constants::Span,
-    error::{Error, ErrorKind},
+    error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind},
     tokens::Tokens,
 };
@@ -76,7 +76,7 @@ impl Path {
     }
 
     /// Parses a path from a list of tokens.
-    pub fn parse_path(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
+    pub fn parse_path(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let mut path = vec![];
         let mut span: Option<Span> = None;
 
@@ -184,7 +184,7 @@ impl Display for TyKind {
 }
 
 impl Ty {
-    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
         match token.kind {
             // struct name
@@ -335,7 +335,7 @@ impl Op2 {
 
 impl Expr {
     /// Parses until it finds something it doesn't know, then returns without consuming the token it doesn't know (the caller will have to make sense of it)
-    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let token = tokens.bump_err(ctx, ErrorKind::MissingExpression)?;
         let mut span = token.span;
 
@@ -529,7 +529,7 @@ pub struct FunctionSig {
 }
 
 impl FunctionSig {
-    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let name = Function::parse_name(ctx, tokens)?;
 
         let arguments = Function::parse_args(ctx, tokens)?;
@@ -594,7 +594,7 @@ impl Function {
         self.name.value == "main"
     }
 
-    pub fn parse_name(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident, Error> {
+    pub fn parse_name(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident> {
         let token = tokens.bump_err(
             ctx,
             ErrorKind::InvalidFunctionSignature("expected function name"),
@@ -619,7 +619,7 @@ impl Function {
         })
     }
 
-    pub fn parse_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<FuncArg>, Error> {
+    pub fn parse_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<FuncArg>> {
         // (pub arg1: type1, arg2: type2)
         // ^
         tokens.bump_expected(ctx, TokenKind::LeftParen)?;
@@ -706,10 +706,7 @@ impl Function {
         Ok(args)
     }
 
-    pub fn parse_fn_return_type(
-        ctx: &mut ParserCtx,
-        tokens: &mut Tokens,
-    ) -> Result<Option<Ty>, Error> {
+    pub fn parse_fn_return_type(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Option<Ty>> {
         match tokens.peek() {
             Some(Token {
                 kind: TokenKind::RightArrow,
@@ -724,7 +721,7 @@ impl Function {
         }
     }
 
-    pub fn parse_fn_body(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<Stmt>, Error> {
+    pub fn parse_fn_body(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<Stmt>> {
         let mut body = vec![];
 
         tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
@@ -752,7 +749,7 @@ impl Function {
     }
 
     /// Parse a function, without the `fn` keyword.
-    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         // ghetto way of getting the span of the function: get the span of the first token (name), then try to get the span of the last token
         let mut span = tokens
             .peek()
@@ -851,7 +848,7 @@ pub enum StmtKind {
 
 impl Stmt {
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
-    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         match tokens.peek() {
             None => {
                 return Err(Error {
@@ -949,7 +946,7 @@ pub enum RootKind {
 pub struct AST(pub Vec<Root>);
 
 impl AST {
-    pub fn parse(mut tokens: Tokens) -> Result<AST, Error> {
+    pub fn parse(mut tokens: Tokens) -> Result<AST> {
         let mut ast = vec![];
         let ctx = &mut ParserCtx::default();
 
@@ -1031,7 +1028,7 @@ impl AST {
 // Helpers
 //
 
-pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident, Error> {
+pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident> {
     let token = tokens.bump_err(ctx, ErrorKind::MissingToken)?;
     match token.kind {
         TokenKind::Identifier(ident) => Ok(Ident {

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
-    error::{Error, ErrorKind},
+    error::{Error, ErrorKind, Result},
     tokens::Tokens,
 };
 
@@ -159,35 +159,33 @@ fn is_type(s: &str) -> bool {
 }
 
 impl Token {
-    fn parse_line(ctx: &mut LexerCtx, line: &str) -> Result<Vec<Self>, Error> {
+    fn parse_line(ctx: &mut LexerCtx, line: &str) -> Result<Vec<Self>> {
         let mut tokens = vec![];
 
         // keep track of variables
         let mut ident_or_number: Option<String> = None;
 
-        let add_thing = |ctx: &mut LexerCtx,
-                         tokens: &mut Vec<_>,
-                         ident_or_number: String|
-         -> Result<(), Error> {
-            let len = ident_or_number.len();
-            if let Some(keyword) = Keyword::parse(&ident_or_number) {
-                tokens.push(TokenKind::Keyword(keyword).new_token(ctx, len));
-            } else {
-                if is_numeric(&ident_or_number) {
-                    tokens.push(TokenKind::BigInt(ident_or_number).new_token(ctx, len));
-                } else if is_identifier(&ident_or_number) {
-                    tokens.push(TokenKind::Identifier(ident_or_number).new_token(ctx, len));
-                } else if is_type(&ident_or_number) {
-                    tokens.push(TokenKind::Type(ident_or_number).new_token(ctx, len));
+        let add_thing =
+            |ctx: &mut LexerCtx, tokens: &mut Vec<_>, ident_or_number: String| -> Result<()> {
+                let len = ident_or_number.len();
+                if let Some(keyword) = Keyword::parse(&ident_or_number) {
+                    tokens.push(TokenKind::Keyword(keyword).new_token(ctx, len));
                 } else {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidIdentifier,
-                        span: (ctx.offset, 1),
-                    });
+                    if is_numeric(&ident_or_number) {
+                        tokens.push(TokenKind::BigInt(ident_or_number).new_token(ctx, len));
+                    } else if is_identifier(&ident_or_number) {
+                        tokens.push(TokenKind::Identifier(ident_or_number).new_token(ctx, len));
+                    } else if is_type(&ident_or_number) {
+                        tokens.push(TokenKind::Type(ident_or_number).new_token(ctx, len));
+                    } else {
+                        return Err(Error {
+                            kind: ErrorKind::InvalidIdentifier,
+                            span: (ctx.offset, 1),
+                        });
+                    }
                 }
-            }
-            Ok(())
-        };
+                Ok(())
+            };
 
         // go through line char by char
         let mut chars = line.chars().peekable();
@@ -312,7 +310,7 @@ impl Token {
         Ok(tokens)
     }
 
-    pub fn parse(code: &str) -> Result<Tokens, Error> {
+    pub fn parse(code: &str) -> Result<Tokens> {
         let mut ctx = LexerCtx::default();
         let mut tokens = vec![];
 
