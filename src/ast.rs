@@ -706,32 +706,11 @@ impl Compiler {
     fn add(&mut self, lhs: Var, rhs: Var, span: Span) -> Var {
         match (lhs, rhs) {
             (
-                Var::Constant(Constant {
-                    value: lhs,
-                    span: span1,
-                }),
-                Var::Constant(Constant {
-                    value: rhs,
-                    span: span2,
-                }),
-            ) => {
-                // TODO: here I should preserve both span1 and span2, same for other branches
-                Var::new_constant(lhs + rhs, span1)
-            }
-            (
-                Var::Constant(Constant {
-                    value: cst,
-                    span: span1,
-                }),
-                Var::CircuitVar(var),
-            )
-            | (
-                Var::CircuitVar(var),
-                Var::Constant(Constant {
-                    value: cst,
-                    span: span1,
-                }),
-            ) => {
+                Var::Constant(Constant { value: lhs, .. }),
+                Var::Constant(Constant { value: rhs, .. }),
+            ) => Var::new_constant(lhs + rhs, span),
+            (Var::Constant(Constant { value: cst, .. }), Var::CircuitVar(var))
+            | (Var::CircuitVar(var), Var::Constant(Constant { value: cst, .. })) => {
                 if var.len() != 1 {
                     unimplemented!();
                 }
@@ -747,7 +726,7 @@ impl Compiler {
                     vec![Some(var), None, Some(res)],
                     vec![
                         Field::one(),
-                        Field::one(),
+                        Field::zero(),
                         Field::one().neg(),
                         Field::zero(),
                         cst,
@@ -755,14 +734,12 @@ impl Compiler {
                     span,
                 );
 
-                Var::new_circuit_var(vec![res], span1)
+                Var::new_circuit_var(vec![res], span)
             }
             (Var::CircuitVar(lhs), Var::CircuitVar(rhs)) => {
                 if lhs.len() != 1 || rhs.len() != 1 {
                     unimplemented!();
                 }
-
-                let span = lhs.span;
 
                 let lhs = lhs.var(0).unwrap();
                 let rhs = rhs.var(0).unwrap();

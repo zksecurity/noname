@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{ast::Compiler, lexer::Token, parser::AST};
 
-fn test_file(file_name: &str, expected_gates: usize, expected_asm: &str) {
+fn test_file(file_name: &str, expected_asm: &str) {
     let version = env!("CARGO_MANIFEST_DIR");
     let path = Path::new(version).join("data").join(file_name);
 
@@ -10,9 +10,7 @@ fn test_file(file_name: &str, expected_gates: usize, expected_asm: &str) {
 
     let tokens = Token::parse(&code).unwrap();
     let ast = AST::parse(tokens).unwrap();
-    let (circuit, compiler) = Compiler::analyze_and_compile(ast, &code, false).unwrap();
-
-    assert_eq!(compiler.num_gates(), expected_gates);
+    let (circuit, _compiler) = Compiler::analyze_and_compile(ast, &code, false).unwrap();
 
     assert_eq!(circuit, expected_asm);
 }
@@ -26,10 +24,10 @@ DoubleGeneric<1,1,-1>
 DoubleGeneric<1,0,0,0,-2>
 DoubleGeneric<1,-1>
 (0,0) -> (1,1)
-(1,2) -> (3,0)
-(2,0) -> (3,1)
+(1,2) -> (3,1)
+(2,0) -> (3,0)
 ";
-    test_file("arithmetic.no", 4, asm);
+    test_file("arithmetic.no", asm);
 }
 
 #[test]
@@ -41,13 +39,11 @@ DoubleGeneric<1>
 DoubleGeneric<1,1,-1>
 DoubleGeneric<1,0,0,0,-2>
 DoubleGeneric<1,-1>
-DoubleGeneric<1,0,0,0,-6>
-DoubleGeneric<1,1,-1>
+DoubleGeneric<1,0,-1,0,6>
 (0,0) -> (2,1)
-(2,2) -> (4,0) -> (6,0)
-(3,0) -> (4,1)
-(5,0) -> (6,1)
+(2,2) -> (4,1) -> (5,0)
+(3,0) -> (4,0)
 ";
 
-    test_file("public_output.no", 7, asm);
+    test_file("public_output.no", asm);
 }
