@@ -12,7 +12,7 @@ use num_traits::Num as _;
 
 use crate::{
     asm,
-    constants::{Span, COLUMNS},
+    constants::{Span, IO_REGISTERS},
     error::{Error, ErrorKind},
     field::{Field, PrettyField as _},
     parser::{
@@ -20,6 +20,7 @@ use crate::{
         Stmt, StmtKind, Ty, TyKind, AST,
     },
     stdlib::{self, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
+    witness::WitnessEnv,
 };
 
 //
@@ -138,33 +139,6 @@ impl CircuitValue {
     }
 }
 
-pub struct Witness(Vec<[Field; COLUMNS]>);
-
-impl Witness {
-    /// kimchi uses a transposed witness
-    pub fn to_kimchi_witness(&self) -> [Vec<Field>; COLUMNS] {
-        let transposed = vec![Vec::with_capacity(self.0.len()); COLUMNS];
-        let mut transposed: [_; COLUMNS] = transposed.try_into().unwrap();
-        for row in &self.0 {
-            for (col, field) in row.iter().enumerate() {
-                transposed[col].push(*field);
-            }
-        }
-        transposed
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn debug(&self) {
-        for (row, values) in self.0.iter().enumerate() {
-            let values = values.iter().map(|v| v.pretty()).join(" | ");
-            println!("{row} - {values}");
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub enum GateKind {
     DoubleGeneric,
@@ -250,7 +224,7 @@ pub struct Compiler {
     pub wiring: HashMap<CellVar, Wiring>,
 
     /// This is used to compute the witness row by row.
-    witness_rows: Vec<Vec<Option<CellVar>>>,
+    pub witness_rows: Vec<Vec<Option<CellVar>>>,
 
     /// the arguments expected by main (I think it's used by the witness generator to make sure we passed the arguments)
     pub main_args: HashMap<String, TyKind>,
@@ -450,68 +424,6 @@ impl Compiler {
         Ok(())
     }
 
-    //     pub fn constrain(compiler: &mut Compiler)
-
-    // TODO: how to pass arguments?
-    pub fn generate_witness(
-        &self,
-        args: HashMap<&str, CircuitValue>,
-    ) -> Result<(Witness, Vec<Field>), Error> {
-        let mut witness = vec![];
-        let mut env = WitnessEnv::default();
-
-        // create the argument's variables?
-        for (name, typ) in &self.main_args {
-            // TODO: support more types
-            assert_eq!(typ, &TyKind::Field);
-
-            let val = args.get(name.as_str()).ok_or(Error {
-                kind: ErrorKind::MissingArg(name.clone()),
-                span: (0, 0),
-            })?;
-
-            env.add_value(name.clone(), val.clone());
-        }
-
-        // compute each rows' vars, except for the deferred ones (public output)
-        let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
-
-        for (row, witness_row) in self.witness_rows.iter().enumerate() {
-            // create the witness row
-            let mut res = [Field::zero(); COLUMNS];
-            for (col, var) in witness_row.iter().enumerate() {
-                let val = if let Some(var) = var {
-                    // if it's a public output, defer it's computation
-                    if matches!(self.witness_vars[&var], Value::PublicOutput(_)) {
-                        public_outputs_vars.push((row, *var));
-                        Field::zero()
-                    } else {
-                        self.compute_var(&env, *var)?
-                    }
-                } else {
-                    Field::zero()
-                };
-                res[col] = val;
-            }
-
-            //
-            witness.push(res);
-        }
-
-        // compute public output at last
-        let mut public_output = vec![];
-
-        for (row, var) in public_outputs_vars {
-            let val = self.compute_var(&env, var)?;
-            witness[row][0] = val;
-            public_output.push(val);
-        }
-
-        //
-        assert_eq!(witness.len(), self.gates.len());
-        Ok((Witness(witness), public_output))
-    }
-
     pub fn asm(&self, debug: bool) -> String {
         asm::generate_asm(&self.source, &self.gates, &self.wiring, debug)
     }
@@ -660,28 +572,6 @@ impl Compiler {
         Ok(var)
     }
 
-    pub fn compute_var(&self, env: &WitnessEnv, var: CellVar) -> Result<Field, Error> {
-        match &self.witness_vars[&var] {
-            Value::Hint(func) => func(self, env),
-            Value::Constant(c) => Ok(*c),
-            Value::LinearCombination(lc, cst) => {
-                let mut res = *cst;
-                for (coeff, var) in lc {
-                    res += self.compute_var(env, *var)? * *coeff;
-                }
-                Ok(res)
-            }
-            Value::External(name, idx) => Ok(env.get_external(name)[*idx]),
-            Value::PublicOutput(var) => {
-                let var = var.ok_or(Error {
-                    kind: ErrorKind::MissingPublicOutput,
-                    span: (0, 0),
-                })?;
-                self.compute_var(env, var)
-            }
-        }
-    }
-
     pub fn compute_constant(&self, var: CellVar, span: Span) -> Result<Field, Error> {
         match &self.witness_vars.get(&var) {
             Some(Value::Constant(c)) => Ok(*c),
@@ -786,8 +676,8 @@ impl Compiler {
         coeffs: Vec<Field>,
         span: Span,
     ) {
-        assert!(coeffs.len() <= COLUMNS);
-        assert!(vars.len() <= COLUMNS);
+        assert!(coeffs.len() <= IO_REGISTERS);
+        assert!(vars.len() <= IO_REGISTERS);
         self.witness_rows.push(vars.clone());
         let row = self.gates.len();
         self.gates.push(Gate { typ, coeffs, span });
@@ -915,25 +805,5 @@ impl fmt::Debug for FuncInScope {
             Self::BuiltIn(arg0, _arg1) => f.debug_tuple("BuiltIn").field(arg0).field(&"_").finish(),
             Self::Library(arg0, arg1) => f.debug_tuple("Library").field(arg0).field(arg1).finish(),
         }
-    }
-}
-
-//
-// Witness stuff
-//
-
-#[derive(Debug, Default)]
-pub struct WitnessEnv {
-    pub var_values: HashMap<String, CircuitValue>,
-}
-
-impl WitnessEnv {
-    pub fn add_value(&mut self, name: String, val: CircuitValue) {
-        assert!(self.var_values.insert(name, val).is_none());
-    }
-
-    pub fn get_external(&self, name: &str) -> Vec<Field> {
-        // TODO: return an error instead of crashing
-        self.var_values.get(name).unwrap().clone().values.clone()
     }
 }

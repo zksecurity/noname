@@ -82,7 +82,7 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
             states.borrow_mut().push(new_state);
         }
 
-        let coeffs = (0..constants::COLUMNS)
+        let coeffs = (0..constants::IO_REGISTERS)
             .map(|i| rc[offset + (i / width)][i % width])
             .collect();
 

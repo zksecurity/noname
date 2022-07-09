@@ -10,6 +10,7 @@ pub mod parser;
 pub mod stdlib;
 pub mod tokens;
 pub mod type_checker;
+pub mod witness;
 
 #[cfg(test)]
 pub mod tests;

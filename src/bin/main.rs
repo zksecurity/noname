@@ -5,7 +5,7 @@ use clap::Parser;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use my_programming_language::{
     ast::{CircuitValue, Compiler, Gate},
-    constants::COLUMNS,
+    constants::IO_REGISTERS,
     field::Field,
     lexer::Token,
     parser::AST,
@@ -47,7 +47,7 @@ fn parse(name: impl std::fmt::Display, code: &str, debug: bool) -> Result<()> {
     Ok(())
 }
 
-fn prove_and_verify(gates: &[Gate], witness: [Vec<Field>; COLUMNS], public: Vec<Field>) {
+fn prove_and_verify(gates: &[Gate], witness: [Vec<Field>; IO_REGISTERS], public: Vec<Field>) {
     // convert gates
     let gates: Vec<_> = gates
         .into_iter()
