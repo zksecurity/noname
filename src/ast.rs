@@ -94,8 +94,8 @@ pub enum Var {
 
 #[derive(Debug, Clone)]
 pub struct Constant {
-    value: Field,
-    span: Span,
+    pub value: Field,
+    pub span: Span,
 }
 
 impl Var {
@@ -427,6 +427,7 @@ impl Compiler {
                         kind: ErrorKind::CannotComputeExpression,
                         span: stmt.span,
                     })?;
+                    let var_vars = var.circuit_var().ok_or_else(|| unimplemented!())?.vars;
 
                     // store the return value in the public input that was created for that ^
                     let public_output = self.public_output.as_ref().ok_or(Error {
@@ -434,7 +435,7 @@ impl Compiler {
                         span: stmt.span,
                     })?;
 
-                    for (pub_var, ret_var) in public_output.vars.iter().zip(&var.vars) {
+                    for (pub_var, ret_var) in public_output.vars.iter().zip(&var_vars) {
                         // replace the computation of the public output vars with the actual variables being returned here
                         assert!(self
                             .witness_vars

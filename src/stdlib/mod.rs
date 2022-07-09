@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Neg as _};
 use ark_ff::One as _;
 
 use crate::{
-    ast::{CellVar, CircuitVar, Compiler, FuncType, GateKind},
+    ast::{CellVar, CircuitVar, Compiler, Constant, FuncType, GateKind, Var},
     constants::Span,
     error::{Error, ErrorKind},
     field::Field,
@@ -96,22 +96,49 @@ const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 
 pub const BUILTIN_FNS: [(&str, FuncType); 1] = [(ASSERT_EQ_FN, assert_eq)];
 
-fn assert_eq(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) -> Option<CircuitVar> {
+fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
+    // double check (on top of type checker)
     assert_eq!(vars.len(), 2);
 
-    assert_eq!(vars[0].vars.len(), 1);
-    let lhs = vars[0].var(0).unwrap();
+    match (&vars[0], &vars[1]) {
+        (Var::Constant(Constant { value: a, .. }), Var::Constant(Constant { value: b, .. })) => {
+            assert_eq!(a, b)
+        }
+        (Var::Constant(cst), Var::CircuitVar(cvar))
+        | (Var::CircuitVar(cvar), Var::Constant(cst)) => {
+            let cst_var = compiler.constant(cst.value, cst.span);
+            let cst_var = cst_var.var(0).unwrap();
 
-    assert_eq!(vars[1].vars.len(), 1);
-    let rhs = vars[1].var(0).unwrap();
+            assert_eq!(cvar.vars.len(), 1);
+            let cvar = cvar.var(0).unwrap();
 
-    // TODO: use permutation to check that
-    compiler.gates(
-        GateKind::DoubleGeneric,
-        vec![Some(lhs), Some(rhs)],
-        vec![Field::one(), Field::one().neg()],
-        span,
-    );
+            // TODO: use permutation to check that
+            compiler.gates(
+                GateKind::DoubleGeneric,
+                vec![Some(cst_var), Some(cvar)],
+                vec![Field::one(), Field::one().neg()],
+                span,
+            );
+        }
+        (Var::CircuitVar(lhs), Var::CircuitVar(rhs)) => {
+            // TODO: preserve both span
+            let span = lhs.span;
+
+            assert_eq!(lhs.vars.len(), 1);
+            let lhs = lhs.var(0).unwrap();
+
+            assert_eq!(rhs.vars.len(), 1);
+            let rhs = rhs.var(0).unwrap();
+
+            // TODO: use permutation to check that
+            compiler.gates(
+                GateKind::DoubleGeneric,
+                vec![Some(lhs), Some(rhs)],
+                vec![Field::one(), Field::one().neg()],
+                span,
+            );
+        }
+    }
 
     None
 }

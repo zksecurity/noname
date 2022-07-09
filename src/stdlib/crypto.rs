@@ -13,7 +13,7 @@ use kimchi::{
 };
 
 use crate::{
-    ast::{CircuitVar, Compiler, FuncType, GateKind, Value},
+    ast::{CircuitVar, Compiler, FuncType, GateKind, Value, Var},
     constants::{self, Span},
     field::Field,
 };
@@ -22,10 +22,13 @@ const POSEIDON_FN: &str = "poseidon(input: [Field; 3]) -> [Field; 3]";
 
 pub const CRYPTO_FNS: [(&str, FuncType); 1] = [(POSEIDON_FN, poseidon)];
 
-pub fn poseidon(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) -> Option<CircuitVar> {
+pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
     // double check input
     assert_eq!(vars.len(), 1);
-    let input = &vars[0].vars;
+    let input = match vars[0].circuit_var() {
+        None => unimplemented!(),
+        Some(cvar) => cvar.vars,
+    };
     assert_eq!(input.len(), 3);
 
     // get constants needed for poseidon
@@ -115,8 +118,6 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) -> Opt
     compiler.gates(GateKind::DoubleGeneric, final_row.clone(), vec![], span);
 
     //    states.borrow_mut().pop().unwrap();
-
-    Some(CircuitVar {
-        vars: final_row.iter().flatten().cloned().collect(),
-    })
+    let vars = final_row.iter().flatten().cloned().collect();
+    Some(Var::new_circuit_var(vars, span))
 }

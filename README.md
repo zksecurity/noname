@@ -61,6 +61,7 @@ More specific tasks:
 - [ ] figure out how to handle constants in the codebase (perhaps a hashmap of variable -> constant, and compute constants on the fly?)
 - [ ] make array access work
 - [ ] make poseidon work
+- [ ] make span a vec of span in CircuitVar/Constant
 
 ## Questions
 
