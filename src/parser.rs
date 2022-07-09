@@ -44,6 +44,7 @@ use crate::{
 pub struct ParserCtx {
     /// Used mainly for error reporting,
     /// when we don't have a token to read
+    // TODO: replace with `(usize::MAX, usize::MAX)`?
     pub last_token: Option<Token>,
 }
 
@@ -163,6 +164,12 @@ pub enum TyKind {
     Field,
     BigInt,
     Array(Box<TyKind>, u32),
+    // Tuple(Vec<TyKind>),
+    // Bool,
+    // U8,
+    // U16,
+    // U32,
+    // U64,
 }
 
 impl Display for TyKind {
@@ -285,10 +292,7 @@ pub struct Expr {
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     //    Literal(String),
-    FnCall {
-        function_name: Path,
-        args: Vec<Expr>,
-    },
+    FnCall { name: Path, args: Vec<Expr> },
     Variable(String),
     // TODO: move to Op?
     Comparison(ComparisonOp, Box<Expr>, Box<Expr>),
@@ -442,10 +446,7 @@ impl Expr {
                         let span = (path.span.0, end_span.1 + end_span.0 - path.span.0);
 
                         Expr {
-                            kind: ExprKind::FnCall {
-                                function_name: path,
-                                args,
-                            },
+                            kind: ExprKind::FnCall { name: path, args },
                             typ: None,
                             span,
                         }
@@ -503,121 +504,6 @@ impl Expr {
             })
         } else {
             Ok(lhs)
-        }
-    }
-
-    pub fn compute_type(&self, env: &mut Environment) -> Result<Option<TyKind>, Error> {
-        match &self.kind {
-            ExprKind::FnCall {
-                function_name,
-                args,
-            } => {
-                // retrieve the function sig in the env
-                let path_len = function_name.path.len();
-                let sig: FunctionSig = if path_len == 1 {
-                    // functions present in the scope
-                    let fn_name = &function_name.path[0].value;
-                    match env.functions.get(fn_name).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.clone()),
-                        span: function_name.span,
-                    })? {
-                        crate::ast::FuncInScope::BuiltIn(sig, _) => sig.clone(),
-                        crate::ast::FuncInScope::Library(_, _) => todo!(),
-                    }
-                } else if path_len == 2 {
-                    // check module present in the scope
-                    let module = &function_name.path[0];
-                    let fn_name = &function_name.path[1];
-                    let module = env.modules.get(&module.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedModule(module.value.clone()),
-                        span: module.span,
-                    })?;
-                    let (sig, _) = module.functions.get(&fn_name.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                        span: fn_name.span,
-                    })?;
-                    sig.clone()
-                } else {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidFnCall("sub-sub modules unsupported"),
-                        span: function_name.span,
-                    });
-                };
-
-                // verify that each argument makes sense with the function sig
-                if args.len() != sig.arguments.len() {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidFnCall("wrong number of arguments"),
-                        span: self.span,
-                    });
-                }
-
-                for (arg, func_arg) in args.iter().zip(sig.arguments) {
-                    let typ = arg.compute_type(env)?.unwrap();
-                    if typ != func_arg.typ.kind {
-                        return Err(Error {
-                            kind: ErrorKind::InvalidFnCall("argument type mismatch"),
-                            span: arg.span,
-                        });
-                    }
-                }
-
-                // return the type of the function
-                Ok(sig.return_type.map(|ty| ty.kind.clone()))
-            }
-            ExprKind::Variable(_) => todo!(),
-            ExprKind::Comparison(_, _, _) => todo!(),
-            ExprKind::Op(_, lhs, rhs) => {
-                let lhs_typ = lhs.compute_type(env)?.unwrap();
-                let rhs_typ = rhs.compute_type(env)?.unwrap();
-
-                if lhs_typ != rhs_typ {
-                    // only allow bigint mixed with field
-                    match (&lhs_typ, &rhs_typ) {
-                        (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => (),
-                        _ => {
-                            return Err(Error {
-                                kind: ErrorKind::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
-                                span: self.span,
-                            })
-                        }
-                    }
-                }
-
-                Ok(Some(lhs_typ))
-            }
-            ExprKind::Negated(_) => todo!(),
-            ExprKind::BigInt(_) => Ok(Some(TyKind::BigInt)),
-            ExprKind::Identifier(ident) => {
-                let typ = env.get_type(ident).ok_or(Error {
-                    kind: ErrorKind::UndefinedVariable,
-                    span: self.span,
-                })?;
-
-                Ok(Some(typ.clone()))
-            }
-            ExprKind::ArrayAccess(path, _expr) => {
-                // only support scoped variable for now
-                if path.len() != 1 {
-                    unimplemented!();
-                }
-
-                // figure out if variable is in scope
-                let name = &path.path[0].value;
-                let typ = env.get_type(&name).ok_or(Error {
-                    kind: ErrorKind::UndefinedVariable,
-                    span: self.span,
-                })?;
-
-                // access is on correct value?
-                // can't check here since we need to evaluate expr
-
-                //
-                match typ {
-                    TyKind::Array(typkind, _) => Ok(Some(*typkind.clone())),
-                    _ => panic!("not an array"),
-                }
-            }
         }
     }
 }
@@ -932,8 +818,22 @@ pub fn is_valid_fn_type(name: &str) -> bool {
 }
 
 //
-// Stmt
+// ## Statements
 //
+//~ statement ::=
+//~     | "let" ident "=" expr ";"
+//~     | expr ";"
+//~     | "return" expr ";"
+//~
+//~ where an expression is allowed only if it is a function call that does not return a value.
+//~
+//~ Actually currently we don't implement it this way.
+//~ We don't expect an expression to be a statement,
+//~ but a well defined function call:
+//~
+//~ fn_call ::= path "(" [ expr { "," expr } ] ")"
+//~ path ::= ident { "::" ident }
+//~
 
 #[derive(Debug)]
 pub struct Stmt {
@@ -944,7 +844,7 @@ pub struct Stmt {
 #[derive(Debug)]
 pub enum StmtKind {
     Assign { lhs: Ident, rhs: Box<Expr> },
-    FnCall { name: Ident, args: Vec<Box<Expr>> },
+    Expr(Box<Expr>),
     Return(Box<Expr>),
     Comment(String),
 }
@@ -952,80 +852,40 @@ pub enum StmtKind {
 impl Stmt {
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self, Error> {
-        let token = tokens.bump_err(ctx, ErrorKind::InvalidStatement)?;
-        let span = token.span;
-
-        match token.kind {
+        match tokens.peek() {
+            None => {
+                return Err(Error {
+                    kind: ErrorKind::InvalidStatement,
+                    span: ctx.last_span(),
+                });
+            }
             // assignment
-            TokenKind::Keyword(Keyword::Let) => {
+            Some(Token {
+                kind: TokenKind::Keyword(Keyword::Let),
+                span,
+            }) => {
+                let mut span = span;
+                tokens.bump(ctx);
+
                 let lhs = parse_ident(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenKind::Equal)?;
                 let rhs = Box::new(Expr::parse(ctx, tokens)?);
+
+                span.1 = rhs.span.1 + rhs.span.0 - span.0;
+
                 tokens.bump_expected(ctx, TokenKind::SemiColon)?;
+
                 Ok(Stmt {
                     kind: StmtKind::Assign { lhs, rhs },
                     span,
                 })
             }
-            // function call
-            TokenKind::Identifier(name) => {
-                let name = Ident {
-                    value: name,
-                    span: token.span,
-                };
-
-                tokens.bump_expected(ctx, TokenKind::LeftParen)?;
-
-                let mut args = vec![];
-                loop {
-                    let arg = Expr::parse(ctx, tokens)?;
-
-                    args.push(Box::new(arg));
-
-                    let pp = tokens.peek();
-
-                    match pp {
-                        Some(x) => match x.kind {
-                            TokenKind::Comma => {
-                                tokens.bump(ctx);
-                            }
-                            TokenKind::RightParen => {
-                                tokens.bump(ctx);
-                                break;
-                            }
-                            _ => (),
-                        },
-                        None => {
-                            return Err(Error {
-                                kind: ErrorKind::InvalidFnCall("unexpected end of function call"),
-                                span: ctx.last_span(),
-                            })
-                        }
-                    }
-                }
-
-                tokens.bump_expected(ctx, TokenKind::SemiColon)?;
-
-                Ok(Stmt {
-                    kind: StmtKind::FnCall { name, args },
-                    span,
-                })
-            }
-            // assert
-            /*
-            TokenType::Keyword(Keyword::Assert) => {
-                tokens.bump_expected(ctx, TokenType::LeftParen)?;
-                let expr = Expr::parse(ctx, tokens)?;
-                tokens.bump_expected(ctx, TokenType::RightParen)?;
-                tokens.bump_expected(ctx, TokenType::SemiColon)?;
-                Ok(Stmt {
-                    typ: StmtKind::Assert(expr),
-                    span,
-                })
-            }
-            */
             // return
-            TokenKind::Keyword(Keyword::Return) => {
+            Some(Token {
+                kind: TokenKind::Keyword(Keyword::Return),
+                span,
+            }) => {
+                tokens.bump(ctx);
                 let expr = Expr::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenKind::SemiColon)?;
                 Ok(Stmt {
@@ -1034,16 +894,27 @@ impl Stmt {
                 })
             }
             // comment
-            TokenKind::Comment(c) => Ok(Stmt {
-                kind: StmtKind::Comment(c),
+            Some(Token {
+                kind: TokenKind::Comment(c),
                 span,
-            }),
-            //
+            }) => {
+                tokens.bump(ctx);
+                Ok(Stmt {
+                    kind: StmtKind::Comment(c),
+                    span,
+                })
+            }
+            // statement expression
             _ => {
-                return Err(Error {
-                    kind: ErrorKind::InvalidStatement,
-                    span: token.span,
-                });
+                let expr = Expr::parse(ctx, tokens)?;
+                let span = expr.span;
+
+                tokens.bump_expected(ctx, TokenKind::SemiColon)?;
+
+                Ok(Stmt {
+                    kind: StmtKind::Expr(Box::new(expr)),
+                    span,
+                })
             }
         }
     }

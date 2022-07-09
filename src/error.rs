@@ -76,14 +76,8 @@ pub enum ErrorKind {
     #[error("imports via `use` keyword must appear before anything else")]
     UseAfterFn,
 
-    #[error("function {0} is not recognized")]
-    UnknownFunction(String),
-
-    #[error(
-        "function {fn_name} expected {expected_args} arguments but was passed {observed_args}"
-    )]
+    #[error("function expected {expected_args} arguments but was passed {observed_args}")]
     WrongNumberOfArguments {
-        fn_name: String,
         expected_args: usize,
         observed_args: usize,
     },
@@ -143,4 +137,7 @@ pub enum ErrorKind {
 
     #[error("attribute not recognized: `{0:?}`")]
     InvalidAttribute(AttributeKind),
+
+    #[error("expressions that return a value are forbidden as statements")]
+    ExpectedUnitExpr,
 }

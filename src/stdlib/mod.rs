@@ -90,7 +90,7 @@ const POSEIDON_FN: &str = "poseidon(input: [Field; 3]) -> [Field; 3]";
 
 pub const CRYPTO_FNS: [(&str, FuncType); 1] = [(POSEIDON_FN, poseidon)];
 
-fn poseidon(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) {
+fn poseidon(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) -> Option<CircuitVar> {
     assert_eq!(vars.len(), 1);
     let input = &vars[0].vars;
 
@@ -112,7 +112,7 @@ const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 
 pub const BUILTIN_FNS: [(&str, FuncType); 1] = [(ASSERT_EQ_FN, assert_eq)];
 
-fn assert_eq(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) {
+fn assert_eq(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) -> Option<CircuitVar> {
     assert_eq!(vars.len(), 2);
 
     assert_eq!(vars[0].vars.len(), 1);
@@ -128,4 +128,6 @@ fn assert_eq(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) {
         vec![Field::one(), Field::one().neg()],
         span,
     );
+
+    None
 }

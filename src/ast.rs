@@ -16,8 +16,8 @@ use crate::{
     error::{Error, ErrorKind},
     field::{Field, PrettyField as _},
     parser::{
-        AttributeKind, Expr, ExprKind, FuncArg, Function, FunctionSig, Op2, RootKind, Stmt, TyKind,
-        AST,
+        AttributeKind, Expr, ExprKind, FuncArg, Function, FunctionSig, Ident, Op2, Path, RootKind,
+        Stmt, StmtKind, Ty, TyKind, AST,
     },
     stdlib::{self, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
 };
@@ -344,224 +344,6 @@ impl Compiler {
         Ok((self.asm(debug), self))
     }
 
-    fn type_check(&mut self, env: &mut Environment, ast: &mut AST) -> Result<(), Error> {
-        let mut main_function_observed = false;
-        //
-        // Semantic analysis includes:
-        // - type checking
-        // - ?
-        //
-
-        for root in &mut ast.0 {
-            match &root.kind {
-                // `use crypto::poseidon;`
-                RootKind::Use(path) => {
-                    let path_iter = &mut path.path.iter();
-                    let root_module = path_iter.next().expect("empty imports can't be parsed");
-
-                    if root_module.value == "std" {
-                        let module = stdlib::parse_std_import(path, path_iter)?;
-                        if env
-                            .modules
-                            .insert(module.name.clone(), module.clone())
-                            .is_some()
-                        {
-                            return Err(Error {
-                                kind: ErrorKind::DuplicateModule(module.name.clone()),
-                                span: module.span,
-                            });
-                        }
-                    } else {
-                        // we only support std root module for now
-                        unimplemented!()
-                    };
-                }
-
-                // `fn main() { ... }`
-                RootKind::Function(function) => {
-                    // TODO: support other functions
-                    if !function.is_main() {
-                        unimplemented!();
-                    }
-
-                    main_function_observed = true;
-
-                    // store variables and their types in the env
-                    for FuncArg { name, typ, .. } in &function.arguments {
-                        // public_output is a reserved name,
-                        // associated automatically to the public output of the main function
-                        if name.value == "public_output" {
-                            return Err(Error {
-                                kind: ErrorKind::PublicOutputReserved,
-                                span: name.span,
-                            });
-                        }
-
-                        match typ.kind {
-                            TyKind::Field => {
-                                env.var_types.insert(name.value.clone(), typ.kind.clone());
-                            }
-
-                            TyKind::Array(..) => {
-                                env.var_types.insert(name.value.clone(), typ.kind.clone());
-                            }
-                            _ => unimplemented!(),
-                        }
-
-                        //
-                        self.main_args.insert(name.value.clone(), typ.kind.clone());
-                    }
-
-                    // the output value returned by the main function is also a main_args with a special name (public_output)
-                    if let Some(typ) = &function.return_type {
-                        if !matches!(typ.kind, TyKind::Field) {
-                            unimplemented!();
-                        }
-
-                        let name = "public_output";
-
-                        env.var_types.insert(name.to_string(), typ.kind.clone());
-                    }
-
-                    // type system pass!!!
-                    self.type_check_fn(env, function)?;
-                }
-
-                // ignore comments
-                RootKind::Comment(_comment) => (),
-            }
-        }
-
-        // enforce that there's a main function
-        assert!(main_function_observed);
-
-        Ok(())
-    }
-
-    fn type_check_fn(&mut self, env: &mut Environment, function: &Function) -> Result<(), Error> {
-        let mut still_need_to_check_return_type = function.return_type.is_some();
-
-        // only expressions need type info?
-        for stmt in &function.body {
-            match &stmt.kind {
-                crate::parser::StmtKind::Assign { lhs, rhs } => {
-                    // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
-
-                    // but first we need to compute the type of the rhs expression
-                    let typ = rhs.compute_type(env)?.unwrap();
-
-                    // store the type of lhs in the env
-                    env.store_type(lhs.value.clone(), typ);
-                }
-                crate::parser::StmtKind::FnCall { name, args } => {
-                    // compute the arguments
-                    let mut typs = Vec::with_capacity(args.len());
-                    for arg in args {
-                        if let Some(typ) = arg.compute_type(env)? {
-                            typs.push((typ.clone(), arg.span));
-                        } else {
-                            return Err(Error {
-                                kind: ErrorKind::CannotComputeExpression,
-                                span: arg.span,
-                            });
-                        }
-                    }
-
-                    // check if it's the env
-                    match env.functions.get(&name.value) {
-                        None => {
-                            // TODO: type checking already checked that
-                            return Err(Error {
-                                kind: ErrorKind::UnknownFunction(name.value.clone()),
-                                span: stmt.span,
-                            });
-                        }
-                        Some(FuncInScope::BuiltIn(sig, _func)) => {
-                            // argument length
-                            if sig.arguments.len() != typs.len() {
-                                return Err(Error {
-                                    kind: ErrorKind::WrongNumberOfArguments {
-                                        fn_name: name.value.clone(),
-                                        expected_args: sig.arguments.len(),
-                                        observed_args: typs.len(),
-                                    },
-                                    span: stmt.span,
-                                });
-                            }
-
-                            // compare argument types with the function signature
-                            for (sig_arg, (typ, span)) in sig.arguments.iter().zip(typs) {
-                                if sig_arg.typ.kind != typ {
-                                    // it's ok if a bigint is supposed to be a field no?
-                                    // TODO: replace bigint -> constant?
-                                    if matches!(
-                                        (&sig_arg.typ.kind, &typ),
-                                        (TyKind::Field, TyKind::BigInt)
-                                            | (TyKind::BigInt, TyKind::Field)
-                                    ) {
-                                        continue;
-                                    }
-
-                                    return Err(Error {
-                                        kind: ErrorKind::ArgumentTypeMismatch(
-                                            sig_arg.typ.kind.clone(),
-                                            typ,
-                                        ),
-                                        span,
-                                    });
-                                }
-                            }
-
-                            // make sure the function does not return any type
-                            // (it's a statement, it should only work via side effect)
-                            if sig.return_type.is_some() {
-                                return Err(Error {
-                                    kind: ErrorKind::FunctionReturnsType(name.value.clone()),
-                                    span: stmt.span,
-                                });
-                            }
-                        }
-                        Some(FuncInScope::Library(_, _)) => todo!(),
-                    }
-                }
-                crate::parser::StmtKind::Return(res) => {
-                    // TODO: warn if there's code after the return?
-
-                    // infer the return type and check if it's the same as the function return type?
-                    if !function.is_main() {
-                        unimplemented!();
-                    }
-
-                    assert!(still_need_to_check_return_type);
-
-                    let typ = res.compute_type(env)?.unwrap();
-
-                    if env.var_types["public_output"] != typ {
-                        return Err(Error {
-                            kind: ErrorKind::ReturnTypeMismatch(
-                                env.var_types["public_output"].clone(),
-                                typ,
-                            ),
-                            span: stmt.span,
-                        });
-                    }
-
-                    still_need_to_check_return_type = false;
-                }
-                crate::parser::StmtKind::Comment(_) => (),
-            }
-        }
-
-        if still_need_to_check_return_type {
-            return Err(Error {
-                kind: ErrorKind::MissingPublicOutput,
-                span: function.span,
-            });
-        }
-
-        Ok(())
-    }
-
     fn compile_function(
         &mut self,
         env: &mut Environment,
@@ -569,7 +351,7 @@ impl Compiler {
     ) -> Result<(), Error> {
         for stmt in &function.body {
             match &stmt.kind {
-                crate::parser::StmtKind::Assign { lhs, rhs } => {
+                StmtKind::Assign { lhs, rhs } => {
                     // compute the rhs
                     let var = self.compute_expr(env, rhs)?.ok_or(Error {
                         kind: ErrorKind::CannotComputeExpression,
@@ -580,40 +362,14 @@ impl Compiler {
                     // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
                     env.variables.insert(lhs.value.clone(), var);
                 }
-                /*
-                crate::parser::StmtKind::Assert(expr) => {
-                    let lhs = self.compute_expr(scope, expr).unwrap();
-                    let one = self.constant(F::one());
-                    self.assert_eq(lhs, one);
-                }
-                */
-                crate::parser::StmtKind::FnCall { name, args } => {
-                    // compute the arguments
-                    let mut vars = Vec::with_capacity(args.len());
-                    for arg in args {
-                        let var = self.compute_expr(env, arg)?.ok_or(Error {
-                            kind: ErrorKind::CannotComputeExpression,
-                            span: arg.span,
-                        })?;
-                        vars.push(var);
-                    }
+                StmtKind::Expr(expr) => {
+                    // compute the expression
+                    let var = self.compute_expr(env, expr)?;
 
-                    // check if it's the scope
-                    match env.functions.get(&name.value) {
-                        None => {
-                            return Err(Error {
-                                kind: ErrorKind::UnknownFunction(name.value.clone()),
-                                span: stmt.span,
-                            })
-                        }
-                        Some(FuncInScope::BuiltIn(sig, func)) => {
-                            // run function
-                            func(self, &vars, stmt.span);
-                        }
-                        Some(FuncInScope::Library(_, _)) => todo!(),
-                    }
+                    // make sure it does not return any value.
+                    assert!(var.is_none());
                 }
-                crate::parser::StmtKind::Return(res) => {
+                StmtKind::Return(res) => {
                     if !function.is_main() {
                         unimplemented!();
                     }
@@ -637,7 +393,7 @@ impl Compiler {
                             .is_some());
                     }
                 }
-                crate::parser::StmtKind::Comment(_) => todo!(),
+                StmtKind::Comment(_) => todo!(),
             }
         }
 
@@ -726,13 +482,52 @@ impl Compiler {
         env: &Environment,
         expr: &Expr,
     ) -> Result<Option<CircuitVar>, Error> {
-        // TODO: why would we return a Var, when types could be represented by several vars?
-        // I guess for the moment we're only dealing with Field...
         let cvar = match &expr.kind {
-            ExprKind::FnCall {
-                function_name,
-                args,
-            } => todo!(),
+            ExprKind::FnCall { name, args } => {
+                // retrieve the function in the env
+                let func: FuncType = if name.len() == 1 {
+                    // functions present in the scope
+                    let fn_name = &name.path[0].value;
+                    match env.functions.get(fn_name).ok_or(Error {
+                        kind: ErrorKind::UndefinedFunction(fn_name.clone()),
+                        span: name.span,
+                    })? {
+                        crate::ast::FuncInScope::BuiltIn(_, func) => func.clone(),
+                        crate::ast::FuncInScope::Library(_, _) => todo!(),
+                    }
+                } else if name.len() == 2 {
+                    // check module present in the scope
+                    let module = &name.path[0];
+                    let fn_name = &name.path[1];
+                    let module = env.modules.get(&module.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedModule(module.value.clone()),
+                        span: module.span,
+                    })?;
+                    let (_, func) = module.functions.get(&fn_name.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                        span: fn_name.span,
+                    })?;
+                    func.clone()
+                } else {
+                    return Err(Error {
+                        kind: ErrorKind::InvalidFnCall("sub-sub modules unsupported"),
+                        span: name.span,
+                    });
+                };
+
+                // compute the arguments
+                let mut vars = Vec::with_capacity(args.len());
+                for arg in args {
+                    let var = self.compute_expr(env, arg)?.ok_or(Error {
+                        kind: ErrorKind::CannotComputeExpression,
+                        span: arg.span,
+                    })?;
+                    vars.push(var);
+                }
+
+                // run the function
+                func(self, &vars, expr.span)
+            }
             ExprKind::Variable(_) => todo!(),
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(op, lhs, rhs) => match op {
@@ -968,7 +763,7 @@ impl Environment {
     }
 }
 
-pub type FuncType = fn(&mut Compiler, &[CircuitVar], Span);
+pub type FuncType = fn(&mut Compiler, &[CircuitVar], Span) -> Option<CircuitVar>;
 
 pub enum FuncInScope {
     /// signature of the function
