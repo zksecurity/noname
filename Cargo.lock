@@ -675,6 +675,7 @@ dependencies = [
 name = "my_programming_language"
 version = "0.1.0"
 dependencies = [
+ "ark-ec",
  "ark-ff",
  "clap",
  "ena",

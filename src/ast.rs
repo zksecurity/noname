@@ -36,7 +36,7 @@ pub struct InternalVar(usize);
 /// A variable's actual value in the witness can be computed in different ways.
 pub enum Value {
     /// Either it's a hint and can be computed from the outside.
-    Hint(Box<dyn Fn() -> Field>),
+    Hint(Box<dyn Fn(&Compiler, &WitnessEnv) -> Result<Field, Error>>),
 
     /// Or it's a constant.
     Constant(Field),
@@ -73,8 +73,8 @@ impl CircuitVar {
         self.vars.len()
     }
 
-    pub fn var(&self, i: usize) -> InternalVar {
-        self.vars[i]
+    pub fn var(&self, i: usize) -> Option<InternalVar> {
+        self.vars.get(i)
     }
 }
 
@@ -466,7 +466,7 @@ impl Compiler {
         asm::generate_asm(&self.source, &self.gates, &self.wiring, debug)
     }
 
-    fn new_internal_var(&mut self, val: Value) -> InternalVar {
+    pub fn new_internal_var(&mut self, val: Value) -> InternalVar {
         // create new var
         let var = InternalVar(self.next_variable);
         self.next_variable += 1;
@@ -560,7 +560,53 @@ impl Compiler {
                 let cvar = env.get_cvar(&name).unwrap();
                 Some(cvar)
             }
-            ExprKind::ArrayAccess(_, _) => todo!(),
+            ExprKind::ArrayAccess(path, expr) => {
+                // retrieve the CircuitVar at the path
+                let array: CircuitVar = if path.len() == 1 {
+                    // var present in the scope
+                    let name = &path.path[0].value;
+                    env.variables
+                        .get(name)
+                        .ok_or(Error {
+                            kind: ErrorKind::UndefinedVariable,
+                            span: path.span,
+                        })
+                        .cloned()?
+                } else if path.len() == 2 {
+                    // check module present in the scope
+                    let module = &path.path[0];
+                    let name = &path.path[1];
+                    let module = env.modules.get(&module.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedModule(module.value.clone()),
+                        span: module.span,
+                    })?;
+                    unimplemented!()
+                } else {
+                    return Err(Error {
+                        kind: ErrorKind::InvalidPath,
+                        span: path.span,
+                    });
+                };
+
+                // compute the index
+                let idx_var = self.compute_expr(env, expr)?.ok_or(Error {
+                    kind: ErrorKind::CannotComputeExpression,
+                    span: expr.span,
+                })?;
+
+                // the index must be a constant!!
+                let idx: usize = self.compute_constant(idx_var)?;
+
+                // index into the CircuitVar
+                // (and prevent out of bounds)
+                let res = array.var(idx);
+                if res.is_none() {
+                    return Err(Error {
+                        kind: ErrorKind::ArrayIndexOutOfBounds(idx, array.len()),
+                        span: expr.span,
+                    });
+                }
+            }
         };
 
         Ok(cvar)
@@ -568,7 +614,7 @@ impl Compiler {
 
     pub fn compute_var(&self, env: &WitnessEnv, var: InternalVar) -> Result<Field, Error> {
         match &self.witness_vars[&var] {
-            Value::Hint(func) => Ok(func()),
+            Value::Hint(func) => func(self, env),
             Value::Constant(c) => Ok(*c),
             Value::LinearCombination(lc) => {
                 let mut res = Field::zero();

@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ark-ec = "0.3.0" # elliptic curve library
 ark-ff = "0.3.0" # finite field library
 ena = "0.14.0" # union-find implementation for the wiring
 num-bigint = "0.4.3" # big int library
