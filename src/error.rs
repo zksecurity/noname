@@ -143,4 +143,7 @@ pub enum ErrorKind {
 
     #[error("array accessed at index {0} is out of bounds (max {1})")]
     ArrayIndexOutOfBounds(usize, usize),
+
+    #[error("array indexes must be constants in circuits")]
+    ExpectedConstant,
 }

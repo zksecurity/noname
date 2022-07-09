@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl Expr {
-    pub fn compute_type(&self, env: &mut Environment) -> Result<Option<TyKind>, Error> {
+    pub fn compute_type(&self, env: &Environment) -> Result<Option<TyKind>, Error> {
         match &self.kind {
             ExprKind::FnCall { name, args } => typecheck_fn_call(env, name, args, self.span),
             ExprKind::Variable(_) => todo!(),
@@ -43,7 +43,7 @@ impl Expr {
 
                 Ok(Some(typ.clone()))
             }
-            ExprKind::ArrayAccess(path, _expr) => {
+            ExprKind::ArrayAccess(path, expr) => {
                 // only support scoped variable for now
                 if path.len() != 1 {
                     unimplemented!();
@@ -56,8 +56,16 @@ impl Expr {
                     span: self.span,
                 })?;
 
-                // access is on correct value?
-                // can't check here since we need to evaluate expr
+                // check that expression is a bigint
+                match expr.compute_type(env)? {
+                    Some(TyKind::BigInt) => (),
+                    _ => {
+                        return Err(Error {
+                            kind: ErrorKind::ExpectedConstant,
+                            span: self.span,
+                        })
+                    }
+                };
 
                 //
                 match typ {
@@ -235,7 +243,7 @@ impl Compiler {
 }
 
 pub fn typecheck_fn_call(
-    env: &mut Environment,
+    env: &Environment,
     name: &Path,
     args: &[Expr],
     span: Span,

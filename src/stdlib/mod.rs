@@ -100,10 +100,10 @@ fn assert_eq(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) -> Option
     assert_eq!(vars.len(), 2);
 
     assert_eq!(vars[0].vars.len(), 1);
-    let lhs = vars[0].var(0);
+    let lhs = vars[0].var(0).unwrap();
 
     assert_eq!(vars[1].vars.len(), 1);
-    let rhs = vars[1].var(0);
+    let rhs = vars[1].var(0).unwrap();
 
     // TODO: use permutation to check that
     compiler.gates(

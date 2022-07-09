@@ -74,7 +74,7 @@ impl CircuitVar {
     }
 
     pub fn var(&self, i: usize) -> Option<InternalVar> {
-        self.vars.get(i)
+        self.vars.get(i).cloned()
     }
 }
 
@@ -593,9 +593,18 @@ impl Compiler {
                     kind: ErrorKind::CannotComputeExpression,
                     span: expr.span,
                 })?;
+                if idx_var.len() != 1 {
+                    return Err(Error {
+                        kind: ErrorKind::ExpectedConstant,
+                        span: expr.span,
+                    });
+                }
+                let idx_var = idx_var.var(0).unwrap();
 
                 // the index must be a constant!!
-                let idx: usize = self.compute_constant(idx_var)?;
+                let idx: Field = self.compute_constant(idx_var, expr.span)?;
+                let idx: BigUint = idx.into();
+                let idx: usize = idx.try_into().unwrap();
 
                 // index into the CircuitVar
                 // (and prevent out of bounds)
@@ -606,6 +615,8 @@ impl Compiler {
                         span: expr.span,
                     });
                 }
+
+                res.map(|var| CircuitVar { vars: vec![var] })
             }
         };
 
@@ -631,6 +642,23 @@ impl Compiler {
                 })?;
                 self.compute_var(env, var)
             }
+        }
+    }
+
+    pub fn compute_constant(&self, var: InternalVar, span: Span) -> Result<Field, Error> {
+        match &self.witness_vars.get(&var) {
+            Some(Value::Constant(c)) => Ok(*c),
+            Some(Value::LinearCombination(lc)) => {
+                let mut res = Field::zero();
+                for (coeff, var) in lc {
+                    res += self.compute_constant(*var, span)? * *coeff;
+                }
+                Ok(res)
+            }
+            _ => Err(Error {
+                kind: ErrorKind::ExpectedConstant,
+                span,
+            }),
         }
     }
 
