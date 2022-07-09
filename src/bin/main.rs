@@ -35,11 +35,8 @@ fn parse(name: impl std::fmt::Display, code: &str, debug: bool) -> Result<()> {
 
     // create proof
 
-    let public_inputs = if let Some(public_output) = public_output {
-        vec![Field::one(), public_output]
-    } else {
-        vec![Field::one()]
-    };
+    let mut public_inputs = vec![Field::one()];
+    public_inputs.extend(&public_output);
 
     prove_and_verify(
         &compiler.compiled_gates(),

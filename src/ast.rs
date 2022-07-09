@@ -214,9 +214,14 @@ pub struct Compiler {
     /// Size of the public input.
     pub public_input_size: usize,
 
-    /// If a public output is set, this will be used to store a temporary variable
-    /// (we need one to create the associated public input gate)
-    /// Later on, when the actual value is returned, the way to compute the var will be stored in `self.witness_vars`
+    /// If a public output is set, this will be used to store its [CircuitVar] (cvar).
+    /// The public output generation works as follows:
+    /// 1. This cvar is created and inserted in the circuit (gates) during compilation of the public input
+    ///    (as the public output is the end of the public input)
+    /// 2. When the `return` statement of the circuit is parsed,
+    ///    it will set this `public_output` variable again to the correct vars.
+    /// 3. During witness generation, the public output computation
+    ///    is delayed until the very end.
     pub public_output: Option<CircuitVar>,
 
     /// Size of the private input.
@@ -624,12 +629,12 @@ impl Compiler {
                         span: stmt.span,
                     })?;
 
-                    for (idx, pub_var) in public_output.vars.iter().enumerate() {
-                        unimplemented!();
-                        /*                        assert!(self
-                        .witness_vars
-                        .insert(*pub_var, Value::PublicOutput(Some((cvar.clone(), idx))))
-                        .is_some());*/
+                    for (pub_var, ret_var) in public_output.vars.iter().zip(&cvar.vars) {
+                        // replace the computation of the public output vars with the actual variables being returned here
+                        assert!(self
+                            .witness_vars
+                            .insert(*pub_var, Value::PublicOutput(Some(ret_var.clone())))
+                            .is_some());
                     }
                 }
                 crate::parser::StmtKind::Comment(_) => todo!(),
@@ -645,7 +650,7 @@ impl Compiler {
     pub fn generate_witness(
         &self,
         args: HashMap<&str, CircuitValue>,
-    ) -> Result<(Witness, Option<Field>), Error> {
+    ) -> Result<(Witness, Vec<Field>), Error> {
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
 
@@ -663,7 +668,7 @@ impl Compiler {
         }
 
         // compute each rows' vars, except for the deferred ones (public output)
-        let mut public_output: Option<(usize, InternalVar)> = None;
+        let mut public_outputs_vars: Vec<(usize, InternalVar)> = vec![];
 
         for (row, witness_row) in self.witness_rows.iter().enumerate() {
             // create the witness row
@@ -672,7 +677,7 @@ impl Compiler {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
                     if matches!(self.witness_vars[&var], Value::PublicOutput(_)) {
-                        public_output = Some((row, *var));
+                        public_outputs_vars.push((row, *var));
                         Field::zero()
                     } else {
                         self.compute_var(&env, *var)?
@@ -688,13 +693,13 @@ impl Compiler {
         }
 
         // compute public output at last
-        let public_output = if let Some((row, var)) = public_output {
+        let mut public_output = vec![];
+
+        for (row, var) in public_outputs_vars {
             let val = self.compute_var(&env, var)?;
             witness[row][0] = val;
-            Some(val)
-        } else {
-            None
-        };
+            public_output.push(val);
+        }
 
         //
         assert_eq!(witness.len(), self.gates.len());
@@ -895,7 +900,7 @@ impl Compiler {
         assert!(self.public_output.is_none());
 
         let mut vars = Vec::with_capacity(num);
-        for idx in 0..num {
+        for _ in 0..num {
             // create the var
             let var = self.new_internal_var(Value::PublicOutput(None));
             vars.push(var);
