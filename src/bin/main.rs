@@ -4,7 +4,7 @@ use ark_ff::One;
 use clap::Parser;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use my_programming_language::{
-    ast::{CircuitValue, Compiler, Gate},
+    ast::{CellValues, Compiler, Gate},
     constants::IO_REGISTERS,
     field::Field,
     lexer::Token,
@@ -21,10 +21,10 @@ fn parse(code: &str, debug: bool) -> Result<()> {
 
     // generate witness
     let mut args = HashMap::new();
-    args.insert("public_input", CircuitValue::new(vec![Field::one()]));
+    args.insert("public_input", CellValues::new(vec![Field::one()]));
     args.insert(
         "private_input",
-        CircuitValue::new(vec![Field::one(), Field::one(), Field::one()]),
+        CellValues::new(vec![Field::one(), Field::one(), Field::one()]),
     );
 
     // create proof
@@ -41,6 +41,10 @@ fn parse(code: &str, debug: bool) -> Result<()> {
 struct Cli {
     #[clap(short, long, value_parser)]
     path: PathBuf,
+
+    // default to false
+    #[clap(short, long)]
+    debug: bool,
 }
 
 fn main() -> Result<()> {
@@ -50,8 +54,7 @@ fn main() -> Result<()> {
         .into_diagnostic()
         .wrap_err_with(|| format!("could not read file"))?;
 
-    let debug = true;
-    parse(&code, debug).map_err(|e| e.with_source_code(code))?;
+    parse(&code, cli.debug).map_err(|e| e.with_source_code(code))?;
 
     println!("successfuly compiled");
 

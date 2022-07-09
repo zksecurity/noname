@@ -4,7 +4,7 @@ use ark_ff::Zero;
 use itertools::Itertools;
 
 use crate::{
-    ast::{CellVar, CircuitValue, Compiler, Value},
+    ast::{CellValues, CellVar, Compiler, Value},
     constants::IO_REGISTERS,
     error::{Error, ErrorKind, Result},
     field::{Field, PrettyField},
@@ -13,11 +13,13 @@ use crate::{
 
 #[derive(Debug, Default)]
 pub struct WitnessEnv {
-    pub var_values: HashMap<String, CircuitValue>,
+    pub var_values: HashMap<String, CellValues>,
+
+    pub cached_values: HashMap<CellVar, Field>,
 }
 
 impl WitnessEnv {
-    pub fn add_value(&mut self, name: String, val: CircuitValue) {
+    pub fn add_value(&mut self, name: String, val: CellValues) {
         assert!(self.var_values.insert(name, val).is_none());
     }
 
@@ -55,7 +57,15 @@ impl Witness {
 }
 
 impl Compiler {
-    pub fn compute_var(&self, env: &WitnessEnv, var: CellVar) -> Result<Field> {
+    pub fn compute_var(&self, env: &mut WitnessEnv, var: CellVar) -> Result<Field> {
+        dbg!(&var);
+        dbg!(&self.witness_vars[&var]);
+
+        // fetch cache first
+        if let Some(res) = env.cached_values.get(&var) {
+            return Ok(*res);
+        }
+
         match &self.witness_vars[&var] {
             Value::Hint(func) => func(self, env),
             Value::Constant(c) => Ok(*c),
@@ -64,6 +74,7 @@ impl Compiler {
                 for (coeff, var) in lc {
                     res += self.compute_var(env, *var)? * *coeff;
                 }
+                env.cached_values.insert(var, res); // cache
                 Ok(res)
             }
             Value::External(name, idx) => Ok(env.get_external(name)[*idx]),
@@ -79,9 +90,8 @@ impl Compiler {
 
     pub fn generate_witness(
         &self,
-        args: HashMap<&str, CircuitValue>,
+        args: HashMap<&str, CellValues>,
     ) -> Result<(Witness, Vec<Field>, Vec<Field>)> {
-        dbg!("yo");
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
 
@@ -111,6 +121,7 @@ impl Compiler {
         // compute each rows' vars, except for the deferred ones (public output)
         let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
 
+        dbg!(&self.witness_rows);
         for (row, witness_row) in self.witness_rows.iter().enumerate() {
             // create the witness row
             let mut res = [Field::zero(); IO_REGISTERS];
@@ -121,7 +132,7 @@ impl Compiler {
                         public_outputs_vars.push((row, *var));
                         Field::zero()
                     } else {
-                        self.compute_var(&env, *var)?
+                        self.compute_var(&mut env, *var)?
                     }
                 } else {
                     Field::zero()
@@ -132,12 +143,13 @@ impl Compiler {
             //
             witness.push(res);
         }
+        dbg!("this line doesn't get reached");
 
         // compute public output at last
         let mut public_output = vec![];
 
         for (row, var) in public_outputs_vars {
-            let val = self.compute_var(&env, var)?;
+            let val = self.compute_var(&mut env, var)?;
             witness[row][0] = val;
             public_output.push(val);
         }

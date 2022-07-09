@@ -37,7 +37,7 @@ pub struct CellVar(usize);
 /// A variable's actual value in the witness can be computed in different ways.
 pub enum Value {
     /// Either it's a hint and can be computed from the outside.
-    Hint(Box<dyn Fn(&Compiler, &WitnessEnv) -> Result<Field>>),
+    Hint(Box<dyn Fn(&Compiler, &mut WitnessEnv) -> Result<Field>>),
 
     /// Or it's a constant.
     Constant(Field),
@@ -55,7 +55,13 @@ pub enum Value {
 
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "[value]")
+        match self {
+            Value::Hint(..) => write!(f, "Hint"),
+            Value::Constant(..) => write!(f, "Constant"),
+            Value::LinearCombination(..) => write!(f, "LinearCombination"),
+            Value::External(..) => write!(f, "External"),
+            Value::PublicOutput(..) => write!(f, "PublicOutput"),
+        }
     }
 }
 
@@ -127,13 +133,13 @@ impl Var {
     }
 }
 
-/// the equivalent of [CircuitVar] but for witness generation
+/// the equivalent of [CellVars] but for witness generation
 #[derive(Debug, Clone)]
-pub struct CircuitValue {
+pub struct CellValues {
     pub values: Vec<Field>,
 }
 
-impl CircuitValue {
+impl CellValues {
     pub fn new(values: Vec<Field>) -> Self {
         Self { values }
     }

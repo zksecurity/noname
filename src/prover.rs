@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    ast::{CircuitValue, Compiler, Gate},
+    ast::{CellValues, Compiler, Gate},
     constants::IO_REGISTERS,
     error::{Error, Result},
     field::Field,
@@ -119,7 +119,7 @@ impl ProverIndex {
     /// returns a proof and a public output
     pub fn prove(
         &self,
-        args: HashMap<&str, CircuitValue>,
+        args: HashMap<&str, CellValues>,
         debug: bool,
     ) -> Result<(ProverProof<Curve>, Vec<Field>, Vec<Field>)> {
         // generate the witness

@@ -42,7 +42,7 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
     let width = PlonkSpongeConstantsKimchi::SPONGE_WIDTH;
 
     // states contain all the states of the sponge
-    let states = Rc::new(RefCell::new(vec![input.clone()]));
+    let states = vec![input.clone()];
 
     for row in 0..POS_ROWS_PER_HASH {
         // 11
@@ -55,11 +55,8 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
             for col in 0..3 {
                 // create each variable
                 let states = states.clone();
-                let var = compiler.new_internal_var(Value::Hint(Box::new(move |compiler, env| {
-                    let prev_state: Vec<_> = states.borrow()[(*states).borrow().len() - 1]
-                        .iter()
-                        .cloned()
-                        .collect();
+                let var = compiler.new_internal_var(Value::Hint(Box::new(|compiler, env| {
+                    let prev_state: Vec<_> = states[states.len() - 1].iter().cloned().collect();
                     let x1 = compiler.compute_var(env, prev_state[0])?;
                     let x2 = compiler.compute_var(env, prev_state[1])?;
                     let x3 = compiler.compute_var(env, prev_state[2])?;
@@ -79,7 +76,7 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
                 new_state.push(var);
             }
 
-            states.borrow_mut().push(new_state);
+            states.push(new_state);
         }
 
         let coeffs = (0..constants::IO_REGISTERS)
@@ -87,27 +84,27 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
             .collect();
 
         let vars = vec![
-            Some(states.borrow()[offset][0]),
-            Some(states.borrow()[offset][1]),
-            Some(states.borrow()[offset][2]),
-            Some(states.borrow()[offset + 4][0]),
-            Some(states.borrow()[offset + 4][1]),
-            Some(states.borrow()[offset + 4][2]),
-            Some(states.borrow()[offset + 1][0]),
-            Some(states.borrow()[offset + 1][1]),
-            Some(states.borrow()[offset + 1][2]),
-            Some(states.borrow()[offset + 2][0]),
-            Some(states.borrow()[offset + 2][1]),
-            Some(states.borrow()[offset + 2][2]),
-            Some(states.borrow()[offset + 3][0]),
-            Some(states.borrow()[offset + 3][1]),
-            Some(states.borrow()[offset + 3][2]),
+            Some(states[offset][0]),
+            Some(states[offset][1]),
+            Some(states[offset][2]),
+            Some(states[offset + 4][0]),
+            Some(states[offset + 4][1]),
+            Some(states[offset + 4][2]),
+            Some(states[offset + 1][0]),
+            Some(states[offset + 1][1]),
+            Some(states[offset + 1][2]),
+            Some(states[offset + 2][0]),
+            Some(states[offset + 2][1]),
+            Some(states[offset + 2][2]),
+            Some(states[offset + 3][0]),
+            Some(states[offset + 3][1]),
+            Some(states[offset + 3][2]),
         ];
 
         compiler.gates(GateKind::Poseidon, vars, coeffs, span);
     }
 
-    let final_state = &states.borrow()[states.borrow().len() - 1];
+    let final_state = &states[states.len() - 1];
     let final_row = vec![
         Some(final_state[0]),
         Some(final_state[1]),

@@ -96,6 +96,7 @@ pub fn generate_asm(
 
 fn parse_coeffs(coeffs: &[Field]) -> (String, Vec<String>) {
     let mut vars = String::new();
+    let mut var_idx = 0;
     let coeffs = coeffs
         .iter()
         .map(|x| {
@@ -103,7 +104,8 @@ fn parse_coeffs(coeffs: &[Field]) -> (String, Vec<String>) {
             if s.len() < 5 {
                 s
             } else {
-                let var = format!("c{}", vars.len());
+                let var = format!("c{var_idx}");
+                var_idx += 1;
                 vars.push_str(&format!("{var}={s}\n"));
                 var
             }
