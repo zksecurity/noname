@@ -22,7 +22,7 @@ use itertools::Itertools;
 use num_bigint::BigUint;
 
 use crate::{
-    ast::{Gate, InternalVar, Wiring},
+    ast::{CellVar, Gate, Wiring},
     constants::Span,
     field::{Field, PrettyField as _},
 };
@@ -30,7 +30,7 @@ use crate::{
 pub fn generate_asm(
     source: &str,
     gates: &[Gate],
-    wiring: &HashMap<InternalVar, Wiring>,
+    wiring: &HashMap<CellVar, Wiring>,
     debug: bool,
 ) -> String {
     let mut res = "".to_string();

@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Neg as _};
 use ark_ff::One as _;
 
 use crate::{
-    ast::{CircuitVar, Compiler, FuncType, GateKind, InternalVar},
+    ast::{CellVar, CircuitVar, Compiler, FuncType, GateKind},
     constants::Span,
     error::{Error, ErrorKind},
     field::Field,

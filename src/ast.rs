@@ -31,7 +31,7 @@ use crate::{
 /// An internal variable is a variable that is created from a linear combination of external variables.
 /// It, most of the time, ends up being a cell in the circuit.
 /// That is, unless it's unused?
-pub struct InternalVar(usize);
+pub struct CellVar(usize);
 
 /// A variable's actual value in the witness can be computed in different ways.
 pub enum Value {
@@ -41,15 +41,15 @@ pub enum Value {
     /// Or it's a constant.
     Constant(Field),
 
-    /// Or it's a linear combination of internal circuit variables.
+    /// Or it's a linear combination of internal circuit variables (+ a constant).
     // TODO: probably values of internal variables should be cached somewhere
-    LinearCombination(Vec<(Field, InternalVar)>),
+    LinearCombination(Vec<(Field, CellVar)>, Field),
 
     /// A public or private input to the function
     /// There's an index associated to a variable name, as the variable could be composed of several field elements.
     External(String, usize),
 
-    PublicOutput(Option<InternalVar>),
+    PublicOutput(Option<CellVar>),
 }
 
 impl fmt::Debug for Value {
@@ -65,16 +65,43 @@ impl fmt::Debug for Value {
 /// which can contain one or more variables.
 #[derive(Debug, Clone)]
 pub struct CircuitVar {
-    pub vars: Vec<InternalVar>,
+    pub vars: Vec<CellVar>,
 }
 
 impl CircuitVar {
+    pub fn new(vars: Vec<CellVar>) -> Self {
+        Self { vars }
+    }
+
     pub fn len(&self) -> usize {
         self.vars.len()
     }
 
-    pub fn var(&self, i: usize) -> Option<InternalVar> {
+    pub fn var(&self, i: usize) -> Option<CellVar> {
         self.vars.get(i).cloned()
+    }
+}
+
+/// Represents an expression or variable in a program
+#[derive(Debug, Clone)]
+pub enum Var {
+    /// Either a constant
+    Constant(Field),
+    /// Or a [CircuitVar]
+    CircuitVar(CircuitVar),
+}
+
+impl Var {
+    pub fn is_constant(&self) -> bool {
+        matches!(self, Var::Constant(..))
+    }
+
+    pub fn new_circuit_var(vars: Vec<CellVar>) -> Self {
+        Var::CircuitVar(CircuitVar::new(vars))
+    }
+
+    pub fn new_constant(value: Field) -> Self {
+        Var::Constant(value)
     }
 }
 
@@ -196,13 +223,13 @@ pub struct Compiler {
     pub next_variable: usize,
 
     /// This is how you compute the value of each variable, for witness generation.
-    pub witness_vars: HashMap<InternalVar, Value>,
+    pub witness_vars: HashMap<CellVar, Value>,
 
     /// The wiring of the circuit.
-    pub wiring: HashMap<InternalVar, Wiring>,
+    pub wiring: HashMap<CellVar, Wiring>,
 
     /// This is used to compute the witness row by row.
-    witness_rows: Vec<Vec<Option<InternalVar>>>,
+    witness_rows: Vec<Vec<Option<CellVar>>>,
 
     /// the arguments expected by main (I think it's used by the witness generator to make sure we passed the arguments)
     pub main_args: HashMap<String, TyKind>,
@@ -424,7 +451,7 @@ impl Compiler {
         }
 
         // compute each rows' vars, except for the deferred ones (public output)
-        let mut public_outputs_vars: Vec<(usize, InternalVar)> = vec![];
+        let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
 
         for (row, witness_row) in self.witness_rows.iter().enumerate() {
             // create the witness row
@@ -466,9 +493,9 @@ impl Compiler {
         asm::generate_asm(&self.source, &self.gates, &self.wiring, debug)
     }
 
-    pub fn new_internal_var(&mut self, val: Value) -> InternalVar {
+    pub fn new_internal_var(&mut self, val: Value) -> CellVar {
         // create new var
-        let var = InternalVar(self.next_variable);
+        let var = CellVar(self.next_variable);
         self.next_variable += 1;
 
         // store it in the compiler
@@ -477,11 +504,7 @@ impl Compiler {
         var
     }
 
-    fn compute_expr(
-        &mut self,
-        env: &Environment,
-        expr: &Expr,
-    ) -> Result<Option<CircuitVar>, Error> {
+    fn compute_expr(&mut self, env: &Environment, expr: &Expr) -> Result<Option<Var>, Error> {
         let cvar = match &expr.kind {
             ExprKind::FnCall { name, args } => {
                 // retrieve the function in the env
@@ -623,7 +646,7 @@ impl Compiler {
         Ok(cvar)
     }
 
-    pub fn compute_var(&self, env: &WitnessEnv, var: InternalVar) -> Result<Field, Error> {
+    pub fn compute_var(&self, env: &WitnessEnv, var: CellVar) -> Result<Field, Error> {
         match &self.witness_vars[&var] {
             Value::Hint(func) => func(self, env),
             Value::Constant(c) => Ok(*c),
@@ -645,7 +668,7 @@ impl Compiler {
         }
     }
 
-    pub fn compute_constant(&self, var: InternalVar, span: Span) -> Result<Field, Error> {
+    pub fn compute_constant(&self, var: CellVar, span: Span) -> Result<Field, Error> {
         match &self.witness_vars.get(&var) {
             Some(Value::Constant(c)) => Ok(*c),
             Some(Value::LinearCombination(lc)) => {
@@ -666,38 +689,60 @@ impl Compiler {
         self.gates.len()
     }
 
-    fn add(&mut self, lhs: InternalVar, rhs: InternalVar, span: Span) -> CircuitVar {
-        // create a new variable to store the result
-        let res = self.new_internal_var(Value::LinearCombination(vec![
-            (Field::one(), lhs),
-            (Field::one(), rhs),
-        ]));
+    fn add(&mut self, lhs: Var, rhs: Var, span: Span) -> Var {
+        match (lhs, rhs) {
+            (Var::Constant(lhs), Var::Constant(rhs)) => Var::Constant(lhs + rhs),
+            (Var::Constant(cst), Var::CircuitVar(var))
+            | (Var::CircuitVar(var), Var::Constant(cst)) => {
+                if var.len() != 1 {
+                    unimplemented!();
+                }
+                let var = var.var(0).unwrap();
 
-        // wire the lhs and rhs to where they're really from
-        /*
-        let res = match (&self.witness_vars[&lhs], &self.witness_vars[&rhs]) {
-            (Value::Hint(_), _) => todo!(),
-            (Value::Constant(a), Value::Constant(b)) => self.constant(*a + *b, span),
-            (Value::Constant(_), _) | (_, Value::Constant(_)) => {
-                self.new_internal_var(Value::LinearCombination(vec![
-                    (Field::one(), lhs),
-                    (Field::one(), rhs),
-                ]))
+                // create a new variable to store the result
+                let res =
+                    self.new_internal_var(Value::LinearCombination(vec![(Field::one(), var)], cst));
+
+                // create a gate to store the result
+                self.gates(
+                    GateKind::DoubleGeneric,
+                    vec![Some(var), None, Some(res)],
+                    vec![
+                        Field::one(),
+                        Field::one(),
+                        Field::one().neg(),
+                        Field::zero(),
+                        cst,
+                    ],
+                    span,
+                );
+
+                Var::new_circuit_var(vec![res])
             }
-            (Value::LinearCombination(_), _) => todo!(),
-            (Value::External(_), _) => todo!(),
-        };
-        */
+            (Var::CircuitVar(lhs), Var::CircuitVar(rhs)) => {
+                if lhs.len() != 1 || rhs.len() != 1 {
+                    unimplemented!();
+                }
+                let lhs = lhs.var(0).unwrap();
+                let rhs = rhs.var(0).unwrap();
 
-        // create a gate to store the result
-        self.gates(
-            GateKind::DoubleGeneric,
-            vec![Some(lhs), Some(rhs), Some(res)],
-            vec![Field::one(), Field::one(), Field::one().neg()],
-            span,
-        );
+                // create a new variable to store the result
+                let res = self.new_internal_var(Value::LinearCombination(
+                    vec![(Field::one(), lhs), (Field::one(), rhs)],
+                    Field::zero(),
+                ));
 
-        CircuitVar { vars: vec![res] }
+                // create a gate to store the result
+                self.gates(
+                    GateKind::DoubleGeneric,
+                    vec![Some(lhs), Some(rhs), Some(res)],
+                    vec![Field::one(), Field::one(), Field::one().neg()],
+                    span,
+                );
+
+                Var::new_circuit_var(vec![res])
+            }
+        }
     }
 
     pub fn constant(&mut self, value: Field, span: Span) -> CircuitVar {
@@ -719,7 +764,7 @@ impl Compiler {
     pub fn gates(
         &mut self,
         typ: GateKind,
-        vars: Vec<Option<InternalVar>>,
+        vars: Vec<Option<CellVar>>,
         coeffs: Vec<Field>,
         span: Span,
     ) {
@@ -812,7 +857,7 @@ pub struct Environment {
     pub var_types: HashMap<String, TyKind>,
 
     /// used by the private and public inputs, and any other external variables created in the circuit
-    pub variables: HashMap<String, CircuitVar>,
+    pub variables: HashMap<String, Var>,
 
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
@@ -832,7 +877,7 @@ impl Environment {
         self.var_types.get(ident)
     }
 
-    pub fn get_cvar(&self, ident: &str) -> Option<CircuitVar> {
+    pub fn get_cvar(&self, ident: &str) -> Option<Var> {
         self.variables.get(ident).cloned()
     }
 }
