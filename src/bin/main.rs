@@ -4,17 +4,17 @@ use ark_ff::One;
 use clap::Parser;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use my_programming_language::{
-    ast::{Compiler, Gate},
+    ast::{CircuitValue, Compiler, Gate},
     constants::COLUMNS,
     field::Field,
     lexer::Token,
     parser::AST,
 };
 
-fn parse(name: impl std::fmt::Display, code: &str) -> Result<()> {
+fn parse(name: impl std::fmt::Display, code: &str, debug: bool) -> Result<()> {
     let tokens = Token::parse(code)?;
     let ast = AST::parse(tokens)?;
-    let (circuit, compiler) = Compiler::analyze_and_compile(ast, code)?;
+    let (circuit, compiler) = Compiler::analyze_and_compile(ast, code, debug)?;
 
     println!("compiled {name} to {} gates", compiler.num_gates());
 
@@ -26,8 +26,8 @@ fn parse(name: impl std::fmt::Display, code: &str) -> Result<()> {
 
     // generate witness
     let mut args = HashMap::new();
-    args.insert("public_input", Field::one());
-    args.insert("private_input", Field::one());
+    args.insert("public_input", CircuitValue::new(vec![Field::one()]));
+    args.insert("private_input", CircuitValue::new(vec![Field::one()]));
     let (witness, public_output) = compiler.generate_witness(args)?;
     println!("witness size: {}", witness.len());
 
@@ -129,7 +129,8 @@ fn main() -> Result<()> {
         .into_diagnostic()
         .wrap_err_with(|| format!("could not read file"))?;
 
-    parse(cli.path.display(), &code).map_err(|e| e.with_source_code(code))?;
+    let debug = true;
+    parse(cli.path.display(), &code, debug).map_err(|e| e.with_source_code(code))?;
 
     println!("successfuly compiled");
 

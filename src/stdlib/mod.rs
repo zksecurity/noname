@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Neg as _};
 use ark_ff::One as _;
 
 use crate::{
-    ast::{Compiler, FuncType, GateKind, Var},
+    ast::{CircuitVar, Compiler, FuncType, GateKind, InternalVar},
     constants::Span,
     error::{Error, ErrorKind},
     field::Field,
@@ -90,10 +90,14 @@ const POSEIDON_FN: &str = "poseidon(input: [Field; 3]) -> [Field; 3]";
 
 pub const CRYPTO_FNS: [(&str, FuncType); 1] = [(POSEIDON_FN, poseidon)];
 
-fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) {
-    let x0 = vars[0];
-    let x1 = vars[1];
-    let x2 = vars[2];
+fn poseidon(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) {
+    assert_eq!(vars.len(), 1);
+    let input = &vars[0].vars;
+
+    assert_eq!(input.len(), 3);
+    let x0 = input[0];
+    let x1 = input[1];
+    let x2 = input[2];
 
     unimplemented!();
 }
@@ -108,9 +112,14 @@ const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 
 pub const BUILTIN_FNS: [(&str, FuncType); 1] = [(ASSERT_EQ_FN, assert_eq)];
 
-fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) {
-    let lhs = vars[0];
-    let rhs = vars[1];
+fn assert_eq(compiler: &mut Compiler, vars: &[CircuitVar], span: Span) {
+    assert_eq!(vars.len(), 2);
+
+    assert_eq!(vars[0].vars.len(), 1);
+    let lhs = vars[0].var(0);
+
+    assert_eq!(vars[1].vars.len(), 1);
+    let rhs = vars[1].var(0);
 
     // TODO: use permutation to check that
     compiler.gates(

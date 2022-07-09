@@ -22,7 +22,7 @@ use itertools::Itertools;
 use num_bigint::BigUint;
 
 use crate::{
-    ast::{Gate, Var, Wiring},
+    ast::{Gate, InternalVar, Wiring},
     constants::Span,
     field::{Field, PrettyField as _},
 };
@@ -30,7 +30,7 @@ use crate::{
 pub fn generate_asm(
     source: &str,
     gates: &[Gate],
-    wiring: &HashMap<Var, Wiring>,
+    wiring: &HashMap<InternalVar, Wiring>,
     debug: bool,
 ) -> String {
     let mut res = "".to_string();
@@ -72,14 +72,23 @@ pub fn generate_asm(
         res.push_str("\n# wiring\n\n");
     }
 
-    for wires in wiring.values() {
-        match wires {
-            Wiring::NotWired(_) => (),
-            Wiring::Wired(cells) => {
-                let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
-                res.push_str(&format!("{s}\n"));
-            }
-        }
+    let mut cycles: Vec<_> = wiring
+        .values()
+        .map(|w| match w {
+            Wiring::NotWired(_) => None,
+            Wiring::Wired(cells) => Some(cells),
+        })
+        .filter(Option::is_some)
+        .flatten()
+        .collect();
+
+    // we must have a deterministic sort for the cycles,
+    // otherwise the same circuit might have different representations
+    cycles.sort();
+
+    for cells in cycles {
+        let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
+        res.push_str(&format!("{s}\n"));
     }
 
     res

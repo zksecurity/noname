@@ -552,9 +552,9 @@ impl Expr {
                     });
                 }
 
-                for (arg, (_, _, expected_typ)) in args.iter().zip(sig.arguments) {
+                for (arg, func_arg) in args.iter().zip(sig.arguments) {
                     let typ = arg.compute_type(env)?.unwrap();
-                    if typ != expected_typ.kind {
+                    if typ != func_arg.typ.kind {
                         return Err(Error {
                             kind: ErrorKind::InvalidFnCall("argument type mismatch"),
                             span: arg.span,
@@ -637,7 +637,7 @@ pub struct FunctionSig {
     pub name: Ident,
 
     /// (pub, ident, type)
-    pub arguments: Vec<(Attribute, Ident, Ty)>,
+    pub arguments: Vec<FuncArg>,
 
     pub return_type: Option<Ty>,
 }
@@ -664,14 +664,12 @@ pub struct Ident {
     pub span: Span,
 }
 
-#[derive(Debug, Default, Clone, Copy)]
-pub enum Attribute {
-    #[default]
-    Priv,
+#[derive(Debug, Clone, Copy)]
+pub enum AttributeKind {
     Pub,
 }
 
-impl Attribute {
+impl AttributeKind {
     pub fn is_public(&self) -> bool {
         matches!(self, Self::Pub)
     }
@@ -682,12 +680,26 @@ pub struct Function {
     pub name: Ident,
 
     /// (pub, ident, type)
-    pub arguments: Vec<(Attribute, Ident, Ty)>,
+    pub arguments: Vec<FuncArg>,
 
     pub return_type: Option<Ty>,
 
     pub body: Vec<Stmt>,
 
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct FuncArg {
+    pub name: Ident,
+    pub typ: Ty,
+    pub attribute: Option<Attribute>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct Attribute {
+    pub kind: AttributeKind,
     pub span: Span,
 }
 
@@ -721,10 +733,7 @@ impl Function {
         })
     }
 
-    pub fn parse_args(
-        ctx: &mut ParserCtx,
-        tokens: &mut Tokens,
-    ) -> Result<Vec<(Attribute, Ident, Ty)>, Error> {
+    pub fn parse_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<FuncArg>, Error> {
         // (pub arg1: type1, arg2: type2)
         // ^
         tokens.bump_expected(ctx, TokenKind::LeftParen)?;
@@ -744,11 +753,17 @@ impl Function {
                 // public input
                 TokenKind::Keyword(Keyword::Pub) => {
                     let arg_name = parse_ident(ctx, tokens)?;
-                    (Attribute::Pub, arg_name)
+                    (
+                        Some(Attribute {
+                            kind: AttributeKind::Pub,
+                            span: token.span,
+                        }),
+                        arg_name,
+                    )
                 }
                 // private input
                 TokenKind::Identifier(name) => (
-                    Attribute::Priv,
+                    None,
                     Ident {
                         value: name,
                         span: token.span,
@@ -774,18 +789,23 @@ impl Function {
                 ErrorKind::InvalidFunctionSignature("expected end of function or other argument"),
             )?;
 
+            let span = (token.span.0, arg_typ.span.1 + arg_typ.span.0 - token.span.0);
+
+            let arg = FuncArg {
+                name: arg_name,
+                typ: arg_typ,
+                attribute: public,
+                span,
+            };
+            args.push(arg);
+
             match separator.kind {
                 // (pub arg1: type1, arg2: type2)
                 //                 ^
-                TokenKind::Comma => {
-                    args.push((public, arg_name, arg_typ));
-                }
+                TokenKind::Comma => (),
                 // (pub arg1: type1, arg2: type2)
                 //                              ^
-                TokenKind::RightParen => {
-                    args.push((public, arg_name, arg_typ));
-                    break;
-                }
+                TokenKind::RightParen => break,
                 _ => {
                     return Err(Error {
                         kind: ErrorKind::InvalidFunctionSignature(

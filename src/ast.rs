@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fmt::{Display, Formatter},
+    fmt::{self, Display, Formatter},
     ops::Neg,
     vec,
 };
@@ -15,13 +15,80 @@ use crate::{
     constants::{Span, COLUMNS},
     error::{Error, ErrorKind},
     field::{Field, PrettyField as _},
-    parser::{Expr, ExprKind, Function, FunctionSig, Op2, RootKind, Stmt, TyKind, AST},
+    parser::{
+        AttributeKind, Expr, ExprKind, FuncArg, Function, FunctionSig, Op2, RootKind, Stmt, TyKind,
+        AST,
+    },
     stdlib::{self, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
 };
 
 //
 // Data structures
 //
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+// TODO: should a var also contain a span?
+/// An internal variable is a variable that is created from a linear combination of external variables.
+/// It, most of the time, ends up being a cell in the circuit.
+/// That is, unless it's unused?
+pub struct InternalVar(usize);
+
+/// A variable's actual value in the witness can be computed in different ways.
+pub enum Value {
+    /// Either it's a hint and can be computed from the outside.
+    Hint(Box<dyn Fn() -> Field>),
+
+    /// Or it's a constant.
+    Constant(Field),
+
+    /// Or it's a linear combination of internal circuit variables.
+    // TODO: probably values of internal variables should be cached somewhere
+    LinearCombination(Vec<(Field, InternalVar)>),
+
+    /// A public or private input to the function
+    /// There's an index associated to a variable name, as the variable could be composed of several field elements.
+    External(String, usize),
+
+    PublicOutput(Option<InternalVar>),
+}
+
+impl fmt::Debug for Value {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "[value]")
+    }
+}
+
+/// The primitive type in a circuit is a field element.
+/// But since we want to be able to deal with custom types
+/// that are built on top of field elements,
+/// we abstract any variable in the circuit as a [CircuitVar]
+/// which can contain one or more variables.
+#[derive(Debug, Clone)]
+pub struct CircuitVar {
+    pub vars: Vec<InternalVar>,
+}
+
+impl CircuitVar {
+    pub fn len(&self) -> usize {
+        self.vars.len()
+    }
+
+    pub fn var(&self, i: usize) -> InternalVar {
+        self.vars[i]
+    }
+}
+
+/// the equivalent of [CircuitVar] but for witness generation
+#[derive(Debug, Clone)]
+pub struct CircuitValue {
+    pub values: Vec<Field>,
+}
+
+impl CircuitValue {
+    pub fn new(values: Vec<Field>) -> Self {
+        Self { values }
+    }
+}
 
 pub struct Witness(Vec<[Field; COLUMNS]>);
 
@@ -94,14 +161,14 @@ impl Gate {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Cell {
     pub row: usize,
     pub col: usize,
 }
 
 impl Display for Cell {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "({},{})", self.row, self.col)
     }
 }
@@ -111,6 +178,10 @@ pub enum Wiring {
     NotWired(Cell),
     Wired(Vec<Cell>),
 }
+
+//
+// Compiler
+//
 
 #[derive(Default, Debug)]
 pub struct Compiler {
@@ -125,13 +196,13 @@ pub struct Compiler {
     pub next_variable: usize,
 
     /// This is how you compute the value of each variable, for witness generation.
-    pub witness_vars: HashMap<Var, Value>,
+    pub witness_vars: HashMap<InternalVar, Value>,
 
     /// The wiring of the circuit.
-    pub wiring: HashMap<Var, Wiring>,
+    pub wiring: HashMap<InternalVar, Wiring>,
 
     /// This is used to compute the witness row by row.
-    witness_rows: Vec<Vec<Option<Var>>>,
+    witness_rows: Vec<Vec<Option<InternalVar>>>,
 
     /// the arguments expected by main (I think it's used by the witness generator to make sure we passed the arguments)
     pub main_args: HashMap<String, TyKind>,
@@ -146,42 +217,20 @@ pub struct Compiler {
     /// If a public output is set, this will be used to store a temporary variable
     /// (we need one to create the associated public input gate)
     /// Later on, when the actual value is returned, the way to compute the var will be stored in `self.witness_vars`
-    pub public_output: Option<Var>,
+    pub public_output: Option<CircuitVar>,
 
     /// Size of the private input.
     // TODO: bit weird isn't it?
     pub private_input_size: usize,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Var(usize);
-
-/// A variable's actual value in the witness can be computed in different ways.
-pub enum Value {
-    /// Either it's a hint and can be computed from the outside.
-    Hint(Box<dyn Fn() -> Field>),
-
-    /// Or it's a constant.
-    Constant(Field),
-
-    /// Or it's a linear combination of internal circuit variables.
-    LinearCombination(Vec<(Field, Var)>),
-
-    /// A public or private input to the function
-    External(String),
-
-    PublicOutput(Option<Var>),
-}
-
-impl std::fmt::Debug for Value {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "[value]")
-    }
-}
-
 impl Compiler {
     // TODO: perhaps don't return Self, but return a new type that only contains what's necessary to create the witness?
-    pub fn analyze_and_compile(mut ast: AST, code: &str) -> Result<(String, Self), Error> {
+    pub fn analyze_and_compile(
+        mut ast: AST,
+        code: &str,
+        debug: bool,
+    ) -> Result<(String, Self), Error> {
         let mut compiler = Compiler::default();
         compiler.source = code.to_string();
 
@@ -201,7 +250,7 @@ impl Compiler {
         compiler.type_check(env, &mut ast)?;
 
         // this will convert everything to {gates, wiring, witness_vars}
-        compiler.compile(env, &ast)
+        compiler.compile(env, &ast, debug)
     }
 
     pub fn compiled_gates(&self) -> &[Gate] {
@@ -211,7 +260,12 @@ impl Compiler {
         &self.gates
     }
 
-    fn compile(mut self, env: &mut Environment, ast: &AST) -> Result<(String, Self), Error> {
+    fn compile(
+        mut self,
+        env: &mut Environment,
+        ast: &AST,
+        debug: bool,
+    ) -> Result<(String, Self), Error> {
         for root in &ast.0 {
             match &root.kind {
                 // `use crypto::poseidon;`
@@ -227,20 +281,37 @@ impl Compiler {
                     }
 
                     // create public and private inputs
-                    for (attr, name, typ) in &function.arguments {
-                        if typ.kind != TyKind::Field {
-                            unimplemented!();
-                        }
-
-                        // create the variable in the circuit
-                        let var = if attr.is_public() {
-                            self.public_input(name.value.clone(), name.span, size)
-                        } else {
-                            self.private_input(name.value.clone(), size)
+                    for FuncArg {
+                        attribute,
+                        name,
+                        typ,
+                        ..
+                    } in &function.arguments
+                    {
+                        let len = match &typ.kind {
+                            TyKind::Field => 1,
+                            TyKind::Array(typ, len) => {
+                                if !matches!(**typ, TyKind::Field) {
+                                    unimplemented!();
+                                }
+                                *len as usize
+                            }
+                            _ => unimplemented!(),
                         };
 
-                        // store it in the env
-                        env.variables.insert(name.value.clone(), var);
+                        let cvar = if let Some(attr) = attribute {
+                            if !matches!(attr.kind, AttributeKind::Pub) {
+                                return Err(Error {
+                                    kind: ErrorKind::InvalidAttribute(attr.kind),
+                                    span: attr.span,
+                                });
+                            }
+                            self.public_inputs(name.value.clone(), len, name.span)
+                        } else {
+                            self.private_inputs(name.value.clone(), len)
+                        };
+
+                        env.variables.insert(name.value.clone(), cvar);
                     }
 
                     // create public output
@@ -250,7 +321,7 @@ impl Compiler {
                         }
 
                         // create it
-                        self.public_output(typ.span);
+                        self.public_outputs(1, typ.span);
                     }
 
                     // compile function
@@ -265,7 +336,7 @@ impl Compiler {
 
         self.finalized = true;
 
-        Ok((self.asm(), self))
+        Ok((self.asm(debug), self))
     }
 
     fn type_check(&mut self, env: &mut Environment, ast: &mut AST) -> Result<(), Error> {
@@ -311,7 +382,7 @@ impl Compiler {
                     main_function_observed = true;
 
                     // store variables and their types in the env
-                    for (_attr, name, typ) in &function.arguments {
+                    for FuncArg { name, typ, .. } in &function.arguments {
                         // public_output is a reserved name,
                         // associated automatically to the public output of the main function
                         if name.value == "public_output" {
@@ -414,12 +485,12 @@ impl Compiler {
                             }
 
                             // compare argument types with the function signature
-                            for ((_, _, typ1), (typ2, span)) in sig.arguments.iter().zip(typs) {
-                                if typ1.kind != typ2 {
+                            for (sig_arg, (typ, span)) in sig.arguments.iter().zip(typs) {
+                                if sig_arg.typ.kind != typ {
                                     // it's ok if a bigint is supposed to be a field no?
                                     // TODO: replace bigint -> constant?
                                     if matches!(
-                                        (&typ1.kind, &typ2),
+                                        (&sig_arg.typ.kind, &typ),
                                         (TyKind::Field, TyKind::BigInt)
                                             | (TyKind::BigInt, TyKind::Field)
                                     ) {
@@ -428,8 +499,8 @@ impl Compiler {
 
                                     return Err(Error {
                                         kind: ErrorKind::ArgumentTypeMismatch(
-                                            typ1.kind.clone(),
-                                            typ2,
+                                            sig_arg.typ.kind.clone(),
+                                            typ,
                                         ),
                                         span,
                                     });
@@ -542,20 +613,24 @@ impl Compiler {
                         unimplemented!();
                     }
 
-                    let var = self.compute_expr(env, res)?.ok_or(Error {
+                    let cvar = self.compute_expr(env, res)?.ok_or(Error {
                         kind: ErrorKind::CannotComputeExpression,
                         span: stmt.span,
                     })?;
 
                     // store the return value in the public input that was created for that ^
-                    let public_output = self.public_output.ok_or(Error {
+                    let public_output = self.public_output.as_ref().ok_or(Error {
                         kind: ErrorKind::NoPublicOutput,
                         span: stmt.span,
                     })?;
-                    assert!(self
+
+                    for (idx, pub_var) in public_output.vars.iter().enumerate() {
+                        unimplemented!();
+                        /*                        assert!(self
                         .witness_vars
-                        .insert(public_output, Value::PublicOutput(Some(var)))
-                        .is_some());
+                        .insert(*pub_var, Value::PublicOutput(Some((cvar.clone(), idx))))
+                        .is_some());*/
+                    }
                 }
                 crate::parser::StmtKind::Comment(_) => todo!(),
             }
@@ -569,7 +644,7 @@ impl Compiler {
     // TODO: how to pass arguments?
     pub fn generate_witness(
         &self,
-        args: HashMap<&str, Field>,
+        args: HashMap<&str, CircuitValue>,
     ) -> Result<(Witness, Option<Field>), Error> {
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
@@ -584,11 +659,11 @@ impl Compiler {
                 span: (0, 0),
             })?;
 
-            env.add_value(name.clone(), *val);
+            env.add_value(name.clone(), val.clone());
         }
 
         // compute each rows' vars, except for the deferred ones (public output)
-        let mut public_output: Option<(usize, Var)> = None;
+        let mut public_output: Option<(usize, InternalVar)> = None;
 
         for (row, witness_row) in self.witness_rows.iter().enumerate() {
             // create the witness row
@@ -626,13 +701,13 @@ impl Compiler {
         Ok((Witness(witness), public_output))
     }
 
-    pub fn asm(&self) -> String {
-        asm::generate_asm(&self.source, &self.gates, &self.wiring, true)
+    pub fn asm(&self, debug: bool) -> String {
+        asm::generate_asm(&self.source, &self.gates, &self.wiring, debug)
     }
 
-    fn new_internal_var(&mut self, val: Value) -> Var {
+    fn new_internal_var(&mut self, val: Value) -> InternalVar {
         // create new var
-        let var = Var(self.next_variable);
+        let var = InternalVar(self.next_variable);
         self.next_variable += 1;
 
         // store it in the compiler
@@ -641,19 +716,14 @@ impl Compiler {
         var
     }
 
-    fn new_internal_vars(&mut self, val: Value, num: usize) -> Vec<Var> {
-        let mut vars = Vec::with_capacity(num);
-        for _ in 0..num {
-            vars.push(self.new_internal_var(val));
-        }
-
-        vars
-    }
-
-    fn compute_expr(&mut self, env: &Environment, expr: &Expr) -> Result<Option<Var>, Error> {
+    fn compute_expr(
+        &mut self,
+        env: &Environment,
+        expr: &Expr,
+    ) -> Result<Option<CircuitVar>, Error> {
         // TODO: why would we return a Var, when types could be represented by several vars?
         // I guess for the moment we're only dealing with Field...
-        let var = match &expr.kind {
+        let cvar = match &expr.kind {
             ExprKind::FnCall {
                 function_name,
                 args,
@@ -662,9 +732,14 @@ impl Compiler {
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
-                    let lhs = self.compute_expr(env, lhs)?.unwrap();
-                    let rhs = self.compute_expr(env, rhs)?.unwrap();
-                    Some(self.add(lhs, rhs, expr.span))
+                    let lhs = self.compute_expr(env, lhs)?.unwrap().vars;
+                    let rhs = self.compute_expr(env, rhs)?.unwrap().vars;
+
+                    if lhs.len() != 1 || rhs.len() != 1 {
+                        unreachable!();
+                    }
+
+                    Some(self.add(lhs[0], rhs[0], expr.span))
                 }
                 Op2::Subtraction => todo!(),
                 Op2::Multiplication => todo!(),
@@ -682,16 +757,16 @@ impl Compiler {
                 Some(self.constant(f, expr.span))
             }
             ExprKind::Identifier(name) => {
-                let var = env.get_var(&name).unwrap();
-                Some(var)
+                let cvar = env.get_cvar(&name).unwrap();
+                Some(cvar)
             }
             ExprKind::ArrayAccess(_, _) => todo!(),
         };
 
-        Ok(var)
+        Ok(cvar)
     }
 
-    pub fn compute_var(&self, env: &WitnessEnv, var: Var) -> Result<Field, Error> {
+    pub fn compute_var(&self, env: &WitnessEnv, var: InternalVar) -> Result<Field, Error> {
         match &self.witness_vars[&var] {
             Value::Hint(func) => Ok(func()),
             Value::Constant(c) => Ok(*c),
@@ -702,7 +777,7 @@ impl Compiler {
                 }
                 Ok(res)
             }
-            Value::External(name) => Ok(env.get_external(name)),
+            Value::External(name, idx) => Ok(env.get_external(name)[*idx]),
             Value::PublicOutput(var) => {
                 let var = var.ok_or(Error {
                     kind: ErrorKind::MissingPublicOutput,
@@ -717,7 +792,7 @@ impl Compiler {
         self.gates.len()
     }
 
-    fn add(&mut self, lhs: Var, rhs: Var, span: Span) -> Var {
+    fn add(&mut self, lhs: InternalVar, rhs: InternalVar, span: Span) -> CircuitVar {
         // create a new variable to store the result
         let res = self.new_internal_var(Value::LinearCombination(vec![
             (Field::one(), lhs),
@@ -748,10 +823,10 @@ impl Compiler {
             span,
         );
 
-        res
+        CircuitVar { vars: vec![res] }
     }
 
-    pub fn constant(&mut self, value: Field, span: Span) -> Var {
+    pub fn constant(&mut self, value: Field, span: Span) -> CircuitVar {
         let var = self.new_internal_var(Value::Constant(value));
 
         let zero = Field::zero();
@@ -762,12 +837,18 @@ impl Compiler {
             span,
         );
 
-        var
+        CircuitVar { vars: vec![var] }
     }
 
     /// creates a new gate, and the associated row in the witness/execution trace.
     // TODO: add_gate instead of gates?
-    pub fn gates(&mut self, typ: GateKind, vars: Vec<Option<Var>>, coeffs: Vec<Field>, span: Span) {
+    pub fn gates(
+        &mut self,
+        typ: GateKind,
+        vars: Vec<Option<InternalVar>>,
+        coeffs: Vec<Field>,
+        span: Span,
+    ) {
         assert!(coeffs.len() <= COLUMNS);
         assert!(vars.len() <= COLUMNS);
         self.witness_rows.push(vars.clone());
@@ -788,13 +869,15 @@ impl Compiler {
         }
     }
 
-    pub fn public_inputs(&mut self, name: String, num: usize, span: Span) -> Var {
-        // create the var
-        let vars = self.new_internal_vars(Value::External(name), num);
-        self.public_input_size += num;
+    pub fn public_inputs(&mut self, name: String, num: usize, span: Span) -> CircuitVar {
+        let mut vars = Vec::with_capacity(num);
 
-        // create the associated generic gate
-        for var in vars {
+        for idx in 0..num {
+            // create the var
+            let var = self.new_internal_var(Value::External(name.clone(), idx));
+            vars.push(var.clone());
+
+            // create the associated generic gate
             self.gates(
                 GateKind::DoubleGeneric,
                 vec![Some(var)],
@@ -803,51 +886,50 @@ impl Compiler {
             );
         }
 
-        var
+        self.public_input_size += num;
+
+        CircuitVar { vars }
     }
 
-    pub fn public_output(&mut self, span: Span) {
+    pub fn public_outputs(&mut self, num: usize, span: Span) {
         assert!(self.public_output.is_none());
 
-        // create the var
-        let var = self.new_internal_var(Value::PublicOutput(None));
-        self.public_input_size += 1;
+        let mut vars = Vec::with_capacity(num);
+        for idx in 0..num {
+            // create the var
+            let var = self.new_internal_var(Value::PublicOutput(None));
+            vars.push(var);
+
+            // create the associated generic gate
+            self.gates(
+                GateKind::DoubleGeneric,
+                vec![Some(var)],
+                vec![Field::one()],
+                span,
+            );
+        }
+        self.public_input_size += num;
 
         // store it
-        self.public_output = Some(var);
-
-        // create the associated generic gate
-        self.gates(
-            GateKind::DoubleGeneric,
-            vec![Some(var)],
-            vec![Field::one()],
-            span,
-        );
+        let cvar = CircuitVar { vars };
+        self.public_output = Some(cvar);
     }
 
-    pub fn private_input(&mut self, name: String) -> Var {
-        // create the var
-        let var = self.new_internal_var(Value::External(name));
+    pub fn private_inputs(&mut self, name: String, num: usize) -> CircuitVar {
+        let mut vars = Vec::with_capacity(num);
+
+        for idx in 0..num {
+            // create the var
+            let var = self.new_internal_var(Value::External(name.clone(), idx));
+            vars.push(var);
+        }
 
         // TODO: do we really need this?
-        self.private_input_size += 1;
+        self.private_input_size += num;
 
-        var
+        CircuitVar { vars }
     }
 }
-
-/*
-/// The primitive type in a circuit is a field element.
-/// If you want to create another type built on a field element,
-/// the only thing we ask you to do is implement this trait on it.
-pub trait CircuitTy {
-    /// Where is this useful?
-    fn from_vars(vars: &[Var]) -> Self;
-
-    /// This is needed to store the variable as a public input, or public output
-    fn vars(&self) -> Vec<Var>;
-}
-*/
 
 // TODO: right now there's only one scope, but if we want to deal with multiple scopes then we'll need to make sure child scopes have access to parent scope, shadowing, etc.
 #[derive(Default, Debug)]
@@ -855,8 +937,8 @@ pub struct Environment {
     /// created by the type checker, gives a type to every external variable
     pub var_types: HashMap<String, TyKind>,
 
-    /// ?
-    pub variables: HashMap<String, Var>,
+    /// used by the private and public inputs, and any other external variables created in the circuit
+    pub variables: HashMap<String, CircuitVar>,
 
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
@@ -876,12 +958,12 @@ impl Environment {
         self.var_types.get(ident)
     }
 
-    pub fn get_var(&self, ident: &str) -> Option<Var> {
+    pub fn get_cvar(&self, ident: &str) -> Option<CircuitVar> {
         self.variables.get(ident).cloned()
     }
 }
 
-pub type FuncType = fn(&mut Compiler, &[Var], Span);
+pub type FuncType = fn(&mut Compiler, &[CircuitVar], Span);
 
 pub enum FuncInScope {
     /// signature of the function
@@ -890,8 +972,8 @@ pub enum FuncInScope {
     Library(Vec<String>, FunctionSig),
 }
 
-impl std::fmt::Debug for FuncInScope {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for FuncInScope {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::BuiltIn(arg0, _arg1) => f.debug_tuple("BuiltIn").field(arg0).field(&"_").finish(),
             Self::Library(arg0, arg1) => f.debug_tuple("Library").field(arg0).field(arg1).finish(),
@@ -905,15 +987,16 @@ impl std::fmt::Debug for FuncInScope {
 
 #[derive(Debug, Default)]
 pub struct WitnessEnv {
-    pub var_values: HashMap<String, Field>,
+    pub var_values: HashMap<String, CircuitValue>,
 }
 
 impl WitnessEnv {
-    pub fn add_value(&mut self, name: String, value: Field) {
-        assert!(self.var_values.insert(name, value).is_none());
+    pub fn add_value(&mut self, name: String, val: CircuitValue) {
+        assert!(self.var_values.insert(name, val).is_none());
     }
 
-    pub fn get_external(&self, name: &str) -> Field {
-        self.var_values.get(name).unwrap().clone()
+    pub fn get_external(&self, name: &str) -> Vec<Field> {
+        // TODO: return an error instead of crashing
+        self.var_values.get(name).unwrap().clone().values.clone()
     }
 }

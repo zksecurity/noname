@@ -1,7 +1,10 @@
 use miette::Diagnostic;
 use thiserror::Error;
 
-use crate::{lexer::TokenKind, parser::TyKind};
+use crate::{
+    lexer::TokenKind,
+    parser::{AttributeKind, TyKind},
+};
 
 #[derive(Diagnostic, Debug, Error)]
 #[error("Parsing error")]
@@ -137,4 +140,7 @@ pub enum ErrorKind {
 
     #[error("module `{0}` not present in scope")]
     UndefinedModule(String),
+
+    #[error("attribute not recognized: `{0:?}`")]
+    InvalidAttribute(AttributeKind),
 }
