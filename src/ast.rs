@@ -66,11 +66,12 @@ impl fmt::Debug for Value {
 #[derive(Debug, Clone)]
 pub struct CircuitVar {
     pub vars: Vec<CellVar>,
+    pub span: Span,
 }
 
 impl CircuitVar {
-    pub fn new(vars: Vec<CellVar>) -> Self {
-        Self { vars }
+    pub fn new(vars: Vec<CellVar>, span: Span) -> Self {
+        Self { vars, span }
     }
 
     pub fn len(&self) -> usize {
@@ -86,22 +87,42 @@ impl CircuitVar {
 #[derive(Debug, Clone)]
 pub enum Var {
     /// Either a constant
-    Constant(Field),
+    Constant(Constant),
     /// Or a [CircuitVar]
     CircuitVar(CircuitVar),
 }
 
+#[derive(Debug, Clone)]
+pub struct Constant {
+    value: Field,
+    span: Span,
+}
+
 impl Var {
+    pub fn new_circuit_var(vars: Vec<CellVar>, span: Span) -> Self {
+        Var::CircuitVar(CircuitVar::new(vars, span))
+    }
+
+    pub fn new_constant(value: Field, span: Span) -> Self {
+        Var::Constant(Constant { value, span })
+    }
+
+    pub fn constant(&self) -> Option<Field> {
+        match self {
+            Var::Constant(Constant { value, .. }) => Some(*value),
+            _ => None,
+        }
+    }
+
+    pub fn circuit_var(&self) -> Option<CircuitVar> {
+        match self {
+            Var::CircuitVar(circuit_var) => Some(circuit_var.clone()),
+            _ => None,
+        }
+    }
+
     pub fn is_constant(&self) -> bool {
         matches!(self, Var::Constant(..))
-    }
-
-    pub fn new_circuit_var(vars: Vec<CellVar>) -> Self {
-        Var::CircuitVar(CircuitVar::new(vars))
-    }
-
-    pub fn new_constant(value: Field) -> Self {
-        Var::Constant(value)
     }
 }
 
@@ -317,7 +338,7 @@ impl Compiler {
                         attribute,
                         name,
                         typ,
-                        ..
+                        span,
                     } in &function.arguments
                     {
                         let len = match &typ.kind {
@@ -340,10 +361,11 @@ impl Compiler {
                             }
                             self.public_inputs(name.value.clone(), len, name.span)
                         } else {
-                            self.private_inputs(name.value.clone(), len)
+                            self.private_inputs(name.value.clone(), len, name.span)
                         };
 
-                        env.variables.insert(name.value.clone(), cvar);
+                        env.variables
+                            .insert(name.value.clone(), Var::CircuitVar(cvar));
                     }
 
                     // create public output
@@ -401,7 +423,7 @@ impl Compiler {
                         unimplemented!();
                     }
 
-                    let cvar = self.compute_expr(env, res)?.ok_or(Error {
+                    let var = self.compute_expr(env, res)?.ok_or(Error {
                         kind: ErrorKind::CannotComputeExpression,
                         span: stmt.span,
                     })?;
@@ -412,7 +434,7 @@ impl Compiler {
                         span: stmt.span,
                     })?;
 
-                    for (pub_var, ret_var) in public_output.vars.iter().zip(&cvar.vars) {
+                    for (pub_var, ret_var) in public_output.vars.iter().zip(&var.vars) {
                         // replace the computation of the public output vars with the actual variables being returned here
                         assert!(self
                             .witness_vars
@@ -505,7 +527,7 @@ impl Compiler {
     }
 
     fn compute_expr(&mut self, env: &Environment, expr: &Expr) -> Result<Option<Var>, Error> {
-        let cvar = match &expr.kind {
+        let var: Option<Var> = match &expr.kind {
             ExprKind::FnCall { name, args } => {
                 // retrieve the function in the env
                 let func: FuncType = if name.len() == 1 {
@@ -555,14 +577,10 @@ impl Compiler {
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
-                    let lhs = self.compute_expr(env, lhs)?.unwrap().vars;
-                    let rhs = self.compute_expr(env, rhs)?.unwrap().vars;
+                    let lhs = self.compute_expr(env, lhs)?.unwrap();
+                    let rhs = self.compute_expr(env, rhs)?.unwrap();
 
-                    if lhs.len() != 1 || rhs.len() != 1 {
-                        unreachable!();
-                    }
-
-                    Some(self.add(lhs[0], rhs[0], expr.span))
+                    Some(self.add(lhs, rhs, expr.span))
                 }
                 Op2::Subtraction => todo!(),
                 Op2::Multiplication => todo!(),
@@ -577,24 +595,22 @@ impl Compiler {
                     span: expr.span,
                 })?;
 
-                Some(self.constant(f, expr.span))
+                Some(Var::new_constant(f, expr.span))
             }
             ExprKind::Identifier(name) => {
-                let cvar = env.get_cvar(&name).unwrap();
-                Some(cvar)
+                let var = env.get_var(&name).unwrap();
+                Some(var)
             }
             ExprKind::ArrayAccess(path, expr) => {
                 // retrieve the CircuitVar at the path
                 let array: CircuitVar = if path.len() == 1 {
                     // var present in the scope
                     let name = &path.path[0].value;
-                    env.variables
-                        .get(name)
-                        .ok_or(Error {
-                            kind: ErrorKind::UndefinedVariable,
-                            span: path.span,
-                        })
-                        .cloned()?
+                    let array_var = env.variables.get(name).ok_or(Error {
+                        kind: ErrorKind::UndefinedVariable,
+                        span: path.span,
+                    })?;
+                    array_var.circuit_var().unwrap()
                 } else if path.len() == 2 {
                     // check module present in the scope
                     let module = &path.path[0];
@@ -616,16 +632,13 @@ impl Compiler {
                     kind: ErrorKind::CannotComputeExpression,
                     span: expr.span,
                 })?;
-                if idx_var.len() != 1 {
-                    return Err(Error {
-                        kind: ErrorKind::ExpectedConstant,
-                        span: expr.span,
-                    });
-                }
-                let idx_var = idx_var.var(0).unwrap();
 
                 // the index must be a constant!!
-                let idx: Field = self.compute_constant(idx_var, expr.span)?;
+                let idx: Field = idx_var.constant().ok_or(Error {
+                    kind: ErrorKind::ExpectedConstant,
+                    span: expr.span,
+                })?;
+
                 let idx: BigUint = idx.into();
                 let idx: usize = idx.try_into().unwrap();
 
@@ -639,19 +652,19 @@ impl Compiler {
                     });
                 }
 
-                res.map(|var| CircuitVar { vars: vec![var] })
+                res.map(|var| Var::new_circuit_var(vec![var], expr.span))
             }
         };
 
-        Ok(cvar)
+        Ok(var)
     }
 
     pub fn compute_var(&self, env: &WitnessEnv, var: CellVar) -> Result<Field, Error> {
         match &self.witness_vars[&var] {
             Value::Hint(func) => func(self, env),
             Value::Constant(c) => Ok(*c),
-            Value::LinearCombination(lc) => {
-                let mut res = Field::zero();
+            Value::LinearCombination(lc, cst) => {
+                let mut res = *cst;
                 for (coeff, var) in lc {
                     res += self.compute_var(env, *var)? * *coeff;
                 }
@@ -671,8 +684,8 @@ impl Compiler {
     pub fn compute_constant(&self, var: CellVar, span: Span) -> Result<Field, Error> {
         match &self.witness_vars.get(&var) {
             Some(Value::Constant(c)) => Ok(*c),
-            Some(Value::LinearCombination(lc)) => {
-                let mut res = Field::zero();
+            Some(Value::LinearCombination(lc, cst)) => {
+                let mut res = *cst;
                 for (coeff, var) in lc {
                     res += self.compute_constant(*var, span)? * *coeff;
                 }
@@ -691,9 +704,33 @@ impl Compiler {
 
     fn add(&mut self, lhs: Var, rhs: Var, span: Span) -> Var {
         match (lhs, rhs) {
-            (Var::Constant(lhs), Var::Constant(rhs)) => Var::Constant(lhs + rhs),
-            (Var::Constant(cst), Var::CircuitVar(var))
-            | (Var::CircuitVar(var), Var::Constant(cst)) => {
+            (
+                Var::Constant(Constant {
+                    value: lhs,
+                    span: span1,
+                }),
+                Var::Constant(Constant {
+                    value: rhs,
+                    span: span2,
+                }),
+            ) => {
+                // TODO: here I should preserve both span1 and span2, same for other branches
+                Var::new_constant(lhs + rhs, span1)
+            }
+            (
+                Var::Constant(Constant {
+                    value: cst,
+                    span: span1,
+                }),
+                Var::CircuitVar(var),
+            )
+            | (
+                Var::CircuitVar(var),
+                Var::Constant(Constant {
+                    value: cst,
+                    span: span1,
+                }),
+            ) => {
                 if var.len() != 1 {
                     unimplemented!();
                 }
@@ -717,12 +754,15 @@ impl Compiler {
                     span,
                 );
 
-                Var::new_circuit_var(vec![res])
+                Var::new_circuit_var(vec![res], span1)
             }
             (Var::CircuitVar(lhs), Var::CircuitVar(rhs)) => {
                 if lhs.len() != 1 || rhs.len() != 1 {
                     unimplemented!();
                 }
+
+                let span = lhs.span;
+
                 let lhs = lhs.var(0).unwrap();
                 let rhs = rhs.var(0).unwrap();
 
@@ -740,7 +780,7 @@ impl Compiler {
                     span,
                 );
 
-                Var::new_circuit_var(vec![res])
+                Var::new_circuit_var(vec![res], span)
             }
         }
     }
@@ -756,7 +796,7 @@ impl Compiler {
             span,
         );
 
-        CircuitVar { vars: vec![var] }
+        CircuitVar::new(vec![var], span)
     }
 
     /// creates a new gate, and the associated row in the witness/execution trace.
@@ -807,7 +847,7 @@ impl Compiler {
 
         self.public_input_size += num;
 
-        CircuitVar { vars }
+        CircuitVar::new(vars, span)
     }
 
     pub fn public_outputs(&mut self, num: usize, span: Span) {
@@ -830,11 +870,11 @@ impl Compiler {
         self.public_input_size += num;
 
         // store it
-        let cvar = CircuitVar { vars };
+        let cvar = CircuitVar::new(vars, span);
         self.public_output = Some(cvar);
     }
 
-    pub fn private_inputs(&mut self, name: String, num: usize) -> CircuitVar {
+    pub fn private_inputs(&mut self, name: String, num: usize, span: Span) -> CircuitVar {
         let mut vars = Vec::with_capacity(num);
 
         for idx in 0..num {
@@ -846,7 +886,7 @@ impl Compiler {
         // TODO: do we really need this?
         self.private_input_size += num;
 
-        CircuitVar { vars }
+        CircuitVar::new(vars, span)
     }
 }
 
@@ -877,12 +917,12 @@ impl Environment {
         self.var_types.get(ident)
     }
 
-    pub fn get_cvar(&self, ident: &str) -> Option<Var> {
+    pub fn get_var(&self, ident: &str) -> Option<Var> {
         self.variables.get(ident).cloned()
     }
 }
 
-pub type FuncType = fn(&mut Compiler, &[CircuitVar], Span) -> Option<CircuitVar>;
+pub type FuncType = fn(&mut Compiler, &[Var], Span) -> Option<Var>;
 
 pub enum FuncInScope {
     /// signature of the function
