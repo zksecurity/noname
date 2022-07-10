@@ -12,7 +12,7 @@ use num_traits::Num as _;
 
 use crate::{
     asm,
-    constants::{Span, IO_REGISTERS},
+    constants::{Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     field::{Field, PrettyField as _},
     parser::{
@@ -230,7 +230,7 @@ pub struct Compiler {
     pub wiring: HashMap<CellVar, Wiring>,
 
     /// This is used to compute the witness row by row.
-    pub witness_rows: Vec<Vec<Option<CellVar>>>,
+    pub rows_of_vars: Vec<Vec<Option<CellVar>>>,
 
     /// the arguments expected by main (I think it's used by the witness generator to make sure we passed the arguments)
     pub main_args: HashMap<String, (TyKind, Span)>,
@@ -669,9 +669,9 @@ impl Compiler {
         coeffs: Vec<Field>,
         span: Span,
     ) {
-        assert!(coeffs.len() <= IO_REGISTERS);
-        assert!(vars.len() <= IO_REGISTERS);
-        self.witness_rows.push(vars.clone());
+        assert!(coeffs.len() <= NUM_REGISTERS);
+        assert!(vars.len() <= NUM_REGISTERS);
+        self.rows_of_vars.push(vars.clone());
         let row = self.gates.len();
         self.gates.push(Gate { typ, coeffs, span });
 

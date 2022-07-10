@@ -157,4 +157,7 @@ pub enum ErrorKind {
 
     #[error("kimchi verifier: {0}")]
     KimchiVerifier(#[from] kimchi::error::VerifyError),
+
+    #[error("invalid witness (row {0})")]
+    InvalidWitness(usize),
 }

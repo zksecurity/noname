@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 use crate::{
     ast::{CellValues, CellVar, Compiler, Value},
-    constants::IO_REGISTERS,
+    constants::NUM_REGISTERS,
     error::{Error, ErrorKind, Result},
     field::{Field, PrettyField},
     parser::TyKind,
@@ -29,13 +29,13 @@ impl WitnessEnv {
     }
 }
 
-pub struct Witness(Vec<[Field; IO_REGISTERS]>);
+pub struct Witness(Vec<[Field; NUM_REGISTERS]>);
 
 impl Witness {
     /// kimchi uses a transposed witness
-    pub fn to_kimchi_witness(&self) -> [Vec<Field>; IO_REGISTERS] {
-        let transposed = vec![Vec::with_capacity(self.0.len()); IO_REGISTERS];
-        let mut transposed: [_; IO_REGISTERS] = transposed.try_into().unwrap();
+    pub fn to_kimchi_witness(&self) -> [Vec<Field>; NUM_REGISTERS] {
+        let transposed = vec![Vec::with_capacity(self.0.len()); NUM_REGISTERS];
+        let mut transposed: [_; NUM_REGISTERS] = transposed.try_into().unwrap();
         for row in &self.0 {
             for (col, field) in row.iter().enumerate() {
                 transposed[col].push(*field);
@@ -124,10 +124,15 @@ impl Compiler {
         // compute each rows' vars, except for the deferred ones (public output)
         let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
 
-        for (row, witness_row) in self.witness_rows.iter().enumerate() {
+        for (row, (row_of_vars, gate)) in self
+            .rows_of_vars
+            .iter()
+            .zip_eq(self.compiled_gates())
+            .enumerate()
+        {
             // create the witness row
-            let mut res = [Field::zero(); IO_REGISTERS];
-            for (col, var) in witness_row.iter().enumerate() {
+            let mut witness_row = [Field::zero(); NUM_REGISTERS];
+            for (col, var) in row_of_vars.iter().enumerate() {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
                     if matches!(self.witness_vars[&var], Value::PublicOutput(_)) {
@@ -139,11 +144,33 @@ impl Compiler {
                 } else {
                     Field::zero()
                 };
-                res[col] = val;
+                witness_row[col] = val;
+            }
+
+            // check if the row makes sense
+            let is_not_public_input = row >= self.public_input_size;
+            if is_not_public_input {
+                match gate.typ {
+                    // only check the generic gate
+                    crate::ast::GateKind::DoubleGeneric => {
+                        let c = |i| gate.coeffs.get(i).copied().unwrap_or(Field::zero());
+                        let w = &witness_row;
+                        let sum =
+                            c(0) * w[0] + c(1) * w[1] + c(2) * w[2] + c(3) * w[0] * w[1] + c(4);
+                        if sum != Field::zero() {
+                            return Err(Error {
+                                kind: ErrorKind::InvalidWitness(row),
+                                span: gate.span,
+                            });
+                        }
+                    }
+                    // for all other gates, we trust the gadgets
+                    _ => (),
+                }
             }
 
             //
-            witness.push(res);
+            witness.push(witness_row);
         }
 
         // compute public output at last

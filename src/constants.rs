@@ -2,7 +2,7 @@
 // Constants
 //
 
-pub const IO_REGISTERS: usize = kimchi::circuits::wires::COLUMNS;
+pub const NUM_REGISTERS: usize = kimchi::circuits::wires::COLUMNS;
 
 //
 // Aliases

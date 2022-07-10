@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     ast::{CellValues, Compiler, Gate},
-    constants::IO_REGISTERS,
+    constants::NUM_REGISTERS,
     error::{Error, Result},
     field::Field,
     lexer::Token,

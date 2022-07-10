@@ -5,7 +5,7 @@ use clap::Parser;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use my_programming_language::{
     ast::{CellValues, Compiler, Gate},
-    constants::IO_REGISTERS,
+    constants::NUM_REGISTERS,
     field::Field,
     lexer::Token,
     parser::AST,

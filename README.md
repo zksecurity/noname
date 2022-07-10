@@ -53,15 +53,17 @@ More specific tasks:
   - either we run the circuit with the witness (wasteful?)
   - or when we construct the circuit we also saves some info on what needs to be checked when the witness is created? I think essentially we need to check assert_equals and that the public output is well constructed
   - or... we just use kimchi to verify the witness, and if it returns an error on row i we use the `span` info in our `Gate` type to figure out where in the source that happened (easiest solution to implement, but maybe wasteful to verify each gate as well? also I think we're going to deprecate this verify function anyway...)
+  - I think a better way is to run the circuit, but replacing everything with constants (so that the different functions like assert_eq work with constant)
+  - or... when running in witness mode replace all builtin functions like assert_eq with our witness type assert_eq that will compute_var and check things directly. The problem is that managing two implementations for each functions is a pain. Perhaps we can figure that out within the function itself? We pass an emum { CircuitGenerator(env), WitnessGenerator(witness_env) }
+  - or... when we create a gate, we can write down exactly what we want to check (like a closure) when we generate the witness. Or perhaps when we generate the witness we can look at the gate and calculate that ourselves?
 - [x] implement the wiring
 - [x] fix span on debug
 - [ ] the returned compiled circuit (that can be used to produce witnesses) should be a new type (not Compiler) to prevent adding new gates? Or perhaps it's useless?
 - [x] handle function call in a statement differently? I could simply say that a statement can be an expression, only if it's a function call (to dedup code, although semantically I don't like it... maybe better to just factor out the code in a function)
 - [x] handle public output when generating witness
-- [ ] figure out how to handle constants in the codebase (perhaps a hashmap of variable -> constant, and compute constants on the fly?)
-- [ ] make array access work
+- [x] figure out how to handle constants in the codebase (perhaps a hashmap of variable -> constant, and compute constants on the fly?)
+- [x] make array access work
 - [ ] make poseidon work
-- [ ] make span a vec of span in CircuitVar/Constant
 
 ## Questions
 
