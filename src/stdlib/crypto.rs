@@ -42,24 +42,26 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
     let width = PlonkSpongeConstantsKimchi::SPONGE_WIDTH;
 
     // states contain all the states of the sponge
-    let states = vec![input.clone()];
+    let mut states = vec![input.clone()];
 
+    // 0..11
     for row in 0..POS_ROWS_PER_HASH {
-        // 11
         let offset = row * ROUNDS_PER_ROW; // row * 5
 
         // 0..5
         for i in 0..ROUNDS_PER_ROW {
             let mut new_state = vec![];
 
+            let prev_0 = states[states.len() - 1][0];
+            let prev_1 = states[states.len() - 1][1];
+            let prev_2 = states[states.len() - 1][2];
+
             for col in 0..3 {
                 // create each variable
-                let states = states.clone();
-                let var = compiler.new_internal_var(Value::Hint(Box::new(|compiler, env| {
-                    let prev_state: Vec<_> = states[states.len() - 1].iter().cloned().collect();
-                    let x1 = compiler.compute_var(env, prev_state[0])?;
-                    let x2 = compiler.compute_var(env, prev_state[1])?;
-                    let x3 = compiler.compute_var(env, prev_state[2])?;
+                let var = compiler.new_internal_var(Value::Hint(Box::new(move |compiler, env| {
+                    let x1 = compiler.compute_var(env, prev_0)?;
+                    let x2 = compiler.compute_var(env, prev_1)?;
+                    let x3 = compiler.compute_var(env, prev_2)?;
 
                     let mut acc = vec![x1, x2, x3];
 

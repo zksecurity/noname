@@ -58,16 +58,19 @@ impl Witness {
 
 impl Compiler {
     pub fn compute_var(&self, env: &mut WitnessEnv, var: CellVar) -> Result<Field> {
-        dbg!(&var);
-        dbg!(&self.witness_vars[&var]);
-
         // fetch cache first
+        // TODO: if self was &mut, then we could use a Value::Cached(Field) to store things instead of that
         if let Some(res) = env.cached_values.get(&var) {
             return Ok(*res);
         }
 
         match &self.witness_vars[&var] {
-            Value::Hint(func) => func(self, env),
+            Value::Hint(func) => {
+                let res = func(self, env)
+                    .expect("that function doesn't return a var (type checker error)");
+                env.cached_values.insert(var, res);
+                Ok(res)
+            }
             Value::Constant(c) => Ok(*c),
             Value::LinearCombination(lc, cst) => {
                 let mut res = *cst;
@@ -121,7 +124,6 @@ impl Compiler {
         // compute each rows' vars, except for the deferred ones (public output)
         let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
 
-        dbg!(&self.witness_rows);
         for (row, witness_row) in self.witness_rows.iter().enumerate() {
             // create the witness row
             let mut res = [Field::zero(); IO_REGISTERS];
@@ -143,7 +145,6 @@ impl Compiler {
             //
             witness.push(res);
         }
-        dbg!("this line doesn't get reached");
 
         // compute public output at last
         let mut public_output = vec![];
