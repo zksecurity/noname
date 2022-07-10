@@ -49,7 +49,7 @@ Files I should be able to parse:
 More specific tasks:
 
 - [x] fix the bug (the 2 isn't constrained in arithmetic.no). Probably I need to handle constants differently (I don't constrain them yet).
-- [ ] the witness should be verified as it is created
+- [x] the witness should be verified as it is created
   - either we run the circuit with the witness (wasteful?)
   - or when we construct the circuit we also saves some info on what needs to be checked when the witness is created? I think essentially we need to check assert_equals and that the public output is well constructed
   - or... we just use kimchi to verify the witness, and if it returns an error on row i we use the `span` info in our `Gate` type to figure out where in the source that happened (easiest solution to implement, but maybe wasteful to verify each gate as well? also I think we're going to deprecate this verify function anyway...)
