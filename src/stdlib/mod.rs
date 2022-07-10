@@ -97,6 +97,7 @@ const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 pub const BUILTIN_FNS: [(&str, FuncType); 1] = [(ASSERT_EQ_FN, assert_eq)];
 
 fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
+    dbg!(span);
     // double check (on top of type checker)
     assert_eq!(vars.len(), 2);
 
@@ -121,9 +122,6 @@ fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
             );
         }
         (Var::CircuitVar(lhs), Var::CircuitVar(rhs)) => {
-            // TODO: preserve both span
-            let span = lhs.span;
-
             assert_eq!(lhs.vars.len(), 1);
             let lhs = lhs.var(0).unwrap();
 
