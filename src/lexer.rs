@@ -58,6 +58,7 @@ pub enum TokenKind {
     Identifier(String), // [a-z_](a-z0-9_)*
     Type(String),       // [A-Z](a-zA-Z0-9)*
     BigInt(String),     // (0-9)*
+    Hex(String),        // 0x[0-9a-fA-F]+
     Comma,              // ,
     Colon,              // :
     DoubleColon,        // ::
@@ -90,6 +91,7 @@ impl Display for TokenKind {
             }
             TokenKind::Type(_) => "an alphanumeric string starting with an uppercase letter",
             TokenKind::BigInt(_) => "a number",
+            TokenKind::Hex(_) => "a hexadecimal string, starting with 0x",
             TokenKind::Comma => "`,`",
             TokenKind::Colon => "`:`",
             TokenKind::DoubleColon => "`::`",
@@ -140,6 +142,17 @@ fn is_numeric(s: &str) -> bool {
     s.chars().all(|c| c.is_digit(10))
 }
 
+fn is_hexadecimal(s: &str) -> bool {
+    let mut s = s.chars();
+    let s0 = s.next();
+    let s1 = s.next();
+    if matches!((s0, s1), (Some('0'), Some('x') | Some('X'))) {
+        s.all(|c| c.is_digit(16))
+    } else {
+        false
+    }
+}
+
 fn is_identifier(s: &str) -> bool {
     // first char is a letter
     s.chars().next().unwrap().is_alphabetic()
@@ -171,18 +184,21 @@ impl Token {
                 if let Some(keyword) = Keyword::parse(&ident_or_number) {
                     tokens.push(TokenKind::Keyword(keyword).new_token(ctx, len));
                 } else {
-                    if is_numeric(&ident_or_number) {
-                        tokens.push(TokenKind::BigInt(ident_or_number).new_token(ctx, len));
+                    let token_type = if is_numeric(&ident_or_number) {
+                        TokenKind::BigInt(ident_or_number)
+                    } else if is_hexadecimal(&ident_or_number) {
+                        TokenKind::Hex(ident_or_number)
                     } else if is_identifier(&ident_or_number) {
-                        tokens.push(TokenKind::Identifier(ident_or_number).new_token(ctx, len));
+                        TokenKind::Identifier(ident_or_number)
                     } else if is_type(&ident_or_number) {
-                        tokens.push(TokenKind::Type(ident_or_number).new_token(ctx, len));
+                        TokenKind::Type(ident_or_number)
                     } else {
                         return Err(Error {
                             kind: ErrorKind::InvalidIdentifier,
                             span: (ctx.offset, 1),
                         });
-                    }
+                    };
+                    tokens.push(token_type.new_token(ctx, len));
                 }
                 Ok(())
             };
