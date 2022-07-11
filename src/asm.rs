@@ -16,10 +16,10 @@
 //! (0,0) -> (1,1)
 //! ```
 
-use std::{collections::HashMap, ops::Neg};
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
 use itertools::Itertools;
-use num_bigint::BigUint;
 
 use crate::{
     ast::{CellVar, Gate, Wiring},
@@ -42,6 +42,17 @@ pub fn generate_asm(
         res.push_str("# gates\n\n");
     }
 
+    // vars
+    let mut vars = OrderedHashSet::new();
+
+    for Gate { coeffs, .. } in gates {
+        extract_vars_from_coeffs(&mut vars, coeffs);
+    }
+
+    for (idx, var) in vars.iter().enumerate() {
+        res.push_str(&format!("c{idx}={}\n", var.pretty()));
+    }
+
     // gates
     for Gate { typ, coeffs, span } in gates {
         // source
@@ -57,8 +68,7 @@ pub fn generate_asm(
         }
 
         // gate coeffs
-        let (vars, coeffs) = parse_coeffs(coeffs);
-        res.push_str(&vars);
+        let coeffs = parse_coeffs(&vars, coeffs);
 
         // gate
         res.push_str(&format!("{typ:?}"));
@@ -94,24 +104,28 @@ pub fn generate_asm(
     res
 }
 
-fn parse_coeffs(coeffs: &[Field]) -> (String, Vec<String>) {
-    let mut vars = String::new();
-    let mut var_idx = 0;
-    let coeffs = coeffs
+fn extract_vars_from_coeffs(vars: &mut OrderedHashSet<Field>, coeffs: &[Field]) {
+    for coeff in coeffs {
+        let s = coeff.pretty();
+        if s.len() >= 5 {
+            vars.insert(*coeff);
+        }
+    }
+}
+
+fn parse_coeffs(vars: &OrderedHashSet<Field>, coeffs: &[Field]) -> Vec<String> {
+    coeffs
         .iter()
         .map(|x| {
             let s = x.pretty();
             if s.len() < 5 {
                 s
             } else {
-                let var = format!("c{var_idx}");
-                var_idx += 1;
-                vars.push_str(&format!("{var}={s}\n"));
-                var
+                let var_idx = vars.pos(x);
+                format!("c{var_idx}")
             }
         })
-        .collect();
-    (vars, coeffs)
+        .collect()
 }
 
 fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
@@ -130,6 +144,43 @@ fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
     let line_number = source[..start].matches('\n').count() + 1;
 
     (line_number, start, line)
+}
+
+pub struct OrderedHashSet<T> {
+    inner: HashSet<T>,
+    map: HashMap<T, usize>,
+    ordered: Vec<T>,
+}
+
+impl<T> OrderedHashSet<T>
+where
+    T: Eq + Hash + Clone,
+{
+    pub fn new() -> Self {
+        Self {
+            inner: HashSet::new(),
+            map: HashMap::new(),
+            ordered: Vec::new(),
+        }
+    }
+
+    pub fn insert(&mut self, value: T) -> bool {
+        if self.inner.insert(value.clone()) {
+            self.map.insert(value.clone(), self.ordered.len());
+            self.ordered.push(value);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.ordered.iter()
+    }
+
+    pub fn pos(&self, value: &T) -> usize {
+        self.map[value]
+    }
 }
 
 #[cfg(test)]
