@@ -108,7 +108,6 @@ fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
         (Var::Constant(cst), Var::CircuitVar(cvar))
         | (Var::CircuitVar(cvar), Var::Constant(cst)) => {
             let cst_var = compiler.constant(cst.value, cst.span);
-            let cst_var = cst_var.var(0).unwrap();
 
             assert_eq!(cvar.vars.len(), 1);
             let cvar = cvar.var(0).unwrap();

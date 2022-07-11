@@ -21,23 +21,15 @@ fn parse(code: &str, debug: bool) -> Result<()> {
     println!("{circuit}");
 
     // generate witness
-    let private_input = vec![Field::one(), Field::one(), Field::one()];
+    let private_input = vec![Field::one(), Field::one()];
     let digest = {
-        let mut s: kimchi::oracle::poseidon::ArithmeticSponge<_, PlonkSpongeConstantsKimchi> =
+        let mut s: kimchi::oracle::poseidon::ArithmeticSponge<Field, PlonkSpongeConstantsKimchi> =
             kimchi::oracle::poseidon::ArithmeticSponge::new(
                 kimchi::oracle::pasta::fp_kimchi::params(),
             );
         s.absorb(&private_input);
         s.squeeze()
     };
-
-    dbg!(format!("{}", digest));
-    let digest = num_bigint::BigUint::parse_bytes(
-        b"0EBF5BDC0F77B84961EECE81D7FD4E733EE6827163CAD6BA3BF8B5EB051B7E73",
-        16,
-    )
-    .unwrap();
-    let digest: Field = digest.try_into().unwrap();
 
     let mut args = HashMap::new();
     args.insert("public_input", CellValues::new(vec![digest]));

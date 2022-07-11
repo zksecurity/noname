@@ -1,6 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use ark_ec::AffineCurve as _;
+use ark_ff::Zero;
 use kimchi::{
     circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW},
     commitment_dlog::{commitment::CommitmentCurve as _, srs::endos},
@@ -18,7 +19,7 @@ use crate::{
     field::Field,
 };
 
-const POSEIDON_FN: &str = "poseidon(input: [Field; 3]) -> [Field; 3]";
+const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
 
 pub const CRYPTO_FNS: [(&str, FuncType); 1] = [(POSEIDON_FN, poseidon)];
 
@@ -29,7 +30,7 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
         None => unimplemented!(),
         Some(cvar) => cvar.vars,
     };
-    assert_eq!(input.len(), 3);
+    assert_eq!(input.len(), 2);
 
     // get constants needed for poseidon
     let (endo_q, _endo_r) = endos::<vesta::Affine>();
@@ -41,7 +42,11 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
     let rc = &poseidon_params.round_constants;
     let width = PlonkSpongeConstantsKimchi::SPONGE_WIDTH;
 
-    // states contain all the states of the sponge
+    // pad the input (for the capacity)
+    let zero = compiler.constant(Field::zero(), span);
+    let mut input = input.clone();
+    input.push(zero);
+
     let mut states = vec![input.clone()];
 
     // 0..11

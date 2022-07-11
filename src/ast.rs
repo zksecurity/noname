@@ -646,7 +646,7 @@ impl Compiler {
         }
     }
 
-    pub fn constant(&mut self, value: Field, span: Span) -> CellVars {
+    pub fn constant(&mut self, value: Field, span: Span) -> CellVar {
         let var = self.new_internal_var(Value::Constant(value));
 
         let zero = Field::zero();
@@ -657,7 +657,7 @@ impl Compiler {
             span,
         );
 
-        CellVars::new(vec![var], span)
+        var
     }
 
     /// creates a new gate, and the associated row in the witness/execution trace.

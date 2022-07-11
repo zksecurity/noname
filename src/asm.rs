@@ -2,9 +2,13 @@
 //!
 //! ```
 //! @ noname.0.1.0
+//!
+//! # vars
+//!
+//! c0 = -9352361074401710304385665936723449560966553519198046749109814779611130548623
 //! # gates
 //!
-//! DoubleGeneric<1>
+//! DoubleGeneric<c0>
 //! DoubleGeneric<1,1,-1>
 //! DoubleGeneric<1,0,0,0,-2>
 //! DoubleGeneric<1,-1>
@@ -15,6 +19,7 @@
 //! (1,2) -> (3,0)
 //! (0,0) -> (1,1)
 //! ```
+//!
 
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
@@ -50,7 +55,7 @@ pub fn generate_asm(
     }
 
     for (idx, var) in vars.iter().enumerate() {
-        res.push_str(&format!("c{idx}={}\n", var.pretty()));
+        res.push_str(&format!("c{idx} = {}\n", var.pretty()));
     }
 
     // gates
@@ -146,6 +151,7 @@ fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
     (line_number, start, line)
 }
 
+/// Very dumb way to write an ordered hash set.
 pub struct OrderedHashSet<T> {
     inner: HashSet<T>,
     map: HashMap<T, usize>,
