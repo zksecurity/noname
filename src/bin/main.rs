@@ -21,23 +21,12 @@ fn parse(code: &str, debug: bool) -> Result<()> {
     println!("{circuit}");
 
     // generate witness
-    let private_input = vec![Field::one(), Field::one()];
-    let digest = {
-        let mut s: kimchi::oracle::poseidon::ArithmeticSponge<Field, PlonkSpongeConstantsKimchi> =
-            kimchi::oracle::poseidon::ArithmeticSponge::new(
-                kimchi::oracle::pasta::fp_kimchi::params(),
-            );
-        s.absorb(&private_input);
-        s.squeeze()
-    };
-
     let mut args = HashMap::new();
-    args.insert("public_input", CellValues::new(vec![digest]));
-    args.insert("private_input", CellValues::new(private_input));
+    args.insert("public_input", CellValues::new(vec![1.into()]));
+    args.insert("private_input", CellValues::new(vec![1.into()]));
 
     // create proof
-    let (proof, full_public_inputs, public_output) = prover_index.prove(args, debug)?;
-    //    assert_eq!(public_output.len(), 0);
+    let (proof, full_public_inputs, _public_output) = prover_index.prove(args, debug)?;
 
     // verify proof
     verifier_index.verify(full_public_inputs, proof)?;

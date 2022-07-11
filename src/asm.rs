@@ -43,10 +43,6 @@ pub fn generate_asm(
     // version
     res.push_str("@ noname.0.1.0\n\n");
 
-    if debug {
-        res.push_str("# gates\n\n");
-    }
-
     // vars
     let mut vars = OrderedHashSet::new();
 
@@ -54,11 +50,19 @@ pub fn generate_asm(
         extract_vars_from_coeffs(&mut vars, coeffs);
     }
 
+    if debug && !vars.is_empty() {
+        res.push_str("# vars\n\n");
+    }
+
     for (idx, var) in vars.iter().enumerate() {
         res.push_str(&format!("c{idx} = {}\n", var.pretty()));
     }
 
     // gates
+    if debug {
+        res.push_str("# gates\n\n");
+    }
+
     for Gate { typ, coeffs, span } in gates {
         // source
         if debug {
@@ -186,6 +190,14 @@ where
 
     pub fn pos(&self, value: &T) -> usize {
         self.map[value]
+    }
+
+    pub fn len(&self) -> usize {
+        self.ordered.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.ordered.is_empty()
     }
 }
 

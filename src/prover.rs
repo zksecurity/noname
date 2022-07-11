@@ -126,6 +126,7 @@ impl ProverIndex {
         let (witness, full_public_inputs, public_output) = self.compiler.generate_witness(args)?;
 
         if debug {
+            println!("# witness\n");
             witness.debug();
         }
 

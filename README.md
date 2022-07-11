@@ -1,81 +1,70 @@
 # I'm just toying around here, no idea what I'm doing.
 
-No really, this is all for me, not for you.
+**No really, this is all for me, not for you.**
 
-The idea: a rust-inspired programming language to write circuits for kimchi.
+The idea: a rust-inspired programming language to write circuits for [kimchi](https://github.com/o1-labs/proof-systems).
 
-Status: I can parse an extremely simple circuit, produce the circuit (in some made-up asm language), link each gate to the source, generate a witness for that circuit, and a proof with kimchi, and verify it with kimchi.
+**Status: see [#roadmap]**
 
-![image](https://user-images.githubusercontent.com/1316043/175832784-b77ae752-4513-4bae-9268-0d75eb558495.png)
+work for very simple examples. See [/data](/data)
 
-## Concept
+For example, here's a circuit that has one public input and one private input, checks that they can add up to 2, then return their sum with 6 as public output:
 
-kimchi is reused for the following flows:
+```rust
+fn main(pub public_input: Field, private_input: Field) -> Field {
+    let x = private_input + public_input;
+    assert_eq(x, 2);
+    let y = x + 6;
+    return y;
+}
+```
 
-- circuit -> kimchi compiler -> prover/verifier index
-- prover index + witness -> kimchi prover -> proof
-- verifier index + proof -> kimchi verifier -> true/false
+You can compile it with the following command:
 
-Some mentras:
+```console
+$ cargo run -- --path data/arithmetic.no --debug
+```
 
-- I like Rust, let's make something that looks like Rust
-- I like Golang also, let's take things from there as well:
-  - import a module not its functions and 1-depth qualify everything
-  - if there's two ways to write something, then that's bad (for example, type inference or writing the type manually? Don't give the option of the latter (eventhough go does, go often has one way to do something))
-- enforcing formatting (and not making it customizable) would be great :D
-- easy to compile/use something on any machine (like go/cargo)
-- make it composable (let people create their libraries)
+Which will print the assembly, as well as try to create and verify a proof to make sure everything works. The assembly should look like this:
+
+```
+@ noname.0.1.0
+
+DoubleGeneric<1>
+DoubleGeneric<1,1,-1>
+DoubleGeneric<1,0,0,0,-2>
+DoubleGeneric<1,-1>
+(0,0) -> (1,1)
+(1,2) -> (3,1)
+(2,0) -> (3,0)
+```
+
+If you run the command with `--debug` it should show you what lines created what gates:
+
+```
+--------------------------------------------------------------------------------
+1: fn main(pub public_input: Field, private_input: Field) {
+               ^^^^^^^^^^^^
+DoubleGeneric<1>
+--------------------------------------------------------------------------------
+2:     let x = private_input + public_input;
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+DoubleGeneric<1,1,-1>
+--------------------------------------------------------------------------------
+3:     assert_eq(x, 2);
+                    ^
+DoubleGeneric<1,0,0,0,-2>
+--------------------------------------------------------------------------------
+3:     assert_eq(x, 2);
+       ^^^^^^^^^^^^^^^
+DoubleGeneric<1,-1>
+```
 
 ## Roadmap
 
 Roadmap of the proof of concept:
 
-- [x] code -> lexer -> token
-- [x] token -> parser -> AST
-- [ ] AST -> semantic analysis -> AST + type info
-  - [ ] type checking
-  - [ ] name binding
-  - [ ] flow checking (CFG?)
-- [ ] AST + type info -> compile -> circuit + witness info
-- [ ] witness info -> interpreter -> witness
-
-Files I should be able to parse:
-
-- [x] `arithmetic.no`
-- [x] `public_output.no`
-- [ ] `poseidon.no`
-- [ ] `types.no`
-
-More specific tasks:
-
-- [x] fix the bug (the 2 isn't constrained in arithmetic.no). Probably I need to handle constants differently (I don't constrain them yet).
-- [x] the witness should be verified as it is created
-  - either we run the circuit with the witness (wasteful?)
-  - or when we construct the circuit we also saves some info on what needs to be checked when the witness is created? I think essentially we need to check assert_equals and that the public output is well constructed
-  - or... we just use kimchi to verify the witness, and if it returns an error on row i we use the `span` info in our `Gate` type to figure out where in the source that happened (easiest solution to implement, but maybe wasteful to verify each gate as well? also I think we're going to deprecate this verify function anyway...)
-  - I think a better way is to run the circuit, but replacing everything with constants (so that the different functions like assert_eq work with constant)
-  - or... when running in witness mode replace all builtin functions like assert_eq with our witness type assert_eq that will compute_var and check things directly. The problem is that managing two implementations for each functions is a pain. Perhaps we can figure that out within the function itself? We pass an emum { CircuitGenerator(env), WitnessGenerator(witness_env) }
-  - or... when we create a gate, we can write down exactly what we want to check (like a closure) when we generate the witness. Or perhaps when we generate the witness we can look at the gate and calculate that ourselves?
-- [x] implement the wiring
-- [x] fix span on debug
-- [ ] the returned compiled circuit (that can be used to produce witnesses) should be a new type (not Compiler) to prevent adding new gates? Or perhaps it's useless?
-- [x] handle function call in a statement differently? I could simply say that a statement can be an expression, only if it's a function call (to dedup code, although semantically I don't like it... maybe better to just factor out the code in a function)
-- [x] handle public output when generating witness
-- [x] figure out how to handle constants in the codebase (perhaps a hashmap of variable -> constant, and compute constants on the fly?)
-- [x] make array access work
-- [x] make poseidon work
-
-## Questions
-
-- interestingly, it seems like other languages have expression as statements, but check that the expression actually has a type (different than unit). Why do this just for a function call expression type? I find it better to include the function call as part of a statement as well as part of an expression, voila
-- interestingly, looks like the type system either creates a different AST or stores the information elsewhere. I think for our PoC we can either: 1) not store it or 2) store it within the Expr as an `Option<TyKind>`
-- do I need an ASG? CFG?
-
-## Relevant resources
-
-- maybe I should have used one of the easy parser library: https://github.com/lalrpop/lalrpop and https://github.com/pest-parser/pest (but a bit too late for that)
-- rustc has some explanation on its inners: https://rustc-dev-guide.rust-lang.org/the-parser.html
-- youtube course on compilers from Nicolas Laurent https://www.youtube.com/watch?v=hvGPtdNSvt8&list=PLOech0kWpH8-njQpmSNGSiQBPUvl8v3IM&index=2
-- Leo whitepaper https://eprint.iacr.org/2021/651
-- Move paper?
-
+- [x] `arithmetic.no` (simple arithmetic)
+- [x] `public_output.no` (returns a public output)
+- [x] `poseidon.no` (uses the poseidon function)
+- [ ] `types.no` (uses custom types)
