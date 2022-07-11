@@ -63,7 +63,7 @@ More specific tasks:
 - [x] handle public output when generating witness
 - [x] figure out how to handle constants in the codebase (perhaps a hashmap of variable -> constant, and compute constants on the fly?)
 - [x] make array access work
-- [ ] make poseidon work
+- [x] make poseidon work
 
 ## Questions
 

@@ -2,6 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use ark_ff::One;
 use clap::Parser;
+use kimchi::oracle::{constants::PlonkSpongeConstantsKimchi, poseidon::Sponge};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use my_programming_language::{
     ast::{CellValues, Compiler, Gate},
@@ -20,15 +21,31 @@ fn parse(code: &str, debug: bool) -> Result<()> {
     println!("{circuit}");
 
     // generate witness
+    let private_input = vec![Field::one(), Field::one(), Field::one()];
+    let digest = {
+        let mut s: kimchi::oracle::poseidon::ArithmeticSponge<_, PlonkSpongeConstantsKimchi> =
+            kimchi::oracle::poseidon::ArithmeticSponge::new(
+                kimchi::oracle::pasta::fp_kimchi::params(),
+            );
+        s.absorb(&private_input);
+        s.squeeze()
+    };
+
+    dbg!(format!("{}", digest));
+    let digest = num_bigint::BigUint::parse_bytes(
+        b"0EBF5BDC0F77B84961EECE81D7FD4E733EE6827163CAD6BA3BF8B5EB051B7E73",
+        16,
+    )
+    .unwrap();
+    let digest: Field = digest.try_into().unwrap();
+
     let mut args = HashMap::new();
-    args.insert("public_input", CellValues::new(vec![Field::one()]));
-    args.insert(
-        "private_input",
-        CellValues::new(vec![Field::one(), Field::one(), Field::one()]),
-    );
+    args.insert("public_input", CellValues::new(vec![digest]));
+    args.insert("private_input", CellValues::new(private_input));
 
     // create proof
     let (proof, full_public_inputs, public_output) = prover_index.prove(args, debug)?;
+    //    assert_eq!(public_output.len(), 0);
 
     // verify proof
     verifier_index.verify(full_public_inputs, proof)?;
