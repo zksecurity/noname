@@ -1,8 +1,17 @@
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
-use crate::{ast::CellValues, field::Field, prover::compile};
+use crate::{
+    field::Field,
+    inputs::{parse_inputs, ExtField, Inputs},
+    prover::compile,
+};
 
-fn test_file(file_name: &str, args: HashMap<&str, CellValues>, expected_public_output: Vec<Field>) {
+fn test_file(
+    file_name: &str,
+    public_inputs: &str,
+    private_inputs: &str,
+    expected_public_output: Vec<Field>,
+) {
     let version = env!("CARGO_MANIFEST_DIR");
     let prefix = Path::new(version).join("data");
 
@@ -16,8 +25,14 @@ fn test_file(file_name: &str, args: HashMap<&str, CellValues>, expected_public_o
     // check compiled ASM
     assert_eq!(circuit, asm);
 
+    // parse inputs
+    let public_inputs = parse_inputs(public_inputs).unwrap();
+    let private_inputs = parse_inputs(private_inputs).unwrap();
+
     // create proof
-    let (proof, full_public_inputs, public_output) = prover_index.prove(args, false).unwrap();
+    let (proof, full_public_inputs, public_output) = prover_index
+        .prove(public_inputs, private_inputs, false)
+        .unwrap();
     assert_eq!(public_output, expected_public_output);
 
     // verify proof
@@ -26,30 +41,44 @@ fn test_file(file_name: &str, args: HashMap<&str, CellValues>, expected_public_o
 
 #[test]
 fn test_arithmetic() {
-    let mut args = HashMap::new();
-    args.insert("public_input", CellValues::new(vec![1u32.into()]));
-    args.insert("private_input", CellValues::new(vec![1u32.into()]));
+    let public_inputs = r#"{"public_input": ["1"]}"#;
+    let private_inputs = r#"{"private_input": ["1"]}"#;
 
-    test_file("arithmetic", args, vec![]);
+    println!("public inputs: {:?}", public_inputs);
+    println!("private inputs: {:?}", private_inputs);
+
+    test_file("arithmetic", public_inputs, private_inputs, vec![]);
 }
 
 #[test]
 fn test_public_output() {
-    let mut args = HashMap::new();
-    args.insert("public_input", CellValues::new(vec![1.into()]));
-    args.insert("private_input", CellValues::new(vec![1.into()]));
+    let public_inputs = r#"{"public_input": ["1"]}"#;
+    let private_inputs = r#"{"private_input": ["1"]}"#;
 
-    test_file("public_output", args, vec![8u32.into()]);
+    test_file(
+        "public_output",
+        public_inputs,
+        private_inputs,
+        vec![8u32.into()],
+    );
 }
 
 #[test]
 fn test_poseidon() {
+    let private_inputs = r#"{"private_input": ["1", "1"]}"#;
     let private_input = [1.into(), 1.into()];
     let digest = crate::helpers::poseidon(private_input.clone());
+    let digest_dec = digest.to_dec_string();
 
-    let mut args = HashMap::new();
-    args.insert("public_input", CellValues::new(vec![digest]));
-    args.insert("private_input", CellValues::new(private_input.to_vec()));
+    let public_inputs = &format!(r#"{{"public_input": ["{digest_dec}"]}}"#);
 
-    test_file("poseidon", args, vec![]);
+    test_file("poseidon", public_inputs, private_inputs, vec![]);
+}
+
+#[test]
+fn test_bool() {
+    let private_inputs = r#"{"private_input": ["1", "1"]}"#;
+    let public_inputs = r#"{{"public_input": ["1"]}}"#;
+
+    test_file("bool", public_inputs, private_inputs, vec![]);
 }

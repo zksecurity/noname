@@ -8,6 +8,7 @@ use crate::{
     constants::NUM_REGISTERS,
     error::{Error, ErrorKind, Result},
     field::{Field, PrettyField},
+    inputs::Inputs,
     parser::TyKind,
 };
 
@@ -93,22 +94,37 @@ impl Compiler {
 
     pub fn generate_witness(
         &self,
-        args: HashMap<&str, CellValues>,
+        public_inputs: Inputs,
+        private_inputs: Inputs,
     ) -> Result<(Witness, Vec<Field>, Vec<Field>)> {
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
 
         // create the argument's variables?
-        for (name, (typ, span)) in &self.main_args {
-            let cval = match typ {
-                TyKind::Field => args.get(name.as_str()).ok_or(Error {
-                    kind: ErrorKind::MissingArg(name.clone()),
-                    span: *span,
-                })?,
-                TyKind::Array(array_typ, size) if **array_typ == TyKind::Field => {
-                    let cval = args.get(name.as_str()).ok_or(Error {
+        for (name, arg) in &self.main_args {
+            let cval = match &arg.typ.kind {
+                TyKind::Field => {
+                    let input = if arg.is_public() {
+                        public_inputs.get(name)
+                    } else {
+                        private_inputs.get(name)
+                    };
+
+                    input.ok_or(Error {
                         kind: ErrorKind::MissingArg(name.clone()),
-                        span: *span,
+                        span: arg.span,
+                    })?
+                }
+                TyKind::Array(array_typ, size) if **array_typ == TyKind::Field => {
+                    let input = if arg.is_public() {
+                        public_inputs.get(name)
+                    } else {
+                        private_inputs.get(name)
+                    };
+
+                    let cval = input.ok_or(Error {
+                        kind: ErrorKind::MissingArg(name.clone()),
+                        span: arg.span,
                     })?;
                     if cval.values.len() != *size as usize {
                         panic!("convert this to an error");

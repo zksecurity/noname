@@ -5,6 +5,7 @@ pub mod ast;
 pub mod constants;
 pub mod error;
 pub mod field;
+pub mod inputs;
 pub mod lexer;
 pub mod parser;
 pub mod prover;

@@ -22,7 +22,7 @@ pub enum ParsingError {
 #[derive(serde::Deserialize)]
 struct JsonInputs(HashMap<String, Vec<String>>);
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Inputs(HashMap<String, CellValues>);
 
 impl std::ops::Deref for Inputs {

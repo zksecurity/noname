@@ -79,39 +79,46 @@ pub enum TokenKind {
     Minus,              // -
     RightArrow,         // ->
     Star,               // *
+    Ampersand,          // &
+    Pipe,               // |
+    Exclamation,        // !
                         //    Literal,               // "thing"
 }
 
 impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use TokenKind::*;
         let desc = match self {
-            TokenKind::Keyword(_) => "keyword (use, let, etc.)",
-            TokenKind::Identifier(_) => {
+            Keyword(_) => "keyword (use, let, etc.)",
+            Identifier(_) => {
                 "a lowercase alphanumeric (including underscore) string starting with a letter"
             }
-            TokenKind::Type(_) => "an alphanumeric string starting with an uppercase letter",
-            TokenKind::BigInt(_) => "a number",
-            TokenKind::Hex(_) => "a hexadecimal string, starting with 0x",
-            TokenKind::Comma => "`,`",
-            TokenKind::Colon => "`:`",
-            TokenKind::DoubleColon => "`::`",
-            TokenKind::LeftParen => "`(`",
-            TokenKind::RightParen => "`)`",
-            TokenKind::LeftBracket => "`[`",
-            TokenKind::RightBracket => "`]`",
-            TokenKind::LeftCurlyBracket => "`{`",
-            TokenKind::RightCurlyBracket => "`}`",
-            TokenKind::SemiColon => "`;`",
-            TokenKind::Slash => "`/`",
-            TokenKind::Comment(_) => "`//`",
-            TokenKind::Greater => "`>`",
-            TokenKind::Less => "`<`",
-            TokenKind::Equal => "`=`",
-            TokenKind::DoubleEqual => "`==`",
-            TokenKind::Plus => "`+`",
-            TokenKind::Minus => "`-`",
-            TokenKind::RightArrow => "`->`",
-            TokenKind::Star => "`*`",
+            Type(_) => "an alphanumeric string starting with an uppercase letter",
+            BigInt(_) => "a number",
+            Hex(_) => "a hexadecimal string, starting with 0x",
+            Comma => "`,`",
+            Colon => "`:`",
+            DoubleColon => "`::`",
+            LeftParen => "`(`",
+            RightParen => "`)`",
+            LeftBracket => "`[`",
+            RightBracket => "`]`",
+            LeftCurlyBracket => "`{`",
+            RightCurlyBracket => "`}`",
+            SemiColon => "`;`",
+            Slash => "`/`",
+            Comment(_) => "`//`",
+            Greater => "`>`",
+            Less => "`<`",
+            Equal => "`=`",
+            DoubleEqual => "`==`",
+            Plus => "`+`",
+            Minus => "`-`",
+            RightArrow => "`->`",
+            Star => "`*`",
+            Ampersand => "`&`",
+            Pipe => "`|`",
+            Exclamation => "`!`",
             //            TokenType::Literal => "`\"something\"",
         };
 
@@ -312,6 +319,15 @@ impl Token {
                 }
                 '*' => {
                     tokens.push(TokenKind::Star.new_token(ctx, 1));
+                }
+                '&' => {
+                    tokens.push(TokenKind::Ampersand.new_token(ctx, 1));
+                }
+                '|' => {
+                    tokens.push(TokenKind::Pipe.new_token(ctx, 1));
+                }
+                '!' => {
+                    tokens.push(TokenKind::Exclamation.new_token(ctx, 1));
                 }
                 ' ' => ctx.offset += 1,
                 _ => {

@@ -337,7 +337,7 @@ impl Expr {
     /// Parses until it finds something it doesn't know, then returns without consuming the token it doesn't know (the caller will have to make sense of it)
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let token = tokens.bump_err(ctx, ErrorKind::MissingExpression)?;
-        let mut span = token.span;
+        let span = token.span;
 
         let lhs = match token.kind {
             // numeric
@@ -587,6 +587,18 @@ pub struct FuncArg {
 pub struct Attribute {
     pub kind: AttributeKind,
     pub span: Span,
+}
+
+impl FuncArg {
+    pub fn is_public(&self) -> bool {
+        matches!(
+            self.attribute,
+            Some(Attribute {
+                kind: AttributeKind::Pub,
+                ..
+            })
+        )
+    }
 }
 
 impl Function {

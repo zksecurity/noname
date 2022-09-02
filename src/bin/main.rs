@@ -1,32 +1,22 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
-use ark_ff::One;
 use clap::Parser;
-use kimchi::oracle::{constants::PlonkSpongeConstantsKimchi, poseidon::Sponge};
 use miette::{IntoDiagnostic, Result, WrapErr};
-use my_programming_language::{
-    ast::{CellValues, Compiler, Gate},
-    constants::NUM_REGISTERS,
-    field::Field,
-    lexer::Token,
-    parser::AST,
+use noname::{
+    inputs::{parse_inputs, Inputs},
     prover::compile,
 };
 
-fn parse(code: &str, debug: bool) -> Result<()> {
+fn parse(code: &str, public_inputs: Inputs, private_inputs: Inputs, debug: bool) -> Result<()> {
     // compile
     let (circuit, prover_index, verifier_index) = compile(code, debug)?;
 
     // print ASM
     println!("{circuit}");
 
-    // generate witness
-    let mut args = HashMap::new();
-    args.insert("public_input", CellValues::new(vec![1.into()]));
-    args.insert("private_input", CellValues::new(vec![1.into()]));
-
     // create proof
-    let (proof, full_public_inputs, _public_output) = prover_index.prove(args, debug)?;
+    let (proof, full_public_inputs, _public_output) =
+        prover_index.prove(public_inputs, private_inputs, debug)?;
 
     // verify proof
     verifier_index.verify(full_public_inputs, proof)?;
@@ -37,10 +27,19 @@ fn parse(code: &str, debug: bool) -> Result<()> {
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
+    /// path to the .no file
     #[clap(short, long, value_parser)]
     path: PathBuf,
 
-    // default to false
+    /// public inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
+    #[clap(long)]
+    public_inputs: Option<String>,
+
+    /// private inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
+    #[clap(long)]
+    private_inputs: Option<String>,
+
+    /// prints debug information (defaults to false)
     #[clap(short, long)]
     debug: bool,
 }
@@ -52,7 +51,19 @@ fn main() -> Result<()> {
         .into_diagnostic()
         .wrap_err_with(|| format!("could not read file"))?;
 
-    parse(&code, cli.debug).map_err(|e| e.with_source_code(code))?;
+    let public_inputs = if let Some(s) = cli.public_inputs {
+        parse_inputs(&s)?
+    } else {
+        Inputs::default()
+    };
+
+    let private_inputs = if let Some(s) = cli.private_inputs {
+        parse_inputs(&s)?
+    } else {
+        Inputs::default()
+    };
+
+    parse(&code, public_inputs, private_inputs, cli.debug).map_err(|e| e.with_source_code(code))?;
 
     println!("successfuly compiled");
 

@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+//! This module contains the prover.
 
 use crate::{
-    ast::{CellValues, Compiler, Gate},
-    constants::NUM_REGISTERS,
+    ast::Compiler,
     error::{Error, Result},
     field::Field,
+    inputs::Inputs,
     lexer::Token,
     parser::AST,
 };
@@ -119,11 +119,14 @@ impl ProverIndex {
     /// returns a proof and a public output
     pub fn prove(
         &self,
-        args: HashMap<&str, CellValues>,
+        public_inputs: Inputs,
+        private_inputs: Inputs,
         debug: bool,
     ) -> Result<(ProverProof<Curve>, Vec<Field>, Vec<Field>)> {
         // generate the witness
-        let (witness, full_public_inputs, public_output) = self.compiler.generate_witness(args)?;
+        let (witness, full_public_inputs, public_output) = self
+            .compiler
+            .generate_witness(public_inputs, private_inputs)?;
 
         if debug {
             println!("# witness\n");

@@ -121,33 +121,31 @@ impl Compiler {
                     main_function_observed = true;
 
                     // store variables and their types in the env
-                    for FuncArg {
-                        name, typ, span, ..
-                    } in &function.arguments
-                    {
+                    for arg in &function.arguments {
                         // public_output is a reserved name,
                         // associated automatically to the public output of the main function
-                        if name.value == "public_output" {
+                        if arg.name.value == "public_output" {
                             return Err(Error {
                                 kind: ErrorKind::PublicOutputReserved,
-                                span: name.span,
+                                span: arg.name.span,
                             });
                         }
 
-                        match typ.kind {
+                        match arg.typ.kind {
                             TyKind::Field => {
-                                env.var_types.insert(name.value.clone(), typ.kind.clone());
+                                env.var_types
+                                    .insert(arg.name.value.clone(), arg.typ.kind.clone());
                             }
 
                             TyKind::Array(..) => {
-                                env.var_types.insert(name.value.clone(), typ.kind.clone());
+                                env.var_types
+                                    .insert(arg.name.value.clone(), arg.typ.kind.clone());
                             }
                             _ => unimplemented!(),
                         }
 
                         //
-                        self.main_args
-                            .insert(name.value.clone(), (typ.kind.clone(), *span));
+                        self.main_args.insert(arg.name.value.clone(), arg.clone());
                     }
 
                     // the output value returned by the main function is also a main_args with a special name (public_output)

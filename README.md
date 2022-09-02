@@ -64,7 +64,9 @@ DoubleGeneric<1,-1>
 
 Roadmap of the proof of concept:
 
-- [x] `arithmetic.no` (simple arithmetic)
-- [x] `public_output.no` (returns a public output)
-- [x] `poseidon.no` (uses the poseidon function)
-- [ ] `types.no` (uses custom types)
+- [x] [`arithmetic.no`](/data/arithmetic.no) (simple arithmetic)
+- [x] `[public_output.no`](/data/public_output.no) (returns a public output)
+- [x] `[poseidon.no`](/data/poseidon.no) (uses the poseidon function)
+- [ ] bool.no
+- [ ] `[types.no`](/data/types.no) (uses custom types)
+- [ ] sudoku.no
