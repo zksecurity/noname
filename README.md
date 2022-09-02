@@ -1,12 +1,10 @@
-# I'm just toying around here, no idea what I'm doing.
+# Noname
 
-**No really, this is all for me, not for you.**
+This is **work-in-progress** to implement a high-level (rust-inspired) programming language to write zkapps for [kimchi](https://github.com/o1-labs/proof-systems).
 
-The idea: a rust-inspired programming language to write circuits for [kimchi](https://github.com/o1-labs/proof-systems).
+If you don't know what zero-knowledge proofs, zkapps, or kimchi are, check out [that blogpost](https://minaprotocol.com/blog/kimchi-the-latest-update-to-minas-proof-system).
 
-**Status: see [#roadmap]**
-
-work for very simple examples. See [/data](/data).
+## Examples
 
 For example, here's a circuit that has one public input and one private input, checks that they can add up to 2, then return their sum with 6 as public output:
 
