@@ -12,14 +12,17 @@ fn parse(code: &str, public_inputs: Inputs, private_inputs: Inputs, debug: bool)
     let (circuit, prover_index, verifier_index) = compile(code, debug)?;
 
     // print ASM
+    println!("successfuly compiled");
     println!("{circuit}");
 
     // create proof
     let (proof, full_public_inputs, _public_output) =
         prover_index.prove(public_inputs, private_inputs, debug)?;
+    println!("proof created");
 
     // verify proof
     verifier_index.verify(full_public_inputs, proof)?;
+    println!("proof verified");
 
     Ok(())
 }
@@ -64,8 +67,6 @@ fn main() -> Result<()> {
     };
 
     parse(&code, public_inputs, private_inputs, cli.debug).map_err(|e| e.with_source_code(code))?;
-
-    println!("successfuly compiled");
 
     Ok(())
 }

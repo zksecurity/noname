@@ -1,0 +1,9 @@
+use std::crypto;
+
+fn main(pub public_input: Field, private_input: [Field; 2]) {
+    let x = private_input[0] + private_input[1];
+    assert_eq(x, 2);
+    
+    let digest = crypto::poseidon(private_input);
+    assert_eq(digest[0], public_input);
+}

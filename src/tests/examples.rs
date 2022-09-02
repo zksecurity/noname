@@ -69,6 +69,10 @@ fn test_poseidon() {
     let private_input = [1.into(), 1.into()];
     let digest = crate::helpers::poseidon(private_input.clone());
     let digest_dec = digest.to_dec_string();
+    assert_eq!(
+        "3654913405619483358804575553468071097765421484960111776885779739261304758583",
+        digest_dec
+    );
 
     let public_inputs = &format!(r#"{{"public_input": ["{digest_dec}"]}}"#);
 
