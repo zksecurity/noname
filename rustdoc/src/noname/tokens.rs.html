@@ -79,7 +79,7 @@
 <span id="73">73</span>
 <span id="74">74</span>
 <span id="75">75</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Since [Peekable] in Rust advances the iterator,</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Since [std::iter::Peekable] in Rust advances the iterator,</span>
 <span class="doccomment">//! I can&#39;t use it for peeking tokens.</span>
 <span class="doccomment">//! I haven&#39;t found a better way than implementing a wrapper</span>
 <span class="doccomment">//! that allows me to peek...</span>
@@ -133,7 +133,7 @@
             <span class="ident">token</span>
         }
     }
-    <span class="doccomment">/// Like [bump] but errors with `err` pointing to the latest token</span>
+    <span class="doccomment">/// Like [Self::bump] but errors with `err` pointing to the latest token</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">bump_err</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">ctx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ParserCtx</span>, <span class="ident">err</span>: <span class="ident">ErrorKind</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Token</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">bump</span>(<span class="ident">ctx</span>).<span class="ident">ok_or</span>(<span class="ident">Error</span> {
             <span class="ident">kind</span>: <span class="ident">err</span>,
@@ -141,7 +141,7 @@
         })
     }
 
-    <span class="doccomment">/// Like [bump] but errors if the token is not `typ`</span>
+    <span class="doccomment">/// Like [Self::bump] but errors if the token is not `typ`</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">bump_expected</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">ctx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ParserCtx</span>, <span class="ident">typ</span>: <span class="ident">TokenKind</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Token</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">token</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">bump_err</span>(<span class="ident">ctx</span>, <span class="ident">ErrorKind::MissingToken</span>)<span class="question-mark">?</span>;
         <span class="kw">if</span> <span class="ident">token</span>.<span class="ident">kind</span> <span class="op">==</span> <span class="ident">typ</span> {

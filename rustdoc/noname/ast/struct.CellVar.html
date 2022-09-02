@@ -8,7 +8,7 @@
     <h1 class="fqn"><span class="in-band">Struct <a href="../index.html">noname</a>::<wbr><a href="index.html">ast</a>::<wbr><a class="struct" href="#">CellVar</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span></h1><span class="out-of-band"><a class="srclink" href="../../src/noname/ast.rs.html#39-42">source</a> · <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span></div><div class="docblock item-decl"><pre class="rust struct"><code>pub struct CellVar { /* private fields */ }</code></pre></div><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>An internal variable that relates to a specific cell (of the execution trace),
 or multiple cells (if wired), in the circuit.</p>
 <p>Note: a <a href="struct.CellVar.html" title="CellVar">CellVar</a> is potentially not directly added to the rows,
-for example a private input is converted directly to a (number of) <a href="s">CellVar</a>,
+for example a private input is converted directly to a (number of) <a href="struct.CellVar.html" title="CellVar">CellVar</a>,
 but only added to the rows when it appears in a constraint for the first time.</p>
 <p>As the final step of the compilation,
 we double check that all cellvars have appeared in the rows at some point.</p>

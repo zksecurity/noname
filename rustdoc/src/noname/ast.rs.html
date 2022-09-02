@@ -906,7 +906,7 @@
 <span class="doccomment">/// or multiple cells (if wired), in the circuit.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Note: a [CellVar] is potentially not directly added to the rows,</span>
-<span class="doccomment">/// for example a private input is converted directly to a (number of) [CellVar](s),</span>
+<span class="doccomment">/// for example a private input is converted directly to a (number of) [CellVar],</span>
 <span class="doccomment">/// but only added to the rows when it appears in a constraint for the first time.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// As the final step of the compilation,</span>
@@ -958,7 +958,7 @@
 <span class="doccomment">/// The primitive type in a circuit is a field element.</span>
 <span class="doccomment">/// But since we want to be able to deal with custom types</span>
 <span class="doccomment">/// that are built on top of field elements,</span>
-<span class="doccomment">/// we abstract any variable in the circuit as a [CircuitVar]</span>
+<span class="doccomment">/// we abstract any variable in the circuit as a [Var::CircuitVar]</span>
 <span class="doccomment">/// which can contain one or more variables.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CellVars</span> {
@@ -989,7 +989,7 @@
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Var</span> {
     <span class="doccomment">/// Either a constant</span>
     <span class="ident">Constant</span>(<span class="ident">Constant</span>),
-    <span class="doccomment">/// Or a [CircuitVar]</span>
+    <span class="doccomment">/// Or a [CellVars]</span>
     <span class="ident">CircuitVar</span>(<span class="ident">CellVars</span>),
 }
 
@@ -1137,7 +1137,7 @@
     <span class="doccomment">/// Size of the public input.</span>
     <span class="kw">pub</span> <span class="ident">public_input_size</span>: <span class="ident">usize</span>,
 
-    <span class="doccomment">/// If a public output is set, this will be used to store its [CircuitVar] (cvar).</span>
+    <span class="doccomment">/// If a public output is set, this will be used to store its [Var::CircuitVar].</span>
     <span class="doccomment">/// The public output generation works as follows:</span>
     <span class="doccomment">/// 1. This cvar is created and inserted in the circuit (gates) during compilation of the public input</span>
     <span class="doccomment">///    (as the public output is the end of the public input)</span>
