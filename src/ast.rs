@@ -28,11 +28,15 @@ use crate::{
 //
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-// TODO: should a var also contain a span?
-/// An internal variable is a variable that is created from a linear combination of external variables.
-/// It, most of the time, ends up being a cell in the circuit.
-/// That is, unless it's unused?
-// TODO: should we make sure that creating a cellvar ALWAYS end up with creating an actual cell/row in the circuit? (so perhaps CellVar would be a (usize, usize) pointing to the actual cell?)
+/// An internal variable that relates to a specific cell (of the execution trace),
+/// or multiple cells (if wired), in the circuit.
+///
+/// Note: a [CellVar] is potentially not directly added to the rows,
+/// for example a private input is converted directly to a (number of) [CellVar](s),
+/// but only added to the rows when it appears in a constraint for the first time.
+///
+/// As the final step of the compilation,
+/// we double check that all cellvars have appeared in the rows at some point.
 pub struct CellVar {
     index: usize,
     span: Span,
@@ -245,7 +249,7 @@ pub struct Compiler {
     pub rows_of_vars: Vec<Vec<Option<CellVar>>>,
 
     /// the arguments expected by main (I think it's used by the witness generator to make sure we passed the arguments)
-    pub main_args: HashMap<String, FuncArg>,
+    pub main_args: (HashMap<String, FuncArg>, Span),
 
     /// The gates created by the circuit
     // TODO: replace by enum and merge with finalized?
@@ -264,9 +268,9 @@ pub struct Compiler {
     ///    is delayed until the very end.
     pub public_output: Option<CellVars>,
 
-    /// Size of the private input.
-    // TODO: bit weird isn't it?
-    pub private_input_size: usize,
+    /// Indexes used by the private inputs
+    /// (this is useful to check that they appear in the circuit)
+    pub private_input_indices: Vec<usize>,
 }
 
 impl Compiler {
@@ -303,7 +307,13 @@ impl Compiler {
 
         for var in 0..compiler.next_variable {
             if !written_vars.contains(&var) {
-                panic!("there's a bug in the compiler, some cellvar does not end up being a cellvar in the circuit");
+                if compiler.private_input_indices.contains(&var) {
+                    panic!(
+                        "private input not used in the circuit (TODO: return a proper error here)"
+                    );
+                } else {
+                    panic!("there's a bug in the compiler, some cellvar does not end up being a cellvar in the circuit!");
+                }
             }
         }
 
@@ -793,10 +803,8 @@ impl Compiler {
             // create the var
             let var = self.new_internal_var(Value::External(name.clone(), idx), span);
             vars.push(var);
+            self.private_input_indices.push(var.index);
         }
-
-        // TODO: do we really need this?
-        self.private_input_size += num;
 
         CellVars::new(vars, span)
     }

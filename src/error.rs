@@ -160,4 +160,7 @@ pub enum ErrorKind {
 
     #[error("invalid witness (row {0})")]
     InvalidWitness(usize),
+
+    #[error("user provided input `{0}` is not defined in the main function's arguments")]
+    UnusedInput(String),
 }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ark_ff::Zero;
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 
 use crate::{
     ast::{CellValues, CellVar, Compiler, Value},
@@ -94,20 +94,20 @@ impl Compiler {
 
     pub fn generate_witness(
         &self,
-        public_inputs: Inputs,
-        private_inputs: Inputs,
+        mut public_inputs: Inputs,
+        mut private_inputs: Inputs,
     ) -> Result<(Witness, Vec<Field>, Vec<Field>)> {
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
 
         // create the argument's variables?
-        for (name, arg) in &self.main_args {
+        for (name, arg) in &self.main_args.0 {
             let cval = match &arg.typ.kind {
                 TyKind::Field => {
                     let input = if arg.is_public() {
-                        public_inputs.get(name)
+                        public_inputs.0.remove(name)
                     } else {
-                        private_inputs.get(name)
+                        private_inputs.0.remove(name)
                     };
 
                     input.ok_or(Error {
@@ -117,9 +117,9 @@ impl Compiler {
                 }
                 TyKind::Array(array_typ, size) if **array_typ == TyKind::Field => {
                     let input = if arg.is_public() {
-                        public_inputs.get(name)
+                        public_inputs.0.remove(name)
                     } else {
-                        private_inputs.get(name)
+                        private_inputs.0.remove(name)
                     };
 
                     let cval = input.ok_or(Error {
@@ -135,6 +135,14 @@ impl Compiler {
             };
 
             env.add_value(name.clone(), cval.clone());
+        }
+
+        // ensure that we've used all of the inputs provided
+        for name in chain![private_inputs.0.keys(), public_inputs.0.keys()] {
+            return Err(Error {
+                kind: ErrorKind::UnusedInput(name.clone()),
+                span: self.main_args.1,
+            });
         }
 
         // compute each rows' vars, except for the deferred ones (public output)

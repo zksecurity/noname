@@ -23,15 +23,7 @@ pub enum ParsingError {
 struct JsonInputs(HashMap<String, Vec<String>>);
 
 #[derive(Default, Debug, Clone)]
-pub struct Inputs(HashMap<String, CellValues>);
-
-impl std::ops::Deref for Inputs {
-    type Target = HashMap<String, CellValues>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+pub struct Inputs(pub HashMap<String, CellValues>);
 
 pub fn parse_inputs(s: &str) -> Result<Inputs, ParsingError> {
     let json_inputs: JsonInputs = serde_json::from_str(s)?;

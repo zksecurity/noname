@@ -809,8 +809,9 @@ impl Function {
         let body = Self::parse_fn_body(ctx, tokens)?;
 
         // here's the last token, that is if the function is not empty (maybe we should disallow empty functions?)
+
         if let Some(t) = body.last() {
-            span.1 = t.span.1;
+            span.1 = (t.span.0 + t.span.1) - span.0;
         } else {
             return Err(Error {
                 kind: ErrorKind::InvalidFunctionSignature("expected function body"),

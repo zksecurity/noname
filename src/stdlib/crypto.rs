@@ -1,11 +1,6 @@
-use std::{cell::RefCell, rc::Rc};
-
-use ark_ec::AffineCurve as _;
 use ark_ff::Zero;
 use kimchi::{
     circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW},
-    commitment_dlog::{commitment::CommitmentCurve as _, srs::endos},
-    mina_curves::pasta::vesta,
     oracle::{
         self,
         constants::{PlonkSpongeConstantsKimchi, SpongeConstants},
@@ -14,7 +9,7 @@ use kimchi::{
 };
 
 use crate::{
-    ast::{CellVars, Compiler, FuncType, GateKind, Value, Var},
+    ast::{Compiler, FuncType, GateKind, Value, Var},
     constants::{self, Span},
     field::Field,
 };
@@ -33,10 +28,6 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
     assert_eq!(input.len(), 2);
 
     // get constants needed for poseidon
-    let (endo_q, _endo_r) = endos::<vesta::Affine>();
-    let base = vesta::Affine::prime_subgroup_generator()
-        .to_coordinates()
-        .unwrap();
     let poseidon_params = oracle::pasta::fp_kimchi::params();
 
     let rc = &poseidon_params.round_constants;

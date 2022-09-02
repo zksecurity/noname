@@ -63,7 +63,7 @@ pub fn generate_asm(
         res.push_str("# gates\n\n");
     }
 
-    for Gate { typ, coeffs, span } in gates {
+    for (row, Gate { typ, coeffs, span }) in gates.iter().enumerate() {
         // source
         if debug {
             display_source(&mut res, source, &[*span]);
@@ -73,6 +73,10 @@ pub fn generate_asm(
         let coeffs = parse_coeffs(&vars, coeffs);
 
         // gate
+        if debug {
+            res.push_str(&format!("#{row} - "));
+        }
+
         res.push_str(&format!("{typ:?}"));
         res.push_str("<");
         res.push_str(&coeffs.join(","));

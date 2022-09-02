@@ -116,10 +116,12 @@ impl Compiler {
                 RootKind::Function(function) => {
                     // TODO: support other functions
                     if !function.is_main() {
-                        unimplemented!();
+                        panic!("we do not yet support functions other than main()");
                     }
 
                     main_function_observed = true;
+
+                    self.main_args.1 = function.span;
 
                     // store variables and their types in the env
                     for arg in &function.arguments {
@@ -152,7 +154,7 @@ impl Compiler {
                         }
 
                         //
-                        self.main_args.insert(arg.name.value.clone(), arg.clone());
+                        self.main_args.0.insert(arg.name.value.clone(), arg.clone());
                     }
 
                     // the output value returned by the main function is also a main_args with a special name (public_output)
