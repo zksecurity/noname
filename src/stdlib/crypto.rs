@@ -34,7 +34,7 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
     let width = PlonkSpongeConstantsKimchi::SPONGE_WIDTH;
 
     // pad the input (for the capacity)
-    let zero = compiler.constant(Field::zero(), span);
+    let zero = compiler.add_constant(Field::zero(), span);
     let mut input = input.clone();
     input.push(zero);
 

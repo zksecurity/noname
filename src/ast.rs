@@ -53,7 +53,7 @@ pub enum Value {
     /// Either it's a hint and can be computed from the outside.
     Hint(Box<dyn Fn(&Compiler, &mut WitnessEnv) -> Result<Field>>),
 
-    /// Or it's a constant.
+    /// Or it's a constant (for example, I wrote `2` in the code).
     Constant(Field),
 
     /// Or it's a linear combination of internal circuit variables (+ a constant).
@@ -64,6 +64,8 @@ pub enum Value {
     /// There's an index associated to a variable name, as the variable could be composed of several field elements.
     External(String, usize),
 
+    /// A public output.
+    /// This is tracked separately as public inputs as it needs to be computed later.
     PublicOutput(Option<CellVar>),
 }
 
@@ -608,6 +610,7 @@ impl Compiler {
         Ok(var)
     }
 
+    // TODO: dead code?
     pub fn compute_constant(&self, var: CellVar, span: Span) -> Result<Field> {
         match &self.witness_vars.get(&var) {
             Some(Value::Constant(c)) => Ok(*c),
@@ -649,6 +652,7 @@ impl Compiler {
                 );
 
                 // create a gate to store the result
+                // TODO: we should use an add_generic function that takes advantage of the double generic gate
                 self.add_gate(
                     GateKind::DoubleGeneric,
                     vec![Some(var), None, Some(res)],
@@ -694,7 +698,8 @@ impl Compiler {
         }
     }
 
-    pub fn constant(&mut self, value: Field, span: Span) -> CellVar {
+    // TODO: we should cache constants to avoid creating a new variable for each constant
+    pub fn add_constant(&mut self, value: Field, span: Span) -> CellVar {
         let var = self.new_internal_var(Value::Constant(value), span);
 
         let zero = Field::zero();

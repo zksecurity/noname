@@ -1,0 +1,6 @@
+[book]
+authors = ["David Wong"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Non\bName"

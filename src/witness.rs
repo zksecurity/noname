@@ -214,9 +214,11 @@ impl Compiler {
             full_public_inputs.push(witness[row][0]);
         }
 
-        //
+        // sanity checks
         assert_eq!(witness.len(), self.num_gates());
+        assert_eq!(witness.len(), self.rows_of_vars.len());
 
+        // return the public output as well
         Ok((Witness(witness), full_public_inputs, public_output))
     }
 }

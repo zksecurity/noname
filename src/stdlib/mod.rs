@@ -108,7 +108,7 @@ fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
         }
         (Var::Constant(cst), Var::CircuitVar(cvars))
         | (Var::CircuitVar(cvars), Var::Constant(cst)) => {
-            let cst_var = compiler.constant(cst.value, cst.span);
+            let cst_var = compiler.add_constant(cst.value, cst.span);
 
             assert_eq!(cvars.vars.len(), 1);
             let cvar = cvars.var(0).unwrap();
@@ -155,7 +155,7 @@ fn assert(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
             let cvar = cvars.var(0).unwrap();
 
             // create a bool = true
-            let true_var = compiler.constant(Field::one(), span);
+            let true_var = compiler.add_constant(Field::one(), span);
 
             // TODO: use permutation to check that
             // TODO: what if cvar is not a cell in the circuit o_O?
