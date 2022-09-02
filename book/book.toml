@@ -3,4 +3,10 @@ authors = ["David Wong"]
 language = "en"
 multilingual = false
 src = "src"
-title = "Non\bName"
+title = "noname"
+
+[output.html]
+site-url = "/noname/"
+use-site-url-as-root = true
+curly-quotes = true
+git-repository-url = "https://www.github.com/mimoo/noname"
