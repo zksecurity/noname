@@ -23,6 +23,10 @@ pub enum Keyword {
     Pub,
     /// Return from a function
     Return,
+    /// The boolean value `true`
+    True,
+    /// The boolean value `false`
+    False,
 }
 
 impl Keyword {
@@ -33,6 +37,8 @@ impl Keyword {
             "let" => Some(Self::Let),
             "pub" => Some(Self::Pub),
             "return" => Some(Self::Return),
+            "true" => Some(Self::True),
+            "false" => Some(Self::False),
             _ => None,
         }
     }
@@ -46,6 +52,8 @@ impl Display for Keyword {
             Self::Let => "let",
             Self::Pub => "pub",
             Self::Return => "return",
+            Self::True => "true",
+            Self::False => "false",
         };
 
         write!(f, "{}", desc)

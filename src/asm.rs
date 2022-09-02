@@ -99,7 +99,9 @@ pub fn generate_asm(
     cycles.sort();
 
     for (cells, spans) in cycles {
-        display_source(&mut res, source, spans);
+        if debug {
+            display_source(&mut res, source, spans);
+        }
         let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
         res.push_str(&format!("{s}\n"));
     }

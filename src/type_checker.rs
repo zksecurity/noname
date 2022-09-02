@@ -35,6 +35,7 @@ impl Expr {
             }
             ExprKind::Negated(_) => todo!(),
             ExprKind::BigInt(_) => Ok(Some(TyKind::BigInt)),
+            ExprKind::Bool(_) => Ok(Some(TyKind::Bool)),
             ExprKind::Identifier(ident) => {
                 let typ = env.get_type(ident).ok_or(Error {
                     kind: ErrorKind::UndefinedVariable,
@@ -131,7 +132,7 @@ impl Compiler {
                             });
                         }
 
-                        match arg.typ.kind {
+                        match &arg.typ.kind {
                             TyKind::Field => {
                                 env.var_types
                                     .insert(arg.name.value.clone(), arg.typ.kind.clone());
@@ -141,7 +142,13 @@ impl Compiler {
                                 env.var_types
                                     .insert(arg.name.value.clone(), arg.typ.kind.clone());
                             }
-                            _ => unimplemented!(),
+
+                            TyKind::Bool => {
+                                env.var_types
+                                    .insert(arg.name.value.clone(), arg.typ.kind.clone());
+                            }
+
+                            t => panic!("unimplemented type {:?}", t),
                         }
 
                         //

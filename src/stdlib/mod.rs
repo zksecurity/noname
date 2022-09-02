@@ -91,13 +91,14 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FuncType)]) -> Vec<(FunctionSig, FuncType
 // TODO: give a name that's useful for the user,
 //       not something descriptive internally like "builtins"
 
-const ASSERT_FN: &str = "assert(condition: Field)";
+const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 
 pub const BUILTIN_FNS: [(&str, FuncType); 1] = [(ASSERT_EQ_FN, assert_eq)];
 
+/// Asserts that two field elements are equal.
+// TODO: For now this only works for two field elements, but we could generalize that function and just divide vars into two and trust the type checker
 fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
-    dbg!(span);
     // double check (on top of type checker)
     assert_eq!(vars.len(), 2);
 
@@ -105,15 +106,15 @@ fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
         (Var::Constant(Constant { value: a, .. }), Var::Constant(Constant { value: b, .. })) => {
             assert_eq!(a, b)
         }
-        (Var::Constant(cst), Var::CircuitVar(cvar))
-        | (Var::CircuitVar(cvar), Var::Constant(cst)) => {
+        (Var::Constant(cst), Var::CircuitVar(cvars))
+        | (Var::CircuitVar(cvars), Var::Constant(cst)) => {
             let cst_var = compiler.constant(cst.value, cst.span);
 
-            assert_eq!(cvar.vars.len(), 1);
-            let cvar = cvar.var(0).unwrap();
+            assert_eq!(cvars.vars.len(), 1);
+            let cvar = cvars.var(0).unwrap();
 
             // TODO: use permutation to check that
-            compiler.gates(
+            compiler.add_gate(
                 GateKind::DoubleGeneric,
                 vec![Some(cst_var), Some(cvar)],
                 vec![Field::one(), Field::one().neg()],
@@ -128,9 +129,39 @@ fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
             let rhs = rhs.var(0).unwrap();
 
             // TODO: use permutation to check that
-            compiler.gates(
+            compiler.add_gate(
                 GateKind::DoubleGeneric,
                 vec![Some(lhs), Some(rhs)],
+                vec![Field::one(), Field::one().neg()],
+                span,
+            );
+        }
+    }
+
+    None
+}
+
+/// Asserts that a condition is true.
+fn assert(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
+    // double check (on top of type checker)
+    assert_eq!(vars.len(), 1);
+
+    match &vars[0] {
+        Var::Constant(Constant { value: a, .. }) => {
+            assert!(a.is_one());
+        }
+        Var::CircuitVar(cvars) => {
+            assert_eq!(cvars.vars.len(), 1);
+            let cvar = cvars.var(0).unwrap();
+
+            // create a bool = true
+            let true_var = compiler.constant(Field::one(), span);
+
+            // TODO: use permutation to check that
+            // TODO: what if cvar is not a cell in the circuit o_O?
+            compiler.add_gate(
+                GateKind::DoubleGeneric,
+                vec![Some(true_var), Some(cvar)],
                 vec![Field::one(), Field::one().neg()],
                 span,
             );

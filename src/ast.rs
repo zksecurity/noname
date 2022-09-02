@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::{self, Display, Formatter},
     ops::Neg,
     vec,
@@ -32,6 +32,7 @@ use crate::{
 /// An internal variable is a variable that is created from a linear combination of external variables.
 /// It, most of the time, ends up being a cell in the circuit.
 /// That is, unless it's unused?
+// TODO: should we make sure that creating a cellvar ALWAYS end up with creating an actual cell/row in the circuit? (so perhaps CellVar would be a (usize, usize) pointing to the actual cell?)
 pub struct CellVar(usize);
 
 /// A variable's actual value in the witness can be computed in different ways.
@@ -281,7 +282,24 @@ impl Compiler {
         compiler.type_check(env, &mut ast)?;
 
         // this will convert everything to {gates, wiring, witness_vars}
-        compiler.compile(env, &ast, debug)
+        let (circuit, compiler) = compiler.compile(env, &ast, debug)?;
+
+        // for sanity check, we make sure that every cellvar created has ended up in a gate
+        let mut written_vars = HashSet::new();
+        for row in &compiler.rows_of_vars {
+            row.iter().flatten().for_each(|cvar| {
+                written_vars.insert(cvar.0);
+            });
+        }
+
+        for var in 0..compiler.next_variable {
+            if !written_vars.contains(&var) {
+                panic!("there's a bug in the compiler, some cellvar does not end up being a cellvar in the circuit");
+            }
+        }
+
+        //
+        Ok((circuit, compiler))
     }
 
     pub fn compiled_gates(&self) -> &[Gate] {
@@ -494,6 +512,9 @@ impl Compiler {
                 Op2::Multiplication => todo!(),
                 Op2::Division => todo!(),
                 Op2::Equality => todo!(),
+                Op2::BoolAnd => todo!(),
+                Op2::BoolOr => todo!(),
+                Op2::BoolNot => todo!(),
             },
             ExprKind::Negated(_) => todo!(),
             ExprKind::BigInt(b) => {
@@ -505,6 +526,7 @@ impl Compiler {
 
                 Some(Var::new_constant(f, expr.span))
             }
+            ExprKind::Bool(b) => todo!(),
             ExprKind::Identifier(name) => {
                 let var = env.get_var(&name).unwrap();
                 Some(var)
@@ -606,7 +628,7 @@ impl Compiler {
                     self.new_internal_var(Value::LinearCombination(vec![(Field::one(), var)], cst));
 
                 // create a gate to store the result
-                self.gates(
+                self.add_gate(
                     GateKind::DoubleGeneric,
                     vec![Some(var), None, Some(res)],
                     vec![
@@ -636,7 +658,7 @@ impl Compiler {
                 ));
 
                 // create a gate to store the result
-                self.gates(
+                self.add_gate(
                     GateKind::DoubleGeneric,
                     vec![Some(lhs), Some(rhs), Some(res)],
                     vec![Field::one(), Field::one(), Field::one().neg()],
@@ -652,7 +674,7 @@ impl Compiler {
         let var = self.new_internal_var(Value::Constant(value));
 
         let zero = Field::zero();
-        self.gates(
+        self.add_gate(
             GateKind::DoubleGeneric,
             vec![Some(var)],
             vec![Field::one(), zero, zero, zero, value.neg()],
@@ -664,19 +686,25 @@ impl Compiler {
 
     /// creates a new gate, and the associated row in the witness/execution trace.
     // TODO: add_gate instead of gates?
-    pub fn gates(
+    pub fn add_gate(
         &mut self,
         typ: GateKind,
         vars: Vec<Option<CellVar>>,
         coeffs: Vec<Field>,
         span: Span,
     ) {
+        // sanitize
         assert!(coeffs.len() <= NUM_REGISTERS);
         assert!(vars.len() <= NUM_REGISTERS);
+
+        // for the witness
         self.rows_of_vars.push(vars.clone());
-        let row = self.gates.len();
+
+        // add gate
         self.gates.push(Gate { typ, coeffs, span });
 
+        // wiring (based on vars)
+        let row = self.gates.len();
         for (col, var) in vars.iter().enumerate() {
             if let Some(var) = var {
                 let curr_cell = Cell { row, col };
@@ -705,7 +733,7 @@ impl Compiler {
             vars.push(var.clone());
 
             // create the associated generic gate
-            self.gates(
+            self.add_gate(
                 GateKind::DoubleGeneric,
                 vec![Some(var)],
                 vec![Field::one()],
@@ -728,7 +756,7 @@ impl Compiler {
             vars.push(var);
 
             // create the associated generic gate
-            self.gates(
+            self.add_gate(
                 GateKind::DoubleGeneric,
                 vec![Some(var)],
                 vec![Field::one()],

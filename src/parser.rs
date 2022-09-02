@@ -164,6 +164,7 @@ pub enum TyKind {
     Field,
     BigInt,
     Array(Box<TyKind>, u32),
+    Bool,
     // Tuple(Vec<TyKind>),
     // Bool,
     // U8,
@@ -179,6 +180,7 @@ impl Display for TyKind {
             TyKind::Field => write!(f, "Field"),
             TyKind::BigInt => write!(f, "BigInt"),
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
+            TyKind::Bool => write!(f, "Bool"),
         }
     }
 }
@@ -188,19 +190,20 @@ impl Ty {
         let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
         match token.kind {
             // struct name
-            TokenKind::Type(name) => {
-                if name == "Field" {
-                    Ok(Self {
-                        kind: TyKind::Field,
-                        span: token.span,
-                    })
-                } else {
-                    Ok(Self {
-                        kind: TyKind::Custom(name.to_string()),
-                        span: token.span,
-                    })
-                }
-            }
+            TokenKind::Type(name) => match name.as_str() {
+                "Field" => Ok(Self {
+                    kind: TyKind::Field,
+                    span: token.span,
+                }),
+                "Bool" => Ok(Self {
+                    kind: TyKind::Bool,
+                    span: token.span,
+                }),
+                _ => Ok(Self {
+                    kind: TyKind::Custom(name.to_string()),
+                    span: token.span,
+                }),
+            },
 
             // array
             // [type; size]
@@ -301,6 +304,7 @@ pub enum ExprKind {
     BigInt(String),
     Identifier(String),
     ArrayAccess(Path, Box<Expr>),
+    Bool(bool),
 }
 
 #[derive(Debug, Clone)]
@@ -310,6 +314,9 @@ pub enum Op2 {
     Multiplication,
     Division,
     Equality,
+    BoolAnd,
+    BoolOr,
+    BoolNot,
 }
 
 impl Op2 {
@@ -322,6 +329,9 @@ impl Op2 {
             TokenKind::Star => Some(Op2::Multiplication),
             TokenKind::Slash => Some(Op2::Division),
             TokenKind::DoubleEqual => Some(Op2::Equality),
+            TokenKind::Ampersand => Some(Op2::BoolAnd),
+            TokenKind::Pipe => Some(Op2::BoolOr),
+            TokenKind::Exclamation => Some(Op2::BoolNot),
             _ => None,
         };
 
@@ -478,6 +488,28 @@ impl Expr {
                 let expr = Expr::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenKind::RightParen)?;
                 expr
+            }
+
+            // true or false
+            TokenKind::Keyword(Keyword::True) | TokenKind::Keyword(Keyword::False) => {
+                let is_true = matches!(token.kind, TokenKind::Keyword(Keyword::True));
+
+                Expr {
+                    kind: ExprKind::Bool(is_true),
+                    typ: Some(TyKind::Bool),
+                    span,
+                }
+            }
+
+            // negation (logical NOT)
+            TokenKind::Exclamation => {
+                let expr = Expr::parse(ctx, tokens)?;
+
+                Expr {
+                    kind: ExprKind::Negated(Box::new(expr)),
+                    typ: Some(TyKind::Bool),
+                    span,
+                }
             }
 
             // unrecognized pattern
