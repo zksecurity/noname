@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
 use crate::{
-    ast::Environment,
     constants::Span,
     error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind},
@@ -73,6 +72,10 @@ pub struct Path {
 impl Path {
     pub fn len(&self) -> usize {
         self.path.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.path.is_empty()
     }
 
     /// Parses a path from a list of tokens.
@@ -247,12 +250,10 @@ impl Ty {
             }
 
             // unrecognized
-            _ => {
-                return Err(Error {
-                    kind: ErrorKind::InvalidType,
-                    span: token.span,
-                })
-            }
+            _ => Err(Error {
+                kind: ErrorKind::InvalidType,
+                span: token.span,
+            }),
         }
     }
 }
@@ -420,6 +421,7 @@ impl Expr {
                         tokens.bump(ctx); // (
 
                         let mut args = vec![];
+                        #[allow(unused_assignments)]
                         let mut end_span = span;
                         loop {
                             let arg = Expr::parse(ctx, tokens)?;
@@ -895,12 +897,10 @@ impl Stmt {
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         match tokens.peek() {
-            None => {
-                return Err(Error {
-                    kind: ErrorKind::InvalidStatement,
-                    span: ctx.last_span(),
-                });
-            }
+            None => Err(Error {
+                kind: ErrorKind::InvalidStatement,
+                span: ctx.last_span(),
+            }),
             // assignment
             Some(Token {
                 kind: TokenKind::Keyword(Keyword::Let),
@@ -998,12 +998,7 @@ impl AST {
         // use statements must appear first
         let mut function_observed = false;
 
-        loop {
-            let token = match tokens.bump(ctx) {
-                Some(token) => token,
-                None => break,
-            };
-
+        while let Some(token) = tokens.bump(ctx) {
             match &token.kind {
                 // `use crypto::poseidon;`
                 TokenKind::Keyword(Keyword::Use) => {

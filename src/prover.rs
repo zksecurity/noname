@@ -32,7 +32,7 @@ type ScalarSponge = kimchi::oracle::sponge::DefaultFrSponge<Field, SpongeParams>
 //
 
 static GROUP_MAP: Lazy<<Curve as CommitmentCurve>::Map> =
-    Lazy::new(|| <Curve as CommitmentCurve>::Map::setup());
+    Lazy::new(<Curve as CommitmentCurve>::Map::setup);
 
 //
 // Data Structures

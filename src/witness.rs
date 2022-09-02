@@ -26,7 +26,7 @@ impl WitnessEnv {
 
     pub fn get_external(&self, name: &str) -> Vec<Field> {
         // TODO: return an error instead of crashing
-        self.var_values.get(name).unwrap().clone().values.clone()
+        self.var_values.get(name).unwrap().clone().values
     }
 }
 
@@ -47,6 +47,10 @@ impl Witness {
 
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     pub fn debug(&self) {
@@ -138,7 +142,7 @@ impl Compiler {
         }
 
         // ensure that we've used all of the inputs provided
-        for name in chain![private_inputs.0.keys(), public_inputs.0.keys()] {
+        if let Some(name) = chain![private_inputs.0.keys(), public_inputs.0.keys()].next() {
             return Err(Error {
                 kind: ErrorKind::UnusedInput(name.clone()),
                 span: self.main_args.1,
@@ -159,7 +163,7 @@ impl Compiler {
             for (col, var) in row_of_vars.iter().enumerate() {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
-                    if matches!(self.witness_vars[&var], Value::PublicOutput(_)) {
+                    if matches!(self.witness_vars[var], Value::PublicOutput(_)) {
                         public_outputs_vars.push((row, *var));
                         Field::zero()
                     } else {
@@ -174,10 +178,11 @@ impl Compiler {
             // check if the row makes sense
             let is_not_public_input = row >= self.public_input_size;
             if is_not_public_input {
+                #[allow(clippy::single_match)]
                 match gate.typ {
                     // only check the generic gate
                     crate::ast::GateKind::DoubleGeneric => {
-                        let c = |i| gate.coeffs.get(i).copied().unwrap_or(Field::zero());
+                        let c = |i| gate.coeffs.get(i).copied().unwrap_or_else(Field::zero);
                         let w = &witness_row;
                         let sum =
                             c(0) * w[0] + c(1) * w[1] + c(2) * w[2] + c(3) * w[0] * w[1] + c(4);
@@ -210,15 +215,16 @@ impl Compiler {
 
         // extract full public input (containing the public output)
         let mut full_public_inputs = Vec::with_capacity(self.public_input_size);
-        for row in 0..self.public_input_size {
-            full_public_inputs.push(witness[row][0]);
+
+        for witness_row in witness.iter().take(self.public_input_size) {
+            full_public_inputs.push(witness_row[0]);
         }
 
         // sanity checks
         assert_eq!(witness.len(), self.num_gates());
         assert_eq!(witness.len(), self.rows_of_vars.len());
 
-        // return the public output as well
+        // return the public output separately as well
         Ok((Witness(witness), full_public_inputs, public_output))
     }
 }

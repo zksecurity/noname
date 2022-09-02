@@ -5,8 +5,7 @@ use std::{
     vec,
 };
 
-use ark_ff::{One, PrimeField, Zero};
-use itertools::Itertools as _;
+use ark_ff::{One, Zero};
 use num_bigint::BigUint;
 use num_traits::Num as _;
 
@@ -14,12 +13,12 @@ use crate::{
     asm,
     constants::{Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
-    field::{Field, PrettyField as _},
+    field::Field,
     parser::{
-        AttributeKind, Expr, ExprKind, FuncArg, Function, FunctionSig, Ident, Op2, Path, RootKind,
-        Stmt, StmtKind, Ty, TyKind, AST,
+        AttributeKind, Expr, ExprKind, FuncArg, Function, FunctionSig, Op2, RootKind, StmtKind,
+        TyKind, AST,
     },
-    stdlib::{self, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
+    stdlib::{parse_fn_sigs, ImportedModule, BUILTIN_FNS},
     witness::WitnessEnv,
 };
 
@@ -101,6 +100,10 @@ impl CellVars {
         self.vars.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.vars.is_empty()
+    }
+
     pub fn var(&self, i: usize) -> Option<CellVar> {
         self.vars.get(i).cloned()
     }
@@ -167,10 +170,10 @@ pub enum GateKind {
     Poseidon,
 }
 
-impl Into<kimchi::circuits::gate::GateType> for GateKind {
-    fn into(self) -> kimchi::circuits::gate::GateType {
+impl From<GateKind> for kimchi::circuits::gate::GateType {
+    fn from(gate_kind: GateKind) -> Self {
         use kimchi::circuits::gate::GateType::*;
-        match self {
+        match gate_kind {
             GateKind::DoubleGeneric => Generic,
             GateKind::Poseidon => Poseidon,
         }
@@ -278,8 +281,10 @@ pub struct Compiler {
 impl Compiler {
     // TODO: perhaps don't return Self, but return a new type that only contains what's necessary to create the witness?
     pub fn analyze_and_compile(mut ast: AST, code: &str, debug: bool) -> Result<(String, Self)> {
-        let mut compiler = Compiler::default();
-        compiler.source = code.to_string();
+        let mut compiler = Compiler {
+            source: code.to_string(),
+            ..Compiler::default()
+        };
 
         let env = &mut Environment::default();
 
@@ -336,7 +341,6 @@ impl Compiler {
                 // `use crypto::poseidon;`
                 RootKind::Use(_path) => {
                     // we already dealt with that in the type check pass
-                    ()
                 }
 
                 // `fn main() { ... }`
@@ -350,7 +354,7 @@ impl Compiler {
                         attribute,
                         name,
                         typ,
-                        span,
+                        ..
                     } in &function.arguments
                     {
                         let len = match &typ.kind {
@@ -391,7 +395,7 @@ impl Compiler {
                     }
 
                     // compile function
-                    self.compile_function(env, &function)?;
+                    self.compile_function(env, function)?;
                 }
 
                 // ignore comments
@@ -447,7 +451,7 @@ impl Compiler {
                         // replace the computation of the public output vars with the actual variables being returned here
                         assert!(self
                             .witness_vars
-                            .insert(*pub_var, Value::PublicOutput(Some(ret_var.clone())))
+                            .insert(*pub_var, Value::PublicOutput(Some(*ret_var)))
                             .is_some());
                     }
                 }
@@ -484,7 +488,7 @@ impl Compiler {
                         kind: ErrorKind::UndefinedFunction(fn_name.clone()),
                         span: name.span,
                     })? {
-                        crate::ast::FuncInScope::BuiltIn(_, func) => func.clone(),
+                        crate::ast::FuncInScope::BuiltIn(_, func) => *func,
                         crate::ast::FuncInScope::Library(_, _) => todo!(),
                     }
                 } else if name.len() == 2 {
@@ -499,7 +503,7 @@ impl Compiler {
                         kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
                         span: fn_name.span,
                     })?;
-                    func.clone()
+                    *func
                 } else {
                     return Err(Error {
                         kind: ErrorKind::InvalidFnCall("sub-sub modules unsupported"),
@@ -547,9 +551,9 @@ impl Compiler {
 
                 Some(Var::new_constant(f, expr.span))
             }
-            ExprKind::Bool(b) => todo!(),
+            ExprKind::Bool(_b) => todo!(),
             ExprKind::Identifier(name) => {
-                let var = env.get_var(&name).unwrap();
+                let var = env.get_var(name).unwrap();
                 Some(var)
             }
             ExprKind::ArrayAccess(path, expr) => {
@@ -565,8 +569,8 @@ impl Compiler {
                 } else if path.len() == 2 {
                     // check module present in the scope
                     let module = &path.path[0];
-                    let name = &path.path[1];
-                    let module = env.modules.get(&module.value).ok_or(Error {
+                    let _name = &path.path[1];
+                    let _module = env.modules.get(&module.value).ok_or(Error {
                         kind: ErrorKind::UndefinedModule(module.value.clone()),
                         span: module.span,
                     })?;
@@ -744,7 +748,7 @@ impl Compiler {
                     .entry(*var)
                     .and_modify(|w| match w {
                         Wiring::NotWired(cell) => {
-                            *w = Wiring::Wired(vec![(cell.clone(), var.span), (curr_cell, span)])
+                            *w = Wiring::Wired(vec![(*cell, var.span), (curr_cell, span)])
                         }
                         Wiring::Wired(ref mut cells) => {
                             cells.push((curr_cell, span));
@@ -761,7 +765,7 @@ impl Compiler {
         for idx in 0..num {
             // create the var
             let var = self.new_internal_var(Value::External(name.clone(), idx), span);
-            vars.push(var.clone());
+            vars.push(var);
 
             // create the associated generic gate
             self.add_gate(

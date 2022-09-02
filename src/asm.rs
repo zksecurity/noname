@@ -22,6 +22,7 @@
 //!
 
 use std::collections::{HashMap, HashSet};
+use std::fmt::Write;
 use std::hash::Hash;
 
 use itertools::Itertools;
@@ -44,7 +45,7 @@ pub fn generate_asm(
     res.push_str("@ noname.0.1.0\n\n");
 
     // vars
-    let mut vars = OrderedHashSet::new();
+    let mut vars = OrderedHashSet::default();
 
     for Gate { coeffs, .. } in gates {
         extract_vars_from_coeffs(&mut vars, coeffs);
@@ -55,7 +56,7 @@ pub fn generate_asm(
     }
 
     for (idx, var) in vars.iter().enumerate() {
-        res.push_str(&format!("c{idx} = {}\n", var.pretty()));
+        writeln!(res, "c{idx} = {}", var.pretty()).unwrap();
     }
 
     // gates
@@ -74,11 +75,11 @@ pub fn generate_asm(
 
         // gate
         if debug {
-            res.push_str(&format!("#{row} - "));
+            write!(res, "#{row} - ").unwrap();
         }
 
-        res.push_str(&format!("{typ:?}"));
-        res.push_str("<");
+        write!(res, "{typ:?}").unwrap();
+        res.push('<');
         res.push_str(&coeffs.join(","));
         res.push_str(">\n");
     }
@@ -109,7 +110,7 @@ pub fn generate_asm(
             display_source(&mut res, source, &spans);
         }
         let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
-        res.push_str(&format!("{s}\n"));
+        writeln!(res, "{s}").unwrap();
     }
 
     res
@@ -159,18 +160,19 @@ fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
 
 fn display_source(res: &mut String, source: &str, spans: &[Span]) {
     res.push_str(&"-".repeat(80));
-    res.push_str("\n");
+    res.push('\n');
     for span in spans {
         let (line_number, start, line) = find_exact_line(source, *span);
         let header = format!("{line_number}: ");
-        res.push_str(&format!("{header}{line}\n"));
+        writeln!(res, "{header}{line}").unwrap();
         res.push_str(&" ".repeat(header.len() + span.0 - start));
         res.push_str(&"^".repeat(span.1));
-        res.push_str("\n");
+        res.push('\n');
     }
 }
 
 /// Very dumb way to write an ordered hash set.
+#[derive(Default)]
 pub struct OrderedHashSet<T> {
     inner: HashSet<T>,
     map: HashMap<T, usize>,
@@ -181,14 +183,6 @@ impl<T> OrderedHashSet<T>
 where
     T: Eq + Hash + Clone,
 {
-    pub fn new() -> Self {
-        Self {
-            inner: HashSet::new(),
-            map: HashMap::new(),
-            ordered: Vec::new(),
-        }
-    }
-
     pub fn insert(&mut self, value: T) -> bool {
         if self.inner.insert(value.clone()) {
             self.map.insert(value.clone(), self.ordered.len());

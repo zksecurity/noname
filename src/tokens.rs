@@ -53,7 +53,6 @@ impl Tokens {
         }
     }
     /// Like [bump] but errors with `err` pointing to the latest token
-    #[must_use]
     pub fn bump_err(&mut self, ctx: &mut ParserCtx, err: ErrorKind) -> Result<Token> {
         self.bump(ctx).ok_or(Error {
             kind: err,
@@ -62,7 +61,6 @@ impl Tokens {
     }
 
     /// Like [bump] but errors if the token is not `typ`
-    #[must_use]
     pub fn bump_expected(&mut self, ctx: &mut ParserCtx, typ: TokenKind) -> Result<Token> {
         let token = self.bump_err(ctx, ErrorKind::MissingToken)?;
         if token.kind == typ {

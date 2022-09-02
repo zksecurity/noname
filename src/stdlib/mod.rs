@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Neg as _};
 use ark_ff::One as _;
 
 use crate::{
-    ast::{CellVar, CellVars, Compiler, Constant, FuncType, GateKind, Var},
+    ast::{Compiler, Constant, FuncType, GateKind, Var},
     constants::Span,
     error::{Error, ErrorKind, Result},
     field::Field,
@@ -91,7 +91,7 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FuncType)]) -> Vec<(FunctionSig, FuncType
 // TODO: give a name that's useful for the user,
 //       not something descriptive internally like "builtins"
 
-const ASSERT_FN: &str = "assert(condition: Bool)";
+//const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 
 pub const BUILTIN_FNS: [(&str, FuncType); 1] = [(ASSERT_EQ_FN, assert_eq)];
@@ -142,6 +142,7 @@ fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
 }
 
 /// Asserts that a condition is true.
+#[allow(dead_code)]
 fn assert(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
     // double check (on top of type checker)
     assert_eq!(vars.len(), 1);

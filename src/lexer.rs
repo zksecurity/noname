@@ -154,7 +154,7 @@ pub struct Token {
 }
 
 fn is_numeric(s: &str) -> bool {
-    s.chars().all(|c| c.is_digit(10))
+    s.chars().all(|c| c.is_ascii_digit())
 }
 
 fn is_hexadecimal(s: &str) -> bool {
@@ -162,7 +162,7 @@ fn is_hexadecimal(s: &str) -> bool {
     let s0 = s.next();
     let s1 = s.next();
     if matches!((s0, s1), (Some('0'), Some('x') | Some('X'))) {
-        s.all(|c| c.is_digit(16))
+        s.all(|c| c.is_ascii_hexdigit())
     } else {
         false
     }

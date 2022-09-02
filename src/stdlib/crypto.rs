@@ -21,7 +21,7 @@ pub const CRYPTO_FNS: [(&str, FuncType); 1] = [(POSEIDON_FN, poseidon)];
 pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
     // double check input
     assert_eq!(vars.len(), 1);
-    let input = match vars[0].circuit_var() {
+    let mut input = match vars[0].circuit_var() {
         None => unimplemented!(),
         Some(cvar) => cvar.vars,
     };
@@ -35,7 +35,6 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
 
     // pad the input (for the capacity)
     let zero = compiler.add_constant(Field::zero(), span);
-    let mut input = input.clone();
     input.push(zero);
 
     let mut states = vec![input.clone()];

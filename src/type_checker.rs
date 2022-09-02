@@ -2,9 +2,7 @@ use crate::{
     ast::{Compiler, Environment},
     constants::Span,
     error::{Error, ErrorKind, Result},
-    parser::{
-        Expr, ExprKind, FuncArg, Function, FunctionSig, Path, RootKind, StmtKind, TyKind, AST,
-    },
+    parser::{Expr, ExprKind, Function, FunctionSig, Path, RootKind, StmtKind, TyKind, AST},
     stdlib,
 };
 
@@ -52,7 +50,7 @@ impl Expr {
 
                 // figure out if variable is in scope
                 let name = &path.path[0].value;
-                let typ = env.get_type(&name).ok_or(Error {
+                let typ = env.get_type(name).ok_or(Error {
                     kind: ErrorKind::UndefinedVariable,
                     span: self.span,
                 })?;

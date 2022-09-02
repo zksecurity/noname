@@ -52,7 +52,7 @@ fn main() -> Result<()> {
 
     let code = std::fs::read_to_string(&cli.path)
         .into_diagnostic()
-        .wrap_err_with(|| format!("could not read file"))?;
+        .wrap_err_with(|| "could not read file".to_string())?;
 
     let public_inputs = if let Some(s) = cli.public_inputs {
         parse_inputs(&s)?
