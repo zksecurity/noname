@@ -33,7 +33,16 @@ use crate::{
 /// It, most of the time, ends up being a cell in the circuit.
 /// That is, unless it's unused?
 // TODO: should we make sure that creating a cellvar ALWAYS end up with creating an actual cell/row in the circuit? (so perhaps CellVar would be a (usize, usize) pointing to the actual cell?)
-pub struct CellVar(usize);
+pub struct CellVar {
+    index: usize,
+    span: Span,
+}
+
+impl CellVar {
+    pub fn new(index: usize, span: Span) -> Self {
+        Self { index, span }
+    }
+}
 
 /// A variable's actual value in the witness can be computed in different ways.
 pub enum Value {
@@ -207,7 +216,7 @@ pub enum Wiring {
     /// Not yet wired (just indicates the position of the cell itself)
     NotWired(Cell),
     /// The wiring (associated to different spans)
-    Wired(Vec<Cell>, Vec<Span>),
+    Wired(Vec<(Cell, Span)>),
 }
 
 //
@@ -288,7 +297,7 @@ impl Compiler {
         let mut written_vars = HashSet::new();
         for row in &compiler.rows_of_vars {
             row.iter().flatten().for_each(|cvar| {
-                written_vars.insert(cvar.0);
+                written_vars.insert(cvar.index);
             });
         }
 
@@ -441,9 +450,9 @@ impl Compiler {
         asm::generate_asm(&self.source, &self.gates, &self.wiring, debug)
     }
 
-    pub fn new_internal_var(&mut self, val: Value) -> CellVar {
+    pub fn new_internal_var(&mut self, val: Value, span: Span) -> CellVar {
         // create new var
-        let var = CellVar(self.next_variable);
+        let var = CellVar::new(self.next_variable, span);
         self.next_variable += 1;
 
         // store it in the compiler
@@ -624,8 +633,10 @@ impl Compiler {
                 let var = var.var(0).unwrap();
 
                 // create a new variable to store the result
-                let res =
-                    self.new_internal_var(Value::LinearCombination(vec![(Field::one(), var)], cst));
+                let res = self.new_internal_var(
+                    Value::LinearCombination(vec![(Field::one(), var)], cst),
+                    span,
+                );
 
                 // create a gate to store the result
                 self.add_gate(
@@ -652,10 +663,13 @@ impl Compiler {
                 let rhs = rhs.var(0).unwrap();
 
                 // create a new variable to store the result
-                let res = self.new_internal_var(Value::LinearCombination(
-                    vec![(Field::one(), lhs), (Field::one(), rhs)],
-                    Field::zero(),
-                ));
+                let res = self.new_internal_var(
+                    Value::LinearCombination(
+                        vec![(Field::one(), lhs), (Field::one(), rhs)],
+                        Field::zero(),
+                    ),
+                    span,
+                );
 
                 // create a gate to store the result
                 self.add_gate(
@@ -671,7 +685,7 @@ impl Compiler {
     }
 
     pub fn constant(&mut self, value: Field, span: Span) -> CellVar {
-        let var = self.new_internal_var(Value::Constant(value));
+        let var = self.new_internal_var(Value::Constant(value), span);
 
         let zero = Field::zero();
         self.add_gate(
@@ -700,11 +714,14 @@ impl Compiler {
         // for the witness
         self.rows_of_vars.push(vars.clone());
 
+        // get current row
+        // important: do that before adding the gate below
+        let row = self.gates.len();
+
         // add gate
         self.gates.push(Gate { typ, coeffs, span });
 
         // wiring (based on vars)
-        let row = self.gates.len();
         for (col, var) in vars.iter().enumerate() {
             if let Some(var) = var {
                 let curr_cell = Cell { row, col };
@@ -712,11 +729,10 @@ impl Compiler {
                     .entry(*var)
                     .and_modify(|w| match w {
                         Wiring::NotWired(cell) => {
-                            *w = Wiring::Wired(vec![cell.clone(), curr_cell], vec![span])
+                            *w = Wiring::Wired(vec![(cell.clone(), var.span), (curr_cell, span)])
                         }
-                        Wiring::Wired(ref mut cells, ref mut spans) => {
-                            cells.push(curr_cell);
-                            spans.push(span);
+                        Wiring::Wired(ref mut cells) => {
+                            cells.push((curr_cell, span));
                         }
                     })
                     .or_insert(Wiring::NotWired(curr_cell));
@@ -729,7 +745,7 @@ impl Compiler {
 
         for idx in 0..num {
             // create the var
-            let var = self.new_internal_var(Value::External(name.clone(), idx));
+            let var = self.new_internal_var(Value::External(name.clone(), idx), span);
             vars.push(var.clone());
 
             // create the associated generic gate
@@ -752,7 +768,7 @@ impl Compiler {
         let mut vars = Vec::with_capacity(num);
         for _ in 0..num {
             // create the var
-            let var = self.new_internal_var(Value::PublicOutput(None));
+            let var = self.new_internal_var(Value::PublicOutput(None), span);
             vars.push(var);
 
             // create the associated generic gate
@@ -775,7 +791,7 @@ impl Compiler {
 
         for idx in 0..num {
             // create the var
-            let var = self.new_internal_var(Value::External(name.clone(), idx));
+            let var = self.new_internal_var(Value::External(name.clone(), idx), span);
             vars.push(var);
         }
 

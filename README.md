@@ -103,6 +103,7 @@ Roadmap of the proof of concept:
 - [x] [`arithmetic.no`](/data/arithmetic.no) (simple arithmetic)
 - [x] `[public_output.no`](/data/public_output.no) (returns a public output)
 - [x] `[poseidon.no`](/data/poseidon.no) (uses the poseidon function)
+- [ ] make sure wiring debug shows you the var location, not the expression
 - [ ] bool.no
 - [ ] `[types.no`](/data/types.no) (uses custom types)
 - [ ] sudoku.no

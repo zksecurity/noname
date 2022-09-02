@@ -88,7 +88,7 @@ pub fn generate_asm(
         .values()
         .map(|w| match w {
             Wiring::NotWired(_) => None,
-            Wiring::Wired(cells, spans) => Some((cells, spans)),
+            Wiring::Wired(cells_and_spans) => Some(cells_and_spans),
         })
         .filter(Option::is_some)
         .flatten()
@@ -98,9 +98,11 @@ pub fn generate_asm(
     // otherwise the same circuit might have different representations
     cycles.sort();
 
-    for (cells, spans) in cycles {
+    for cells_and_spans in cycles {
+        let (cells, spans): (Vec<_>, Vec<_>) = cells_and_spans.iter().cloned().unzip();
+
         if debug {
-            display_source(&mut res, source, spans);
+            display_source(&mut res, source, &spans);
         }
         let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
         res.push_str(&format!("{s}\n"));

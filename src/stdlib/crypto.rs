@@ -63,22 +63,25 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
 
             for col in 0..3 {
                 // create each variable
-                let var = compiler.new_internal_var(Value::Hint(Box::new(move |compiler, env| {
-                    let x1 = compiler.compute_var(env, prev_0)?;
-                    let x2 = compiler.compute_var(env, prev_1)?;
-                    let x3 = compiler.compute_var(env, prev_2)?;
+                let var = compiler.new_internal_var(
+                    Value::Hint(Box::new(move |compiler, env| {
+                        let x1 = compiler.compute_var(env, prev_0)?;
+                        let x2 = compiler.compute_var(env, prev_1)?;
+                        let x3 = compiler.compute_var(env, prev_2)?;
 
-                    let mut acc = vec![x1, x2, x3];
+                        let mut acc = vec![x1, x2, x3];
 
-                    // Do one full round on the previous value
-                    full_round::<Field, PlonkSpongeConstantsKimchi>(
-                        &oracle::pasta::fp_kimchi::params(),
-                        &mut acc,
-                        offset + i,
-                    );
+                        // Do one full round on the previous value
+                        full_round::<Field, PlonkSpongeConstantsKimchi>(
+                            &oracle::pasta::fp_kimchi::params(),
+                            &mut acc,
+                            offset + i,
+                        );
 
-                    Ok(acc[col])
-                })));
+                        Ok(acc[col])
+                    })),
+                    span,
+                );
 
                 new_state.push(var);
             }
