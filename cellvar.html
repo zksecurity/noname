@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>CellVar - NonName</title>
+        <title>CellVar - noname</title>
 
 
         <!-- Custom HTML head -->
@@ -110,11 +110,14 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">NonName</h1>
+                    <h1 class="menu-title">noname</h1>
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://www.github.com/mimoo/noname" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
 
                     </div>
@@ -194,7 +197,7 @@
 <p>Note: a <code>CellVar</code> is potentially not directly added to the rows of the execution trace. 
 For example, a private input is converted directly to a (number of) <code>CellVar</code>(s), 
 but only added to the rows when it appears in a constraint for the first time.</p>
-<p>As the final step of the compilation, we double check that all <code>CellVar</code>s have appeared in the rows of the execution trace at some point. If they haven't, it can mean two things:</p>
+<p>As the final step of the compilation, we double check that all <code>CellVar</code>s have appeared in the rows of the execution trace at some point. If they haven’t, it can mean two things:</p>
 <ul>
 <li>A private or public input was never used in the circuit. In this case we return an error to the user.</li>
 <li>There is a bug in the compiler. In this case we panic.</li>

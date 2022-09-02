@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Public Outputs - NonName</title>
+        <title>Public Outputs - noname</title>
 
 
         <!-- Custom HTML head -->
@@ -110,11 +110,14 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">NonName</h1>
+                    <h1 class="menu-title">noname</h1>
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://www.github.com/mimoo/noname" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
 
                     </div>
@@ -196,7 +199,7 @@ for (row, var) in public_outputs_vars {
 }
 <span class="boring">}
 </span></code></pre></pre>
-<p>and finally we return the public output to the prover so that they can send it to the verifier, as well as the &quot;full public input&quot; which is the concatenation of the public input and the public output (needed to finalized the proof):</p>
+<p>and finally we return the public output to the prover so that they can send it to the verifier, as well as the “full public input” which is the concatenation of the public input and the public output (needed to finalized the proof):</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// return the public output separately as well

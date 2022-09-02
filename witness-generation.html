@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Witness Generation - NonName</title>
+        <title>Witness Generation - noname</title>
 
 
         <!-- Custom HTML head -->
@@ -110,11 +110,14 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">NonName</h1>
+                    <h1 class="menu-title">noname</h1>
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://www.github.com/mimoo/noname" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
 
                     </div>
@@ -174,7 +177,7 @@ These instructions are stored as two different fields:</p>
 <li>If it set to <code>None</code>, it is simply evaluated as <code>0</code>.</li>
 </ol>
 </li>
-<li>Once the row is created, it is checked for correctness by checking what gate was used in the row. Note that this is only true for the generic gate, as we trust built-in gadgets to produce correct values. For example, <code>assert(x, 2)</code> will be checked because it is using the generic gate, but <code>let y = poseidon(x)</code> won't be because we trust the poseidon gate to be correct (and if there is a bug there, kimchi will still catch it).</li>
+<li>Once the row is created, it is checked for correctness by checking what gate was used in the row. Note that this is only true for the generic gate, as we trust built-in gadgets to produce correct values. For example, <code>assert(x, 2)</code> will be checked because it is using the generic gate, but <code>let y = poseidon(x)</code> won’t be because we trust the poseidon gate to be correct (and if there is a bug there, kimchi will still catch it).</li>
 </ol>
 
                     </main>
