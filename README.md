@@ -79,17 +79,6 @@ If you pass an invalid input it should fail with an error:
 
 ```
 $ cargo run -- --path data/example.no --private-inputs '{"private_input": ["2", "1"]}' --public-inputs '{"public_input": ["3654913405619483358804575553468071097765421484960111776885779739261304758583"]}'26177265001502838070204204
-
-Error: 
-  × Parsing error
-   ╭─[4:1]
- 4 │     let x = private_input[0] + private_input[1];
- 5 │     assert_eq(x, 2);
-   ·     ───────┬───────
-   ·            ╰── here
- 6 │     
-   ╰────
-  help: invalid witness (row 3)
 ```
 
 ## Roadmap
