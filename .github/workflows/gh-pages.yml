@@ -16,7 +16,7 @@ jobs:
 
       - name: Build Rust Documentation
         run: |
-          cargo doc
+          cargo doc --no-deps
 
       - name: Build the mdbook
         run: |
@@ -26,7 +26,7 @@ jobs:
 
       - name: Arrange website folder hierarchy
         run: |
-          mv ./target/doc ./book/book/rustdoc
+          mv ./target/doc/noname ./book/book/rustdoc
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
