@@ -201,7 +201,6 @@ impl Gate {
     pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<Field> {
         kimchi::circuits::gate::CircuitGate {
             typ: self.typ.into(),
-            // TODO: wiring!!
             wires: kimchi::circuits::wires::Wire::new(row),
             coeffs: self.coeffs.clone(),
         }

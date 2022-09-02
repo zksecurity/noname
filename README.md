@@ -94,16 +94,3 @@ $ cargo run -- --path data/example.no --private-inputs '{"private_input": ["2", 
 ```
 
 <img width="487" alt="Screen Shot 2022-09-02 at 12 08 41 PM" src="https://user-images.githubusercontent.com/1316043/188221355-4342b99c-3894-45f9-8bad-0f9477d93a63.png">
-
-
-## Roadmap
-
-Roadmap of the proof of concept:
-
-- [x] [`arithmetic.no`](/data/arithmetic.no) (simple arithmetic)
-- [x] `[public_output.no`](/data/public_output.no) (returns a public output)
-- [x] `[poseidon.no`](/data/poseidon.no) (uses the poseidon function)
-- [x] make sure wiring debug shows you the var location, not the expression
-- [ ] bool.no
-- [ ] `[types.no`](/data/types.no) (uses custom types)
-- [ ] sudoku.no

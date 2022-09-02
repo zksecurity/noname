@@ -1,7 +1,9 @@
 //! This module contains the prover.
 
+use std::iter::once;
+
 use crate::{
-    ast::Compiler,
+    ast::{Compiler, Wiring},
     error::{Error, Result},
     field::Field,
     inputs::Inputs,
@@ -10,6 +12,7 @@ use crate::{
 };
 
 use clap::once_cell::sync::Lazy;
+use itertools::chain;
 use kimchi::{
     commitment_dlog::commitment::CommitmentCurve, groupmap::GroupMap, proof::ProverProof,
 };
@@ -62,12 +65,32 @@ pub fn compile(code: &str, debug: bool) -> Result<(String, ProverIndex, Verifier
     let (asm, compiler) = Compiler::analyze_and_compile(ast, code, debug)?;
 
     // convert gates to kimchi gates
-    let gates: Vec<_> = compiler
+    let mut gates: Vec<_> = compiler
         .compiled_gates()
         .iter()
         .enumerate()
         .map(|(row, gate)| gate.to_kimchi_gate(row))
         .collect();
+
+    // wiring
+    for wiring in compiler.wiring.values() {
+        if let Wiring::Wired(cells_and_spans) = wiring {
+            // all the wired cells form a cycle, remember!
+            let mut wired_cells = cells_and_spans.into_iter().map(|(cell, _)| cell).copied();
+            assert!(wired_cells.len() > 1);
+
+            let first_cell = wired_cells.next().unwrap(); // for the cycle
+            let mut prev_cell = first_cell;
+
+            for cell in chain![wired_cells, once(first_cell)] {
+                gates[cell.row].wires[cell.col] = kimchi::circuits::wires::Wire {
+                    row: prev_cell.row,
+                    col: prev_cell.col,
+                };
+                prev_cell = cell;
+            }
+        }
+    }
 
     // create constraint system
     let fp_sponge_params = kimchi::oracle::pasta::fp_kimchi::params();
