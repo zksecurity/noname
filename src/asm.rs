@@ -66,14 +66,7 @@ pub fn generate_asm(
     for Gate { typ, coeffs, span } in gates {
         // source
         if debug {
-            res.push_str(&"-".repeat(80));
-            res.push_str("\n");
-            let (line_number, start, line) = find_exact_line(source, *span);
-            let header = format!("{line_number}: ");
-            res.push_str(&format!("{header}{line}\n"));
-            res.push_str(&" ".repeat(header.len() + span.0 - start));
-            res.push_str(&"^".repeat(span.1));
-            res.push_str("\n");
+            display_source(&mut res, source, &[*span]);
         }
 
         // gate coeffs
@@ -95,7 +88,7 @@ pub fn generate_asm(
         .values()
         .map(|w| match w {
             Wiring::NotWired(_) => None,
-            Wiring::Wired(cells) => Some(cells),
+            Wiring::Wired(cells, spans) => Some((cells, spans)),
         })
         .filter(Option::is_some)
         .flatten()
@@ -105,7 +98,8 @@ pub fn generate_asm(
     // otherwise the same circuit might have different representations
     cycles.sort();
 
-    for cells in cycles {
+    for (cells, spans) in cycles {
+        display_source(&mut res, source, spans);
         let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
         res.push_str(&format!("{s}\n"));
     }
@@ -153,6 +147,19 @@ fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
     let line_number = source[..start].matches('\n').count() + 1;
 
     (line_number, start, line)
+}
+
+fn display_source(res: &mut String, source: &str, spans: &[Span]) {
+    res.push_str(&"-".repeat(80));
+    res.push_str("\n");
+    for span in spans {
+        let (line_number, start, line) = find_exact_line(source, *span);
+        let header = format!("{line_number}: ");
+        res.push_str(&format!("{header}{line}\n"));
+        res.push_str(&" ".repeat(header.len() + span.0 - start));
+        res.push_str(&"^".repeat(span.1));
+        res.push_str("\n");
+    }
 }
 
 /// Very dumb way to write an ordered hash set.

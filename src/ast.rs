@@ -203,8 +203,10 @@ impl Display for Cell {
 
 #[derive(Debug, Clone)]
 pub enum Wiring {
+    /// Not yet wired (just indicates the position of the cell itself)
     NotWired(Cell),
-    Wired(Vec<Cell>),
+    /// The wiring (associated to different spans)
+    Wired(Vec<Cell>, Vec<Span>),
 }
 
 //
@@ -681,8 +683,13 @@ impl Compiler {
                 self.wiring
                     .entry(*var)
                     .and_modify(|w| match w {
-                        Wiring::NotWired(cell) => *w = Wiring::Wired(vec![cell.clone(), curr_cell]),
-                        Wiring::Wired(ref mut cells) => cells.push(curr_cell),
+                        Wiring::NotWired(cell) => {
+                            *w = Wiring::Wired(vec![cell.clone(), curr_cell], vec![span])
+                        }
+                        Wiring::Wired(ref mut cells, ref mut spans) => {
+                            cells.push(curr_cell);
+                            spans.push(span);
+                        }
                     })
                     .or_insert(Wiring::NotWired(curr_cell));
             }
