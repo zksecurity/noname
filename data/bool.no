@@ -1,0 +1,12 @@
+fn main(pub public_input: Bool, private_input: Bool) {
+    let y = false & false;
+    assert(!y);
+
+    // private input must be true
+    let x = private_input & true;
+    assert(x);
+
+    // public input must be false
+    let x = public_input & true; // TODO: shadowing detected?
+    assert(x == false);
+}
