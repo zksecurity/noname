@@ -2,6 +2,10 @@
 
 - [Introduction](./intro.md)
 
+# Language
+
+- [Basics](./basics.md)
+
 # Compiler Internals
 
 - [Compilation](./compilation.md)
