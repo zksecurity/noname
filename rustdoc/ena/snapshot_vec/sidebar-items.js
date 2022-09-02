@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["UndoLog",""]],"struct":[["Snapshot",""],["SnapshotVec",""]],"trait":[["SnapshotVecDelegate",""],["VecLike",""]],"type":[["SnapshotVecStorage",""]]};

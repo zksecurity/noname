@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["ByteBuf","A wrapper around `Vec<u8>` to serialize more efficiently."]]};

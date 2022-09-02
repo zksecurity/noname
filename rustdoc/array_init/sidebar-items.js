@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":[["array_init","Initialize an array given an initializer expression."],["from_iter","Initialize an array given an iterator"],["from_iter_reversed","Initialize an array in reverse given an iterator"],["try_array_init","Initialize an array given an initializer expression that may fail."]]};

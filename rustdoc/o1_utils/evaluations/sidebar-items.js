@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"trait":[["ExtendedEvaluations","An extension for the [Evaluations] type."]]};

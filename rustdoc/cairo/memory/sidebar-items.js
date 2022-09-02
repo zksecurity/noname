@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["CairoMemory","This data structure stores the memory of the program"]]};

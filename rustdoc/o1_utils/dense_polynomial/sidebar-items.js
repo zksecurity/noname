@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"trait":[["ExtendedDensePolynomial","An extension for the [DensePolynomial] type."]]};

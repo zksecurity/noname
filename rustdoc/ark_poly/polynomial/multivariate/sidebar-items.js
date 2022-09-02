@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["SparsePolynomial","Stores a sparse multivariate polynomial in coefficient form."],["SparseTerm","Stores a term (monomial) in a multivariate polynomial. Each element is of the form `(variable, power)`.  "]],"trait":[["Term","Describes the interface for a term (monomial) of a multivariate polynomial."]]};

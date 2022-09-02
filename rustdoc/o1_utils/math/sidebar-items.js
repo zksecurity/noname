@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":[["ceil_log2","Returns ceil(log2(d)) but panics if d = 0."]]};

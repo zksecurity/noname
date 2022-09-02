@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["TwistType","A particular BLS12 group can have G2 being either a multiplicative or a divisive twist."]],"mod":[["g1",""],["g2",""]],"struct":[["Bls12",""]],"trait":[["Bls12Parameters",""]]};

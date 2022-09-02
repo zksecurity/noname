@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["Stream","possible stream sources"]],"fn":[["on","Returns true if `stream` is a TTY, and the current terminal [supports_hyperlinks]."],["supports_hyperlinks","Returns true if the current terminal, detected through various environment variables, is known to support hyperlink rendering."]]};

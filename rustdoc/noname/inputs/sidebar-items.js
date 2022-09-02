@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["ParsingError",""]],"fn":[["parse_inputs",""]],"struct":[["Inputs",""]],"trait":[["ExtField",""]]};

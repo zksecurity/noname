@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":[["MSGPACK_VERSION","Version of the MessagePack spec."]],"enum":[["Marker","Format markers."]],"mod":[["decode","Provides various functions and structs for MessagePack decoding."],["encode","Provides various functions and structs for MessagePack encoding."]]};

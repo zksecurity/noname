@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["Fp2ParamsWrapper",""]],"trait":[["Fp2Parameters",""]],"type":[["Fp2",""]]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["Evaluations","Stores a UV polynomial in evaluation form."]]};
