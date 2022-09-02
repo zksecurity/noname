@@ -1,0 +1,35 @@
+name: Deploy Book & Docs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release:
+    name: GitHub Pages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Build Rust Documentation
+        run: |
+          cargo doc
+
+      - name: Build the mdbook
+        run: |
+          cd book
+          cargo install mdbook
+          mdbook build
+
+      - name: Arrange website folder hierarchy
+        run: |
+          mv ./target/doc ./book/book/rustdoc
+          
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./book/book
