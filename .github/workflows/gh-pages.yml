@@ -3,7 +3,7 @@ name: Deploy Book & Docs to GitHub Pages
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   release:
@@ -27,7 +27,7 @@ jobs:
       - name: Arrange website folder hierarchy
         run: |
           mv ./target/doc ./book/book/rustdoc
-          
+
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
