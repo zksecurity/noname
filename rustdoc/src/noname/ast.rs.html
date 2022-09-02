@@ -873,7 +873,6 @@
 <span id="867">867</span>
 <span id="868">868</span>
 <span id="869">869</span>
-<span id="870">870</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>},
     <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Display</span>, <span class="ident">Formatter</span>},
@@ -1077,7 +1076,6 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_kimchi_gate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">row</span>: <span class="ident">usize</span>) -&gt; <span class="ident">kimchi::circuits::gate::CircuitGate</span><span class="op">&lt;</span><span class="ident">Field</span><span class="op">&gt;</span> {
         <span class="ident">kimchi::circuits::gate::CircuitGate</span> {
             <span class="ident">typ</span>: <span class="self">self</span>.<span class="ident">typ</span>.<span class="ident">into</span>(),
-            <span class="comment">// TODO: wiring!!</span>
             <span class="ident">wires</span>: <span class="ident">kimchi::circuits::wires::Wire::new</span>(<span class="ident">row</span>),
             <span class="ident">coeffs</span>: <span class="self">self</span>.<span class="ident">coeffs</span>.<span class="ident">clone</span>(),
         }

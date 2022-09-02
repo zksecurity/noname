@@ -178,10 +178,35 @@
 <span id="172">172</span>
 <span id="173">173</span>
 <span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module contains the prover.</span>
 
+<span class="kw">use</span> <span class="ident">std::iter::once</span>;
+
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">ast::Compiler</span>,
+    <span class="ident">ast</span>::{<span class="ident">Compiler</span>, <span class="ident">Wiring</span>},
     <span class="ident">error</span>::{<span class="ident">Error</span>, <span class="prelude-ty">Result</span>},
     <span class="ident">field::Field</span>,
     <span class="ident">inputs::Inputs</span>,
@@ -190,6 +215,7 @@
 };
 
 <span class="kw">use</span> <span class="ident">clap::once_cell::sync::Lazy</span>;
+<span class="kw">use</span> <span class="ident">itertools::chain</span>;
 <span class="kw">use</span> <span class="ident">kimchi</span>::{
     <span class="ident">commitment_dlog::commitment::CommitmentCurve</span>, <span class="ident">groupmap::GroupMap</span>, <span class="ident">proof::ProverProof</span>,
 };
@@ -242,12 +268,32 @@
     <span class="kw">let</span> (<span class="ident">asm</span>, <span class="ident">compiler</span>) <span class="op">=</span> <span class="ident">Compiler::analyze_and_compile</span>(<span class="ident">ast</span>, <span class="ident">code</span>, <span class="ident">debug</span>)<span class="question-mark">?</span>;
 
     <span class="comment">// convert gates to kimchi gates</span>
-    <span class="kw">let</span> <span class="ident">gates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">compiler</span>
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">compiler</span>
         .<span class="ident">compiled_gates</span>()
         .<span class="ident">iter</span>()
         .<span class="ident">enumerate</span>()
         .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">row</span>, <span class="ident">gate</span>)<span class="op">|</span> <span class="ident">gate</span>.<span class="ident">to_kimchi_gate</span>(<span class="ident">row</span>))
         .<span class="ident">collect</span>();
+
+    <span class="comment">// wiring</span>
+    <span class="kw">for</span> <span class="ident">wiring</span> <span class="kw">in</span> <span class="ident">compiler</span>.<span class="ident">wiring</span>.<span class="ident">values</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Wiring::Wired</span>(<span class="ident">cells_and_spans</span>) <span class="op">=</span> <span class="ident">wiring</span> {
+            <span class="comment">// all the wired cells form a cycle, remember!</span>
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">wired_cells</span> <span class="op">=</span> <span class="ident">cells_and_spans</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">cell</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">cell</span>).<span class="ident">copied</span>();
+            <span class="macro">assert!</span>(<span class="ident">wired_cells</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span>);
+
+            <span class="kw">let</span> <span class="ident">first_cell</span> <span class="op">=</span> <span class="ident">wired_cells</span>.<span class="ident">next</span>().<span class="ident">unwrap</span>(); <span class="comment">// for the cycle</span>
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">prev_cell</span> <span class="op">=</span> <span class="ident">first_cell</span>;
+
+            <span class="kw">for</span> <span class="ident">cell</span> <span class="kw">in</span> <span class="macro">chain!</span>[<span class="ident">wired_cells</span>, <span class="ident">once</span>(<span class="ident">first_cell</span>)] {
+                <span class="ident">gates</span>[<span class="ident">cell</span>.<span class="ident">row</span>].<span class="ident">wires</span>[<span class="ident">cell</span>.<span class="ident">col</span>] <span class="op">=</span> <span class="ident">kimchi::circuits::wires::Wire</span> {
+                    <span class="ident">row</span>: <span class="ident">prev_cell</span>.<span class="ident">row</span>,
+                    <span class="ident">col</span>: <span class="ident">prev_cell</span>.<span class="ident">col</span>,
+                };
+                <span class="ident">prev_cell</span> <span class="op">=</span> <span class="ident">cell</span>;
+            }
+        }
+    }
 
     <span class="comment">// create constraint system</span>
     <span class="kw">let</span> <span class="ident">fp_sponge_params</span> <span class="op">=</span> <span class="ident">kimchi::oracle::pasta::fp_kimchi::params</span>();
