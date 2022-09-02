@@ -75,6 +75,18 @@ DoubleGeneric<1,0,0,0,-2>
 DoubleGeneric<1,-1>
 ```
 
+and what lines created what wiring:
+
+```
+7:     let digest = crypto::poseidon(private_input);
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(4,0) -> (5,2)
+--------------------------------------------------------------------------------
+8:     assert_eq(digest[0], public_input);
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(16,0) -> (17,0)
+```
+
 If you pass an invalid input it should fail with an error:
 
 ```
