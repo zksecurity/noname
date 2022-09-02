@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     field::Field,
-    inputs::{parse_inputs, ExtField, Inputs},
+    inputs::{parse_inputs, ExtField},
     prover::compile,
 };
 
@@ -79,7 +79,8 @@ fn test_poseidon() {
     test_file("poseidon", public_inputs, private_inputs, vec![]);
 }
 
-// #[test]
+#[test]
+#[ignore]
 fn test_bool() {
     let private_inputs = r#"{"private_input": ["1", "1"]}"#;
     let public_inputs = r#"{{"public_input": ["1"]}}"#;

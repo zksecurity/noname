@@ -1092,7 +1092,7 @@ mod tests {
 
     #[test]
     fn fn_signature() {
-        let code = r#"main(pub public_input: [Fel; 3], private_input: [Fel; 3]) -> [Fel; 8] { }"#;
+        let code = r#"main(pub public_input: [Fel; 3], private_input: [Fel; 3]) -> [Fel; 3] { return public_input; }"#;
         let tokens = &mut Token::parse(code).unwrap();
         let ctx = &mut ParserCtx::default();
         let parsed = Function::parse(ctx, tokens).unwrap();
