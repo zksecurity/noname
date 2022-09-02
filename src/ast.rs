@@ -31,7 +31,7 @@ use crate::{
 /// or multiple cells (if wired), in the circuit.
 ///
 /// Note: a [CellVar] is potentially not directly added to the rows,
-/// for example a private input is converted directly to a (number of) [CellVar](s),
+/// for example a private input is converted directly to a (number of) [CellVar],
 /// but only added to the rows when it appears in a constraint for the first time.
 ///
 /// As the final step of the compilation,
@@ -83,7 +83,7 @@ impl fmt::Debug for Value {
 /// The primitive type in a circuit is a field element.
 /// But since we want to be able to deal with custom types
 /// that are built on top of field elements,
-/// we abstract any variable in the circuit as a [CircuitVar]
+/// we abstract any variable in the circuit as a [Var::CircuitVar]
 /// which can contain one or more variables.
 #[derive(Debug, Clone)]
 pub struct CellVars {
@@ -114,7 +114,7 @@ impl CellVars {
 pub enum Var {
     /// Either a constant
     Constant(Constant),
-    /// Or a [CircuitVar]
+    /// Or a [CellVars]
     CircuitVar(CellVars),
 }
 
@@ -262,7 +262,7 @@ pub struct Compiler {
     /// Size of the public input.
     pub public_input_size: usize,
 
-    /// If a public output is set, this will be used to store its [CircuitVar] (cvar).
+    /// If a public output is set, this will be used to store its [Var::CircuitVar].
     /// The public output generation works as follows:
     /// 1. This cvar is created and inserted in the circuit (gates) during compilation of the public input
     ///    (as the public output is the end of the public input)

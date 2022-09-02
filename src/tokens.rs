@@ -1,4 +1,4 @@
-//! Since [Peekable] in Rust advances the iterator,
+//! Since [std::iter::Peekable] in Rust advances the iterator,
 //! I can't use it for peeking tokens.
 //! I haven't found a better way than implementing a wrapper
 //! that allows me to peek...
@@ -52,7 +52,7 @@ impl Tokens {
             token
         }
     }
-    /// Like [bump] but errors with `err` pointing to the latest token
+    /// Like [Self::bump] but errors with `err` pointing to the latest token
     pub fn bump_err(&mut self, ctx: &mut ParserCtx, err: ErrorKind) -> Result<Token> {
         self.bump(ctx).ok_or(Error {
             kind: err,
@@ -60,7 +60,7 @@ impl Tokens {
         })
     }
 
-    /// Like [bump] but errors if the token is not `typ`
+    /// Like [Self::bump] but errors if the token is not `typ`
     pub fn bump_expected(&mut self, ctx: &mut ParserCtx, typ: TokenKind) -> Result<Token> {
         let token = self.bump_err(ctx, ErrorKind::MissingToken)?;
         if token.kind == typ {
