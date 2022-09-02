@@ -82,7 +82,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">2.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">3.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">4.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">5.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">6.</strong> Noname ASM</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">7.</strong> CellVar</a></li><li class="chapter-item expanded "><a href="circuitvar.html"><strong aria-hidden="true">8.</strong> CircuitVar</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">9.</strong> Constants</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">10.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">11.</strong> Witness Generation</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">6.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">7.</strong> Noname ASM</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">8.</strong> CellVar</a></li><li class="chapter-item expanded "><a href="circuitvar.html"><strong aria-hidden="true">9.</strong> CircuitVar</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">10.</strong> Constants</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">11.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">12.</strong> Witness Generation</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -145,6 +145,45 @@
                     <main>
                         <h1 id="noname"><a class="header" href="#noname">NoName</a></h1>
 <p>This is the book on NoName, a high-level language to write circuits using the <a href="">kimchi</a> zero-knowledge proof system.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="basics"><a class="header" href="#basics">Basics</a></h1>
+<p>Noname is a language that closely resembles Rust.</p>
+<p>For example, in the following program you can see a <code>main</code> function:</p>
+<pre><pre class="playground"><code class="language-rust">fn main(pub public_input: Field, private_input: Field) {
+    let x = private_input + public_input;
+    assert_eq(x, 2);
+}
+</code></pre></pre>
+<p>The only differences with Rust are:</p>
+<ul>
+<li>The <code>pub</code> keyword is used to mark <em>public</em> inputs. By default all arguments are private.</li>
+<li><code>assert_eq</code> is not a macro, there are no macros in noname.</li>
+<li>a <code>Field</code> type is used as main types everywhere. It is defined in <code>field.rs</code> to be the pasta Fp field (the base field of the Pallas curve). If these words mean nothing to you, just see <code>Field</code> as a large number. Ideally programs should be written without this type, but for now custom types do not exist.</li>
+</ul>
+<h2 id="use-statements"><a class="header" href="#use-statements">Use statements</a></h2>
+<p>Like in Rust, one can import other libraries via the <code>use</code> keyword:</p>
+<pre><pre class="playground"><code class="language-rust">use std::crypto;
+
+fn main(pub public_input: Field, private_input: [Field; 2]) {
+    let digest = crypto::poseidon(private_input);
+    assert_eq(digest[0], public_input);
+}
+</code></pre></pre>
+<p>Note that currently, only built-in libraries (written in Rust) are working. 
+In the future we'd like for other libraries to be written in noname.</p>
+<h2 id="boolean"><a class="header" href="#boolean">Boolean</a></h2>
+<p>TODO</p>
+<h2 id="custom-types"><a class="header" href="#custom-types">Custom types</a></h2>
+<p>TODO</p>
+<h2 id="for-loops"><a class="header" href="#for-loops">For loops</a></h2>
+<p>TODO</p>
+<h2 id="if-else-statements"><a class="header" href="#if-else-statements">If Else statements</a></h2>
+<p>TODO</p>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<p>TODO</p>
+<h2 id="early-returns"><a class="header" href="#early-returns">Early returns</a></h2>
+<p>TODO</p>
+<h2 id="hints"><a class="header" href="#hints">Hints</a></h2>
+<p>TODO</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="compilation"><a class="header" href="#compilation">Compilation</a></h1>
 <p>The compilation of noname programs goes through the following flow:</p>
 <ol>
@@ -204,7 +243,30 @@ sign := /a-zA-Z_/
 </ul>
 <p>We start tracking spans in the lexer, and then pass them around to the parser, and then to the compiler. Even gates and wirings have spans associated with them so that we can easily debug those.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="type-checker"><a class="header" href="#type-checker">Type Checker</a></h1>
-<p>The compilation</p>
+<p>Noname uses a simple type checker to ensure that all types are consistent in the program.</p>
+<p>For example, in code like:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = y + z;
+<span class="boring">}
+</span></code></pre></pre>
+<p>the type checker will ensure that <code>y</code> and <code>z</code> are both field elements (because the operation <code>+</code> is used).</p>
+<p>And in code like:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>assert_eq(a, b);
+<span class="boring">}
+</span></code></pre></pre>
+<p>the type checker will ensure that <code>a</code> and <code>b</code> are of the same types, since they are being compared.</p>
+<h2 id="type-inference"><a class="header" href="#type-inference">Type inference</a></h2>
+<p>The type checker can do some simple type inference. For example, in the following code:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = y + z;
+<span class="boring">}
+</span></code></pre></pre>
+<p>the type of <code>x</code> is inferred to be the same as the type of <code>y</code> and <code>z</code>.</p>
+<p>Inference is willingly kept naive, as more type inference would lead to less readable code.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="noname-asm"><a class="header" href="#noname-asm">noname ASM</a></h1>
 <p>The circuit that noname compiles to can be serialized as a simple ASM language. For example the following noname program:</p>
 <pre><pre class="playground"><code class="language-rust">fn main(pub public_input: Field, private_input: Field) {
