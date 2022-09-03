@@ -198,6 +198,9 @@ pub struct Gate {
 
     /// The place in the original source code that created that gate.
     pub span: Span,
+
+    /// A note on why this was added
+    pub note: &'static str,
 }
 
 impl Gate {
@@ -678,6 +681,7 @@ impl Compiler {
                 // create a gate to store the result
                 // TODO: we should use an add_generic function that takes advantage of the double generic gate
                 self.add_gate(
+                    "add a constant with a variable",
                     GateKind::DoubleGeneric,
                     vec![Some(var), None, Some(res)],
                     vec![
@@ -711,6 +715,7 @@ impl Compiler {
 
                 // create a gate to store the result
                 self.add_gate(
+                    "add two variables together",
                     GateKind::DoubleGeneric,
                     vec![Some(lhs), Some(rhs), Some(res)],
                     vec![Field::one(), Field::one(), Field::one().neg()],
@@ -728,6 +733,7 @@ impl Compiler {
 
         let zero = Field::zero();
         self.add_gate(
+            "hardcode a constant",
             GateKind::DoubleGeneric,
             vec![Some(var)],
             vec![Field::one(), zero, zero, zero, value.neg()],
@@ -741,6 +747,7 @@ impl Compiler {
     // TODO: add_gate instead of gates?
     pub fn add_gate(
         &mut self,
+        note: &'static str,
         typ: GateKind,
         vars: Vec<Option<CellVar>>,
         coeffs: Vec<Field>,
@@ -758,7 +765,12 @@ impl Compiler {
         let row = self.gates.len();
 
         // add gate
-        self.gates.push(Gate { typ, coeffs, span });
+        self.gates.push(Gate {
+            typ,
+            coeffs,
+            span,
+            note,
+        });
 
         // wiring (based on vars)
         for (col, var) in vars.iter().enumerate() {
@@ -789,6 +801,7 @@ impl Compiler {
 
             // create the associated generic gate
             self.add_gate(
+                "add public input",
                 GateKind::DoubleGeneric,
                 vec![Some(var)],
                 vec![Field::one()],
@@ -812,6 +825,7 @@ impl Compiler {
 
             // create the associated generic gate
             self.add_gate(
+                "add public output",
                 GateKind::DoubleGeneric,
                 vec![Some(var)],
                 vec![Field::one()],

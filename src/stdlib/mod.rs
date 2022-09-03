@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Neg as _};
 
-use ark_ff::One as _;
+use ark_ff::{One as _, Zero};
 
 use crate::{
     ast::{Compiler, Constant, FuncType, GateKind, Var},
@@ -115,6 +115,7 @@ fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
 
             // TODO: use permutation to check that
             compiler.add_gate(
+                "constrain cst - var = 0 to check equality",
                 GateKind::DoubleGeneric,
                 vec![Some(cst_var), Some(cvar)],
                 vec![Field::one(), Field::one().neg()],
@@ -130,6 +131,7 @@ fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
 
             // TODO: use permutation to check that
             compiler.add_gate(
+                "constrain lhs - rhs = 0 to assert that they are equal",
                 GateKind::DoubleGeneric,
                 vec![Some(lhs), Some(rhs)],
                 vec![Field::one(), Field::one().neg()],
@@ -154,14 +156,15 @@ fn assert(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
             assert_eq!(cvars.vars.len(), 1);
             let cvar = cvars.var(0).unwrap();
 
-            // create a bool = true
-            let true_var = compiler.add_constant(Field::one(), span);
-
             // TODO: use permutation to check that
+            let zero = Field::zero();
+            let one = Field::one();
             compiler.add_gate(
+                "constrain 1 - X = 0 to assert that X is true",
                 GateKind::DoubleGeneric,
-                vec![Some(true_var), Some(cvar)],
-                vec![Field::one(), Field::one().neg()],
+                vec![None, Some(cvar)],
+                // use the constant to constrain 1 - X = 0
+                vec![zero, one.neg(), zero, zero, one],
                 span,
             );
         }

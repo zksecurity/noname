@@ -101,7 +101,13 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
             Some(states[offset + 3][2]),
         ];
 
-        compiler.add_gate(GateKind::Poseidon, vars, coeffs, span);
+        compiler.add_gate(
+            "uses a poseidon gate to constrain 5 rounds of poseidon",
+            GateKind::Poseidon,
+            vars,
+            coeffs,
+            span,
+        );
     }
 
     let final_state = &states[states.len() - 1];
@@ -112,7 +118,13 @@ pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var
     ];
 
     // zero gate to store the result
-    compiler.add_gate(GateKind::DoubleGeneric, final_row.clone(), vec![], span);
+    compiler.add_gate(
+        "uses a zero gate to store the output of poseidon",
+        GateKind::DoubleGeneric,
+        final_row.clone(),
+        vec![],
+        span,
+    );
 
     //    states.borrow_mut().pop().unwrap();
     let vars = final_row.iter().flatten().cloned().collect();

@@ -47,6 +47,7 @@ pub fn and(compiler: &mut Compiler, lhs: Var, rhs: Var, span: Span) -> Var {
             let zero = Field::zero();
             let one = Field::one();
             compiler.add_gate(
+                "constrain the AND as lhs * rhs",
                 GateKind::DoubleGeneric,
                 vec![Some(lhs), Some(rhs), Some(res)],
                 vec![zero, zero, one.neg(), one], // mul
@@ -86,6 +87,7 @@ pub fn neg(compiler: &mut Compiler, var: Var, span: Span) -> Var {
 
             // create a gate to constrain the result
             compiler.add_gate(
+                "constrain the NOT as 1 - X",
                 GateKind::DoubleGeneric,
                 vec![None, Some(cvar), Some(res)],
                 // we use the constant to do 1 - X

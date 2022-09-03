@@ -52,7 +52,7 @@ pub fn generate_asm(
     }
 
     if debug && !vars.is_empty() {
-        res.push_str("# vars\n\n");
+        title(&mut res, "VARS");
     }
 
     for (idx, var) in vars.iter().enumerate() {
@@ -61,32 +61,48 @@ pub fn generate_asm(
 
     // gates
     if debug {
-        res.push_str("# gates\n\n");
+        title(&mut res, "GATES");
     }
 
-    for (row, Gate { typ, coeffs, span }) in gates.iter().enumerate() {
-        // source
+    for (
+        row,
+        Gate {
+            typ,
+            coeffs,
+            span,
+            note,
+        },
+    ) in gates.iter().enumerate()
+    {
+        // gate #
         if debug {
-            display_source(&mut res, source, &[*span]);
+            res.push_str(&format!("╭{s}\n", s = "─".repeat(80)));
+            write!(res, "│ GATE {row} - ").unwrap();
         }
-
-        // gate coeffs
-        let coeffs = parse_coeffs(&vars, coeffs);
 
         // gate
-        if debug {
-            write!(res, "#{row} - ").unwrap();
-        }
-
+        let coeffs = parse_coeffs(&vars, coeffs);
         write!(res, "{typ:?}").unwrap();
         res.push('<');
         res.push_str(&coeffs.join(","));
         res.push_str(">\n");
+
+        if debug {
+            // source
+            display_source(&mut res, source, &[*span]);
+
+            // note
+            res.push_str("    ▲\n");
+            writeln!(res, "    ╰── {note}").unwrap();
+
+            //
+            res.push_str("\n\n");
+        }
     }
 
     // wiring
     if debug {
-        res.push_str("\n# wiring\n\n");
+        title(&mut res, "WIRING");
     }
 
     let mut cycles: Vec<_> = wiring
@@ -159,16 +175,36 @@ fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
 }
 
 fn display_source(res: &mut String, source: &str, spans: &[Span]) {
-    res.push_str(&"-".repeat(80));
-    res.push('\n');
     for span in spans {
+        // top corner
+        res.push('╭');
+        res.push_str(&"─".repeat(80));
+        res.push('\n');
+
+        // source
+        res.push_str("│ ");
         let (line_number, start, line) = find_exact_line(source, *span);
         let header = format!("{line_number}: ");
         writeln!(res, "{header}{line}").unwrap();
-        res.push_str(&" ".repeat(header.len() + span.0 - start));
+
+        // caption
+        res.push('│');
+        res.push_str(&" ".repeat(header.len() + 1 + span.0 - start));
         res.push_str(&"^".repeat(span.1));
         res.push('\n');
+
+        // bottom corner
+        res.push('╰');
+        res.push_str(&"─".repeat(80));
+        res.push('\n');
     }
+}
+
+fn title(res: &mut String, s: &str) {
+    res.push_str(&format!("╭{s}╮\n", s = "─".repeat(s.len())));
+    res.push_str(&format!("│{s}│\n", s = s));
+    res.push_str(&format!("╰{s}╯\n", s = "─".repeat(s.len())));
+    writeln!(res, "").unwrap();
 }
 
 /// Very dumb way to write an ordered hash set.
