@@ -4,6 +4,8 @@ This is **work-in-progress** to implement a high-level (rust-inspired) programmi
 
 If you don't know what zero-knowledge proofs, zkapps, or kimchi are, check out [that blogpost](https://minaprotocol.com/blog/kimchi-the-latest-update-to-minas-proof-system).
 
+You can read more about the project on the noname book: https://mimoo.github.io/noname
+
 ## Examples
 
 For example, here's a circuit that has one public input and one private input, checks that they can add up to 2, then return their sum with 6 as public output:
