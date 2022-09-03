@@ -1,0 +1,53 @@
+const EMPTY = 0;
+const PLAYER_ONE = 1;
+const PLAYER_TWO = 2;
+
+struct Sudoku([Field; 9 * 9]);
+
+fn (Sudoku) cell(row: T, col: T) {
+    return self.0[row * 9 + col];
+}
+
+// doesn't matter which one is the grid and which one is the solution
+fn (Sudoku) merge(grid2: Sudoku) -> Self {
+    let merged = Sudoku([0; 9 * 9]);
+    for row in 0..9 {
+        for col in 0..9 {
+            let grid1_empty = self.cell(row, col) == EMPTY;
+            let grid2_empty = grid2.cell(row, col) == EMPTY;
+            let valid = grid1_empty || grid2_empty;
+            assert(valid);
+
+            merged.cell(row, col) = if grid1_empty {
+                grid2.cell(row, col)
+            } else {
+                self.cell(row, col)
+            };
+        }
+    }
+
+    return merged;
+}
+
+fn (Sudoku) verify(sudoku: Sudoku) {
+    // rows
+    for row in 0..9 {
+        for num in 0..9 {
+            let found = false;
+            for col in 0..9 {
+                if sudoku[row * 9 + col] == num {
+                    found = true;
+                }
+            }
+            assert(found);
+        }
+    }
+}
+
+fn main(pub grid: Sudoku, solution: Sudoku) {
+    // merge the grid with the solution
+    let full = grid.merge(solution);
+
+    // verify
+    full.verify();
+}

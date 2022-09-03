@@ -27,6 +27,8 @@ pub enum Keyword {
     True,
     /// The boolean value `false`
     False,
+    /// The `mut` keyword for mutable variables
+    Mut,
 }
 
 impl Keyword {
@@ -39,6 +41,7 @@ impl Keyword {
             "return" => Some(Self::Return),
             "true" => Some(Self::True),
             "false" => Some(Self::False),
+            "mut" => Some(Self::Mut),
             _ => None,
         }
     }
@@ -54,6 +57,7 @@ impl Display for Keyword {
             Self::Return => "return",
             Self::True => "true",
             Self::False => "false",
+            Self::Mut => "mut",
         };
 
         write!(f, "{}", desc)
@@ -67,6 +71,8 @@ pub enum TokenKind {
     Type(String),       // [A-Z](a-zA-Z0-9)*
     BigInt(String),     // (0-9)*
     Hex(String),        // 0x[0-9a-fA-F]+
+    Period,             // .
+    DoublePeriod,       // ..
     Comma,              // ,
     Colon,              // :
     DoubleColon,        // ::
@@ -104,6 +110,8 @@ impl Display for TokenKind {
             Type(_) => "an alphanumeric string starting with an uppercase letter",
             BigInt(_) => "a number",
             Hex(_) => "a hexadecimal string, starting with 0x",
+            Period => ".",
+            DoublePeriod => "..",
             Comma => "`,`",
             Colon => "`:`",
             DoubleColon => "`::`",
@@ -248,6 +256,15 @@ impl Token {
                         ident_or_number.push(c);
                     } else {
                         ident_or_number = Some(c.to_string());
+                    }
+                }
+                '.' => {
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'.')) {
+                        tokens.push(TokenKind::DoublePeriod.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenKind::Period.new_token(ctx, 1));
                     }
                 }
                 ',' => {

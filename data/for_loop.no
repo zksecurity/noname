@@ -1,0 +1,9 @@
+fn main(pub public_input: Field, private_input: [Field; 3]) {
+    let mut sum = 0;
+
+    for i in 0..3 {
+        sum = sum + private_input[i];
+    }
+
+    assert_eq(sum, public_input);
+}
