@@ -191,7 +191,7 @@ impl TypeEnv {
         self.current_scope.checked_sub(1).expect("scope bug");
 
         // disable variables as we exit the scope
-        for (name, (scope, type_info)) in self.vars.iter_mut() {
+        for (_name, (scope, type_info)) in self.vars.iter_mut() {
             if *scope > self.current_scope {
                 type_info.disabled = true;
             }

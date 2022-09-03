@@ -221,7 +221,8 @@ impl Ty {
             // [type; size]
             // ^
             TokenKind::LeftBracket => {
-                let mut span = Span(token.span.0, 0);
+                let span = Span(token.span.0, 0);
+
                 // [type; size]
                 //   ^
                 let ty = Ty::parse(ctx, tokens)?;
@@ -537,7 +538,7 @@ impl Expr {
             tokens.peek(),
             Some(Token {
                 kind: TokenKind::Equal,
-                span
+                span: _
             })
         ) {
             if !matches!(
@@ -1098,7 +1099,7 @@ impl Stmt {
             // if/else
             Some(Token {
                 kind: TokenKind::Keyword(Keyword::If),
-                span,
+                span: _,
             }) => {
                 // TODO: wait, this should be implemented as an expresssion! not a statement
                 todo!()

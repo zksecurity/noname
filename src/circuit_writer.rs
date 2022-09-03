@@ -47,10 +47,13 @@ impl CellVar {
     }
 }
 
+/// The signature of a hint function
+pub type HintFn = dyn Fn(&CompiledCircuit, &mut WitnessEnv) -> Result<Field>;
+
 /// A variable's actual value in the witness can be computed in different ways.
 pub enum Value {
     /// Either it's a hint and can be computed from the outside.
-    Hint(Box<dyn Fn(&CompiledCircuit, &mut WitnessEnv) -> Result<Field>>),
+    Hint(Box<HintFn>),
 
     /// Or it's a constant (for example, I wrote `2` in the code).
     Constant(Field),
@@ -657,7 +660,7 @@ impl CircuitWriter {
                 let rhs = self.compute_expr(global_env, local_env, rhs)?.unwrap();
 
                 // replace the left with the right
-                local_env.reassign_var(lhs_name, rhs.clone());
+                local_env.reassign_var(lhs_name, rhs);
 
                 None
             }
@@ -1053,9 +1056,10 @@ impl LocalEnv {
     /// If the variable is not in scope, return false.
     // TODO: return an error no?
     pub fn get_var(&self, ident: &str) -> &Var {
-        let (scope, var) = self.vars.get(ident).expect(&format!(
-            "type checking bug: local variable {ident} not found"
-        ));
+        let (scope, var) = self
+            .vars
+            .get(ident)
+            .unwrap_or_else(|| panic!("type checking bug: local variable {ident} not found"));
         if !self.is_in_scope(*scope) {
             panic!("type checking bug: local variable not in scope");
         }
