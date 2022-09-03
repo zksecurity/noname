@@ -159,6 +159,10 @@
 <li><code>assert_eq</code> is not a macro, there are no macros in noname.</li>
 <li>a <code>Field</code> type is used as main types everywhere. It is defined in <code>field.rs</code> to be the pasta Fp field (the base field of the Pallas curve). If these words mean nothing to you, just see <code>Field</code> as a large number. Ideally programs should be written without this type, but for now custom types do not exist.</li>
 </ul>
+<p>To run such a file, and assuming you have <a href="https://rustup.rs/">Rust</a> installed, you can type in the terminal:</p>
+<pre><code>$ cargo run -- --path path/to/file.no --private-inputs '{&quot;private_input&quot;: [&quot;1&quot;]}' --public-inputs '{&quot;public_input&quot;: [&quot;1&quot;]}'
+</code></pre>
+<p>As you can see, inputs are passed with a JSON format, and the values are expected to be encoded in decimal numbers.</p>
 <h2 id="use-statements"><a class="header" href="#use-statements">Use statements</a></h2>
 <p>Like in Rust, one can import other libraries via the <code>use</code> keyword:</p>
 <pre><pre class="playground"><code class="language-rust">use std::crypto;
@@ -170,8 +174,34 @@ fn main(pub public_input: Field, private_input: [Field; 2]) {
 </code></pre></pre>
 <p>Note that currently, only built-in libraries (written in Rust) are working. 
 In the future we’d like for other libraries to be written in noname.</p>
+<h2 id="field"><a class="header" href="#field">Field</a></h2>
+<p>The <code>Field</code> type is the primitive type upon which all other types are built. 
+It is good to know about it as it is used in many places, and is error prone: it does not match the size of commonly-found types like <code>u32</code> and <code>u64</code> and can have unexpected behaviors as it can overflow or underflow  without emitting an error.</p>
+<p>Ideally, you should never use the <code>Field</code> type, but currently the library is quite limited and the ideal world is far away.</p>
+<p>Note that you can define <code>Field</code> elements directly in the code by writing a decimal number directly. For example:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = 2;
+assert(y, 4);
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="arrays"><a class="header" href="#arrays">Arrays</a></h2>
+<p>While there are no dynamic arrays (or vectors), you can use fixed-size arrays like in Rust.</p>
+<p>For the moment, I believe that arrays can only be declared in a function argument as the following declaration hasn’t been implemented yet:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = [1, 2, y];
+<span class="boring">}
+</span></code></pre></pre>
 <h2 id="boolean"><a class="header" href="#boolean">Boolean</a></h2>
-<p>TODO</p>
+<p>Booleans are similar to Rust’s boolean. They are currently the only built-in type besides <code>Field</code> and arrays.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = true;
+let y = false;
+assert(!(x &amp; y));
+<span class="boring">}
+</span></code></pre></pre>
 <h2 id="custom-types"><a class="header" href="#custom-types">Custom types</a></h2>
 <p>TODO</p>
 <h2 id="for-loops"><a class="header" href="#for-loops">For loops</a></h2>
