@@ -76,7 +76,7 @@ pub fn generate_asm(
     {
         // gate #
         if debug {
-            res.push_str(&format!("╭{s}\n", s = "─".repeat(80)));
+            writeln!(res, "╭{s}\n", s = "─".repeat(80)).unwrap();
             write!(res, "│ GATE {row} - ").unwrap();
         }
 
@@ -206,10 +206,10 @@ fn display_source(res: &mut String, source: &str, spans: &[Span]) {
 }
 
 fn title(res: &mut String, s: &str) {
-    res.push_str(&format!("╭{s}╮\n", s = "─".repeat(s.len())));
-    res.push_str(&format!("│{s}│\n", s = s));
-    res.push_str(&format!("╰{s}╯\n", s = "─".repeat(s.len())));
-    writeln!(res, "").unwrap();
+    writeln!(res, "╭{s}╮", s = "─".repeat(s.len())).unwrap();
+    writeln!(res, "│{s}│", s = s).unwrap();
+    writeln!(res, "╰{s}╯", s = "─".repeat(s.len())).unwrap();
+    writeln!(res).unwrap();
 }
 
 /// Very dumb way to write an ordered hash set.
