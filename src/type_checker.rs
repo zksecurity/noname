@@ -35,7 +35,7 @@ impl Expr {
                 let inner_typ = inner.compute_type(env)?.unwrap();
                 if !matches!(inner_typ, TyKind::Bool) {
                     return Err(Error {
-                        kind: ErrorKind::MismatchType(TyKind::Bool, inner_typ.clone()),
+                        kind: ErrorKind::MismatchType(TyKind::Bool, inner_typ),
                         span: self.span,
                     });
                 }

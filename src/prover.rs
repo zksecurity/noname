@@ -76,7 +76,7 @@ pub fn compile(code: &str, debug: bool) -> Result<(String, ProverIndex, Verifier
     for wiring in compiler.wiring.values() {
         if let Wiring::Wired(cells_and_spans) = wiring {
             // all the wired cells form a cycle, remember!
-            let mut wired_cells = cells_and_spans.into_iter().map(|(cell, _)| cell).copied();
+            let mut wired_cells = cells_and_spans.iter().map(|(cell, _)| cell).copied();
             assert!(wired_cells.len() > 1);
 
             let first_cell = wired_cells.next().unwrap(); // for the cycle
