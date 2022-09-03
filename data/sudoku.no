@@ -35,12 +35,47 @@ fn (Sudoku) verify(sudoku: Sudoku) {
         for num in 0..9 {
             let found = false;
             for col in 0..9 {
-                if sudoku[row * 9 + col] == num {
+                if sudoku.cell(row, col) == num {
                     found = true;
                 }
             }
             assert(found);
         }
+    }
+
+    // cols
+    for col in 0..9 {
+        for num in 0..9 {
+            let found = false;
+            for row in 0..9 {
+                if sudoku.cell(row, col) == num {
+                    found = true;
+                }
+            }
+            assert(found);
+        }
+    }
+
+    // diagonals
+    for num in 0..9 {
+
+        // first diagonal
+        let found1 = false;
+        for row in 0..9 {
+            if sudoku.cell(row, row) == num {
+                found = true;
+            }
+        }
+        assert(found1);
+
+        // second diagonal
+        let found2 = false;
+        for row in 0..9 {
+            if sudoku.cell(9 - row, row) == num {
+                found = true;
+            }
+        }
+        assert(found2);
     }
 }
 
