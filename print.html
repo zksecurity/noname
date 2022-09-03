@@ -212,6 +212,17 @@ let y = false;
 assert(!(x &amp; y));
 <span class="boring">}
 </span></code></pre></pre>
+<h2 id="mutability"><a class="header" href="#mutability">Mutability</a></h2>
+<p>Variables are by default not mutable. To make a variable mutable, you must use the <code>mut</code> keyword:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut x = 1;
+x = 2; // GOOD
+
+let y = 1;
+y = x + y; // BAD
+<span class="boring">}
+</span></code></pre></pre>
 <h2 id="custom-types"><a class="header" href="#custom-types">Custom types</a></h2>
 <p>TODO</p>
 <h2 id="for-loops"><a class="header" href="#for-loops">For loops</a></h2>
