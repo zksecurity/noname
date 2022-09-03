@@ -80,10 +80,9 @@ fn test_poseidon() {
 }
 
 #[test]
-#[ignore]
 fn test_bool() {
-    let private_inputs = r#"{"private_input": ["1"]}"#;
-    let public_inputs = r#"{{"public_input": ["0"]}}"#;
+    let private_inputs = r#"{"private_input": ["0"]}"#;
+    let public_inputs = r#"{"public_input": ["1"]}"#;
 
     test_file("bool", public_inputs, private_inputs, vec![]);
 }

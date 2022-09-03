@@ -197,12 +197,12 @@ fn display_source(res: &mut String, source: &str, spans: &[Span]) {
         res.push_str(&" ".repeat(header.len() + 1 + span.0 - start));
         res.push_str(&"^".repeat(span.1));
         res.push('\n');
-
-        // bottom corner
-        res.push('╰');
-        res.push_str(&"─".repeat(80));
-        res.push('\n');
     }
+
+    // bottom corner
+    res.push('╰');
+    res.push_str(&"─".repeat(80));
+    res.push('\n');
 }
 
 fn title(res: &mut String, s: &str) {
