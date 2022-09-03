@@ -18,7 +18,34 @@ impl Expr {
                 typecheck_fn_call(env, type_env, name, args, self.span)
             }
             ExprKind::Variable(_) => todo!(),
-            ExprKind::Assignment { lhs, rhs } => todo!(),
+            ExprKind::Assignment { lhs, rhs } => {
+                // lhs can be a local variable or a path to an array
+                let name = match &lhs.kind {
+                    ExprKind::Variable(_) => todo!(),
+                    ExprKind::Identifier(var) => var,
+                    ExprKind::ArrayAccess(_, _) => todo!(),
+                    _ => panic!("bad expression assignment (TODO: replace with error)"),
+                };
+
+                // check that the var exists locally
+                let lhs_info = type_env
+                    .get_type_info(name)
+                    .expect("variable not found (TODO: replace with error")
+                    .clone();
+
+                // and is mutable
+                if !lhs_info.mutable {
+                    panic!("variable is not mutable (TODO: replace with error)");
+                }
+
+                // and is of the same type as the rhs
+                let rhs_typ = rhs.compute_type(env, type_env)?.unwrap();
+                if lhs_info.typ != rhs_typ {
+                    panic!("variable is not mutable (TODO: replace with error)");
+                }
+
+                Ok(None)
+            }
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(_, lhs, rhs) => {
                 let lhs_typ = lhs.compute_type(env, type_env)?.unwrap();
@@ -53,10 +80,13 @@ impl Expr {
             ExprKind::BigInt(_) => Ok(Some(TyKind::BigInt)),
             ExprKind::Bool(_) => Ok(Some(TyKind::Bool)),
             ExprKind::Identifier(ident) => {
-                let typ = type_env.get_type(ident).ok_or(Error {
-                    kind: ErrorKind::UndefinedVariable,
-                    span: self.span,
-                })?;
+                let typ = type_env
+                    .get_type(ident)
+                    .ok_or(Error {
+                        kind: ErrorKind::UndefinedVariable,
+                        span: self.span,
+                    })?
+                    .clone();
 
                 Ok(Some(typ))
             }
@@ -68,10 +98,13 @@ impl Expr {
 
                 // figure out if variable is in scope
                 let name = &path.path[0].value;
-                let typ = type_env.get_type(name).ok_or(Error {
-                    kind: ErrorKind::UndefinedVariable,
-                    span: self.span,
-                })?;
+                let typ = type_env
+                    .get_type(name)
+                    .ok_or(Error {
+                        kind: ErrorKind::UndefinedVariable,
+                        span: self.span,
+                    })?
+                    .clone();
 
                 // check that expression is a bigint
                 match expr.compute_type(env, type_env)? {
@@ -95,25 +128,90 @@ impl Expr {
 }
 
 //
-// Type Environment
+// Scope
 //
 
+/// Some type information on local variables that we want to track.
 #[derive(Debug, Clone)]
 pub struct TypeInfo {
+    /// If the variable can be mutated or not.
     pub mutable: bool,
+
+    /// A variable becomes disabled once we exit its scope.
+    pub disabled: bool,
+
+    /// Some type information.
     pub typ: TyKind,
+
+    /// The span of the variable declaration.
     pub span: Span,
 }
 
-#[derive(Default, Debug)]
+impl TypeInfo {
+    pub fn new(typ: TyKind, span: Span) -> Self {
+        Self {
+            mutable: false,
+            disabled: false,
+            typ,
+            span,
+        }
+    }
+
+    pub fn new_mut(typ: TyKind, span: Span) -> Self {
+        Self {
+            mutable: true,
+            ..Self::new(typ, span)
+        }
+    }
+}
+
+/// The environment we use to type check.
+#[derive(Default, Debug, Clone)]
 pub struct TypeEnv {
-    /// created by the type checker, gives a type to every external variable
-    pub var_types: HashMap<String, TypeInfo>,
+    /// The current nesting level.
+    /// Starting at 0 (top level), and increasing as we go into a block.
+    current_scope: usize,
+
+    /// Vars local to their scope.
+    /// This needs to be garbage collected when we exit a scope.
+    vars: HashMap<String, (usize, TypeInfo)>,
 }
 
 impl TypeEnv {
+    /// Creates a new TypeEnv
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Enters a scoped block.
+    pub fn nest(&mut self) {
+        self.current_scope += 1;
+    }
+
+    /// Exits a scoped block.
+    pub fn pop(&mut self) {
+        self.current_scope.checked_sub(1).expect("scope bug");
+
+        // disable variables as we exit the scope
+        for (name, (scope, type_info)) in self.vars.iter_mut() {
+            if *scope > self.current_scope {
+                type_info.disabled = true;
+            }
+        }
+    }
+
+    /// Returns true if a scope is a prefix of our scope.
+    pub fn is_in_scope(&self, prefix_scope: usize) -> bool {
+        self.current_scope >= prefix_scope
+    }
+
+    /// Stores type information about a local variable.
+    /// Note that we forbid shadowing at all scopes.
     pub fn store_type(&mut self, ident: String, type_info: TypeInfo) -> Result<()> {
-        match self.var_types.insert(ident.clone(), type_info.clone()) {
+        match self
+            .vars
+            .insert(ident.clone(), (self.current_scope, type_info.clone()))
+        {
             Some(_) => Err(Error {
                 kind: ErrorKind::DuplicateDefinition(ident),
                 span: type_info.span,
@@ -122,8 +220,27 @@ impl TypeEnv {
         }
     }
 
-    pub fn get_type(&self, ident: &str) -> Option<TyKind> {
-        self.var_types.get(ident).map(|t| t.typ.clone())
+    pub fn get_type(&self, ident: &str) -> Option<&TyKind> {
+        self.get_type_info(ident).map(|type_info| &type_info.typ)
+    }
+
+    pub fn mutable(&self, ident: &str) -> Option<bool> {
+        self.get_type_info(ident).map(|type_info| type_info.mutable)
+    }
+
+    /// Retrieves type information on a variable, given a name.
+    /// If the variable is not in scope, return false.
+    // TODO: return an error no?
+    pub fn get_type_info(&self, ident: &str) -> Option<&TypeInfo> {
+        if let Some((scope, type_info)) = self.vars.get(ident) {
+            if self.is_in_scope(*scope) && !type_info.disabled {
+                Some(type_info)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -148,10 +265,11 @@ impl TAST {
 
         //
         // inject some utility builtin functions in the scope
-        // TODO: should we really import them by default?
+        //
 
         let mut global_env = GlobalEnv::default();
 
+        // TODO: should we really import them by default?
         global_env.resolve_global_imports()?;
 
         //
@@ -173,20 +291,24 @@ impl TAST {
         // - ?
         //
 
+        let mut type_env = TypeEnv::default();
+
         for root in &ast.0 {
             match &root.kind {
-                RootKind::Use(path) => (),
+                // we already processed these in the import resolution
+                RootKind::Use(_) => (),
 
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
+                    // enter a new scope
+                    type_env.nest();
+
                     // TODO: support other functions
                     if !function.is_main() {
                         panic!("we do not yet support functions other than main()");
                     }
 
                     main_function_observed = true;
-
-                    let mut type_env = TypeEnv::default();
 
                     global_env.main_args.1 = function.span;
 
@@ -205,33 +327,21 @@ impl TAST {
                             TyKind::Field => {
                                 type_env.store_type(
                                     arg.name.value.clone(),
-                                    TypeInfo {
-                                        mutable: false,
-                                        typ: arg.typ.kind.clone(),
-                                        span: arg.span,
-                                    },
+                                    TypeInfo::new(arg.typ.kind.clone(), arg.span),
                                 )?;
                             }
 
                             TyKind::Array(..) => {
                                 type_env.store_type(
                                     arg.name.value.clone(),
-                                    TypeInfo {
-                                        mutable: false,
-                                        typ: arg.typ.kind.clone(),
-                                        span: arg.span,
-                                    },
+                                    TypeInfo::new(arg.typ.kind.clone(), arg.span),
                                 )?;
                             }
 
                             TyKind::Bool => {
                                 type_env.store_type(
                                     arg.name.value.clone(),
-                                    TypeInfo {
-                                        mutable: false,
-                                        typ: arg.typ.kind.clone(),
-                                        span: arg.span,
-                                    },
+                                    TypeInfo::new(arg.typ.kind.clone(), arg.span),
                                 )?;
                             }
 
@@ -255,16 +365,15 @@ impl TAST {
 
                         type_env.store_type(
                             name.to_string(),
-                            TypeInfo {
-                                mutable: true,
-                                typ: typ.kind.clone(),
-                                span: typ.span,
-                            },
+                            TypeInfo::new_mut(typ.kind.clone(), typ.span),
                         )?;
                     }
 
                     // type system pass!!!
-                    Self::type_check_fn_body(&global_env, type_env, function)?;
+                    Self::type_check_fn_body(&global_env, &mut type_env, function)?;
+
+                    // exit the scope
+                    type_env.pop();
                 }
 
                 // ignore comments
@@ -278,9 +387,10 @@ impl TAST {
         Ok(TAST { ast, global_env })
     }
 
+    // TODO: generalize for any function
     pub fn type_check_fn_body(
         env: &GlobalEnv,
-        mut type_env: TypeEnv,
+        type_env: &mut TypeEnv,
         function: &Function,
     ) -> Result<()> {
         let mut still_need_to_check_return_type = function.return_type.is_some();
@@ -292,12 +402,12 @@ impl TAST {
                     // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
 
                     // but first we need to compute the type of the rhs expression
-                    let typ = rhs.compute_type(env, &mut type_env)?.unwrap();
+                    let typ = rhs.compute_type(env, type_env)?.unwrap();
 
-                    let type_info = TypeInfo {
-                        mutable: *mutable,
-                        typ,
-                        span: lhs.span,
+                    let type_info = if *mutable {
+                        TypeInfo::new_mut(typ, lhs.span)
+                    } else {
+                        TypeInfo::new(typ, lhs.span)
                     };
 
                     // store the type of lhs in the env
@@ -308,12 +418,21 @@ impl TAST {
                     start,
                     end,
                     body,
-                } => unimplemented!(),
+                } => {
+                    // enter a new scope
+                    type_env.nest();
+
+                    //
+                    todo!();
+
+                    // exit the scope
+                    type_env.pop();
+                }
                 StmtKind::Expr(expr) => {
                     // make sure the expression does not return any type
                     // (it's a statement expression, it should only work via side effect)
 
-                    let typ = expr.compute_type(env, &mut type_env)?;
+                    let typ = expr.compute_type(env, type_env)?;
                     if typ.is_some() {
                         return Err(Error {
                             kind: ErrorKind::ExpectedUnitExpr,
@@ -331,21 +450,23 @@ impl TAST {
 
                     assert!(still_need_to_check_return_type);
 
-                    let typ = res.compute_type(env, &mut type_env)?.unwrap();
+                    let typ = res.compute_type(env, type_env)?.unwrap();
 
                     let expected = match type_env.get_type("public_output") {
                         Some(t) => t,
                         None => panic!("return statement when function signature doesn't have a return value (TODO: replace by error)"),
                     };
 
-                    if expected != typ {
+                    if expected != &typ {
                         return Err(Error {
-                            kind: ErrorKind::ReturnTypeMismatch(expected, typ),
+                            kind: ErrorKind::ReturnTypeMismatch(expected.clone(), typ),
                             span: stmt.span,
                         });
                     }
 
                     still_need_to_check_return_type = false;
+
+                    // TODO: if we generalize this code, we need to exit/pop the scope
                 }
                 StmtKind::Comment(_) => (),
             }

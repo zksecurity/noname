@@ -88,6 +88,7 @@ fn test_bool() {
 }
 
 #[test]
+#[ignore]
 fn test_for_loop() {
     let private_inputs = r#"{"private_input": ["0", "1", "2"]}"#;
     let public_inputs = r#"{"public_input": ["3"]}"#;
