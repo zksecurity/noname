@@ -83,6 +83,17 @@ let y = false;
 assert(!(x & y));
 ```
 
+## Mutability
+
+Variables are by default not mutable. To make a variable mutable, you must use the `mut` keyword:
+
+```rust
+let mut x = 1;
+x = 2; // GOOD
+
+let y = 1;
+y = x + y; // BAD
+```
 
 ## Custom types
 
