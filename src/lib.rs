@@ -4,6 +4,7 @@
 
 pub mod asm;
 pub mod ast;
+pub mod boolean;
 pub mod constants;
 pub mod error;
 pub mod field;

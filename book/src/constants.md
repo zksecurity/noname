@@ -10,6 +10,7 @@ assert_eq(x, 4);
 It is important that constants are tracked differently than `CellVar`s for several reasons:
 
 * It is sometimes useless to constrain them directly. For example, in `let x = 3 + 7;` you can see that we should not constrain `3` and `7` separately, but rather the result `10`.
+* It is sometimes useless to constrain them at all. For example, boolean constants are never constrained because you never need to.
 * They can be cached to avoid creating several constraints for the same constant.
 
 Currently a constant appears in the circuit via a simple generic gate, and is not cached:

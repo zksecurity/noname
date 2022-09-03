@@ -5,6 +5,7 @@ use itertools::{chain, Itertools};
 
 use crate::{
     ast::{CellValues, CellVar, Compiler, Value},
+    boolean,
     constants::NUM_REGISTERS,
     error::{Error, ErrorKind, Result},
     field::{Field, PrettyField},
@@ -85,6 +86,13 @@ impl Compiler {
                 env.cached_values.insert(var, res); // cache
                 Ok(res)
             }
+            Value::Mul(lhs, rhs) => {
+                let lhs = self.compute_var(env, *lhs)?;
+                let rhs = self.compute_var(env, *rhs)?;
+                let res = lhs * rhs;
+                env.cached_values.insert(var, res); // cache
+                Ok(res)
+            }
             Value::External(name, idx) => Ok(env.get_external(name)[*idx]),
             Value::PublicOutput(var) => {
                 let var = var.ok_or(Error {
@@ -131,11 +139,32 @@ impl Compiler {
                         span: arg.span,
                     })?;
                     if cval.values.len() != *size as usize {
-                        panic!("convert this to an error");
+                        panic!(
+                            "wrong length given for field array (TODO: convert this to an error)"
+                        );
                     }
                     cval
                 }
-                _ => unimplemented!(),
+                TyKind::Bool => {
+                    let input = if arg.is_public() {
+                        public_inputs.0.remove(name)
+                    } else {
+                        private_inputs.0.remove(name)
+                    };
+
+                    let cval = input.ok_or(Error {
+                        kind: ErrorKind::MissingArg(name.clone()),
+                        span: arg.span,
+                    })?;
+                    if cval.values.len() != 1 {
+                        panic!("the boolean value {name} must be passed as a single field element (TODO: convert this to an error)");
+                    }
+                    if !boolean::is_valid(cval.values[0]) {
+                        panic!("boolean value {name} passed is not valid, expected 1 or 0, got {} (TODO: convert this into an error)", cval.values[0]);
+                    }
+                    cval
+                }
+                tt => panic!("{:?} not implemented", tt),
             };
 
             env.add_value(name.clone(), cval.clone());

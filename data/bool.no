@@ -8,5 +8,5 @@ fn main(pub public_input: Bool, private_input: Bool) {
 
     // public input must be false
     let x = public_input & true; // TODO: shadowing detected?
-    assert(x == false);
+    assert(!x);
 }

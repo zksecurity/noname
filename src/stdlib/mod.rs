@@ -91,10 +91,10 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FuncType)]) -> Vec<(FunctionSig, FuncType
 // TODO: give a name that's useful for the user,
 //       not something descriptive internally like "builtins"
 
-//const ASSERT_FN: &str = "assert(condition: Bool)";
+const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 
-pub const BUILTIN_FNS: [(&str, FuncType); 1] = [(ASSERT_EQ_FN, assert_eq)];
+pub const BUILTIN_FNS: [(&str, FuncType); 2] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
 
 /// Asserts that two field elements are equal.
 // TODO: For now this only works for two field elements, but we could generalize that function and just divide vars into two and trust the type checker
@@ -142,7 +142,6 @@ fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
 }
 
 /// Asserts that a condition is true.
-#[allow(dead_code)]
 fn assert(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
     // double check (on top of type checker)
     assert_eq!(vars.len(), 1);
@@ -159,7 +158,6 @@ fn assert(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
             let true_var = compiler.add_constant(Field::one(), span);
 
             // TODO: use permutation to check that
-            // TODO: what if cvar is not a cell in the circuit o_O?
             compiler.add_gate(
                 GateKind::DoubleGeneric,
                 vec![Some(true_var), Some(cvar)],

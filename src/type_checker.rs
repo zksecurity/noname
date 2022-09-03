@@ -31,7 +31,17 @@ impl Expr {
 
                 Ok(Some(lhs_typ))
             }
-            ExprKind::Negated(_) => todo!(),
+            ExprKind::Negated(inner) => {
+                let inner_typ = inner.compute_type(env)?.unwrap();
+                if !matches!(inner_typ, TyKind::Bool) {
+                    return Err(Error {
+                        kind: ErrorKind::MismatchType(TyKind::Bool, inner_typ.clone()),
+                        span: self.span,
+                    });
+                }
+
+                Ok(Some(TyKind::Bool))
+            }
             ExprKind::BigInt(_) => Ok(Some(TyKind::BigInt)),
             ExprKind::Bool(_) => Ok(Some(TyKind::Bool)),
             ExprKind::Identifier(ident) => {

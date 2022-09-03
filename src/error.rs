@@ -163,4 +163,7 @@ pub enum ErrorKind {
 
     #[error("user provided input `{0}` is not defined in the main function's arguments")]
     UnusedInput(String),
+
+    #[error("private input not used in the circuit")]
+    PrivateInputNotUsed,
 }

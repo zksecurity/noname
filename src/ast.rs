@@ -10,7 +10,7 @@ use num_bigint::BigUint;
 use num_traits::Num as _;
 
 use crate::{
-    asm,
+    asm, boolean,
     constants::{Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     field::Field,
@@ -57,7 +57,9 @@ pub enum Value {
 
     /// Or it's a linear combination of internal circuit variables (+ a constant).
     // TODO: probably values of internal variables should be cached somewhere
-    LinearCombination(Vec<(Field, CellVar)>, Field),
+    LinearCombination(Vec<(Field, CellVar)>, Field /* cst */),
+
+    Mul(CellVar, CellVar),
 
     /// A public or private input to the function
     /// There's an index associated to a variable name, as the variable could be composed of several field elements.
@@ -74,6 +76,7 @@ impl fmt::Debug for Value {
             Value::Hint(..) => write!(f, "Hint"),
             Value::Constant(..) => write!(f, "Constant"),
             Value::LinearCombination(..) => write!(f, "LinearCombination"),
+            Value::Mul(..) => write!(f, "Mul"),
             Value::External(..) => write!(f, "External"),
             Value::PublicOutput(..) => write!(f, "PublicOutput"),
         }
@@ -314,9 +317,10 @@ impl Compiler {
         for var in 0..compiler.next_variable {
             if !written_vars.contains(&var) {
                 if compiler.private_input_indices.contains(&var) {
-                    panic!(
-                        "private input not used in the circuit (TODO: return a proper error here)"
-                    );
+                    return Err(Error {
+                        kind: ErrorKind::PrivateInputNotUsed,
+                        span: compiler.main_args.1,
+                    });
                 } else {
                     panic!("there's a bug in the compiler, some cellvar does not end up being a cellvar in the circuit!");
                 }
@@ -364,6 +368,7 @@ impl Compiler {
                                 }
                                 *len as usize
                             }
+                            TyKind::Bool => 1,
                             _ => unimplemented!(),
                         };
 
@@ -374,9 +379,9 @@ impl Compiler {
                                     span: attr.span,
                                 });
                             }
-                            self.public_inputs(name.value.clone(), len, name.span)
+                            self.add_public_inputs(name.value.clone(), len, name.span)
                         } else {
-                            self.private_inputs(name.value.clone(), len, name.span)
+                            self.add_private_inputs(name.value.clone(), len, name.span)
                         };
 
                         env.variables
@@ -454,7 +459,7 @@ impl Compiler {
                             .is_some());
                     }
                 }
-                StmtKind::Comment(_) => todo!(),
+                StmtKind::Comment(_) => (),
             }
         }
 
@@ -536,11 +541,19 @@ impl Compiler {
                 Op2::Multiplication => todo!(),
                 Op2::Division => todo!(),
                 Op2::Equality => todo!(),
-                Op2::BoolAnd => todo!(),
+                Op2::BoolAnd => {
+                    let lhs = self.compute_expr(env, lhs)?.unwrap();
+                    let rhs = self.compute_expr(env, rhs)?.unwrap();
+
+                    Some(boolean::and(self, lhs, rhs, expr.span))
+                }
                 Op2::BoolOr => todo!(),
                 Op2::BoolNot => todo!(),
             },
-            ExprKind::Negated(_) => todo!(),
+            ExprKind::Negated(b) => {
+                let var = self.compute_expr(env, b)?.unwrap();
+                Some(boolean::neg(self, var, expr.span))
+            }
             ExprKind::BigInt(b) => {
                 let biguint = BigUint::from_str_radix(b, 10).expect("failed to parse number.");
                 let f = Field::try_from(biguint).map_err(|_| Error {
@@ -550,7 +563,10 @@ impl Compiler {
 
                 Some(Var::new_constant(f, expr.span))
             }
-            ExprKind::Bool(_b) => todo!(),
+            ExprKind::Bool(b) => {
+                let val = if *b { Field::one() } else { Field::zero() };
+                Some(Var::new_constant(val, expr.span))
+            }
             ExprKind::Identifier(name) => {
                 let var = env.get_var(name).unwrap();
                 Some(var)
@@ -623,6 +639,11 @@ impl Compiler {
                     res += self.compute_constant(*var, span)? * *coeff;
                 }
                 Ok(res)
+            }
+            Some(Value::Mul(lhs, rhs)) => {
+                let lhs = self.compute_constant(*lhs, span)?;
+                let rhs = self.compute_constant(*rhs, span)?;
+                Ok(lhs * rhs)
             }
             _ => Err(Error {
                 kind: ErrorKind::ExpectedConstant,
@@ -758,7 +779,7 @@ impl Compiler {
         }
     }
 
-    pub fn public_inputs(&mut self, name: String, num: usize, span: Span) -> CellVars {
+    pub fn add_public_inputs(&mut self, name: String, num: usize, span: Span) -> CellVars {
         let mut vars = Vec::with_capacity(num);
 
         for idx in 0..num {
@@ -804,7 +825,7 @@ impl Compiler {
         self.public_output = Some(cvar);
     }
 
-    pub fn private_inputs(&mut self, name: String, num: usize, span: Span) -> CellVars {
+    pub fn add_private_inputs(&mut self, name: String, num: usize, span: Span) -> CellVars {
         let mut vars = Vec::with_capacity(num);
 
         for idx in 0..num {
