@@ -58,7 +58,7 @@ impl Expr {
                     span: self.span,
                 })?;
 
-                Ok(Some(typ.clone()))
+                Ok(Some(typ))
             }
             ExprKind::ArrayAccess(path, expr) => {
                 // only support scoped variable for now
@@ -86,7 +86,7 @@ impl Expr {
 
                 //
                 match typ {
-                    TyKind::Array(typkind, _) => Ok(Some(*typkind.clone())),
+                    TyKind::Array(typkind, _) => Ok(Some(*typkind)),
                     _ => panic!("not an array"),
                 }
             }
@@ -340,7 +340,7 @@ impl TAST {
 
                     if expected != typ {
                         return Err(Error {
-                            kind: ErrorKind::ReturnTypeMismatch(expected.clone(), typ),
+                            kind: ErrorKind::ReturnTypeMismatch(expected, typ),
                             span: stmt.span,
                         });
                     }

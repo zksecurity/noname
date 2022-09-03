@@ -3,7 +3,7 @@
 To be able to efficiently track errors, we have a span type:
 
 ```rust
-pub type Span = (usize, usize);
+pub struct Span(pub usize, pub usize);
 ```
 
 which represents a location in the original source code:

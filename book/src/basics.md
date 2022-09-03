@@ -25,9 +25,17 @@ $ cargo run -- --path path/to/file.no --private-inputs '{"private_input": ["1"]}
 
 As you can see, inputs are passed with a JSON format, and the values are expected to be encoded in decimal numbers.
 
-## Use statements
+## Builtins and use statements
 
-Like in Rust, one can import other libraries via the `use` keyword:
+Some builtin functions are available by default:
+
+* `assert_eq` to check that two field elements are equal
+* `assert` to check that a condition is true.
+
+Like in Rust, you can also import other libraries via the `use` keyword.
+If you do this, you must know that you can only import a library, but not its functions (and types, and constants) directly.
+
+For example, to use the poseidon function from the crypto library (or module), you must import `std::crypto` and then qualify your use of `crypto::poseidon`:
 
 ```rust
 use std::crypto;
@@ -39,7 +47,7 @@ fn main(pub public_input: Field, private_input: [Field; 2]) {
 ```
 
 Note that currently, only built-in libraries (written in Rust) are working. 
-In the future we'd like for other libraries to be written in noname.
+In the future we'd like for other libraries to be written in the noname language.
 
 ## Field
 
@@ -75,6 +83,7 @@ let y = false;
 assert(!(x & y));
 ```
 
+
 ## Custom types
 
 TODO
@@ -98,3 +107,19 @@ TODO
 ## Hints
 
 TODO
+
+## Shadowing
+
+We forbid variable shadowing as much as we can.
+
+For example, this should not work:
+
+```rust
+let x = 2;
+let x = 3; // this won't compile
+
+let y = 4;
+for i in 0..4 {
+    let y = i; // this won't compile either
+}
+```

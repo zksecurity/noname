@@ -17,5 +17,5 @@ pub fn compile(code: &str) -> Result<CompiledCircuit> {
     let circuit = CircuitWriter::generate_circuit(tast, code)?;
 
     //
-    return Ok(circuit);
+    Ok(circuit)
 }

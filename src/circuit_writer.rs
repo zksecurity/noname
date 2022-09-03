@@ -416,7 +416,7 @@ impl CircuitWriter {
     ) -> Result<()> {
         for stmt in &function.body {
             match &stmt.kind {
-                StmtKind::Assign { mutable, lhs, rhs } => {
+                StmtKind::Assign { lhs, rhs, .. } => {
                     // compute the rhs
                     let var = self
                         .compute_expr(global_env, &mut local_env, rhs)?
