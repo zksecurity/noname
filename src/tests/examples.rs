@@ -88,6 +88,14 @@ fn test_bool() {
 }
 
 #[test]
+fn test_mutable() {
+    let private_inputs = r#"{"x": ["2"], "y": ["3"]}"#;
+    let public_inputs = r#"{}"#;
+
+    test_file("mutable", public_inputs, private_inputs, vec![]);
+}
+
+#[test]
 #[ignore]
 fn test_for_loop() {
     let private_inputs = r#"{"private_input": ["0", "1", "2"]}"#;

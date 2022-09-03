@@ -300,6 +300,9 @@ impl CircuitWriter {
             panic!("circuit already finalized (TODO: return a proper error");
         }
 
+        // create the env
+        let mut local_env = LocalEnv::default();
+
         for root in &ast.0 {
             match &root.kind {
                 // `use crypto::poseidon;`
@@ -309,12 +312,21 @@ impl CircuitWriter {
 
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
+                    // we only support main for now
                     if !function.is_main() {
                         unimplemented!();
                     }
 
-                    // create the per-function scoped env
-                    let mut local_env = LocalEnv::default();
+                    // if there are no arguments, return an error
+                    if function.arguments.is_empty() {
+                        return Err(Error {
+                            kind: ErrorKind::NoArgsInMain,
+                            span: function.span,
+                        });
+                    }
+
+                    // nest scope
+                    local_env.nest();
 
                     // create public and private inputs
                     for FuncArg {
@@ -349,7 +361,7 @@ impl CircuitWriter {
                         };
 
                         // add argument variable to the ast env
-                        local_env.add_var(name.value.clone(), Var::CircuitVar(cvar), name.span)?;
+                        local_env.add_var(name.value.clone(), Var::CircuitVar(cvar), name.span);
                     }
 
                     // create public output
@@ -363,7 +375,10 @@ impl CircuitWriter {
                     }
 
                     // compile function
-                    circuit_writer.compile_function(&global_env, local_env, function)?;
+                    circuit_writer.compile_function(&global_env, &mut local_env, function)?;
+
+                    // pop scope
+                    local_env.pop();
                 }
 
                 // ignore comments
@@ -411,7 +426,7 @@ impl CircuitWriter {
     fn compile_function(
         &mut self,
         global_env: &GlobalEnv,
-        mut local_env: LocalEnv,
+        local_env: &mut LocalEnv,
         function: &Function,
     ) -> Result<()> {
         for stmt in &function.body {
@@ -419,7 +434,7 @@ impl CircuitWriter {
                 StmtKind::Assign { lhs, rhs, .. } => {
                     // compute the rhs
                     let var = self
-                        .compute_expr(global_env, &mut local_env, rhs)?
+                        .compute_expr(global_env, local_env, rhs)?
                         .ok_or(Error {
                             kind: ErrorKind::CannotComputeExpression,
                             span: stmt.span,
@@ -427,7 +442,7 @@ impl CircuitWriter {
 
                     // store the new variable
                     // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
-                    local_env.add_var(lhs.value.clone(), var, stmt.span)?;
+                    local_env.add_var(lhs.value.clone(), var, stmt.span);
                 }
                 StmtKind::For {
                     var,
@@ -435,11 +450,13 @@ impl CircuitWriter {
                     end,
                     body,
                 } => {
+                    local_env.nest();
                     todo!();
+                    local_env.pop();
                 }
                 StmtKind::Expr(expr) => {
                     // compute the expression
-                    let var = self.compute_expr(global_env, &mut local_env, expr)?;
+                    let var = self.compute_expr(global_env, local_env, expr)?;
 
                     // make sure it does not return any value.
                     assert!(var.is_none());
@@ -450,7 +467,7 @@ impl CircuitWriter {
                     }
 
                     let var = self
-                        .compute_expr(global_env, &mut local_env, res)?
+                        .compute_expr(global_env, local_env, res)?
                         .ok_or(Error {
                             kind: ErrorKind::CannotComputeExpression,
                             span: stmt.span,
@@ -547,8 +564,22 @@ impl CircuitWriter {
                 // run the function
                 func(self, &vars, expr.span)
             }
-            ExprKind::Variable(_) => todo!(),
-            ExprKind::Assignment { lhs, rhs } => todo!(),
+            ExprKind::Assignment { lhs, rhs } => {
+                // figure out the local var name of lhs
+                let lhs_name = match &lhs.kind {
+                    ExprKind::Identifier(n) => n,
+                    ExprKind::ArrayAccess(_, _) => todo!(),
+                    _ => panic!("type checker error"),
+                };
+
+                // figure out the var of what's on the right
+                let rhs = self.compute_expr(global_env, local_env, rhs)?.unwrap();
+
+                // replace the left with the right
+                local_env.reassign_var(lhs_name, rhs.clone());
+
+                None
+            }
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
@@ -588,7 +619,7 @@ impl CircuitWriter {
                 Some(Var::new_constant(val, expr.span))
             }
             ExprKind::Identifier(name) => {
-                let var = local_env.get_var(name).unwrap();
+                let var = local_env.get_var(name).clone();
                 Some(var)
             }
             ExprKind::ArrayAccess(path, expr) => {
@@ -596,10 +627,7 @@ impl CircuitWriter {
                 let array: CellVars = if path.len() == 1 {
                     // var present in the scope
                     let name = &path.path[0].value;
-                    let array_var = local_env.get_var(name).ok_or(Error {
-                        kind: ErrorKind::UndefinedVariable,
-                        span: path.span,
-                    })?;
+                    let array_var = local_env.get_var(name);
                     array_var.circuit_var().unwrap()
                 } else if path.len() == 2 {
                     // check module present in the scope
@@ -879,24 +907,89 @@ impl CircuitWriter {
 /// Is used to help functions access their scoped variables.
 /// This include inputs and output of the function being processed,
 /// as well as local variables.
-#[derive(Debug, Default)]
+#[derive(Default, Debug, Clone)]
 pub struct LocalEnv {
-    /// used by the private and public inputs, and any other external variables created in the circuit
-    pub variables: HashMap<String, Var>,
+    /// The current nesting level.
+    /// Starting at 0 (top level), and increasing as we go into a block.
+    current_scope: usize,
+
+    /// Used by the private and public inputs,
+    /// and any other external variables created in the circuit
+    /// This needs to be garbage collected when we exit a scope.
+    vars: HashMap<String, (usize, Var)>,
 }
 
 impl LocalEnv {
-    pub fn add_var(&mut self, name: String, var: Var, span: Span) -> Result<()> {
-        match self.variables.insert(name.clone(), var) {
-            Some(_) => Err(Error {
-                kind: ErrorKind::DuplicateDefinition(name),
-                span,
-            }),
-            None => Ok(()),
+    /// Creates a new LocalEnv
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Enters a scoped block.
+    pub fn nest(&mut self) {
+        self.current_scope += 1;
+    }
+
+    /// Exits a scoped block.
+    pub fn pop(&mut self) {
+        self.current_scope.checked_sub(1).expect("scope bug");
+
+        // remove variables as we exit the scope
+        // (we don't need to keep them around to detect shadowing,
+        // as we already did that in type checker)
+        let mut to_delete = vec![];
+        for (name, (scope, _)) in self.vars.iter() {
+            if *scope > self.current_scope {
+                to_delete.push(name.clone());
+            }
+        }
+        for d in to_delete {
+            self.vars.remove(&d);
         }
     }
 
-    pub fn get_var(&self, ident: &str) -> Option<Var> {
-        self.variables.get(ident).cloned()
+    /// Returns true if a scope is a prefix of our scope.
+    pub fn is_in_scope(&self, prefix_scope: usize) -> bool {
+        self.current_scope >= prefix_scope
+    }
+
+    /// Stores type information about a local variable.
+    /// Note that we forbid shadowing at all scopes.
+    pub fn add_var(&mut self, name: String, var: Var, span: Span) {
+        if self
+            .vars
+            .insert(name.clone(), (self.current_scope, var))
+            .is_some()
+        {
+            panic!("type checker error: var already exists");
+        }
+    }
+
+    /// Retrieves type information on a variable, given a name.
+    /// If the variable is not in scope, return false.
+    // TODO: return an error no?
+    pub fn get_var(&self, ident: &str) -> &Var {
+        let (scope, var) = self
+            .vars
+            .get(ident)
+            .expect("type checking bug: local variable not found");
+        if !self.is_in_scope(*scope) {
+            panic!("type checking bug: local variable not in scope");
+        }
+
+        var
+    }
+
+    pub fn reassign_var(&mut self, ident: &str, var: Var) {
+        if let Some((scope, _)) = self
+            .vars
+            .insert(ident.to_string(), (self.current_scope, var))
+        {
+            if !self.is_in_scope(scope) {
+                panic!("type checking bug: local variable for reassigning not in scope");
+            }
+        } else {
+            panic!("type checking bug: local variable for reassigning not found");
+        }
     }
 }

@@ -105,7 +105,9 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<V
 
     match (&vars[0], &vars[1]) {
         (Var::Constant(Constant { value: a, .. }), Var::Constant(Constant { value: b, .. })) => {
-            assert_eq!(a, b)
+            if a != b {
+                panic!("assertion failed: {} != {} (TODO: return an error)", a, b);
+            }
         }
         (Var::Constant(cst), Var::CircuitVar(cvars))
         | (Var::CircuitVar(cvars), Var::Constant(cst)) => {

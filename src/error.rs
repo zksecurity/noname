@@ -111,7 +111,7 @@ pub enum ErrorKind {
     #[error("the function `{0}` return value must be used")]
     FunctionReturnsType(String),
 
-    #[error("missing argument `{0}`")]
+    #[error("you need to pass the following argument: `{0}`")]
     MissingArg(String),
 
     #[error("cannot convert `{0}` to field element")]
@@ -176,4 +176,7 @@ pub enum ErrorKind {
 
     #[error("only variables and arrays can be mutated")]
     InvalidAssignmentExpression,
+
+    #[error("the main function must have at least one argument")]
+    NoArgsInMain,
 }

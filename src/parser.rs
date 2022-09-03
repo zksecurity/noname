@@ -297,7 +297,6 @@ pub struct Expr {
 pub enum ExprKind {
     //    Literal(String),
     FnCall { name: Path, args: Vec<Expr> },
-    Variable(String),
     Assignment { lhs: Box<Expr>, rhs: Box<Expr> },
     // TODO: move to Op?
     Comparison(ComparisonOp, Box<Expr>, Box<Expr>),
@@ -702,6 +701,7 @@ impl Function {
         // (pub arg1: type1, arg2: type2)
         //   ^
         let mut args = vec![];
+
         loop {
             // `pub arg1: type1`
             //   ^   ^
@@ -711,6 +711,7 @@ impl Function {
             )?;
 
             let (public, arg_name) = match token.kind {
+                TokenKind::RightParen => break,
                 // public input
                 TokenKind::Keyword(Keyword::Pub) => {
                     let arg_name = parse_ident(ctx, tokens)?;

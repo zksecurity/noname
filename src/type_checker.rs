@@ -17,11 +17,9 @@ impl Expr {
             ExprKind::FnCall { name, args } => {
                 typecheck_fn_call(env, type_env, name, args, self.span)
             }
-            ExprKind::Variable(_) => todo!(),
             ExprKind::Assignment { lhs, rhs } => {
                 // lhs can be a local variable or a path to an array
                 let name = match &lhs.kind {
-                    ExprKind::Variable(_) => todo!(),
                     ExprKind::Identifier(var) => var,
                     ExprKind::ArrayAccess(_, _) => todo!(),
                     _ => panic!("bad expression assignment (TODO: replace with error)"),
@@ -41,7 +39,7 @@ impl Expr {
                 // and is of the same type as the rhs
                 let rhs_typ = rhs.compute_type(env, type_env)?.unwrap();
                 if lhs_info.typ != rhs_typ {
-                    panic!("variable is not mutable (TODO: replace with error)");
+                    panic!("lhs type doesn't match rhs type (TODO: replace with error)");
                 }
 
                 Ok(None)

@@ -1,0 +1,10 @@
+fn main(x: Field, y: Field) {
+    assert_eq(x, 2);
+
+    let mut z = x;
+    assert_eq(z, 2);
+    z = z + y; // 2 + 3
+    assert_eq(z, 5);
+    z = z + z; // 5 + 5
+    assert_eq(z, 10);
+}
