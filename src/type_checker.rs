@@ -4,7 +4,7 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     imports::{FuncInScope, GlobalEnv},
-    parser::{Expr, ExprKind, Function, FunctionSig, Path, RootKind, StmtKind, TyKind, AST},
+    parser::{Expr, ExprKind, FunctionSig, Path, RootKind, Stmt, StmtKind, Ty, TyKind, AST},
 };
 
 //
@@ -367,8 +367,13 @@ impl TAST {
                         )?;
                     }
 
-                    // type system pass!!!
-                    Self::type_check_fn_body(&global_env, &mut type_env, function)?;
+                    // type system pass
+                    Self::check_block(
+                        &global_env,
+                        &mut type_env,
+                        &function.body,
+                        function.return_type.as_ref(),
+                    )?;
 
                     // exit the scope
                     type_env.pop();
@@ -385,99 +390,127 @@ impl TAST {
         Ok(TAST { ast, global_env })
     }
 
-    // TODO: generalize for any function
-    pub fn type_check_fn_body(
+    pub fn check_block(
         env: &GlobalEnv,
         type_env: &mut TypeEnv,
-        function: &Function,
+        stmts: &[Stmt],
+        expected_return: Option<&Ty>,
     ) -> Result<()> {
-        let mut still_need_to_check_return_type = function.return_type.is_some();
+        // enter the scope
+        type_env.nest();
 
-        // only expressions need type info?
-        for stmt in &function.body {
-            match &stmt.kind {
-                StmtKind::Assign { mutable, lhs, rhs } => {
-                    // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
+        let mut early_return = None;
 
-                    // but first we need to compute the type of the rhs expression
-                    let typ = rhs.compute_type(env, type_env)?.unwrap();
+        for stmt in stmts {
+            if early_return.is_some() {
+                panic!("early return detected: we don't allow that for now (TODO: return error");
+            }
 
-                    let type_info = if *mutable {
-                        TypeInfo::new_mut(typ, lhs.span)
-                    } else {
-                        TypeInfo::new(typ, lhs.span)
-                    };
+            early_return = Self::check_stmt(env, type_env, stmt)?;
+        }
 
-                    // store the type of lhs in the env
-                    type_env.store_type(lhs.value.clone(), type_info)?;
+        // check the return
+        if let Some(expected) = expected_return {
+            let observed = match early_return {
+                None => {
+                    return Err(Error {
+                        kind: ErrorKind::MissingPublicOutput,
+                        span: expected.span,
+                    })
                 }
-                StmtKind::For {
-                    var,
-                    start,
-                    end,
-                    body,
-                } => {
-                    // enter a new scope
-                    type_env.nest();
+                Some(e) => e,
+            };
 
-                    //
-                    todo!();
-
-                    // exit the scope
-                    type_env.pop();
-                }
-                StmtKind::Expr(expr) => {
-                    // make sure the expression does not return any type
-                    // (it's a statement expression, it should only work via side effect)
-
-                    let typ = expr.compute_type(env, type_env)?;
-                    if typ.is_some() {
-                        return Err(Error {
-                            kind: ErrorKind::ExpectedUnitExpr,
-                            span: expr.span,
-                        });
-                    }
-                }
-                StmtKind::Return(res) => {
-                    // TODO: warn if there's code after the return?
-
-                    // infer the return type and check if it's the same as the function return type?
-                    if !function.is_main() {
-                        unimplemented!();
-                    }
-
-                    assert!(still_need_to_check_return_type);
-
-                    let typ = res.compute_type(env, type_env)?.unwrap();
-
-                    let expected = match type_env.get_type("public_output") {
-                        Some(t) => t,
-                        None => panic!("return statement when function signature doesn't have a return value (TODO: replace by error)"),
-                    };
-
-                    if expected != &typ {
-                        return Err(Error {
-                            kind: ErrorKind::ReturnTypeMismatch(expected.clone(), typ),
-                            span: stmt.span,
-                        });
-                    }
-
-                    still_need_to_check_return_type = false;
-
-                    // TODO: if we generalize this code, we need to exit/pop the scope
-                }
-                StmtKind::Comment(_) => (),
+            if expected.kind != observed {
+                panic!(
+                    "returned type is not the same as expected return type (TODO: return an error)"
+                );
             }
         }
 
-        if still_need_to_check_return_type {
-            return Err(Error {
-                kind: ErrorKind::MissingPublicOutput,
-                span: function.span,
-            });
-        }
+        // exit the scope
+        type_env.pop();
 
         Ok(())
+    }
+
+    pub fn check_stmt(
+        env: &GlobalEnv,
+        type_env: &mut TypeEnv,
+        stmt: &Stmt,
+    ) -> Result<Option<TyKind>> {
+        match &stmt.kind {
+            StmtKind::Assign { mutable, lhs, rhs } => {
+                // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
+
+                // but first we need to compute the type of the rhs expression
+                let typ = rhs.compute_type(env, type_env)?.unwrap();
+
+                let type_info = if *mutable {
+                    TypeInfo::new_mut(typ, lhs.span)
+                } else {
+                    TypeInfo::new(typ, lhs.span)
+                };
+
+                // store the type of lhs in the env
+                type_env.store_type(lhs.value.clone(), type_info)?;
+            }
+            StmtKind::For {
+                var,
+                start,
+                end,
+                body,
+            } => {
+                // enter a new scope
+                type_env.nest();
+
+                // create var (for now it's always a bigint)
+                type_env.store_type(var.value.clone(), TypeInfo::new(TyKind::BigInt, var.span))?;
+
+                // ensure start..end makes sense
+                if end < start {
+                    panic!("end can't be smaller than start (TODO: better error)");
+                }
+
+                // check block
+                Self::check_block(env, type_env, body, None)?;
+
+                // exit the scope
+                type_env.pop();
+            }
+            StmtKind::Expr(expr) => {
+                // make sure the expression does not return any type
+                // (it's a statement expression, it should only work via side effect)
+
+                let typ = expr.compute_type(env, type_env)?;
+                if typ.is_some() {
+                    return Err(Error {
+                        kind: ErrorKind::ExpectedUnitExpr,
+                        span: expr.span,
+                    });
+                }
+            }
+            StmtKind::Return(res) => {
+                let typ = res.compute_type(env, type_env)?.unwrap();
+
+                let expected = match type_env.get_type("public_output") {
+                    Some(t) => t,
+                    None => panic!("return statement when function signature doesn't have a return value (TODO: replace by error)"),
+                };
+
+                if expected != &typ {
+                    return Err(Error {
+                        kind: ErrorKind::ReturnTypeMismatch(expected.clone(), typ),
+                        span: stmt.span,
+                    });
+                }
+
+                return Ok(Some(typ));
+            }
+            StmtKind::Comment(_) => (),
+        }
+
+        Ok(None)
     }
 }
 

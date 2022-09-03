@@ -13,7 +13,8 @@ It is important that constants are tracked differently than `CellVar`s for sever
 * It is sometimes useless to constrain them at all. For example, boolean constants are never constrained because you never need to.
 * They can be cached to avoid creating several constraints for the same constant.
 
-Currently a constant appears in the circuit via a simple generic gate, and is not cached:
+Currently a constant appears in the circuit only when `CircuitWriter::add_constant` is called.
+It uses the generic gate to constrain the value, and is not cached (so calling it several times with the same constant will create multiple constraints):
 
 ```rust
 pub fn add_constant(&mut self, value: Field, span: Span) -> CellVar {
@@ -32,3 +33,6 @@ pub fn add_constant(&mut self, value: Field, span: Span) -> CellVar {
 ```
 
 Note that the `Value` keep track of the constant as well.
+
+Warning: gadgets must all handle constants gracefuly.
+That is, they must constrain constants themselves (by calling `CircuitWriter::add_constant`).

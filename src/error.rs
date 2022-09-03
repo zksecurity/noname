@@ -120,11 +120,14 @@ pub enum ErrorKind {
     #[error("return value is `{0}` when `{1}` was expected")]
     ReturnTypeMismatch(TyKind, TyKind),
 
+    #[error("a return value was expected by the function signature")]
+    MissingReturn,
+
     #[error("public output not set as part of the circuit")]
     MissingPublicOutput,
 
-    #[error("missing public output type in the function signature")]
-    NoPublicOutput,
+    #[error("missing return type in the function signature")]
+    UnexpectedReturn,
 
     #[error("error while importing std path: {0}")]
     StdImport(&'static str),
@@ -179,4 +182,7 @@ pub enum ErrorKind {
 
     #[error("the main function must have at least one argument")]
     NoArgsInMain,
+
+    #[error("local variable `{0}` couldn't be found")]
+    LocalVariableNotFound(String),
 }

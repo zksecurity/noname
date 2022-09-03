@@ -163,10 +163,19 @@ pub struct Ty {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TyKind {
-    Custom(String),
+    /// The main primitive type. 'Nuf said.
     Field,
+
+    /// Unused at the moment I believe
+    Custom(String),
+
+    /// This could be the same as Field, but we use this to also track the fact that it's a constant.
     BigInt,
+
+    /// An array of a fixed size.
     Array(Box<TyKind>, u32),
+
+    /// A boolean (`true` or `false`).
     Bool,
     // Tuple(Vec<TyKind>),
     // Bool,

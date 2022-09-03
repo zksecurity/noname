@@ -15,7 +15,9 @@ use crate::{
     error::{Error, ErrorKind, Result},
     field::Field,
     imports::{FuncInScope, FuncType, GlobalEnv},
-    parser::{AttributeKind, Expr, ExprKind, FuncArg, Function, Op2, RootKind, StmtKind, TyKind},
+    parser::{
+        AttributeKind, Expr, ExprKind, FuncArg, Function, Op2, RootKind, Stmt, StmtKind, TyKind,
+    },
     type_checker::TAST,
     witness::{CompiledCircuit, WitnessEnv},
 };
@@ -66,6 +68,21 @@ pub enum Value {
     /// A public output.
     /// This is tracked separately as public inputs as it needs to be computed later.
     PublicOutput(Option<CellVar>),
+}
+
+impl From<Field> for Value {
+    fn from(field: Field) -> Self {
+        Self::Constant(field)
+    }
+}
+
+impl From<usize> for Value {
+    fn from(cst: usize) -> Self {
+        let cst: u32 = cst
+            .try_into()
+            .expect("number too large (TODO: better error?)");
+        Self::Constant(Field::try_from(cst).unwrap())
+    }
 }
 
 impl fmt::Debug for Value {
@@ -150,6 +167,13 @@ impl Var {
 
     pub fn is_constant(&self) -> bool {
         matches!(self, Var::Constant(..))
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            Var::Constant(Constant { span, .. }) => *span,
+            Var::CircuitVar(CellVars { span, .. }) => *span,
+        }
     }
 }
 
@@ -361,7 +385,7 @@ impl CircuitWriter {
                         };
 
                         // add argument variable to the ast env
-                        local_env.add_var(name.value.clone(), Var::CircuitVar(cvar), name.span);
+                        local_env.add_var(name.value.clone(), Var::CircuitVar(cvar));
                     }
 
                     // create public output
@@ -422,6 +446,91 @@ impl CircuitWriter {
         &self.gates
     }
 
+    fn compile_stmt(
+        &mut self,
+        global_env: &GlobalEnv,
+        local_env: &mut LocalEnv,
+        stmt: &Stmt,
+    ) -> Result<Option<Var>> {
+        match &stmt.kind {
+            StmtKind::Assign { lhs, rhs, .. } => {
+                // compute the rhs
+                let var = self
+                    .compute_expr(global_env, local_env, rhs)?
+                    .ok_or(Error {
+                        kind: ErrorKind::CannotComputeExpression,
+                        span: stmt.span,
+                    })?;
+
+                // store the new variable
+                // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
+                local_env.add_var(lhs.value.clone(), var);
+            }
+            StmtKind::For {
+                var,
+                start,
+                end,
+                body,
+            } => {
+                for ii in (*start as usize)..(*end as usize) {
+                    local_env.nest();
+
+                    let cst_var = Var::Constant(Constant {
+                        value: (ii as u32).into(),
+                        span: var.span,
+                    });
+                    local_env.add_var(var.value.clone(), cst_var);
+
+                    self.compile_block(global_env, local_env, body)?;
+
+                    dbg!(&local_env);
+                    local_env.pop();
+                    dbg!(&local_env);
+                }
+            }
+            StmtKind::Expr(expr) => {
+                // compute the expression
+                let var = self.compute_expr(global_env, local_env, expr)?;
+
+                // make sure it does not return any value.
+                assert!(var.is_none());
+            }
+            StmtKind::Return(res) => {
+                let var = self
+                    .compute_expr(global_env, local_env, res)?
+                    .ok_or(Error {
+                        kind: ErrorKind::CannotComputeExpression,
+                        span: stmt.span,
+                    })?;
+
+                // we already checked in type checking that this is not an early return
+                return Ok(Some(var));
+            }
+            StmtKind::Comment(_) => (),
+        }
+
+        Ok(None)
+    }
+
+    /// might return something?
+    fn compile_block(
+        &mut self,
+        global_env: &GlobalEnv,
+        local_env: &mut LocalEnv,
+        stmts: &[Stmt],
+    ) -> Result<Option<Var>> {
+        local_env.nest();
+        for stmt in stmts {
+            let res = self.compile_stmt(global_env, local_env, stmt)?;
+            if res.is_some() {
+                // we already checked for early returns in type checking
+                return Ok(res);
+            }
+        }
+        local_env.pop();
+        Ok(None)
+    }
+
     /// Compile a function. Used to compile `main()` only for now
     fn compile_function(
         &mut self,
@@ -429,70 +538,44 @@ impl CircuitWriter {
         local_env: &mut LocalEnv,
         function: &Function,
     ) -> Result<()> {
-        for stmt in &function.body {
-            match &stmt.kind {
-                StmtKind::Assign { lhs, rhs, .. } => {
-                    // compute the rhs
-                    let var = self
-                        .compute_expr(global_env, local_env, rhs)?
-                        .ok_or(Error {
-                            kind: ErrorKind::CannotComputeExpression,
-                            span: stmt.span,
-                        })?;
-
-                    // store the new variable
-                    // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
-                    local_env.add_var(lhs.value.clone(), var, stmt.span);
-                }
-                StmtKind::For {
-                    var,
-                    start,
-                    end,
-                    body,
-                } => {
-                    local_env.nest();
-                    todo!();
-                    local_env.pop();
-                }
-                StmtKind::Expr(expr) => {
-                    // compute the expression
-                    let var = self.compute_expr(global_env, local_env, expr)?;
-
-                    // make sure it does not return any value.
-                    assert!(var.is_none());
-                }
-                StmtKind::Return(res) => {
-                    if !function.is_main() {
-                        unimplemented!();
-                    }
-
-                    let var = self
-                        .compute_expr(global_env, local_env, res)?
-                        .ok_or(Error {
-                            kind: ErrorKind::CannotComputeExpression,
-                            span: stmt.span,
-                        })?;
-                    let var_vars = var.circuit_var().ok_or_else(|| unimplemented!())?.vars;
-
-                    // store the return value in the public input that was created for that ^
-                    let public_output = self.public_output.as_ref().ok_or(Error {
-                        kind: ErrorKind::NoPublicOutput,
-                        span: stmt.span,
-                    })?;
-
-                    for (pub_var, ret_var) in public_output.vars.iter().zip(&var_vars) {
-                        // replace the computation of the public output vars with the actual variables being returned here
-                        assert!(self
-                            .witness_vars
-                            .insert(*pub_var, Value::PublicOutput(Some(*ret_var)))
-                            .is_some());
-                    }
-                }
-                StmtKind::Comment(_) => (),
-            }
+        if !function.is_main() {
+            unimplemented!();
         }
 
-        Ok(())
+        // compile the block
+        let returned = self.compile_block(global_env, local_env, &function.body)?;
+
+        // we're expecting something returned?
+        match (function.return_type.as_ref(), returned) {
+            (None, None) => Ok(()),
+            (Some(expected), None) => Err(Error {
+                kind: ErrorKind::MissingReturn,
+                span: expected.span,
+            }),
+            (None, Some(returned)) => Err(Error {
+                kind: ErrorKind::UnexpectedReturn,
+                span: returned.span(),
+            }),
+            (Some(_expected), Some(returned)) => {
+                let var_vars = returned.circuit_var().ok_or_else(|| unimplemented!())?.vars;
+
+                // store the return value in the public input that was created for that ^
+                let public_output = self
+                    .public_output
+                    .as_ref()
+                    .expect("bug in the compiler: missing public output");
+
+                for (pub_var, ret_var) in public_output.vars.iter().zip(&var_vars) {
+                    // replace the computation of the public output vars with the actual variables being returned here
+                    assert!(self
+                        .witness_vars
+                        .insert(*pub_var, Value::PublicOutput(Some(*ret_var)))
+                        .is_some());
+                }
+
+                Ok(())
+            }
+        }
     }
 
     pub fn asm(&self, debug: bool) -> String {
@@ -775,6 +858,8 @@ impl CircuitWriter {
     }
 
     // TODO: we should cache constants to avoid creating a new variable for each constant
+    /// This should be called only when you want to constrain a constant for real.
+    /// Gates that handle constants should always make sure to call this function when they want them constrained.
     pub fn add_constant(&mut self, value: Field, span: Span) -> CellVar {
         let var = self.new_internal_var(Value::Constant(value), span);
 
@@ -932,7 +1017,7 @@ impl LocalEnv {
 
     /// Exits a scoped block.
     pub fn pop(&mut self) {
-        self.current_scope.checked_sub(1).expect("scope bug");
+        self.current_scope = self.current_scope.checked_sub(1).expect("scope bug");
 
         // remove variables as we exit the scope
         // (we don't need to keep them around to detect shadowing,
@@ -955,13 +1040,13 @@ impl LocalEnv {
 
     /// Stores type information about a local variable.
     /// Note that we forbid shadowing at all scopes.
-    pub fn add_var(&mut self, name: String, var: Var, span: Span) {
+    pub fn add_var(&mut self, name: String, var: Var) {
         if self
             .vars
             .insert(name.clone(), (self.current_scope, var))
             .is_some()
         {
-            panic!("type checker error: var already exists");
+            panic!("type checker error: var {name} already exists");
         }
     }
 
@@ -969,10 +1054,11 @@ impl LocalEnv {
     /// If the variable is not in scope, return false.
     // TODO: return an error no?
     pub fn get_var(&self, ident: &str) -> &Var {
-        let (scope, var) = self
-            .vars
-            .get(ident)
-            .expect("type checking bug: local variable not found");
+        dbg!(&self.vars);
+        dbg!(ident);
+        let (scope, var) = self.vars.get(ident).expect(&format!(
+            "type checking bug: local variable {ident} not found"
+        ));
         if !self.is_in_scope(*scope) {
             panic!("type checking bug: local variable not in scope");
         }
@@ -981,15 +1067,16 @@ impl LocalEnv {
     }
 
     pub fn reassign_var(&mut self, ident: &str, var: Var) {
-        if let Some((scope, _)) = self
+        // get the scope first, we don't want to modify that
+        let (scope, _) = self
             .vars
-            .insert(ident.to_string(), (self.current_scope, var))
-        {
-            if !self.is_in_scope(scope) {
-                panic!("type checking bug: local variable for reassigning not in scope");
-            }
-        } else {
-            panic!("type checking bug: local variable for reassigning not found");
+            .get(ident)
+            .expect("type checking bug: local variable for reassigning not found");
+
+        if !self.is_in_scope(*scope) {
+            panic!("type checking bug: local variable for reassigning not in scope");
         }
+
+        self.vars.insert(ident.to_string(), (*scope, var));
     }
 }

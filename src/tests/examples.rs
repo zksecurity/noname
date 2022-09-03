@@ -96,10 +96,9 @@ fn test_mutable() {
 }
 
 #[test]
-#[ignore]
 fn test_for_loop() {
-    let private_inputs = r#"{"private_input": ["0", "1", "2"]}"#;
-    let public_inputs = r#"{"public_input": ["3"]}"#;
+    let private_inputs = r#"{"private_input": ["2", "3", "4"]}"#;
+    let public_inputs = r#"{"public_input": ["9"]}"#;
 
     test_file("for_loop", public_inputs, private_inputs, vec![]);
 }

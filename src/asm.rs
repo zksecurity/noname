@@ -1,6 +1,6 @@
 //! ASM-like language:
 //!
-//! ```
+//! ```ignore
 //! @ noname.0.1.0
 //!
 //! # vars
