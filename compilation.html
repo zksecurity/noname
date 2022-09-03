@@ -150,14 +150,14 @@
 <ol>
 <li><strong>Lexer</strong>. A lexer (<code>lexer.rs</code>) is used to parse the source code into a list of tokens. This is pretty primitive, but will detect some minor syntax issues.</li>
 <li><strong>Parser</strong>. A parser (<code>parser.rs</code>) is used to parse meaning from the code. It will convert the tokens output by the lexer into an <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">abstract syntax tree (AST)</a> using strong types like <a href=""><code>Statement</code></a> and <a href=""><code>Expression</code></a> (TODO: link to rust doc). It will also error if some code does not make sense according to the grammar (see the <a href="grammar.html">Grammar chapter</a>).</li>
-<li><strong>AST</strong>. The compilation of the AST into a circuit happens for the most part in <code>ast.rs</code>.</li>
-</ol>
-<p>Next we describe the AST phase of the compilation:</p>
-<ol>
+<li><strong>Type checking</strong>. A type checker (<code>type_checker.rs</code>) takes the AST produced by the parser and does import resolution and type checking: 
+<ul>
 <li><strong>Built-in functions</strong>. Functions like <code>assert_eq</code> are injected into the environment.</li>
-<li><strong>Custom imports</strong>. Modules imported via the <code>use</code> keyword are resolved and added to the environment. For now, these can only be built-in functions, and noname functions or libraries are not supported (of course it is essential to support them in the future). Note that at this moment this is done in the type checker (next section) but should be moved out.</li>
-<li><strong>Type checking</strong>. The type checker (<code>type_checker.rs</code>) verifies that the types of each variables and expressions in the AST make sense. It is a very simple type checker that can do some simple type inference. Temporary type information (type of an expression) is not stored, and is thrown away as soon as the type checker can afford it.</li>
-<li><strong>Gate construction</strong>. The AST is parsed one more time and converted into:
+<li><strong>Custom imports</strong>. Modules imported via the <code>use</code> keyword are resolved and added to the environment. For now, these can only be built-in functions, and noname functions or libraries are not supported (of course it is essential to support them in the future).</li>
+<li><strong>Type checking</strong>. The type checker verifies that the types of each variables and expressions in the AST make sense. It is a very simple type checker that can do some simple type inference. Temporary type information (type of an expression) is not stored, and is thrown away as soon as the type checker can afford it. a TAST for typed AST is returned, but it mostly contains resolved imports and most type information has been thrown away.</li>
+</ul>
+</li>
+<li><strong>Gate construction</strong>. The TAST produced by the type checker is passed to the circuit writer (<code>circuit_writer.rs</code>) which goes through it one more time and converts it into:
 <ul>
 <li><strong>compiled circuit</strong>: a series of gates and wires</li>
 <li><strong>prover instructions</strong>: instructions on how to run the function for the witness generation (used by the prover)</li>
