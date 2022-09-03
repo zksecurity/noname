@@ -125,8 +125,13 @@ pub fn generate_asm(
         if debug {
             display_source(&mut res, source, &spans);
         }
+
         let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
         writeln!(res, "{s}").unwrap();
+
+        if debug {
+            writeln!(res, "\n").unwrap();
+        }
     }
 
     res

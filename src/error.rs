@@ -9,7 +9,7 @@ use crate::{
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Diagnostic, Debug, Error)]
-#[error("Parsing error")]
+#[error("I'm so sorry, looks like something went wrong...")]
 #[diagnostic()]
 pub struct Error {
     #[help]
