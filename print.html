@@ -491,7 +491,8 @@ assert_eq(x, 4);
 <li>It is sometimes useless to constrain them at all. For example, boolean constants are never constrained because you never need to.</li>
 <li>They can be cached to avoid creating several constraints for the same constant.</li>
 </ul>
-<p>Currently a constant appears in the circuit via a simple generic gate, and is not cached:</p>
+<p>Currently a constant appears in the circuit only when <code>CircuitWriter::add_constant</code> is called.
+It uses the generic gate to constrain the value, and is not cached (so calling it several times with the same constant will create multiple constraints):</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub fn add_constant(&amp;mut self, value: Field, span: Span) -&gt; CellVar {
@@ -510,6 +511,8 @@ assert_eq(x, 4);
 <span class="boring">}
 </span></code></pre></pre>
 <p>Note that the <code>Value</code> keep track of the constant as well.</p>
+<p>Warning: gadgets must all handle constants gracefuly.
+That is, they must constrain constants themselves (by calling <code>CircuitWriter::add_constant</code>).</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="public-outputs"><a class="header" href="#public-outputs">Public Outputs</a></h1>
 <p>Public outputs are usually part of the public inputs in Plonk.</p>
 <p>In noname, public ouputs are treated differently than the public inputs for one reason: unlike (real) public inputs they cannot be computed directly during witness generation (proving).</p>
