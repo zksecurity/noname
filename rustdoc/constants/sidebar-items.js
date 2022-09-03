@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":[["NUM_REGISTERS",""]],"type":[["Span",""]]};
+window.SIDEBAR_ITEMS = {"constant":[["NUM_REGISTERS",""]],"struct":[["Span",""]]};

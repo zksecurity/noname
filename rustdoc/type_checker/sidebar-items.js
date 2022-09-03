@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["typecheck_fn_call",""]]};
+window.SIDEBAR_ITEMS = {"fn":[["typecheck_fn_call",""]],"struct":[["TAST","TAST for Typed-AST. Not sure how else to call this, this is to make sure we call this compilation phase before the actual compilation."],["TypeEnv",""],["TypeInfo",""]]};

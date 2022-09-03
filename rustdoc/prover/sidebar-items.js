@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["compile",""]],"struct":[["ProverIndex",""],["VerifierIndex",""]]};
+window.SIDEBAR_ITEMS = {"fn":[["compile_and_prove",""]],"struct":[["ProverIndex",""],["VerifierIndex",""]]};

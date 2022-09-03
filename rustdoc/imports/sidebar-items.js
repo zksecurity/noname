@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["FuncInScope",""]],"struct":[["GlobalEnv","This seems to be used by both the type checker and the AST"]],"type":[["FuncType",""]]};
