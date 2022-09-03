@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":[["GroupAffine",""],["GroupProjective","`GroupProjective` implements Extended Twisted Edwards Coordinates as described in [HKCD08]."],["MontgomeryGroupAffine",""]]};

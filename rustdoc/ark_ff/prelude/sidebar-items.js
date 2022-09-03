@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"trait":[["One","Defines a multiplicative identity element for `Self`."],["UniformRand",""],["Zero","Defines an additive identity element for `Self`."]]};

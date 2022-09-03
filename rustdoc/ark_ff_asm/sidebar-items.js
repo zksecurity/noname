@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"attr":[["unroll_for_loops","Attribute used to unroll for loops found inside a function block."]],"macro":[["x86_64_asm_mul",""],["x86_64_asm_square",""]]};

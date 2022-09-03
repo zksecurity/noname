@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":[["fp",""],["fq",""],["pallas",""],["vesta",""]],"struct":[["FpParameters",""],["FqParameters",""]],"type":[["Fp",""],["Fq",""]]};

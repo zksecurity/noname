@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":[["Fp4ParamsWrapper",""]],"trait":[["Fp4Parameters",""]],"type":[["Fp4",""]]};

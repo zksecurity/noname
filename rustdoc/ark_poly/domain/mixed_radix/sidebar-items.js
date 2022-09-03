@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":[["Elements","An iterator over the elements of a domain."],["MixedRadixEvaluationDomain","Defines a domain over which finite field (I)FFTs can be performed. Works only for fields that have a multiplicative subgroup of size that is a power-of-2 and another small subgroup over a different base defined."]]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":[["ProverError","Errors that can arise when creating a proof"],["SetupError","Errors that can arise when preparing the setup"],["VerifierIndexError","Errors that can arise when creating a verifier index"],["VerifyError","Errors that can arise when verifying a proof"]]};

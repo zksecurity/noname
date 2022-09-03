@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":[["LookupError","Represents an error found when computing the lookup constraint system"]],"struct":[["LookupConstraintSystem",""],["LookupSelectors","Lookup selectors"]]};

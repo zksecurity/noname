@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":[["Fp3ParamsWrapper",""]],"trait":[["Fp3Parameters",""]],"type":[["Fp3",""]]};

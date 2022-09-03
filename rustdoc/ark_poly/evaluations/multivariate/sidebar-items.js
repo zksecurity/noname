@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":[["multilinear",""]],"struct":[["DenseMultilinearExtension","Stores a multilinear polynomial in dense evaluation form."],["SparseMultilinearExtension","Stores a multilinear polynomial in sparse evaluation form."]]};

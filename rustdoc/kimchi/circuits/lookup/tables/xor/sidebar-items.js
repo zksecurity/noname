@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":[["xor_table","Returns the XOR lookup table"]]};
