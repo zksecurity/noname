@@ -149,7 +149,7 @@
 <p>To be able to efficiently track errors, we have a span type:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub type Span = (usize, usize);
+</span>pub struct Span(pub usize, pub usize);
 <span class="boring">}
 </span></code></pre></pre>
 <p>which represents a location in the original source code:</p>

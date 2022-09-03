@@ -170,6 +170,51 @@
 </span></code></pre></pre>
 <p>the type of <code>x</code> is inferred to be the same as the type of <code>y</code> and <code>z</code>.</p>
 <p>Inference is willingly kept naive, as more type inference would lead to less readable code.</p>
+<h2 id="scope"><a class="header" href="#scope">Scope</a></h2>
+<p>The type checker must be aware of scopes, as it keeps track of the type of variables and functions that are local to each scope.</p>
+<p>For example:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = 2;
+for i in 0..2 {
+    let y = x + 1; // x exists inside of this for loop
+}
+let z = 1 + y; // BAD: y doesn't exist outside of the for loop
+<span class="boring">}
+</span></code></pre></pre>
+<p>To do this, each function is passed an <a href="">Environment</a> which contains a list of all variables along with their type information.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct Environment {
+    /// created by the type checker, gives a type to every external variable
+    pub var_types: HashMap&lt;String, TypeInfo&gt;,
+
+    // ...
+
+    /// the functions present in the scope
+    /// contains at least the set of builtin functions (like assert_eq)
+    pub functions: HashMap&lt;String, FuncInScope&gt;,
+
+    /// stores the imported modules
+    pub modules: HashMap&lt;String, ImportedModule&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>So that shadowing is disallowed, even in different scopes, there is only one variable that is stored, but the scope is stored in <code>TypeInfo</code> and matched against the current scope to see if the current scope is the same or a direct child.</p>
+<p>An environment is unique to a function, as it is important that different functions can use the same variable names.</p>
+<p>Some notes:</p>
+<ul>
+<li>Currently the notion of module is quite shaky. It is used mostly for <code>crypto::poseidon</code> at the moment.</li>
+<li><code>functions</code> is mostly used for builtins like <code>assert_eq</code></li>
+<li><code>modules</code> is mostly used for the functions in <code>std::crypto</code>, which only contains <code>crypto::poseidon</code> atm.</li>
+</ul>
+<p>more:</p>
+<ul>
+<li>I think Environment mixes things</li>
+<li>we should be able to create a new Environment whenever we parse a new function, so the functions/modules should be part of another (AvailableToAllScopes)</li>
+<li>variables is something that has nothing to do with the “Type” Environment and should be moved elsewhere no? GateCreationEnv?</li>
+<li>there needs to be a namespace in the typeinfo</li>
+</ul>
 
                     </main>
 
