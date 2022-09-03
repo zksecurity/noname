@@ -231,8 +231,6 @@ impl CompiledCircuit {
                         let sum =
                             c(0) * w[0] + c(1) * w[1] + c(2) * w[2] + c(3) * w[0] * w[1] + c(4);
                         if sum != Field::zero() {
-                            dbg!(format!("{}", w[0]));
-                            dbg!(format!("{}", w[1]));
                             return Err(Error {
                                 kind: ErrorKind::InvalidWitness(row),
                                 span: gate.span,

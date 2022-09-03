@@ -483,9 +483,7 @@ impl CircuitWriter {
 
                     self.compile_block(global_env, local_env, body)?;
 
-                    dbg!(&local_env);
                     local_env.pop();
-                    dbg!(&local_env);
                 }
             }
             StmtKind::Expr(expr) => {
@@ -1054,8 +1052,6 @@ impl LocalEnv {
     /// If the variable is not in scope, return false.
     // TODO: return an error no?
     pub fn get_var(&self, ident: &str) -> &Var {
-        dbg!(&self.vars);
-        dbg!(ident);
         let (scope, var) = self.vars.get(ident).expect(&format!(
             "type checking bug: local variable {ident} not found"
         ));
