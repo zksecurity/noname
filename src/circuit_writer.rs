@@ -14,12 +14,10 @@ use crate::{
     constants::{Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     field::Field,
-    parser::{
-        AttributeKind, Expr, ExprKind, FuncArg, Function, FunctionSig, Op2, RootKind, StmtKind,
-        TyKind, AST,
-    },
-    stdlib::{parse_fn_sigs, ImportedModule, BUILTIN_FNS},
-    witness::WitnessEnv,
+    imports::{FuncInScope, FuncType, GlobalEnv},
+    parser::{AttributeKind, Expr, ExprKind, FuncArg, Function, Op2, RootKind, StmtKind, TyKind},
+    type_checker::TAST,
+    witness::{CompiledCircuit, WitnessEnv},
 };
 
 //
@@ -50,7 +48,7 @@ impl CellVar {
 /// A variable's actual value in the witness can be computed in different ways.
 pub enum Value {
     /// Either it's a hint and can be computed from the outside.
-    Hint(Box<dyn Fn(&Compiler, &mut WitnessEnv) -> Result<Field>>),
+    Hint(Box<dyn Fn(&CompiledCircuit, &mut WitnessEnv) -> Result<Field>>),
 
     /// Or it's a constant (for example, I wrote `2` in the code).
     Constant(Field),
@@ -234,36 +232,36 @@ pub enum Wiring {
 }
 
 //
-// Compiler
+// Circuit Writer (also used by witness generation)
 //
 
 #[derive(Default, Debug)]
-pub struct Compiler {
-    /// The source code that created this circuit. Useful for debugging and displaying errors.
+pub struct CircuitWriter {
+    /// The source code that created this circuit.
+    /// Useful for debugging and displaying user errors.
     pub source: String,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
-    // TODO: is this useful?
     pub finalized: bool,
 
-    /// This is used to give a distinct number to each variable.
+    /// This is used to give a distinct number to each variable during circuit generation.
     pub next_variable: usize,
 
-    /// This is how you compute the value of each variable, for witness generation.
+    /// This is how you compute the value of each variable during witness generation.
+    /// It is created during circuit generation.
     pub witness_vars: HashMap<CellVar, Value>,
 
-    /// The wiring of the circuit.
-    pub wiring: HashMap<CellVar, Wiring>,
-
-    /// This is used to compute the witness row by row.
+    /// The execution trace table with vars as placeholders.
+    /// It is created during circuit generation,
+    /// and used by the witness generator.
     pub rows_of_vars: Vec<Vec<Option<CellVar>>>,
 
-    /// the arguments expected by main (I think it's used by the witness generator to make sure we passed the arguments)
-    pub main_args: (HashMap<String, FuncArg>, Span),
-
-    /// The gates created by the circuit
-    // TODO: replace by enum and merge with finalized?
+    /// The gates created by the circuit generation.
     gates: Vec<Gate>,
+
+    /// The wiring of the circuit.
+    /// It is created during circuit generation.
+    pub wiring: HashMap<CellVar, Wiring>,
 
     /// Size of the public input.
     pub public_input_size: usize,
@@ -281,67 +279,27 @@ pub struct Compiler {
     /// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
     pub private_input_indices: Vec<usize>,
+
+    /// Used during the witness generation to check
+    /// public and private inputs given by the prover.
+    pub main_args: (HashMap<String, FuncArg>, Span),
 }
 
-impl Compiler {
-    // TODO: perhaps don't return Self, but return a new type that only contains what's necessary to create the witness?
-    pub fn analyze_and_compile(mut ast: AST, code: &str, debug: bool) -> Result<(String, Self)> {
-        let mut compiler = Compiler {
+impl CircuitWriter {
+    pub fn generate_circuit(tast: TAST, code: &str) -> Result<CompiledCircuit> {
+        let TAST { ast, global_env } = tast;
+
+        let mut circuit_writer = CircuitWriter {
             source: code.to_string(),
-            ..Compiler::default()
+            main_args: global_env.main_args.clone(),
+            ..CircuitWriter::default()
         };
 
-        let env = &mut Environment::default();
-
-        // inject some utility functions in the scope
-        // TODO: should we really import them by default?
-        {
-            let builtin_functions = parse_fn_sigs(&BUILTIN_FNS);
-            for (sig, func) in builtin_functions {
-                env.functions
-                    .insert(sig.name.value.clone(), FuncInScope::BuiltIn(sig, func));
-            }
+        // make sure we can't call that several times
+        if circuit_writer.finalized {
+            panic!("circuit already finalized (TODO: return a proper error");
         }
 
-        // this will type check everything
-        compiler.type_check(env, &mut ast)?;
-
-        // this will convert everything to {gates, wiring, witness_vars}
-        let (circuit, compiler) = compiler.compile(env, &ast, debug)?;
-
-        // for sanity check, we make sure that every cellvar created has ended up in a gate
-        let mut written_vars = HashSet::new();
-        for row in &compiler.rows_of_vars {
-            row.iter().flatten().for_each(|cvar| {
-                written_vars.insert(cvar.index);
-            });
-        }
-
-        for var in 0..compiler.next_variable {
-            if !written_vars.contains(&var) {
-                if compiler.private_input_indices.contains(&var) {
-                    return Err(Error {
-                        kind: ErrorKind::PrivateInputNotUsed,
-                        span: compiler.main_args.1,
-                    });
-                } else {
-                    panic!("there's a bug in the compiler, some cellvar does not end up being a cellvar in the circuit!");
-                }
-            }
-        }
-
-        //
-        Ok((circuit, compiler))
-    }
-
-    pub fn compiled_gates(&self) -> &[Gate] {
-        if !self.finalized {
-            panic!("Circuit not finalized yet!");
-        }
-        &self.gates
-    }
-
-    fn compile(mut self, env: &mut Environment, ast: &AST, debug: bool) -> Result<(String, Self)> {
         for root in &ast.0 {
             match &root.kind {
                 // `use crypto::poseidon;`
@@ -354,6 +312,9 @@ impl Compiler {
                     if !function.is_main() {
                         unimplemented!();
                     }
+
+                    // create the per-function scoped env
+                    let mut local_env = LocalEnv::default();
 
                     // create public and private inputs
                     for FuncArg {
@@ -382,13 +343,13 @@ impl Compiler {
                                     span: attr.span,
                                 });
                             }
-                            self.add_public_inputs(name.value.clone(), len, name.span)
+                            circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
                         } else {
-                            self.add_private_inputs(name.value.clone(), len, name.span)
+                            circuit_writer.add_private_inputs(name.value.clone(), len, name.span)
                         };
 
-                        env.variables
-                            .insert(name.value.clone(), Var::CircuitVar(cvar));
+                        // add argument variable to the ast env
+                        local_env.add_var(name.value.clone(), Var::CircuitVar(cvar), name.span)?;
                     }
 
                     // create public output
@@ -398,11 +359,11 @@ impl Compiler {
                         }
 
                         // create it
-                        self.public_outputs(1, typ.span);
+                        circuit_writer.public_outputs(1, typ.span);
                     }
 
                     // compile function
-                    self.compile_function(env, function)?;
+                    circuit_writer.compile_function(&global_env, local_env, function)?;
                 }
 
                 // ignore comments
@@ -411,28 +372,74 @@ impl Compiler {
             }
         }
 
-        self.finalized = true;
+        // for sanity check, we make sure that every cellvar created has ended up in a gate
+        let mut written_vars = HashSet::new();
+        for row in &circuit_writer.rows_of_vars {
+            row.iter().flatten().for_each(|cvar| {
+                written_vars.insert(cvar.index);
+            });
+        }
 
-        Ok((self.asm(debug), self))
+        for var in 0..circuit_writer.next_variable {
+            if !written_vars.contains(&var) {
+                if circuit_writer.private_input_indices.contains(&var) {
+                    return Err(Error {
+                        kind: ErrorKind::PrivateInputNotUsed,
+                        span: circuit_writer.main_args.1,
+                    });
+                } else {
+                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
+                }
+            }
+        }
+
+        // we finalized!
+        circuit_writer.finalized = true;
+
+        Ok(CompiledCircuit::new(circuit_writer))
     }
 
-    fn compile_function(&mut self, env: &mut Environment, function: &Function) -> Result<()> {
+    /// Returns the compiled gates of the circuit.
+    pub fn compiled_gates(&self) -> &[Gate] {
+        if !self.finalized {
+            panic!("Circuit not finalized yet!");
+        }
+        &self.gates
+    }
+
+    /// Compile a function. Used to compile `main()` only for now
+    fn compile_function(
+        &mut self,
+        global_env: &GlobalEnv,
+        mut local_env: LocalEnv,
+        function: &Function,
+    ) -> Result<()> {
         for stmt in &function.body {
             match &stmt.kind {
-                StmtKind::Assign { lhs, rhs } => {
+                StmtKind::Assign { mutable, lhs, rhs } => {
                     // compute the rhs
-                    let var = self.compute_expr(env, rhs)?.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: stmt.span,
-                    })?;
+                    let var = self
+                        .compute_expr(global_env, &mut local_env, rhs)?
+                        .ok_or(Error {
+                            kind: ErrorKind::CannotComputeExpression,
+                            span: stmt.span,
+                        })?;
 
                     // store the new variable
                     // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
-                    env.variables.insert(lhs.value.clone(), var);
+                    local_env.add_var(lhs.value.clone(), var, stmt.span)?;
+                }
+                StmtKind::For {
+                    var,
+                    start,
+                    end,
+                    body,
+                } => {
+                    todo!();
                 }
                 StmtKind::Expr(expr) => {
                     // compute the expression
-                    let var = self.compute_expr(env, expr)?;
+                    let var = self.compute_expr(global_env, &mut local_env, expr)?;
 
                     // make sure it does not return any value.
                     assert!(var.is_none());
@@ -442,10 +449,12 @@ impl Compiler {
                         unimplemented!();
                     }
 
-                    let var = self.compute_expr(env, res)?.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: stmt.span,
-                    })?;
+                    let var = self
+                        .compute_expr(global_env, &mut local_env, res)?
+                        .ok_or(Error {
+                            kind: ErrorKind::CannotComputeExpression,
+                            span: stmt.span,
+                        })?;
                     let var_vars = var.circuit_var().ok_or_else(|| unimplemented!())?.vars;
 
                     // store the return value in the public input that was created for that ^
@@ -478,31 +487,36 @@ impl Compiler {
         let var = CellVar::new(self.next_variable, span);
         self.next_variable += 1;
 
-        // store it in the compiler
+        // store it in the circuit_writer
         self.witness_vars.insert(var, val);
 
         var
     }
 
-    fn compute_expr(&mut self, env: &Environment, expr: &Expr) -> Result<Option<Var>> {
+    fn compute_expr(
+        &mut self,
+        global_env: &GlobalEnv,
+        local_env: &mut LocalEnv,
+        expr: &Expr,
+    ) -> Result<Option<Var>> {
         let var: Option<Var> = match &expr.kind {
             ExprKind::FnCall { name, args } => {
                 // retrieve the function in the env
                 let func: FuncType = if name.len() == 1 {
                     // functions present in the scope
                     let fn_name = &name.path[0].value;
-                    match env.functions.get(fn_name).ok_or(Error {
+                    match global_env.functions.get(fn_name).ok_or(Error {
                         kind: ErrorKind::UndefinedFunction(fn_name.clone()),
                         span: name.span,
                     })? {
-                        crate::ast::FuncInScope::BuiltIn(_, func) => *func,
-                        crate::ast::FuncInScope::Library(_, _) => todo!(),
+                        FuncInScope::BuiltIn(_, func) => *func,
+                        FuncInScope::Library(_, _) => todo!(),
                     }
                 } else if name.len() == 2 {
                     // check module present in the scope
                     let module = &name.path[0];
                     let fn_name = &name.path[1];
-                    let module = env.modules.get(&module.value).ok_or(Error {
+                    let module = global_env.modules.get(&module.value).ok_or(Error {
                         kind: ErrorKind::UndefinedModule(module.value.clone()),
                         span: module.span,
                     })?;
@@ -521,10 +535,12 @@ impl Compiler {
                 // compute the arguments
                 let mut vars = Vec::with_capacity(args.len());
                 for arg in args {
-                    let var = self.compute_expr(env, arg)?.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: arg.span,
-                    })?;
+                    let var = self
+                        .compute_expr(global_env, local_env, arg)?
+                        .ok_or(Error {
+                            kind: ErrorKind::CannotComputeExpression,
+                            span: arg.span,
+                        })?;
                     vars.push(var);
                 }
 
@@ -532,11 +548,12 @@ impl Compiler {
                 func(self, &vars, expr.span)
             }
             ExprKind::Variable(_) => todo!(),
+            ExprKind::Assignment { lhs, rhs } => todo!(),
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
-                    let lhs = self.compute_expr(env, lhs)?.unwrap();
-                    let rhs = self.compute_expr(env, rhs)?.unwrap();
+                    let lhs = self.compute_expr(global_env, local_env, lhs)?.unwrap();
+                    let rhs = self.compute_expr(global_env, local_env, rhs)?.unwrap();
 
                     Some(self.add(lhs, rhs, expr.span))
                 }
@@ -545,8 +562,8 @@ impl Compiler {
                 Op2::Division => todo!(),
                 Op2::Equality => todo!(),
                 Op2::BoolAnd => {
-                    let lhs = self.compute_expr(env, lhs)?.unwrap();
-                    let rhs = self.compute_expr(env, rhs)?.unwrap();
+                    let lhs = self.compute_expr(global_env, local_env, lhs)?.unwrap();
+                    let rhs = self.compute_expr(global_env, local_env, rhs)?.unwrap();
 
                     Some(boolean::and(self, lhs, rhs, expr.span))
                 }
@@ -554,7 +571,7 @@ impl Compiler {
                 Op2::BoolNot => todo!(),
             },
             ExprKind::Negated(b) => {
-                let var = self.compute_expr(env, b)?.unwrap();
+                let var = self.compute_expr(global_env, local_env, b)?.unwrap();
                 Some(boolean::neg(self, var, expr.span))
             }
             ExprKind::BigInt(b) => {
@@ -571,7 +588,7 @@ impl Compiler {
                 Some(Var::new_constant(val, expr.span))
             }
             ExprKind::Identifier(name) => {
-                let var = env.get_var(name).unwrap();
+                let var = local_env.get_var(name).unwrap();
                 Some(var)
             }
             ExprKind::ArrayAccess(path, expr) => {
@@ -579,7 +596,7 @@ impl Compiler {
                 let array: CellVars = if path.len() == 1 {
                     // var present in the scope
                     let name = &path.path[0].value;
-                    let array_var = env.variables.get(name).ok_or(Error {
+                    let array_var = local_env.get_var(name).ok_or(Error {
                         kind: ErrorKind::UndefinedVariable,
                         span: path.span,
                     })?;
@@ -588,7 +605,7 @@ impl Compiler {
                     // check module present in the scope
                     let module = &path.path[0];
                     let _name = &path.path[1];
-                    let _module = env.modules.get(&module.value).ok_or(Error {
+                    let _module = global_env.modules.get(&module.value).ok_or(Error {
                         kind: ErrorKind::UndefinedModule(module.value.clone()),
                         span: module.span,
                     })?;
@@ -601,10 +618,12 @@ impl Compiler {
                 };
 
                 // compute the index
-                let idx_var = self.compute_expr(env, expr)?.ok_or(Error {
-                    kind: ErrorKind::CannotComputeExpression,
-                    span: expr.span,
-                })?;
+                let idx_var = self
+                    .compute_expr(global_env, local_env, expr)?
+                    .ok_or(Error {
+                        kind: ErrorKind::CannotComputeExpression,
+                        span: expr.span,
+                    })?;
 
                 // the index must be a constant!!
                 let idx: Field = idx_var.constant().ok_or(Error {
@@ -757,7 +776,7 @@ impl Compiler {
         assert!(coeffs.len() <= NUM_REGISTERS);
         assert!(vars.len() <= NUM_REGISTERS);
 
-        // for the witness
+        // construct the execution trace with vars, for the witness generation
         self.rows_of_vars.push(vars.clone());
 
         // get current row
@@ -853,58 +872,31 @@ impl Compiler {
     }
 }
 
-// TODO: right now there's only one scope, but if we want to deal with multiple scopes then we'll need to make sure child scopes have access to parent scope, shadowing, etc.
-#[derive(Default, Debug)]
-pub struct Environment {
-    /// created by the type checker, gives a type to every external variable
-    pub var_types: HashMap<String, TyKind>,
+//
+// Local Environment
+//
 
+/// Is used to help functions access their scoped variables.
+/// This include inputs and output of the function being processed,
+/// as well as local variables.
+#[derive(Debug, Default)]
+pub struct LocalEnv {
     /// used by the private and public inputs, and any other external variables created in the circuit
     pub variables: HashMap<String, Var>,
-
-    /// the functions present in the scope
-    /// contains at least the set of builtin functions (like assert_eq)
-    pub functions: HashMap<String, FuncInScope>,
-
-    /// stores the imported modules
-    pub modules: HashMap<String, ImportedModule>,
-    pub types: Vec<String>,
 }
 
-impl Environment {
-    pub fn store_type(&mut self, ident: String, ty: TyKind, span: Span) -> Result<()> {
-        match self.var_types.insert(ident.clone(), ty) {
+impl LocalEnv {
+    pub fn add_var(&mut self, name: String, var: Var, span: Span) -> Result<()> {
+        match self.variables.insert(name.clone(), var) {
             Some(_) => Err(Error {
-                kind: ErrorKind::DuplicateDefinition(ident),
+                kind: ErrorKind::DuplicateDefinition(name),
                 span,
             }),
             None => Ok(()),
         }
     }
 
-    pub fn get_type(&self, ident: &str) -> Option<&TyKind> {
-        self.var_types.get(ident)
-    }
-
     pub fn get_var(&self, ident: &str) -> Option<Var> {
         self.variables.get(ident).cloned()
-    }
-}
-
-pub type FuncType = fn(&mut Compiler, &[Var], Span) -> Option<Var>;
-
-pub enum FuncInScope {
-    /// signature of the function
-    BuiltIn(FunctionSig, FuncType),
-    /// path, and signature of the function
-    Library(Vec<String>, FunctionSig),
-}
-
-impl fmt::Debug for FuncInScope {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::BuiltIn(arg0, _arg1) => f.debug_tuple("BuiltIn").field(arg0).field(&"_").finish(),
-            Self::Library(arg0, arg1) => f.debug_tuple("Library").field(arg0).field(arg1).finish(),
-        }
     }
 }

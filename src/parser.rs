@@ -49,13 +49,13 @@ pub struct ParserCtx {
 
 impl ParserCtx {
     // TODO: I think I don't need this, I should always be able to use the last token I read if I don't see anything, otherwise maybe just write -1 to say "EOF"
-    pub fn last_span(&self) -> (usize, usize) {
+    pub fn last_span(&self) -> Span {
         let span = self
             .last_token
             .as_ref()
             .map(|token| token.span)
-            .unwrap_or((0, 0));
-        (span.0 + span.1, 0)
+            .unwrap_or(Span(0, 0));
+        Span(span.end(), 0)
     }
 }
 
@@ -158,7 +158,7 @@ impl Path {
 #[derive(Debug, Clone)]
 pub struct Ty {
     pub kind: TyKind,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -212,7 +212,7 @@ impl Ty {
             // [type; size]
             // ^
             TokenKind::LeftBracket => {
-                let mut span = (token.span.0, 0);
+                let mut span = Span(token.span.0, 0);
                 // [type; size]
                 //   ^
                 let ty = Ty::parse(ctx, tokens)?;
@@ -224,7 +224,7 @@ impl Ty {
                 // [type; size]
                 //         ^
                 let siz = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
-                let siz = match siz.kind {
+                let siz: u32 = match siz.kind {
                     TokenKind::BigInt(s) => s.parse().map_err(|_e| Error {
                         kind: ErrorKind::InvalidArraySize,
                         span: siz.span,
@@ -241,7 +241,7 @@ impl Ty {
                 //            ^
                 let right_paren = tokens.bump_expected(ctx, TokenKind::RightBracket)?;
 
-                span.1 = right_paren.span.1 + right_paren.span.0 - span.0;
+                let span = span.merge_with(right_paren.span);
 
                 Ok(Ty {
                     kind: TyKind::Array(Box::new(ty.kind), siz),
@@ -290,7 +290,7 @@ pub enum ComparisonOp {
 pub struct Expr {
     pub kind: ExprKind,
     pub typ: Option<TyKind>,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -298,6 +298,7 @@ pub enum ExprKind {
     //    Literal(String),
     FnCall { name: Path, args: Vec<Expr> },
     Variable(String),
+    Assignment { lhs: Box<Expr>, rhs: Box<Expr> },
     // TODO: move to Op?
     Comparison(ComparisonOp, Box<Expr>, Box<Expr>),
     Op(Op2, Box<Expr>, Box<Expr>),
@@ -408,7 +409,7 @@ impl Expr {
                         let expr = Expr::parse(ctx, tokens)?;
                         tokens.bump_expected(ctx, TokenKind::RightBracket)?;
 
-                        let span = (path.span.0, expr.span.1 + expr.span.0 - path.span.0);
+                        let span = path.span.merge_with(expr.span);
 
                         Expr {
                             kind: ExprKind::ArrayAccess(path, Box::new(expr)),
@@ -455,7 +456,7 @@ impl Expr {
                             }
                         }
 
-                        let span = (path.span.0, end_span.1 + end_span.0 - path.span.0);
+                        let span = path.span.merge_with(end_span);
 
                         Expr {
                             kind: ExprKind::FnCall { name: path, args },
@@ -523,20 +524,48 @@ impl Expr {
             }
         };
 
-        // bin op or return lhs
-        if let Some(op) = Op2::parse_maybe(ctx, tokens) {
-            // TODO: there's a bug here, rhs parses the lhs again
+        // detect if this is an assignment expression
+        if matches!(
+            tokens.peek(),
+            Some(Token {
+                kind: TokenKind::Equal,
+                span
+            })
+        ) {
+            if !matches!(
+                &lhs.kind,
+                ExprKind::Identifier(..) | ExprKind::ArrayAccess(..),
+            ) {
+                return Err(Error {
+                    kind: ErrorKind::InvalidAssignmentExpression,
+                    span: lhs.span.merge_with(span),
+                });
+            }
+            tokens.bump(ctx).unwrap();
+
             let rhs = Expr::parse(ctx, tokens)?;
-            let span = {
-                let end = rhs.span.0 + rhs.span.1;
-                (span.0, end - span.0)
-            };
+
+            Ok(Expr {
+                kind: ExprKind::Assignment {
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+                typ: None,
+                span,
+            })
+        }
+        // or it's a binary operation
+        else if let Some(op) = Op2::parse_maybe(ctx, tokens) {
+            let rhs = Expr::parse(ctx, tokens)?;
+            let span = span.merge_with(rhs.span);
             Ok(Expr {
                 kind: ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
                 typ: None,
                 span,
             })
-        } else {
+        }
+        // or there's no rhs
+        else {
             Ok(lhs)
         }
     }
@@ -721,8 +750,7 @@ impl Function {
                 ErrorKind::InvalidFunctionSignature("expected end of function or other argument"),
             )?;
 
-            let span = (token.span.0, arg_typ.span.1 + arg_typ.span.0 - token.span.0);
-
+            let span = token.span.merge_with(arg_typ.span);
             let arg = FuncArg {
                 name: arg_name,
                 typ: arg_typ,
@@ -882,15 +910,25 @@ pub fn is_valid_fn_type(name: &str) -> bool {
 #[derive(Debug)]
 pub struct Stmt {
     pub kind: StmtKind,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 #[derive(Debug)]
 pub enum StmtKind {
-    Assign { lhs: Ident, rhs: Box<Expr> },
+    Assign {
+        mutable: bool,
+        lhs: Ident,
+        rhs: Box<Expr>,
+    },
     Expr(Box<Expr>),
     Return(Box<Expr>),
     Comment(String),
+    For {
+        var: Ident,
+        start: u32,
+        end: u32,
+        body: Vec<Stmt>,
+    },
 }
 
 impl Stmt {
@@ -909,19 +947,153 @@ impl Stmt {
                 let mut span = span;
                 tokens.bump(ctx);
 
+                // let mut x = 5;
+                //     ^^^
+
+                let mutable = if matches!(
+                    tokens.peek(),
+                    Some(Token {
+                        kind: TokenKind::Keyword(Keyword::Mut),
+                        ..
+                    })
+                ) {
+                    tokens.bump(ctx);
+                    true
+                } else {
+                    false
+                };
+
+                // let mut x = 5;
+                //         ^
                 let lhs = parse_ident(ctx, tokens)?;
+
+                // let mut x = 5;
+                //           ^
                 tokens.bump_expected(ctx, TokenKind::Equal)?;
+
+                // let mut x = 5;
+                //             ^
                 let rhs = Box::new(Expr::parse(ctx, tokens)?);
 
                 span.1 = rhs.span.1 + rhs.span.0 - span.0;
 
+                // let mut x = 5;
+                //              ^
                 tokens.bump_expected(ctx, TokenKind::SemiColon)?;
 
+                //
                 Ok(Stmt {
-                    kind: StmtKind::Assign { lhs, rhs },
+                    kind: StmtKind::Assign { mutable, lhs, rhs },
                     span,
                 })
             }
+
+            // for loop
+            Some(Token {
+                kind: TokenKind::Keyword(Keyword::For),
+                span,
+            }) => {
+                tokens.bump(ctx);
+
+                // for i in 0..5 { ... }
+                //     ^
+                let var = parse_ident(ctx, tokens)?;
+
+                // for i in 0..5 { ... }
+                //       ^^
+                tokens.bump_expected(ctx, TokenKind::Keyword(Keyword::In))?;
+
+                // for i in 0..5 { ... }
+                //          ^
+                let start: u32 = match tokens.bump(ctx) {
+                    Some(Token {
+                        kind: TokenKind::BigInt(n),
+                        span,
+                    }) => n.parse().map_err(|_e| Error {
+                        kind: ErrorKind::InvalidRangeSize,
+                        span,
+                    })?,
+                    _ => {
+                        return Err(Error {
+                            kind: ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            span: ctx.last_span(),
+                        })
+                    }
+                };
+
+                // for i in 0..5 { ... }
+                //           ^^
+                tokens.bump_expected(ctx, TokenKind::DoublePeriod)?;
+
+                // for i in 0..5 { ... }
+                //             ^
+                let end: u32 = match tokens.bump(ctx) {
+                    Some(Token {
+                        kind: TokenKind::BigInt(n),
+                        span,
+                    }) => n.parse().map_err(|_e| Error {
+                        kind: ErrorKind::InvalidRangeSize,
+                        span,
+                    })?,
+                    _ => {
+                        return Err(Error {
+                            kind: ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            span: ctx.last_span(),
+                        })
+                    }
+                };
+
+                // for i in 0..5 { ... }
+                //               ^
+                tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
+
+                // for i in 0..5 { ... }
+                //                 ^^^
+                let mut body = vec![];
+
+                loop {
+                    // for i in 0..5 { ... }
+                    //                     ^
+                    let next_token = tokens.peek();
+                    if matches!(
+                        next_token,
+                        Some(Token {
+                            kind: TokenKind::RightCurlyBracket,
+                            ..
+                        })
+                    ) {
+                        tokens.bump(ctx);
+                        break;
+                    }
+
+                    // parse next statement
+                    // TODO: should we prevent `return` here?
+                    // TODO: in general, do we prevent early returns atm?
+                    let statement = Stmt::parse(ctx, tokens)?;
+                    body.push(statement);
+                }
+
+                //
+                Ok(Stmt {
+                    kind: StmtKind::For {
+                        var,
+                        start,
+                        end,
+                        body,
+                    },
+                    span,
+                })
+            }
+
+            // if/else
+            Some(Token {
+                kind: TokenKind::Keyword(Keyword::If),
+                span,
+            }) => {
+                // TODO: wait, this should be implemented as an expresssion! not a statement
+                todo!()
+            }
+
             // return
             Some(Token {
                 kind: TokenKind::Keyword(Keyword::Return),
@@ -935,6 +1107,7 @@ impl Stmt {
                     span,
                 })
             }
+
             // comment
             Some(Token {
                 kind: TokenKind::Comment(c),
@@ -946,7 +1119,8 @@ impl Stmt {
                     span,
                 })
             }
-            // statement expression
+
+            // statement expression (like function call)
             _ => {
                 let expr = Expr::parse(ctx, tokens)?;
                 let span = expr.span;
@@ -972,7 +1146,7 @@ impl Stmt {
 /// Things you can have in a scope (including the root scope).
 pub struct Root {
     pub kind: RootKind,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 #[derive(Debug)]

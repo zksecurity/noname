@@ -3,7 +3,7 @@ use std::path::Path;
 use crate::{
     field::Field,
     inputs::{parse_inputs, ExtField},
-    prover::compile,
+    prover::compile_and_prove,
 };
 
 fn test_file(
@@ -20,10 +20,10 @@ fn test_file(
     let asm = std::fs::read_to_string(prefix.clone().join(format!("{file_name}.asm"))).unwrap();
 
     // compile
-    let (circuit, prover_index, verifier_index) = compile(&code, false).unwrap();
+    let (prover_index, verifier_index) = compile_and_prove(&code).unwrap();
 
     // check compiled ASM
-    assert_eq!(circuit, asm);
+    assert_eq!(prover_index.asm(false), asm);
 
     // parse inputs
     let public_inputs = parse_inputs(public_inputs).unwrap();

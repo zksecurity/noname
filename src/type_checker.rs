@@ -1,20 +1,28 @@
+use std::collections::HashMap;
+
 use crate::{
-    ast::{Compiler, Environment},
     constants::Span,
     error::{Error, ErrorKind, Result},
+    imports::{FuncInScope, GlobalEnv},
     parser::{Expr, ExprKind, Function, FunctionSig, Path, RootKind, StmtKind, TyKind, AST},
-    stdlib,
 };
 
+//
+// Expr
+//
+
 impl Expr {
-    pub fn compute_type(&self, env: &Environment) -> Result<Option<TyKind>> {
+    pub fn compute_type(&self, env: &GlobalEnv, type_env: &mut TypeEnv) -> Result<Option<TyKind>> {
         match &self.kind {
-            ExprKind::FnCall { name, args } => typecheck_fn_call(env, name, args, self.span),
+            ExprKind::FnCall { name, args } => {
+                typecheck_fn_call(env, type_env, name, args, self.span)
+            }
             ExprKind::Variable(_) => todo!(),
+            ExprKind::Assignment { lhs, rhs } => todo!(),
             ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(_, lhs, rhs) => {
-                let lhs_typ = lhs.compute_type(env)?.unwrap();
-                let rhs_typ = rhs.compute_type(env)?.unwrap();
+                let lhs_typ = lhs.compute_type(env, type_env)?.unwrap();
+                let rhs_typ = rhs.compute_type(env, type_env)?.unwrap();
 
                 if lhs_typ != rhs_typ {
                     // only allow bigint mixed with field
@@ -32,7 +40,7 @@ impl Expr {
                 Ok(Some(lhs_typ))
             }
             ExprKind::Negated(inner) => {
-                let inner_typ = inner.compute_type(env)?.unwrap();
+                let inner_typ = inner.compute_type(env, type_env)?.unwrap();
                 if !matches!(inner_typ, TyKind::Bool) {
                     return Err(Error {
                         kind: ErrorKind::MismatchType(TyKind::Bool, inner_typ),
@@ -45,7 +53,7 @@ impl Expr {
             ExprKind::BigInt(_) => Ok(Some(TyKind::BigInt)),
             ExprKind::Bool(_) => Ok(Some(TyKind::Bool)),
             ExprKind::Identifier(ident) => {
-                let typ = env.get_type(ident).ok_or(Error {
+                let typ = type_env.get_type(ident).ok_or(Error {
                     kind: ErrorKind::UndefinedVariable,
                     span: self.span,
                 })?;
@@ -60,13 +68,13 @@ impl Expr {
 
                 // figure out if variable is in scope
                 let name = &path.path[0].value;
-                let typ = env.get_type(name).ok_or(Error {
+                let typ = type_env.get_type(name).ok_or(Error {
                     kind: ErrorKind::UndefinedVariable,
                     span: self.span,
                 })?;
 
                 // check that expression is a bigint
-                match expr.compute_type(env)? {
+                match expr.compute_type(env, type_env)? {
                     Some(TyKind::BigInt) => (),
                     _ => {
                         return Err(Error {
@@ -86,39 +94,88 @@ impl Expr {
     }
 }
 
-impl Compiler {
-    pub fn type_check(&mut self, env: &mut Environment, ast: &mut AST) -> Result<()> {
+//
+// Type Environment
+//
+
+#[derive(Debug, Clone)]
+pub struct TypeInfo {
+    pub mutable: bool,
+    pub typ: TyKind,
+    pub span: Span,
+}
+
+#[derive(Default, Debug)]
+pub struct TypeEnv {
+    /// created by the type checker, gives a type to every external variable
+    pub var_types: HashMap<String, TypeInfo>,
+}
+
+impl TypeEnv {
+    pub fn store_type(&mut self, ident: String, type_info: TypeInfo) -> Result<()> {
+        match self.var_types.insert(ident.clone(), type_info.clone()) {
+            Some(_) => Err(Error {
+                kind: ErrorKind::DuplicateDefinition(ident),
+                span: type_info.span,
+            }),
+            None => Ok(()),
+        }
+    }
+
+    pub fn get_type(&self, ident: &str) -> Option<TyKind> {
+        self.var_types.get(ident).map(|t| t.typ.clone())
+    }
+}
+
+//
+// Type checking
+//
+
+/// TAST for Typed-AST. Not sure how else to call this,
+/// this is to make sure we call this compilation phase before the actual compilation.
+pub struct TAST {
+    pub ast: AST,
+    pub global_env: GlobalEnv,
+}
+
+impl TAST {
+    /// This takes the AST produced by the parser, and performs two things:
+    /// - resolves imports
+    /// - type checks
+    pub fn analyze(ast: AST) -> Result<TAST> {
+        // enforce a main function
         let mut main_function_observed = false;
+
+        //
+        // inject some utility builtin functions in the scope
+        // TODO: should we really import them by default?
+
+        let mut global_env = GlobalEnv::default();
+
+        global_env.resolve_global_imports()?;
+
+        //
+        // Resolve imports
+        //
+
+        for root in &ast.0 {
+            match &root.kind {
+                // `use crypto::poseidon;`
+                RootKind::Use(path) => global_env.resolve_imports(path)?,
+                RootKind::Function(_) => (),
+                RootKind::Comment(_) => (),
+            }
+        }
+
         //
         // Semantic analysis includes:
         // - type checking
         // - ?
         //
 
-        for root in &mut ast.0 {
+        for root in &ast.0 {
             match &root.kind {
-                // `use crypto::poseidon;`
-                RootKind::Use(path) => {
-                    let path_iter = &mut path.path.iter();
-                    let root_module = path_iter.next().expect("empty imports can't be parsed");
-
-                    if root_module.value == "std" {
-                        let module = stdlib::parse_std_import(path, path_iter)?;
-                        if env
-                            .modules
-                            .insert(module.name.clone(), module.clone())
-                            .is_some()
-                        {
-                            return Err(Error {
-                                kind: ErrorKind::DuplicateModule(module.name.clone()),
-                                span: module.span,
-                            });
-                        }
-                    } else {
-                        // we only support std root module for now
-                        unimplemented!()
-                    };
-                }
+                RootKind::Use(path) => (),
 
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
@@ -129,7 +186,9 @@ impl Compiler {
 
                     main_function_observed = true;
 
-                    self.main_args.1 = function.span;
+                    let mut type_env = TypeEnv::default();
+
+                    global_env.main_args.1 = function.span;
 
                     // store variables and their types in the env
                     for arg in &function.arguments {
@@ -144,25 +203,46 @@ impl Compiler {
 
                         match &arg.typ.kind {
                             TyKind::Field => {
-                                env.var_types
-                                    .insert(arg.name.value.clone(), arg.typ.kind.clone());
+                                type_env.store_type(
+                                    arg.name.value.clone(),
+                                    TypeInfo {
+                                        mutable: false,
+                                        typ: arg.typ.kind.clone(),
+                                        span: arg.span,
+                                    },
+                                )?;
                             }
 
                             TyKind::Array(..) => {
-                                env.var_types
-                                    .insert(arg.name.value.clone(), arg.typ.kind.clone());
+                                type_env.store_type(
+                                    arg.name.value.clone(),
+                                    TypeInfo {
+                                        mutable: false,
+                                        typ: arg.typ.kind.clone(),
+                                        span: arg.span,
+                                    },
+                                )?;
                             }
 
                             TyKind::Bool => {
-                                env.var_types
-                                    .insert(arg.name.value.clone(), arg.typ.kind.clone());
+                                type_env.store_type(
+                                    arg.name.value.clone(),
+                                    TypeInfo {
+                                        mutable: false,
+                                        typ: arg.typ.kind.clone(),
+                                        span: arg.span,
+                                    },
+                                )?;
                             }
 
                             t => panic!("unimplemented type {:?}", t),
                         }
 
                         //
-                        self.main_args.0.insert(arg.name.value.clone(), arg.clone());
+                        global_env
+                            .main_args
+                            .0
+                            .insert(arg.name.value.clone(), arg.clone());
                     }
 
                     // the output value returned by the main function is also a main_args with a special name (public_output)
@@ -173,11 +253,18 @@ impl Compiler {
 
                         let name = "public_output";
 
-                        env.var_types.insert(name.to_string(), typ.kind.clone());
+                        type_env.store_type(
+                            name.to_string(),
+                            TypeInfo {
+                                mutable: true,
+                                typ: typ.kind.clone(),
+                                span: typ.span,
+                            },
+                        )?;
                     }
 
                     // type system pass!!!
-                    self.type_check_fn_body(env, function)?;
+                    Self::type_check_fn_body(&global_env, type_env, function)?;
                 }
 
                 // ignore comments
@@ -188,29 +275,45 @@ impl Compiler {
         // enforce that there's a main function
         assert!(main_function_observed);
 
-        Ok(())
+        Ok(TAST { ast, global_env })
     }
 
-    pub fn type_check_fn_body(&mut self, env: &mut Environment, function: &Function) -> Result<()> {
+    pub fn type_check_fn_body(
+        env: &GlobalEnv,
+        mut type_env: TypeEnv,
+        function: &Function,
+    ) -> Result<()> {
         let mut still_need_to_check_return_type = function.return_type.is_some();
 
         // only expressions need type info?
         for stmt in &function.body {
             match &stmt.kind {
-                StmtKind::Assign { lhs, rhs } => {
+                StmtKind::Assign { mutable, lhs, rhs } => {
                     // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
 
                     // but first we need to compute the type of the rhs expression
-                    let typ = rhs.compute_type(env)?.unwrap();
+                    let typ = rhs.compute_type(env, &mut type_env)?.unwrap();
+
+                    let type_info = TypeInfo {
+                        mutable: *mutable,
+                        typ,
+                        span: lhs.span,
+                    };
 
                     // store the type of lhs in the env
-                    env.store_type(lhs.value.clone(), typ, lhs.span)?;
+                    type_env.store_type(lhs.value.clone(), type_info)?;
                 }
+                StmtKind::For {
+                    var,
+                    start,
+                    end,
+                    body,
+                } => unimplemented!(),
                 StmtKind::Expr(expr) => {
                     // make sure the expression does not return any type
                     // (it's a statement expression, it should only work via side effect)
 
-                    let typ = expr.compute_type(env)?;
+                    let typ = expr.compute_type(env, &mut type_env)?;
                     if typ.is_some() {
                         return Err(Error {
                             kind: ErrorKind::ExpectedUnitExpr,
@@ -228,14 +331,16 @@ impl Compiler {
 
                     assert!(still_need_to_check_return_type);
 
-                    let typ = res.compute_type(env)?.unwrap();
+                    let typ = res.compute_type(env, &mut type_env)?.unwrap();
 
-                    if env.var_types["public_output"] != typ {
+                    let expected = match type_env.get_type("public_output") {
+                        Some(t) => t,
+                        None => panic!("return statement when function signature doesn't have a return value (TODO: replace by error)"),
+                    };
+
+                    if expected != typ {
                         return Err(Error {
-                            kind: ErrorKind::ReturnTypeMismatch(
-                                env.var_types["public_output"].clone(),
-                                typ,
-                            ),
+                            kind: ErrorKind::ReturnTypeMismatch(expected.clone(), typ),
                             span: stmt.span,
                         });
                     }
@@ -258,7 +363,8 @@ impl Compiler {
 }
 
 pub fn typecheck_fn_call(
-    env: &Environment,
+    env: &GlobalEnv,
+    type_env: &mut TypeEnv,
     name: &Path,
     args: &[Expr],
     span: Span,
@@ -272,8 +378,8 @@ pub fn typecheck_fn_call(
             kind: ErrorKind::UndefinedFunction(fn_name.clone()),
             span: name.span,
         })? {
-            crate::ast::FuncInScope::BuiltIn(sig, _) => sig.clone(),
-            crate::ast::FuncInScope::Library(_, _) => todo!(),
+            FuncInScope::BuiltIn(sig, _) => sig.clone(),
+            FuncInScope::Library(_, _) => todo!(),
         }
     } else if path_len == 2 {
         // check module present in the scope
@@ -298,7 +404,7 @@ pub fn typecheck_fn_call(
     // compute the arguments
     let mut typs = Vec::with_capacity(args.len());
     for arg in args {
-        if let Some(typ) = arg.compute_type(env)? {
+        if let Some(typ) = arg.compute_type(env, type_env)? {
             typs.push((typ.clone(), arg.span));
         } else {
             return Err(Error {

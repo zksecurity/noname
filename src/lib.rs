@@ -3,11 +3,13 @@
 //!
 
 pub mod asm;
-pub mod ast;
 pub mod boolean;
+pub mod circuit_writer;
+pub mod compiler;
 pub mod constants;
 pub mod error;
 pub mod field;
+pub mod imports;
 pub mod inputs;
 pub mod lexer;
 pub mod parser;

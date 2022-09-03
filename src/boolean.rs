@@ -5,7 +5,7 @@ use std::ops::Neg;
 use ark_ff::{One, Zero};
 
 use crate::{
-    ast::{Compiler, Constant, GateKind, Value, Var},
+    circuit_writer::{CircuitWriter, Constant, GateKind, Value, Var},
     constants::Span,
     field::Field,
 };
@@ -14,7 +14,7 @@ pub fn is_valid(f: Field) -> bool {
     f.is_one() || f.is_zero()
 }
 
-pub fn and(compiler: &mut Compiler, lhs: Var, rhs: Var, span: Span) -> Var {
+pub fn and(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var {
     match (lhs, rhs) {
         // two constants
         (
@@ -60,7 +60,7 @@ pub fn and(compiler: &mut Compiler, lhs: Var, rhs: Var, span: Span) -> Var {
     }
 }
 
-pub fn neg(compiler: &mut Compiler, var: Var, span: Span) -> Var {
+pub fn neg(compiler: &mut CircuitWriter, var: Var, span: Span) -> Var {
     match var {
         Var::Constant(v) => {
             let value = if v.value == Field::one() {

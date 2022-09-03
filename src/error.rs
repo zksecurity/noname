@@ -2,6 +2,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::{
+    constants::Span,
     lexer::TokenKind,
     parser::{AttributeKind, TyKind},
 };
@@ -16,7 +17,7 @@ pub struct Error {
     pub kind: ErrorKind,
 
     #[label("here")]
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug)]
@@ -57,8 +58,11 @@ pub enum ErrorKind {
     #[error("invalid type, expected an array or a type name (starting with an uppercase letter, and only containing alphanumeric characters)")]
     InvalidType,
 
-    #[error("invalid array size")]
+    #[error("invalid array size, expected [_; x] with x in [0,2^32]")]
     InvalidArraySize,
+
+    #[error("invalid range size, expected x..y with x and y integers in [0,2^32]")]
+    InvalidRangeSize,
 
     #[error("invalid statement")]
     InvalidStatement,
@@ -169,4 +173,7 @@ pub enum ErrorKind {
 
     #[error("the variable `{0}` is declared twice")]
     DuplicateDefinition(String),
+
+    #[error("only variables and arrays can be mutated")]
+    InvalidAssignmentExpression,
 }

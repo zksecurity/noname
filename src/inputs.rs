@@ -7,7 +7,7 @@ use miette::Diagnostic;
 use num_bigint::BigUint;
 use thiserror::Error;
 
-use crate::{ast::CellValues, field::Field};
+use crate::{circuit_writer::CellValues, field::Field};
 
 #[derive(Error, Diagnostic, Debug)]
 pub enum ParsingError {

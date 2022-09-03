@@ -4,16 +4,17 @@ use clap::Parser;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use noname::{
     inputs::{parse_inputs, Inputs},
-    prover::compile,
+    prover::compile_and_prove,
 };
 
 fn parse(code: &str, public_inputs: Inputs, private_inputs: Inputs, debug: bool) -> Result<()> {
     // compile
-    let (circuit, prover_index, verifier_index) = compile(code, debug)?;
+    let (prover_index, verifier_index) = compile_and_prove(code)?;
+    println!("successfuly compiled");
 
     // print ASM
-    println!("successfuly compiled");
-    println!("{circuit}");
+    let asm = prover_index.asm(debug);
+    println!("{asm}");
 
     // create proof
     let (proof, full_public_inputs, _public_output) =

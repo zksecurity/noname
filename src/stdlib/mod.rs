@@ -3,10 +3,11 @@ use std::{collections::HashMap, ops::Neg as _};
 use ark_ff::{One as _, Zero};
 
 use crate::{
-    ast::{Compiler, Constant, FuncType, GateKind, Var},
+    circuit_writer::{CircuitWriter, Constant, GateKind, Var},
     constants::Span,
     error::{Error, ErrorKind, Result},
     field::Field,
+    imports::FuncType,
     lexer::Token,
     parser::{FunctionSig, Ident, ParserCtx, Path},
 };
@@ -98,7 +99,7 @@ pub const BUILTIN_FNS: [(&str, FuncType); 2] = [(ASSERT_EQ_FN, assert_eq), (ASSE
 
 /// Asserts that two field elements are equal.
 // TODO: For now this only works for two field elements, but we could generalize that function and just divide vars into two and trust the type checker
-fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
+fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<Var> {
     // double check (on top of type checker)
     assert_eq!(vars.len(), 2);
 
@@ -144,7 +145,7 @@ fn assert_eq(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
 }
 
 /// Asserts that a condition is true.
-fn assert(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
+fn assert(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<Var> {
     // double check (on top of type checker)
     assert_eq!(vars.len(), 1);
 

@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
+    constants::Span,
     error::{Error, ErrorKind, Result},
     tokens::Tokens,
 };
@@ -29,6 +30,14 @@ pub enum Keyword {
     False,
     /// The `mut` keyword for mutable variables
     Mut,
+    /// The `if` keyword
+    If,
+    /// The `else` keyword
+    Else,
+    /// The `for` keyword
+    For,
+    /// The `in` keyword for iterating
+    In,
 }
 
 impl Keyword {
@@ -42,6 +51,10 @@ impl Keyword {
             "true" => Some(Self::True),
             "false" => Some(Self::False),
             "mut" => Some(Self::Mut),
+            "if" => Some(Self::If),
+            "else" => Some(Self::Else),
+            "for" => Some(Self::For),
+            "in" => Some(Self::In),
             _ => None,
         }
     }
@@ -58,6 +71,10 @@ impl Display for Keyword {
             Self::True => "true",
             Self::False => "false",
             Self::Mut => "mut",
+            Self::If => "if",
+            Self::Else => "else",
+            Self::For => "for",
+            Self::In => "in",
         };
 
         write!(f, "{}", desc)
@@ -146,7 +163,7 @@ impl TokenKind {
     pub fn new_token(self, ctx: &mut LexerCtx, len: usize) -> Token {
         let token = Token {
             kind: self,
-            span: (ctx.offset, len),
+            span: Span(ctx.offset, len),
         };
 
         ctx.offset += len;
@@ -158,7 +175,7 @@ impl TokenKind {
 #[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 fn is_numeric(s: &str) -> bool {
@@ -218,7 +235,7 @@ impl Token {
                     } else {
                         return Err(Error {
                             kind: ErrorKind::InvalidIdentifier,
-                            span: (ctx.offset, 1),
+                            span: Span(ctx.offset, 1),
                         });
                     };
                     tokens.push(token_type.new_token(ctx, len));
@@ -358,7 +375,7 @@ impl Token {
                 _ => {
                     return Err(Error {
                         kind: ErrorKind::InvalidToken,
-                        span: (ctx.offset, 1),
+                        span: Span(ctx.offset, 1),
                     });
                 }
             }

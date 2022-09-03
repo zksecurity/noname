@@ -3,12 +3,13 @@
 use std::iter::once;
 
 use crate::{
-    ast::{Compiler, Wiring},
+    circuit_writer::Wiring,
+    compiler,
+    constants::Span,
     error::{Error, Result},
     field::Field,
     inputs::Inputs,
-    lexer::Token,
-    parser::AST,
+    witness::CompiledCircuit,
 };
 
 use clap::once_cell::sync::Lazy;
@@ -43,7 +44,7 @@ static GROUP_MAP: Lazy<<Curve as CommitmentCurve>::Map> =
 
 pub struct ProverIndex {
     index: kimchi::prover_index::ProverIndex<Curve>,
-    compiler: Compiler,
+    circuit: CompiledCircuit,
 }
 
 pub struct VerifierIndex {
@@ -54,18 +55,11 @@ pub struct VerifierIndex {
 // Setup
 //
 
-pub fn compile(code: &str, debug: bool) -> Result<(String, ProverIndex, VerifierIndex)> {
-    // lexer
-    let tokens = Token::parse(code)?;
-
-    // AST
-    let ast = AST::parse(tokens)?;
-
-    // type checker + compiler
-    let (asm, compiler) = Compiler::analyze_and_compile(ast, code, debug)?;
+pub fn compile_and_prove(code: &str) -> Result<(ProverIndex, VerifierIndex)> {
+    let circuit = compiler::compile(code)?;
 
     // convert gates to kimchi gates
-    let mut gates: Vec<_> = compiler
+    let mut gates: Vec<_> = circuit
         .compiled_gates()
         .iter()
         .enumerate()
@@ -73,7 +67,7 @@ pub fn compile(code: &str, debug: bool) -> Result<(String, ProverIndex, Verifier
         .collect();
 
     // wiring
-    for wiring in compiler.wiring.values() {
+    for wiring in circuit.wiring.values() {
         if let Wiring::Wired(cells_and_spans) = wiring {
             // all the wired cells form a cycle, remember!
             let mut wired_cells = cells_and_spans.iter().map(|(cell, _)| cell).copied();
@@ -96,11 +90,11 @@ pub fn compile(code: &str, debug: bool) -> Result<(String, ProverIndex, Verifier
     let fp_sponge_params = kimchi::oracle::pasta::fp_kimchi::params();
 
     let cs = kimchi::circuits::constraints::ConstraintSystem::create(gates, fp_sponge_params)
-        .public(compiler.public_input_size)
+        .public(circuit.public_input_size)
         .build()
         .map_err(|e| Error {
             kind: e.into(),
-            span: (0, 0),
+            span: Span(0, 0),
         })?;
 
     // create SRS (for vesta, as the circuit is in Fp)
@@ -123,7 +117,7 @@ pub fn compile(code: &str, debug: bool) -> Result<(String, ProverIndex, Verifier
     let prover_index = {
         ProverIndex {
             index: prover_index,
-            compiler,
+            circuit,
         }
     };
     let verifier_index = VerifierIndex {
@@ -131,7 +125,7 @@ pub fn compile(code: &str, debug: bool) -> Result<(String, ProverIndex, Verifier
     };
 
     // return asm + indexes
-    Ok((asm, prover_index, verifier_index))
+    Ok((prover_index, verifier_index))
 }
 
 //
@@ -139,6 +133,10 @@ pub fn compile(code: &str, debug: bool) -> Result<(String, ProverIndex, Verifier
 //
 
 impl ProverIndex {
+    pub fn asm(&self, debug: bool) -> String {
+        self.circuit.asm(debug)
+    }
+
     /// returns a proof and a public output
     pub fn prove(
         &self,
@@ -148,7 +146,7 @@ impl ProverIndex {
     ) -> Result<(ProverProof<Curve>, Vec<Field>, Vec<Field>)> {
         // generate the witness
         let (witness, full_public_inputs, public_output) = self
-            .compiler
+            .circuit
             .generate_witness(public_inputs, private_inputs)?;
 
         if debug {
@@ -169,7 +167,7 @@ impl ProverIndex {
             ProverProof::create::<BaseSponge, ScalarSponge>(&GROUP_MAP, witness, &[], &self.index)
                 .map_err(|e| Error {
                     kind: e.into(),
-                    span: (0, 0),
+                    span: Span(0, 0),
                 });
 
         // return proof + public output
@@ -191,7 +189,7 @@ impl VerifierIndex {
         kimchi::verifier::verify::<Curve, BaseSponge, ScalarSponge>(&GROUP_MAP, &self.index, &proof)
             .map_err(|e| Error {
                 kind: e.into(),
-                span: (0, 0),
+                span: Span(0, 0),
             })
     }
 }

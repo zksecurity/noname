@@ -9,16 +9,17 @@ use kimchi::{
 };
 
 use crate::{
-    ast::{Compiler, FuncType, GateKind, Value, Var},
+    circuit_writer::{CircuitWriter, GateKind, Value, Var},
     constants::{self, Span},
     field::Field,
+    imports::FuncType,
 };
 
 const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
 
 pub const CRYPTO_FNS: [(&str, FuncType); 1] = [(POSEIDON_FN, poseidon)];
 
-pub fn poseidon(compiler: &mut Compiler, vars: &[Var], span: Span) -> Option<Var> {
+pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<Var> {
     // double check input
     assert_eq!(vars.len(), 1);
     let mut input = match vars[0].circuit_var() {

@@ -28,7 +28,7 @@ use std::hash::Hash;
 use itertools::Itertools;
 
 use crate::{
-    ast::{CellVar, Gate, Wiring},
+    circuit_writer::{CellVar, Gate, Wiring},
     constants::Span,
     field::{Field, PrettyField as _},
 };
@@ -265,6 +265,6 @@ qrst
 uvwx
 yz
 ";
-        assert_eq!(find_exact_line(&SRC, (5, 6)), (2, 5, "efgh\nijkl"));
+        assert_eq!(find_exact_line(&SRC, Span(5, 6)), (2, 5, "efgh\nijkl"));
     }
 }

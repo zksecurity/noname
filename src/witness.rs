@@ -1,12 +1,12 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Deref};
 
 use ark_ff::Zero;
 use itertools::{chain, Itertools};
 
 use crate::{
-    ast::{CellValues, CellVar, Compiler, Value},
     boolean,
-    constants::NUM_REGISTERS,
+    circuit_writer::{CellValues, CellVar, CircuitWriter, Value},
+    constants::{Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     field::{Field, PrettyField},
     inputs::Inputs,
@@ -62,7 +62,22 @@ impl Witness {
     }
 }
 
-impl Compiler {
+/// The compiled circuit.
+pub struct CompiledCircuit(CircuitWriter);
+
+impl Deref for CompiledCircuit {
+    type Target = CircuitWriter;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl CompiledCircuit {
+    pub(crate) fn new(circuit: CircuitWriter) -> Self {
+        Self(circuit)
+    }
+
     pub fn compute_var(&self, env: &mut WitnessEnv, var: CellVar) -> Result<Field> {
         // fetch cache first
         // TODO: if self was &mut, then we could use a Value::Cached(Field) to store things instead of that
@@ -97,7 +112,7 @@ impl Compiler {
             Value::PublicOutput(var) => {
                 let var = var.ok_or(Error {
                     kind: ErrorKind::MissingPublicOutput,
-                    span: (0, 0),
+                    span: Span(0, 0),
                 })?;
                 self.compute_var(env, var)
             }
@@ -210,7 +225,7 @@ impl Compiler {
                 #[allow(clippy::single_match)]
                 match gate.typ {
                     // only check the generic gate
-                    crate::ast::GateKind::DoubleGeneric => {
+                    crate::circuit_writer::GateKind::DoubleGeneric => {
                         let c = |i| gate.coeffs.get(i).copied().unwrap_or_else(Field::zero);
                         let w = &witness_row;
                         let sum =
