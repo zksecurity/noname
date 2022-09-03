@@ -793,12 +793,17 @@ impl CircuitWriter {
                 Var::Constant(Constant { value: lhs, .. }),
                 Var::Constant(Constant { value: rhs, .. }),
             ) => Var::new_constant(lhs + rhs, span),
-            (Var::Constant(Constant { value: cst, .. }), Var::CircuitVar(var))
-            | (Var::CircuitVar(var), Var::Constant(Constant { value: cst, .. })) => {
-                if var.len() != 1 {
+            (Var::Constant(Constant { value: cst, .. }), Var::CircuitVar(vars))
+            | (Var::CircuitVar(vars), Var::Constant(Constant { value: cst, .. })) => {
+                if vars.len() != 1 {
                     unimplemented!();
                 }
-                let var = var.var(0).unwrap();
+                let var = vars.var(0).unwrap();
+
+                // if the constant is zero, we can ignore this gate
+                if cst.is_zero() {
+                    return Var::CircuitVar(vars);
+                }
 
                 // create a new variable to store the result
                 let res = self.new_internal_var(
@@ -808,17 +813,13 @@ impl CircuitWriter {
 
                 // create a gate to store the result
                 // TODO: we should use an add_generic function that takes advantage of the double generic gate
+                let zero = Field::zero();
+                let one = Field::one();
                 self.add_gate(
                     "add a constant with a variable",
                     GateKind::DoubleGeneric,
                     vec![Some(var), None, Some(res)],
-                    vec![
-                        Field::one(),
-                        Field::zero(),
-                        Field::one().neg(),
-                        Field::zero(),
-                        cst,
-                    ],
+                    vec![one, zero, one.neg(), zero, cst],
                     span,
                 );
 
