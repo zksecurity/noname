@@ -166,4 +166,7 @@ pub enum ErrorKind {
 
     #[error("private input not used in the circuit")]
     PrivateInputNotUsed,
+
+    #[error("the variable `{0}` is declared twice")]
+    DuplicateDefinition(String),
 }

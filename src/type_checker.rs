@@ -204,7 +204,7 @@ impl Compiler {
                     let typ = rhs.compute_type(env)?.unwrap();
 
                     // store the type of lhs in the env
-                    env.store_type(lhs.value.clone(), typ);
+                    env.store_type(lhs.value.clone(), typ, lhs.span)?;
                 }
                 StmtKind::Expr(expr) => {
                     // make sure the expression does not return any type

@@ -872,8 +872,14 @@ pub struct Environment {
 }
 
 impl Environment {
-    pub fn store_type(&mut self, ident: String, ty: TyKind) {
-        self.var_types.insert(ident, ty);
+    pub fn store_type(&mut self, ident: String, ty: TyKind, span: Span) -> Result<()> {
+        match self.var_types.insert(ident.clone(), ty) {
+            Some(_) => Err(Error {
+                kind: ErrorKind::DuplicateDefinition(ident),
+                span,
+            }),
+            None => Ok(()),
+        }
     }
 
     pub fn get_type(&self, ident: &str) -> Option<&TyKind> {
