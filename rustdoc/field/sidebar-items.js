@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"trait":[["PrettyField",""]],"type":[["Field",""]]};
+window.SIDEBAR_ITEMS = {"fn":[["add","Adds two field elements"]]};

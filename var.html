@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>CircuitVar - noname</title>
+        <title>Vars - noname</title>
 
 
         <!-- Custom HTML head -->
@@ -81,7 +81,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">6.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">7.</strong> Noname ASM</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">8.</strong> CellVar</a></li><li class="chapter-item expanded "><a href="circuitvar.html" class="active"><strong aria-hidden="true">9.</strong> CircuitVar</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">10.</strong> Constants</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">11.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">12.</strong> Witness Generation</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">6.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">7.</strong> Noname ASM</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">8.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html" class="active"><strong aria-hidden="true">9.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">10.</strong> Constants</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">11.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">12.</strong> Witness Generation</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -145,25 +145,59 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="circuitvar"><a class="header" href="#circuitvar">CircuitVar</a></h1>
-<p>We already have <a href="./cellvar.html"><code>CellVar</code></a>s, why have circuit vars? 
+                        <h1 id="vars"><a class="header" href="#vars">Vars</a></h1>
+<p>We already have <a href="./cellvar.html"><code>CellVar</code></a>s, why have vars? 
 The distinction is a matter of level: </p>
 <ul>
-<li><code>CellVar</code>s are low-level: they track actual cells of the execution trace.</li>
-<li><code>CircuitVar</code>s are a bit less low-level: they track variables that are made out of several field elements (and thus several <code>CellVar</code>s). For example, you can imagine that user could create types that take several field elements.</li>
+<li><code>CellVar</code>s are low-level: they track actual cells of the execution trace. When a single <code>CellVar</code> is assigned to multiple cells the wiring must make sure the cells are wired.</li>
+<li><code>Var</code>s are a higher-level concept: they track variables that are created in the language either directly (<code>let x = ...</code>) or indirectly (in <code>x + (y + z)</code> the term <code>y + z</code> is stored under a <code>Var</code>)</li>
 </ul>
-<p>In the code, we define a variable as either a constant or a <code>CellVar</code>:</p>
+<p>While a <code>CellVar</code> represents a single field element, a <code>Var</code> can potentially represent several field elements (and as such several cells in the execution trace). 
+Here are some examples of <code>Var</code>s:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub enum Var {
-    /// Either a constant
-    Constant(Constant),
-    /// Or a [CircuitVar]
-    CircuitVar(CellVars),
-}
+</span>// a constant
+let x = 5;
+
+// a field element that will be computed at runtime
+let y = private_input + 1;
+
+// a builtin type, like an array, or a bool
+let z = [y, x, 6];
+
+// or a custom type
+// we don't support that yet
 <span class="boring">}
 </span></code></pre></pre>
 <p>See the <a href="./constants.html">Constant chapter</a> to see why constants are treated differently.</p>
+<p>Internally, a <code>Var</code> is represented as such:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum ConstOrCell {
+    /// A constant value.
+    Const(Constant),
+
+    /// A cell in the execution trace.
+    Cell(CellVar),
+}
+
+pub struct Var {
+    pub value: Vec&lt;ConstOrCell&gt;,
+    pub span: Span,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>and the circuit-writer will always return a <code>Var</code> from an expression.</p>
+<p>In our example of:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = t + (z + y);
+<span class="boring">}
+</span></code></pre></pre>
+<p>the <code>z + y</code> is parsed as an expression (a binary operation involving <code>z</code> and <code>y</code>) and stored under a var <code>var1</code> (TODO: I believe it’s called anonymous var? Because it doesn’t have a name). 
+Then <code>t + ...</code> is also parsed as another binary operation expression and stored under another var <code>var2</code>.
+Finally the <code>let x = ...</code> is parsed as an assignment statement, and <code>x</code> is stored as a local variable associated to the right handside var <code>var2</code>.
+See the <a href="./scope.html">Scope chapter</a> for more information on local variables.</p>
 
                     </main>
 

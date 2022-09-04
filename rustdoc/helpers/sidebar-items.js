@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["poseidon",""]]};
+window.SIDEBAR_ITEMS = {"fn":[["poseidon",""]],"trait":[["PrettyField","A trait to display [Field] in pretty ways."]]};
