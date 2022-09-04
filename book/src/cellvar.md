@@ -57,3 +57,5 @@ As the final step of the compilation, we double check that all `CellVar`s have a
 
 * A private or public input was never used in the circuit. In this case we return an error to the user.
 * There is a bug in the compiler. In this case we panic.
+
+TODO: explain the LinearCombination. I think we only need an `Add((Field, Var), (Field, Var), Field)`

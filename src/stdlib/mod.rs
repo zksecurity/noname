@@ -3,10 +3,9 @@ use std::{collections::HashMap, ops::Neg as _};
 use ark_ff::{One as _, Zero};
 
 use crate::{
-    circuit_writer::{CircuitWriter, Constant, GateKind, Var},
-    constants::Span,
+    circuit_writer::{CircuitWriter, ConstOrCell, Constant, GateKind, Var},
+    constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    field::Field,
     imports::FuncType,
     lexer::Token,
     parser::{FunctionSig, Ident, ParserCtx, Path},
@@ -97,49 +96,53 @@ const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 
 pub const BUILTIN_FNS: [(&str, FuncType); 2] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
 
-/// Asserts that two field elements are equal.
-// TODO: For now this only works for two field elements, but we could generalize that function and just divide vars into two and trust the type checker
+/// Asserts that two vars are equal.
+/// This assumes that the two vars are made out of the same number of field elements.
 fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<Var> {
     // double check (on top of type checker)
     assert_eq!(vars.len(), 2);
+    let lhs = &vars[0];
+    let rhs = &vars[1];
 
-    match (&vars[0], &vars[1]) {
-        (Var::Constant(Constant { value: a, .. }), Var::Constant(Constant { value: b, .. })) => {
-            if a != b {
-                panic!("assertion failed: {} != {} (TODO: return an error)", a, b);
+    assert_eq!(lhs.len(), rhs.len());
+
+    for (lhs, rhs) in lhs.into_iter().zip(rhs.into_iter()) {
+        match (lhs, rhs) {
+            // two constants
+            (
+                ConstOrCell::Const(Constant { value: a, .. }),
+                ConstOrCell::Const(Constant { value: b, .. }),
+            ) => {
+                if a != b {
+                    panic!("assertion failed: {} != {} (TODO: return an error)", a, b);
+                }
             }
-        }
-        (Var::Constant(cst), Var::CircuitVar(cvars))
-        | (Var::CircuitVar(cvars), Var::Constant(cst)) => {
-            let cst_var = compiler.add_constant(cst.value, cst.span);
 
-            assert_eq!(cvars.vars.len(), 1);
-            let cvar = cvars.var(0).unwrap();
+            // a const and a var
+            (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
+            | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
+                // constrain the constant first
+                let cst_var = compiler.add_constant(cst.value, cst.span);
 
-            // TODO: use permutation to check that
-            compiler.add_gate(
-                "constrain cst - var = 0 to check equality",
-                GateKind::DoubleGeneric,
-                vec![Some(cst_var), Some(cvar)],
-                vec![Field::one(), Field::one().neg()],
-                span,
-            );
-        }
-        (Var::CircuitVar(lhs), Var::CircuitVar(rhs)) => {
-            assert_eq!(lhs.vars.len(), 1);
-            let lhs = lhs.var(0).unwrap();
-
-            assert_eq!(rhs.vars.len(), 1);
-            let rhs = rhs.var(0).unwrap();
-
-            // TODO: use permutation to check that
-            compiler.add_gate(
-                "constrain lhs - rhs = 0 to assert that they are equal",
-                GateKind::DoubleGeneric,
-                vec![Some(lhs), Some(rhs)],
-                vec![Field::one(), Field::one().neg()],
-                span,
-            );
+                // TODO: use permutation to check that
+                compiler.add_gate(
+                    "constrain cst - var = 0 to check equality",
+                    GateKind::DoubleGeneric,
+                    vec![Some(cst_var), Some(*cvar)],
+                    vec![Field::one(), Field::one().neg()],
+                    span,
+                );
+            }
+            (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
+                // TODO: use permutation to check that
+                compiler.add_gate(
+                    "constrain lhs - rhs = 0 to assert that they are equal",
+                    GateKind::DoubleGeneric,
+                    vec![Some(*lhs), Some(*rhs)],
+                    vec![Field::one(), Field::one().neg()],
+                    span,
+                );
+            }
         }
     }
 
@@ -150,15 +153,15 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<V
 fn assert(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<Var> {
     // double check (on top of type checker)
     assert_eq!(vars.len(), 1);
+    let cond = &vars[0];
 
-    match &vars[0] {
-        Var::Constant(Constant { value: a, .. }) => {
+    assert_eq!(cond.len(), 1);
+
+    match cond[0] {
+        ConstOrCell::Const(Constant { value: a, .. }) => {
             assert!(a.is_one());
         }
-        Var::CircuitVar(cvars) => {
-            assert_eq!(cvars.vars.len(), 1);
-            let cvar = cvars.var(0).unwrap();
-
+        ConstOrCell::Cell(cvar) => {
             // TODO: use permutation to check that
             let zero = Field::zero();
             let one = Field::one();

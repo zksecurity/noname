@@ -11,9 +11,9 @@ use num_traits::Num as _;
 
 use crate::{
     asm, boolean,
-    constants::{Span, NUM_REGISTERS},
+    constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
-    field::Field,
+    field,
     imports::{FuncInScope, FuncType, GlobalEnv},
     parser::{
         AttributeKind, Expr, ExprKind, FuncArg, Function, Op2, RootKind, Stmt, StmtKind, TyKind,
@@ -26,7 +26,6 @@ use crate::{
 // Data structures
 //
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// An internal variable that relates to a specific cell (of the execution trace),
 /// or multiple cells (if wired), in the circuit.
 ///
@@ -36,9 +35,10 @@ use crate::{
 ///
 /// As the final step of the compilation,
 /// we double check that all cellvars have appeared in the rows at some point.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CellVar {
-    index: usize,
-    span: Span,
+    pub index: usize,
+    pub span: Span,
 }
 
 impl CellVar {
@@ -101,82 +101,115 @@ impl fmt::Debug for Value {
     }
 }
 
-/// The primitive type in a circuit is a field element.
-/// But since we want to be able to deal with custom types
-/// that are built on top of field elements,
-/// we abstract any variable in the circuit as a [Var::CircuitVar]
-/// which can contain one or more variables.
-#[derive(Debug, Clone)]
-pub struct CellVars {
-    pub vars: Vec<CellVar>,
-    pub span: Span,
-}
-
-impl CellVars {
-    pub fn new(vars: Vec<CellVar>, span: Span) -> Self {
-        Self { vars, span }
-    }
-
-    pub fn len(&self) -> usize {
-        self.vars.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.vars.is_empty()
-    }
-
-    pub fn var(&self, i: usize) -> Option<CellVar> {
-        self.vars.get(i).cloned()
-    }
-}
-
-/// Represents an expression or variable in a program
-#[derive(Debug, Clone)]
-pub enum Var {
-    /// Either a constant
-    Constant(Constant),
-    /// Or a [CellVars]
-    CircuitVar(CellVars),
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Constant {
     pub value: Field,
     pub span: Span,
 }
 
+impl Constant {
+    pub fn new(value: Field, span: Span) -> Self {
+        Self { value, span }
+    }
+
+    pub fn is_one(&self) -> bool {
+        self.value.is_one()
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.value.is_zero()
+    }
+}
+
+/// Represents a cell in the execution trace.
+#[derive(Debug, Clone)]
+pub enum ConstOrCell {
+    /// A constant value.
+    Const(Constant),
+
+    /// A cell in the execution trace.
+    Cell(CellVar),
+}
+
+impl ConstOrCell {
+    pub fn is_const(&self) -> bool {
+        matches!(self, Self::Const(..))
+    }
+
+    pub fn cst(&self) -> Option<&Constant> {
+        match self {
+            Self::Const(cst) => Some(cst),
+            _ => None,
+        }
+    }
+
+    pub fn idx(&self) -> Option<usize> {
+        match self {
+            Self::Cell(cell) => Some(cell.index),
+            _ => None,
+        }
+    }
+}
+
+/// Represents an expression or variable in a program
+#[derive(Debug, Clone)]
+pub struct Var {
+    pub value: Vec<ConstOrCell>,
+    pub span: Span,
+}
+
+impl IntoIterator for Var {
+    type Item = ConstOrCell;
+    type IntoIter = vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.value.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Var {
+    type Item = &'a ConstOrCell;
+    type IntoIter = vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.value.iter().collect::<Vec<_>>().into_iter()
+    }
+}
+
 impl Var {
-    pub fn new_circuit_var(vars: Vec<CellVar>, span: Span) -> Self {
-        Var::CircuitVar(CellVars::new(vars, span))
+    pub fn new(value: Vec<ConstOrCell>, span: Span) -> Self {
+        Self { value, span }
     }
 
-    pub fn new_constant(value: Field, span: Span) -> Self {
-        Var::Constant(Constant { value, span })
+    pub fn new_vars(vars: Vec<CellVar>, span: Span) -> Self {
+        let value = vars.into_iter().map(ConstOrCell::Cell).collect();
+        Self { value, span }
     }
 
-    pub fn constant(&self) -> Option<Field> {
-        match self {
-            Var::Constant(Constant { value, .. }) => Some(*value),
-            _ => None,
-        }
+    pub fn new_constant(cst: Constant, span: Span) -> Self {
+        let value = vec![ConstOrCell::Const(cst)];
+        Self { value, span }
     }
 
-    pub fn circuit_var(&self) -> Option<CellVars> {
-        match self {
-            Var::CircuitVar(circuit_var) => Some(circuit_var.clone()),
-            _ => None,
-        }
+    pub fn len(&self) -> usize {
+        self.value.len()
     }
 
-    pub fn is_constant(&self) -> bool {
-        matches!(self, Var::Constant(..))
+    pub fn is_empty(&self) -> bool {
+        self.value.is_empty()
     }
 
-    pub fn span(&self) -> Span {
-        match self {
-            Var::Constant(Constant { span, .. }) => *span,
-            Var::CircuitVar(CellVars { span, .. }) => *span,
-        }
+    pub fn get(&self, index: usize) -> Option<&ConstOrCell> {
+        self.value.get(index)
+    }
+}
+
+// implement indexing into Var
+impl std::ops::Index<usize> for Var {
+    type Output = ConstOrCell;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.value[index]
     }
 }
 
@@ -276,7 +309,7 @@ pub struct CircuitWriter {
 
     /// This is how you compute the value of each variable during witness generation.
     /// It is created during circuit generation.
-    pub witness_vars: HashMap<CellVar, Value>,
+    pub witness_vars: HashMap<usize, Value>,
 
     /// The execution trace table with vars as placeholders.
     /// It is created during circuit generation,
@@ -288,7 +321,7 @@ pub struct CircuitWriter {
 
     /// The wiring of the circuit.
     /// It is created during circuit generation.
-    pub wiring: HashMap<CellVar, Wiring>,
+    pub wiring: HashMap<usize, Wiring>,
 
     /// Size of the public input.
     pub public_input_size: usize,
@@ -301,7 +334,7 @@ pub struct CircuitWriter {
     ///    it will set this `public_output` variable again to the correct vars.
     /// 3. During witness generation, the public output computation
     ///    is delayed until the very end.
-    pub public_output: Option<CellVars>,
+    pub public_output: Option<Var>,
 
     /// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
@@ -375,7 +408,7 @@ impl CircuitWriter {
                             _ => unimplemented!(),
                         };
 
-                        let cvar = if let Some(attr) = attribute {
+                        let var = if let Some(attr) = attribute {
                             if !matches!(attr.kind, AttributeKind::Pub) {
                                 return Err(Error {
                                     kind: ErrorKind::InvalidAttribute(attr.kind),
@@ -388,7 +421,7 @@ impl CircuitWriter {
                         };
 
                         // add argument variable to the ast env
-                        local_env.add_var(name.value.clone(), Var::CircuitVar(cvar));
+                        local_env.add_var(name.value.clone(), var);
                     }
 
                     // create public output
@@ -398,7 +431,7 @@ impl CircuitWriter {
                         }
 
                         // create it
-                        circuit_writer.public_outputs(1, typ.span);
+                        circuit_writer.add_public_outputs(1, typ.span);
                     }
 
                     // compile function
@@ -469,19 +502,17 @@ impl CircuitWriter {
                 // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
                 local_env.add_var(lhs.value.clone(), var);
             }
-            StmtKind::For {
-                var,
-                start,
-                end,
-                body,
-            } => {
-                for ii in (*start as usize)..(*end as usize) {
+            StmtKind::For { var, range, body } => {
+                for ii in range.range() {
                     local_env.nest();
 
-                    let cst_var = Var::Constant(Constant {
-                        value: (ii as u32).into(),
-                        span: var.span,
-                    });
+                    let cst_var = Var::new_constant(
+                        Constant {
+                            value: ii.into(),
+                            span: range.span,
+                        },
+                        var.span,
+                    );
                     local_env.add_var(var.value.clone(), cst_var);
 
                     self.compile_block(global_env, local_env, body)?;
@@ -555,10 +586,22 @@ impl CircuitWriter {
             }),
             (None, Some(returned)) => Err(Error {
                 kind: ErrorKind::UnexpectedReturn,
-                span: returned.span(),
+                span: returned.span,
             }),
             (Some(_expected), Some(returned)) => {
-                let var_vars = returned.circuit_var().ok_or_else(|| unimplemented!())?.vars;
+                // make sure there are no constants in the returned value
+                let mut cvars = vec![];
+                for val in returned.value {
+                    match val {
+                        ConstOrCell::Cell(cvar) => cvars.push(cvar),
+                        ConstOrCell::Const(_) => {
+                            return Err(Error {
+                                kind: ErrorKind::ConstantInOutput,
+                                span: returned.span,
+                            })
+                        }
+                    }
+                }
 
                 // store the return value in the public input that was created for that ^
                 let public_output = self
@@ -566,12 +609,13 @@ impl CircuitWriter {
                     .as_ref()
                     .expect("bug in the compiler: missing public output");
 
-                for (pub_var, ret_var) in public_output.vars.iter().zip(&var_vars) {
+                for (pub_var, ret_var) in public_output.into_iter().zip(&cvars) {
                     // replace the computation of the public output vars with the actual variables being returned here
-                    assert!(self
+                    let var_idx = pub_var.idx().unwrap();
+                    let prev = self
                         .witness_vars
-                        .insert(*pub_var, Value::PublicOutput(Some(*ret_var)))
-                        .is_some());
+                        .insert(var_idx, Value::PublicOutput(Some(*ret_var)));
+                    assert!(prev.is_some());
                 }
 
                 Ok(())
@@ -589,7 +633,7 @@ impl CircuitWriter {
         self.next_variable += 1;
 
         // store it in the circuit_writer
-        self.witness_vars.insert(var, val);
+        self.witness_vars.insert(var.index, val);
 
         var
     }
@@ -670,7 +714,7 @@ impl CircuitWriter {
                     let lhs = self.compute_expr(global_env, local_env, lhs)?.unwrap();
                     let rhs = self.compute_expr(global_env, local_env, rhs)?.unwrap();
 
-                    Some(self.add(lhs, rhs, expr.span))
+                    Some(field::add(self, lhs, rhs, expr.span))
                 }
                 Op2::Subtraction => todo!(),
                 Op2::Multiplication => todo!(),
@@ -691,16 +735,28 @@ impl CircuitWriter {
             }
             ExprKind::BigInt(b) => {
                 let biguint = BigUint::from_str_radix(b, 10).expect("failed to parse number.");
-                let f = Field::try_from(biguint).map_err(|_| Error {
+                let ff = Field::try_from(biguint).map_err(|_| Error {
                     kind: ErrorKind::CannotConvertToField(b.to_string()),
                     span: expr.span,
                 })?;
 
-                Some(Var::new_constant(f, expr.span))
+                Some(Var::new_constant(
+                    Constant {
+                        value: ff,
+                        span: expr.span,
+                    },
+                    expr.span,
+                ))
             }
             ExprKind::Bool(b) => {
-                let val = if *b { Field::one() } else { Field::zero() };
-                Some(Var::new_constant(val, expr.span))
+                let value = if *b { Field::one() } else { Field::zero() };
+                Some(Var::new_constant(
+                    Constant {
+                        value,
+                        span: expr.span,
+                    },
+                    expr.span,
+                ))
             }
             ExprKind::Identifier(name) => {
                 let var = local_env.get_var(name).clone();
@@ -708,11 +764,10 @@ impl CircuitWriter {
             }
             ExprKind::ArrayAccess(path, expr) => {
                 // retrieve the CircuitVar at the path
-                let array: CellVars = if path.len() == 1 {
+                let array: Var = if path.len() == 1 {
                     // var present in the scope
                     let name = &path.path[0].value;
-                    let array_var = local_env.get_var(name);
-                    array_var.circuit_var().unwrap()
+                    local_env.get_var(name).clone()
                 } else if path.len() == 2 {
                     // check module present in the scope
                     let module = &path.path[0];
@@ -738,25 +793,37 @@ impl CircuitWriter {
                     })?;
 
                 // the index must be a constant!!
-                let idx: Field = idx_var.constant().ok_or(Error {
+                let idx = idx_var[0].cst().ok_or(Error {
                     kind: ErrorKind::ExpectedConstant,
                     span: expr.span,
                 })?;
 
-                let idx: BigUint = idx.into();
+                let idx: BigUint = idx.value.into();
                 let idx: usize = idx.try_into().unwrap();
 
-                // index into the CircuitVar
-                // (and prevent out of bounds)
-                let res = array.var(idx);
-                if res.is_none() {
-                    return Err(Error {
-                        kind: ErrorKind::ArrayIndexOutOfBounds(idx, array.len()),
-                        span: expr.span,
-                    });
+                // index into the CircuitVar (and prevent out of bounds)
+                let res = array.get(idx).cloned().ok_or(Error {
+                    kind: ErrorKind::ArrayIndexOutOfBounds(idx, array.len()),
+                    span: expr.span,
+                })?;
+
+                //
+                Some(Var::new(vec![res], expr.span))
+            }
+            ExprKind::ArrayDeclaration(items) => {
+                // we only support arrays of Field elements at the moment.
+                // not sure yet how we can support any other type of arrays...
+                // perhaps we could abstract an array as an list of cellvars (each item contains one cellvars)
+                let mut vars = Vec::with_capacity(items.len());
+
+                for item in items {
+                    let var = self.compute_expr(global_env, local_env, item)?.unwrap();
+                    vars.push(var[0].clone());
                 }
 
-                res.map(|var| Var::new_circuit_var(vec![var], expr.span))
+                let cvar = Var::new(vars, expr.span);
+
+                Some(cvar)
             }
         };
 
@@ -765,7 +832,7 @@ impl CircuitWriter {
 
     // TODO: dead code?
     pub fn compute_constant(&self, var: CellVar, span: Span) -> Result<Field> {
-        match &self.witness_vars.get(&var) {
+        match &self.witness_vars.get(&var.index) {
             Some(Value::Constant(c)) => Ok(*c),
             Some(Value::LinearCombination(lc, cst)) => {
                 let mut res = *cst;
@@ -788,75 +855,6 @@ impl CircuitWriter {
 
     pub fn num_gates(&self) -> usize {
         self.gates.len()
-    }
-
-    fn add(&mut self, lhs: Var, rhs: Var, span: Span) -> Var {
-        match (lhs, rhs) {
-            (
-                Var::Constant(Constant { value: lhs, .. }),
-                Var::Constant(Constant { value: rhs, .. }),
-            ) => Var::new_constant(lhs + rhs, span),
-            (Var::Constant(Constant { value: cst, .. }), Var::CircuitVar(vars))
-            | (Var::CircuitVar(vars), Var::Constant(Constant { value: cst, .. })) => {
-                if vars.len() != 1 {
-                    unimplemented!();
-                }
-                let var = vars.var(0).unwrap();
-
-                // if the constant is zero, we can ignore this gate
-                if cst.is_zero() {
-                    return Var::CircuitVar(vars);
-                }
-
-                // create a new variable to store the result
-                let res = self.new_internal_var(
-                    Value::LinearCombination(vec![(Field::one(), var)], cst),
-                    span,
-                );
-
-                // create a gate to store the result
-                // TODO: we should use an add_generic function that takes advantage of the double generic gate
-                let zero = Field::zero();
-                let one = Field::one();
-                self.add_gate(
-                    "add a constant with a variable",
-                    GateKind::DoubleGeneric,
-                    vec![Some(var), None, Some(res)],
-                    vec![one, zero, one.neg(), zero, cst],
-                    span,
-                );
-
-                Var::new_circuit_var(vec![res], span)
-            }
-            (Var::CircuitVar(lhs), Var::CircuitVar(rhs)) => {
-                if lhs.len() != 1 || rhs.len() != 1 {
-                    unimplemented!();
-                }
-
-                let lhs = lhs.var(0).unwrap();
-                let rhs = rhs.var(0).unwrap();
-
-                // create a new variable to store the result
-                let res = self.new_internal_var(
-                    Value::LinearCombination(
-                        vec![(Field::one(), lhs), (Field::one(), rhs)],
-                        Field::zero(),
-                    ),
-                    span,
-                );
-
-                // create a gate to store the result
-                self.add_gate(
-                    "add two variables together",
-                    GateKind::DoubleGeneric,
-                    vec![Some(lhs), Some(rhs), Some(res)],
-                    vec![Field::one(), Field::one(), Field::one().neg()],
-                    span,
-                );
-
-                Var::new_circuit_var(vec![res], span)
-            }
-        }
     }
 
     // TODO: we should cache constants to avoid creating a new variable for each constant
@@ -911,7 +909,7 @@ impl CircuitWriter {
             if let Some(var) = var {
                 let curr_cell = Cell { row, col };
                 self.wiring
-                    .entry(*var)
+                    .entry(var.index)
                     .and_modify(|w| match w {
                         Wiring::NotWired(cell) => {
                             *w = Wiring::Wired(vec![(*cell, var.span), (curr_cell, span)])
@@ -925,7 +923,7 @@ impl CircuitWriter {
         }
     }
 
-    pub fn add_public_inputs(&mut self, name: String, num: usize, span: Span) -> CellVars {
+    pub fn add_public_inputs(&mut self, name: String, num: usize, span: Span) -> Var {
         let mut vars = Vec::with_capacity(num);
 
         for idx in 0..num {
@@ -945,10 +943,10 @@ impl CircuitWriter {
 
         self.public_input_size += num;
 
-        CellVars::new(vars, span)
+        Var::new_vars(vars, span)
     }
 
-    pub fn public_outputs(&mut self, num: usize, span: Span) {
+    pub fn add_public_outputs(&mut self, num: usize, span: Span) {
         assert!(self.public_output.is_none());
 
         let mut vars = Vec::with_capacity(num);
@@ -969,11 +967,10 @@ impl CircuitWriter {
         self.public_input_size += num;
 
         // store it
-        let cvar = CellVars::new(vars, span);
-        self.public_output = Some(cvar);
+        self.public_output = Some(Var::new_vars(vars, span));
     }
 
-    pub fn add_private_inputs(&mut self, name: String, num: usize, span: Span) -> CellVars {
+    pub fn add_private_inputs(&mut self, name: String, num: usize, span: Span) -> Var {
         let mut vars = Vec::with_capacity(num);
 
         for idx in 0..num {
@@ -983,7 +980,7 @@ impl CircuitWriter {
             self.private_input_indices.push(var.index);
         }
 
-        CellVars::new(vars, span)
+        Var::new_vars(vars, span)
     }
 }
 

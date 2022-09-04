@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{
-    field::Field,
+    constants::Field,
     inputs::{parse_inputs, ExtField},
     prover::compile_and_prove,
 };
@@ -101,4 +101,13 @@ fn test_for_loop() {
     let public_inputs = r#"{"public_input": ["9"]}"#;
 
     test_file("for_loop", public_inputs, private_inputs, vec![]);
+}
+
+#[test]
+#[ignore]
+fn test_array() {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"public_input": ["1", "2"]}"#;
+
+    test_file("array", public_inputs, private_inputs, vec![]);
 }

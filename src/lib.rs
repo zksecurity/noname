@@ -29,7 +29,23 @@ pub mod tests;
 pub mod helpers {
     use kimchi::oracle::{constants::PlonkSpongeConstantsKimchi, poseidon::Sponge};
 
-    use crate::field::Field;
+    use crate::constants::Field;
+
+    /// A trait to display [Field] in pretty ways.
+    pub trait PrettyField: ark_ff::PrimeField {
+        /// Print a field in a negative form if it's past the half point.
+        fn pretty(&self) -> String {
+            let bigint: num_bigint::BigUint = (*self).into();
+            let inv: num_bigint::BigUint = self.neg().into(); // gettho way of splitting the field into positive and negative elements
+            if inv < bigint {
+                format!("-{}", inv)
+            } else {
+                bigint.to_string()
+            }
+        }
+    }
+
+    impl PrettyField for Field {}
 
     pub fn poseidon(input: [Field; 2]) -> Field {
         let mut sponge: kimchi::oracle::poseidon::ArithmeticSponge<

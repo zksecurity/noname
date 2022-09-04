@@ -6,9 +6,9 @@ use itertools::{chain, Itertools};
 use crate::{
     boolean,
     circuit_writer::{CellValues, CellVar, CircuitWriter, Value},
-    constants::{Span, NUM_REGISTERS},
+    constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
-    field::{Field, PrettyField},
+    helpers::PrettyField as _,
     inputs::Inputs,
     parser::TyKind,
 };
@@ -85,7 +85,7 @@ impl CompiledCircuit {
             return Ok(*res);
         }
 
-        match &self.witness_vars[&var] {
+        match &self.witness_vars[&var.index] {
             Value::Hint(func) => {
                 let res = func(self, env)
                     .expect("that function doesn't return a var (type checker error)");
@@ -207,7 +207,7 @@ impl CompiledCircuit {
             for (col, var) in row_of_vars.iter().enumerate() {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
-                    if matches!(self.witness_vars[var], Value::PublicOutput(_)) {
+                    if matches!(self.witness_vars[&var.index], Value::PublicOutput(_)) {
                         public_outputs_vars.push((row, *var));
                         Field::zero()
                     } else {

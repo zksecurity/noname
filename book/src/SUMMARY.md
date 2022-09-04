@@ -16,8 +16,8 @@
 
 # Circuit Generation
 
-- [CellVar](./cellvar.md)
-- [CircuitVar](./circuitvar.md)
+- [CellVars](./cellvar.md)
+- [Vars](./var.md)
 - [Constants](./constants.md)
 
 # Proof Creation

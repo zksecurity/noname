@@ -315,6 +315,7 @@ pub enum ExprKind {
     BigInt(String),
     Identifier(String),
     ArrayAccess(Path, Box<Expr>),
+    ArrayDeclaration(Vec<Expr>),
     Bool(bool),
 }
 
@@ -521,6 +522,62 @@ impl Expr {
                     kind: ExprKind::Negated(Box::new(expr)),
                     typ: Some(TyKind::Bool),
                     span,
+                }
+            }
+
+            // array declaration
+            TokenKind::LeftBracket => {
+                let mut items = vec![];
+                let mut last_span = span;
+
+                // [1, 2];
+                //  ^^^^
+                loop {
+                    let token = tokens.peek();
+
+                    // [1, 2];
+                    //      ^
+                    if let Some(Token {
+                        kind: TokenKind::RightBracket,
+                        span,
+                    }) = token
+                    {
+                        last_span = span;
+                        tokens.bump(ctx);
+                        break;
+                    };
+
+                    // [1, 2];
+                    //  ^
+                    let item = Expr::parse(ctx, tokens)?;
+                    items.push(item);
+
+                    // [1, 2];
+                    //   ^  ^
+                    let token = tokens.bump_err(ctx, ErrorKind::InvalidEndOfLine)?;
+                    match &token.kind {
+                        TokenKind::RightBracket => {
+                            last_span = token.span;
+                            break;
+                        }
+                        TokenKind::Comma => (),
+                        _ => {
+                            return Err(Error {
+                                kind: ErrorKind::InvalidEndOfLine,
+                                span: token.span,
+                            })
+                        }
+                    };
+                }
+
+                if items.is_empty() {
+                    panic!("empty array declaration (TODO: better error)");
+                }
+
+                Expr {
+                    kind: ExprKind::ArrayDeclaration(items),
+                    typ: None,
+                    span: span.merge_with(last_span),
                 }
             }
 
@@ -919,6 +976,19 @@ pub fn is_valid_fn_type(name: &str) -> bool {
 //~
 
 #[derive(Debug)]
+pub struct Range {
+    pub start: u32,
+    pub end: u32,
+    pub span: Span,
+}
+
+impl Range {
+    pub fn range(&self) -> std::ops::Range<u32> {
+        self.start..self.end
+    }
+}
+
+#[derive(Debug)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub span: Span,
@@ -936,8 +1006,7 @@ pub enum StmtKind {
     Comment(String),
     For {
         var: Ident,
-        start: u32,
-        end: u32,
+        range: Range,
         body: Vec<Stmt>,
     },
 }
@@ -1016,14 +1085,17 @@ impl Stmt {
 
                 // for i in 0..5 { ... }
                 //          ^
-                let start: u32 = match tokens.bump(ctx) {
+                let (start, start_span) = match tokens.bump(ctx) {
                     Some(Token {
                         kind: TokenKind::BigInt(n),
                         span,
-                    }) => n.parse().map_err(|_e| Error {
-                        kind: ErrorKind::InvalidRangeSize,
-                        span,
-                    })?,
+                    }) => {
+                        let start: u32 = n.parse().map_err(|_e| Error {
+                            kind: ErrorKind::InvalidRangeSize,
+                            span,
+                        })?;
+                        (start, span)
+                    }
                     _ => {
                         return Err(Error {
                             kind: ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
@@ -1038,20 +1110,29 @@ impl Stmt {
 
                 // for i in 0..5 { ... }
                 //             ^
-                let end: u32 = match tokens.bump(ctx) {
+                let (end, end_span) = match tokens.bump(ctx) {
                     Some(Token {
                         kind: TokenKind::BigInt(n),
                         span,
-                    }) => n.parse().map_err(|_e| Error {
-                        kind: ErrorKind::InvalidRangeSize,
-                        span,
-                    })?,
+                    }) => {
+                        let end: u32 = n.parse().map_err(|_e| Error {
+                            kind: ErrorKind::InvalidRangeSize,
+                            span,
+                        })?;
+                        (end, span)
+                    }
                     _ => {
                         return Err(Error {
                             kind: ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
                             span: ctx.last_span(),
                         })
                     }
+                };
+
+                let range = Range {
+                    start,
+                    end,
+                    span: start_span.merge_with(end_span),
                 };
 
                 // for i in 0..5 { ... }
@@ -1086,12 +1167,7 @@ impl Stmt {
 
                 //
                 Ok(Stmt {
-                    kind: StmtKind::For {
-                        var,
-                        start,
-                        end,
-                        body,
-                    },
+                    kind: StmtKind::For { var, range, body },
                     span,
                 })
             }

@@ -5,9 +5,8 @@ use std::ops::Neg;
 use ark_ff::{One, Zero};
 
 use crate::{
-    circuit_writer::{CircuitWriter, Constant, GateKind, Value, Var},
-    constants::Span,
-    field::Field,
+    circuit_writer::{CircuitWriter, ConstOrCell, Constant, GateKind, Value, Var},
+    constants::{Field, Span},
 };
 
 pub fn is_valid(f: Field) -> bool {
@@ -15,33 +14,31 @@ pub fn is_valid(f: Field) -> bool {
 }
 
 pub fn and(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var {
-    match (lhs, rhs) {
+    // sanity checks
+    assert_eq!(lhs.len(), 1);
+    assert_eq!(rhs.len(), 1);
+
+    match (&lhs[0], &rhs[0]) {
         // two constants
         (
-            Var::Constant(Constant { value: lhs, .. }),
-            Var::Constant(Constant { value: rhs, .. }),
-        ) => Var::new_constant(lhs * rhs, span),
+            ConstOrCell::Const(Constant { value: lhs, .. }),
+            ConstOrCell::Const(Constant { value: rhs, .. }),
+        ) => Var::new_constant(Constant::new(*lhs * *rhs, span), span),
 
         // constant and a var
-        (Var::Constant(Constant { value: cst, .. }), Var::CircuitVar(vars))
-        | (Var::CircuitVar(vars), Var::Constant(Constant { value: cst, .. })) => {
+        (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
+        | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
             if cst.is_one() {
-                Var::CircuitVar(vars)
+                Var::new_vars(vec![*cvar], span)
             } else {
-                Var::Constant(Constant { value: cst, span })
+                Var::new_constant(*cst, span)
             }
         }
 
         // two vars
-        (Var::CircuitVar(lhs), Var::CircuitVar(rhs)) => {
-            // sanity check
-            assert_ne!(lhs.len(), 1);
-            assert_ne!(rhs.len(), 1);
-
+        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // create a new variable to store the result
-            let lhs = lhs.var(0).unwrap();
-            let rhs = rhs.var(0).unwrap();
-            let res = compiler.new_internal_var(Value::Mul(lhs, rhs), span);
+            let res = compiler.new_internal_var(Value::Mul(*lhs, *rhs), span);
 
             // create a gate to constrain the result
             let zero = Field::zero();
@@ -49,39 +46,38 @@ pub fn and(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
             compiler.add_gate(
                 "constrain the AND as lhs * rhs",
                 GateKind::DoubleGeneric,
-                vec![Some(lhs), Some(rhs), Some(res)],
+                vec![Some(*lhs), Some(*rhs), Some(res)],
                 vec![zero, zero, one.neg(), one], // mul
                 span,
             );
 
             // return the result
-            Var::new_circuit_var(vec![res], span)
+            Var::new_vars(vec![res], span)
         }
     }
 }
 
 pub fn neg(compiler: &mut CircuitWriter, var: Var, span: Span) -> Var {
-    match var {
-        Var::Constant(v) => {
-            let value = if v.value == Field::one() {
+    // sanity check
+    assert_eq!(var.len(), 1);
+
+    match var[0] {
+        ConstOrCell::Const(cst) => {
+            let value = if cst.is_one() {
                 Field::zero()
             } else {
                 Field::one()
             };
 
-            Var::Constant(Constant { value, ..v })
+            Var::new_constant(Constant { value, ..cst }, span)
         }
 
         // constant and a var
-        Var::CircuitVar(vars) => {
+        ConstOrCell::Cell(cvar) => {
             let zero = Field::zero();
             let one = Field::one();
 
-            // sanity check
-            assert_eq!(vars.len(), 1);
-
             // create a new variable to store the result
-            let cvar = vars.var(0).unwrap();
             let lc = Value::LinearCombination(vec![(one.neg(), cvar)], one); // 1 - X
             let res = compiler.new_internal_var(lc, span);
 
@@ -96,7 +92,7 @@ pub fn neg(compiler: &mut CircuitWriter, var: Var, span: Span) -> Var {
             );
 
             // return the result
-            Var::new_circuit_var(vec![res], span)
+            Var::new_vars(vec![res], span)
         }
     }
 }

@@ -121,6 +121,35 @@ impl Expr {
                     _ => panic!("not an array"),
                 }
             }
+            ExprKind::ArrayDeclaration(items) => {
+                let len: u32 = items.len().try_into().expect("array too large");
+
+                let mut tykind: Option<TyKind> = None;
+
+                for item in items {
+                    let item_typ = item.compute_type(env, type_env)?.expect("expected a value");
+
+                    if let Some(tykind) = &tykind {
+                        if tykind != &item_typ {
+                            return Err(Error {
+                                kind: ErrorKind::MismatchType(tykind.clone(), item_typ),
+                                span: self.span,
+                            });
+                        }
+                    } else {
+                        tykind = Some(item_typ);
+                    }
+                }
+
+                let tykind = tykind.expect("empty array declaration?");
+
+                match tykind {
+                    TyKind::Field | TyKind::BigInt => (),
+                    _ => panic!("arrays can only be of field or bigint"),
+                };
+
+                Ok(Some(TyKind::Array(Box::new(tykind), len)))
+            }
         }
     }
 }
@@ -455,12 +484,7 @@ impl TAST {
                 // store the type of lhs in the env
                 type_env.store_type(lhs.value.clone(), type_info)?;
             }
-            StmtKind::For {
-                var,
-                start,
-                end,
-                body,
-            } => {
+            StmtKind::For { var, range, body } => {
                 // enter a new scope
                 type_env.nest();
 
@@ -468,7 +492,7 @@ impl TAST {
                 type_env.store_type(var.value.clone(), TypeInfo::new(TyKind::BigInt, var.span))?;
 
                 // ensure start..end makes sense
-                if end < start {
+                if range.end < range.start {
                     panic!("end can't be smaller than start (TODO: better error)");
                 }
 

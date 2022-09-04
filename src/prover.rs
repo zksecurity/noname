@@ -5,9 +5,8 @@ use std::iter::once;
 use crate::{
     circuit_writer::Wiring,
     compiler,
-    constants::Span,
+    constants::{Field, Span},
     error::{Error, Result},
-    field::Field,
     inputs::Inputs,
     witness::CompiledCircuit,
 };

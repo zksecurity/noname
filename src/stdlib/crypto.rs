@@ -9,9 +9,8 @@ use kimchi::{
 };
 
 use crate::{
-    circuit_writer::{CircuitWriter, GateKind, Value, Var},
-    constants::{self, Span},
-    field::Field,
+    circuit_writer::{CircuitWriter, ConstOrCell, GateKind, Value, Var},
+    constants::{self, Field, Span},
     imports::FuncType,
 };
 
@@ -22,11 +21,31 @@ pub const CRYPTO_FNS: [(&str, FuncType); 1] = [(POSEIDON_FN, poseidon)];
 pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<Var> {
     // double check input
     assert_eq!(vars.len(), 1);
-    let mut input = match vars[0].circuit_var() {
-        None => unimplemented!(),
-        Some(cvar) => cvar.vars,
-    };
-    assert_eq!(input.len(), 2);
+    let input = vars[0].value.clone();
+
+    assert_eq!(input.len(), 2); // size of poseidon input
+
+    // hashing a full-constant input is not a good idea
+    if matches!(
+        (&input[0], &input[1]),
+        (ConstOrCell::Const(_), ConstOrCell::Const(_))
+    ) {
+        panic!("cannot hash a full-constant input (TODO: better error)");
+    }
+
+    // time to constrain the input if they're constants
+    let mut cells = vec![];
+    for const_or_cell in input {
+        match const_or_cell {
+            ConstOrCell::Const(cst) => {
+                // TODO: should span point to creation of the constant,
+                // or the usage of the constant?
+                let cell = compiler.add_constant(cst.value, cst.span);
+                cells.push(cell);
+            }
+            ConstOrCell::Cell(cell) => cells.push(cell),
+        }
+    }
 
     // get constants needed for poseidon
     let poseidon_params = oracle::pasta::fp_kimchi::params();
@@ -36,9 +55,9 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Optio
 
     // pad the input (for the capacity)
     let zero = compiler.add_constant(Field::zero(), span);
-    input.push(zero);
+    cells.push(zero);
 
-    let mut states = vec![input.clone()];
+    let mut states = vec![cells.clone()];
 
     // 0..11
     for row in 0..POS_ROWS_PER_HASH {
@@ -129,5 +148,5 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Optio
 
     //    states.borrow_mut().pop().unwrap();
     let vars = final_row.iter().flatten().cloned().collect();
-    Some(Var::new_circuit_var(vars, span))
+    Some(Var::new_vars(vars, span))
 }

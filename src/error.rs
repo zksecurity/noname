@@ -185,4 +185,7 @@ pub enum ErrorKind {
 
     #[error("local variable `{0}` couldn't be found")]
     LocalVariableNotFound(String),
+
+    #[error("the public output cannot contain constants")]
+    ConstantInOutput,
 }

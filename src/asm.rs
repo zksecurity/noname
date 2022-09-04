@@ -28,15 +28,15 @@ use std::hash::Hash;
 use itertools::Itertools;
 
 use crate::{
-    circuit_writer::{CellVar, Gate, Wiring},
-    constants::Span,
-    field::{Field, PrettyField as _},
+    circuit_writer::{Gate, Wiring},
+    constants::{Field, Span},
+    helpers::PrettyField as _,
 };
 
 pub fn generate_asm(
     source: &str,
     gates: &[Gate],
-    wiring: &HashMap<CellVar, Wiring>,
+    wiring: &HashMap<usize, Wiring>,
     debug: bool,
 ) -> String {
     let mut res = "".to_string();

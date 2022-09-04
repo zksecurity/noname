@@ -1,13 +1,6 @@
-fn main(pub public_input: Bool, private_input: Bool) {
-    // constants
-    let x = false & false;
-    assert(!x);
+fn main(pub public_input: [Field; 2]) {
+    let x = [1, 2, 3];
 
-    // private input must be true
-    let y = private_input & true;
-    assert(!y);
-
-    // public input must be false
-    let z = public_input & true;
-    assert(z);
+    assert_eq(public_input[0], x[0]);
+    assert_eq(public_input[1], x[1]);
 }
