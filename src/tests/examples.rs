@@ -104,7 +104,6 @@ fn test_for_loop() {
 }
 
 #[test]
-#[ignore]
 fn test_array() {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"public_input": ["1", "2"]}"#;
