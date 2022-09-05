@@ -381,10 +381,8 @@ impl CircuitWriter {
 
         for root in &ast.0 {
             match &root.kind {
-                // `use crypto::poseidon;`
-                RootKind::Use(_path) => {
-                    // we already dealt with that in the type check pass
-                }
+                // imports (already dealt with in type checker)
+                RootKind::Use(_path) => (),
 
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
@@ -457,10 +455,8 @@ impl CircuitWriter {
                     local_env.pop();
                 }
 
-                // struct definition
-                RootKind::Struct(_struct) => {
-                    todo!()
-                }
+                // struct definition (already dealt with in type checker)
+                RootKind::Struct(_struct) => (),
 
                 // ignore comments
                 // TODO: we could actually preserve the comment in the ASM!
@@ -729,7 +725,6 @@ impl CircuitWriter {
 
                 None
             }
-            ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
                     let lhs = self.compute_expr(global_env, local_env, lhs)?.unwrap();
@@ -852,6 +847,7 @@ impl CircuitWriter {
                 Some(cvar)
             }
             ExprKind::CustomTypeDeclaration(name, fields) => todo!(),
+            ExprKind::StructAccess(name, field) => todo!(),
         };
 
         Ok(var)

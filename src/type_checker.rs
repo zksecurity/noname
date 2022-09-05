@@ -4,7 +4,9 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     imports::{FuncInScope, GlobalEnv},
-    parser::{Expr, ExprKind, FunctionSig, Op2, Path, RootKind, Stmt, StmtKind, Ty, TyKind, AST},
+    parser::{
+        Expr, ExprKind, FunctionSig, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind, AST,
+    },
 };
 
 //
@@ -44,7 +46,6 @@ impl Expr {
 
                 Ok(None)
             }
-            ExprKind::Comparison(_, _, _) => todo!(),
             ExprKind::Op(op, lhs, rhs) => {
                 let lhs_typ = lhs.compute_type(env, type_env)?.unwrap();
                 let rhs_typ = rhs.compute_type(env, type_env)?.unwrap();
@@ -160,7 +161,76 @@ impl Expr {
                 Ok(Some(TyKind::Array(Box::new(tykind), len)))
             }
             ExprKind::CustomTypeDeclaration(name, fields) => {
-                todo!()
+                let defined_fields = type_env.structs.get(name).cloned().ok_or(Error {
+                    kind: ErrorKind::UndefinedStruct(name.to_string()),
+                    span: self.span,
+                })?;
+
+                if defined_fields.len() != fields.len() {
+                    return Err(Error {
+                        kind: ErrorKind::MismatchStructFields(name.to_string()),
+                        span: self.span,
+                    });
+                }
+
+                for (defined, observed) in defined_fields.iter().zip(fields) {
+                    if defined.0 != observed.0.value {
+                        return Err(Error {
+                            kind: ErrorKind::InvalidStructField(
+                                defined.0.clone(),
+                                observed.0.value.clone(),
+                            ),
+                            span: self.span,
+                        });
+                    }
+
+                    let observed_typ = observed
+                        .1
+                        .compute_type(env, type_env)?
+                        .expect("expected a value (TODO: better error)");
+
+                    if defined.1 != observed_typ {
+                        match (&defined.1, &observed_typ) {
+                            (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field) => (),
+                            _ => {
+                                return Err(Error {
+                                    kind: ErrorKind::InvalidStructFieldType(
+                                        defined.1.clone(),
+                                        observed_typ,
+                                    ),
+                                    span: self.span,
+                                });
+                            }
+                        };
+                    }
+                }
+
+                Ok(Some(TyKind::Custom(name.to_string())))
+            }
+            ExprKind::StructAccess(name, field) => {
+                let struct_name = type_env
+                    .get_type(&name.value)
+                    .expect("could not find variable in scope (TODO: better error)");
+
+                let struct_name = match struct_name {
+                    TyKind::Custom(name) => name,
+                    _ => panic!(
+                        "cannot access a field on a non-struct variable (TODO: better error)"
+                    ),
+                };
+
+                let struct_type = type_env
+                    .structs
+                    .get(struct_name)
+                    .expect("could not find struct in scope (TODO: better error)");
+
+                let field_type = struct_type
+                    .iter()
+                    .find(|(name, _)| name == &field.value)
+                    .map(|(_, typ)| typ)
+                    .expect("could not find given field in custom struct (TODO: better error");
+
+                Ok(Some(field_type.clone()))
             }
         }
     }
@@ -214,6 +284,9 @@ pub struct TypeEnv {
     /// Vars local to their scope.
     /// This needs to be garbage collected when we exit a scope.
     vars: HashMap<String, (usize, TypeInfo)>,
+
+    /// Custom structs
+    structs: HashMap<String, Vec<(String, TyKind)>>,
 }
 
 impl TypeEnv {
@@ -422,7 +495,18 @@ impl TAST {
                 }
 
                 // custom structs
-                RootKind::Struct(_struct_) => todo!(),
+                RootKind::Struct(struct_) => {
+                    let Struct { name, fields, .. } = struct_;
+
+                    let fields = fields
+                        .iter()
+                        .map(|field| {
+                            let (name, typ) = field;
+                            (name.value.clone(), typ.kind.clone())
+                        })
+                        .collect();
+                    type_env.structs.insert(name.value.clone(), fields);
+                }
 
                 // ignore comments
                 RootKind::Comment(_comment) => (),

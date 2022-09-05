@@ -191,4 +191,16 @@ pub enum ErrorKind {
 
     #[error("the public output cannot contain constants")]
     ConstantInOutput,
+
+    #[error("incorrect number of fields declared for the `{0}` struct declaration")]
+    MismatchStructFields(String),
+
+    #[error("invalid field, expected `{0}` and got `{1}`")]
+    InvalidStructField(String, String),
+
+    #[error("invalid type for the field, expected `{0}` and got `{1}`")]
+    InvalidStructFieldType(TyKind, TyKind),
+
+    #[error("struct `{0}` is never defined")]
+    UndefinedStruct(String),
 }

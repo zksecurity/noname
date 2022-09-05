@@ -197,21 +197,21 @@ impl Display for TyKind {
     }
 }
 
-pub fn reserved_types(ty_name: &str) -> TyKind {
-    match ty_name {
-        "Field" => TyKind::Field,
-        "Bool" => TyKind::Bool,
-        _ => TyKind::Custom(ty_name.to_string()),
-    }
-}
-
 impl Ty {
+    pub fn reserved_types(ty_name: &str) -> TyKind {
+        match ty_name {
+            "Field" => TyKind::Field,
+            "Bool" => TyKind::Bool,
+            _ => TyKind::Custom(ty_name.to_string()),
+        }
+    }
+
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
         match token.kind {
             // struct name
             TokenKind::Type(name) => {
-                let ty_kind = reserved_types(&name);
+                let ty_kind = Self::reserved_types(&name);
                 Ok(Self {
                     kind: ty_kind,
                     span: token.span,
@@ -288,14 +288,6 @@ impl Ty {
 //~ fn_call ::= ident "(" expr { "," expr } ")"
 //~ array_access ::= ident "[" expr "]"
 //~
-#[derive(Debug, Clone)]
-pub enum ComparisonOp {
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-    Equal,
-}
 
 #[derive(Debug, Clone)]
 pub struct Expr {
@@ -309,8 +301,6 @@ pub enum ExprKind {
     //    Literal(String),
     FnCall { name: Path, args: Vec<Expr> },
     Assignment { lhs: Box<Expr>, rhs: Box<Expr> },
-    // TODO: move to Op?
-    Comparison(ComparisonOp, Box<Expr>, Box<Expr>),
     Op(Op2, Box<Expr>, Box<Expr>),
     Negated(Box<Expr>),
     BigInt(String),
@@ -318,6 +308,7 @@ pub enum ExprKind {
     ArrayAccess(Path, Box<Expr>),
     ArrayDeclaration(Vec<Expr>),
     CustomTypeDeclaration(String, Vec<(Ident, Expr)>),
+    StructAccess(Ident, Ident),
     Bool(bool),
 }
 
@@ -476,14 +467,28 @@ impl Expr {
                             span,
                         }
                     }
-                    _ => {
-                        // just a variable
+
+                    // a struct access
+                    TokenKind::Period => {
+                        tokens.bump(ctx); // .
+
+                        let field = Ident::parse(ctx, tokens)?;
+
+                        let span = path.span.merge_with(field.span);
+
                         Expr {
-                            kind: ExprKind::Identifier(path.path[0].value.clone()),
+                            kind: ExprKind::StructAccess(path.path[0].clone(), field),
                             typ: None,
                             span,
                         }
                     }
+
+                    // just a variable
+                    _ => Expr {
+                        kind: ExprKind::Identifier(path.path[0].value.clone()),
+                        typ: None,
+                        span,
+                    },
                 }
             }
 
@@ -607,7 +612,7 @@ impl Expr {
 
                     // Thing { x: 1, y: 2 }
                     //         ^
-                    let field_name = parse_ident(ctx, tokens)?;
+                    let field_name = Ident::parse(ctx, tokens)?;
 
                     // Thing { x: 1, y: 2 }
                     //          ^
@@ -743,6 +748,22 @@ pub struct Ident {
     pub span: Span,
 }
 
+impl Ident {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        let token = tokens.bump_err(ctx, ErrorKind::MissingToken)?;
+        match token.kind {
+            TokenKind::Identifier(ident) => Ok(Self {
+                value: ident,
+                span: token.span,
+            }),
+            _ => Err(Error {
+                kind: ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
+                span: token.span,
+            }),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum AttributeKind {
     Pub,
@@ -752,6 +773,12 @@ impl AttributeKind {
     pub fn is_public(&self) -> bool {
         matches!(self, Self::Pub)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Attribute {
+    pub kind: AttributeKind,
+    pub span: Span,
 }
 
 #[derive(Debug)]
@@ -773,12 +800,6 @@ pub struct FuncArg {
     pub name: Ident,
     pub typ: Ty,
     pub attribute: Option<Attribute>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct Attribute {
-    pub kind: AttributeKind,
     pub span: Span,
 }
 
@@ -845,7 +866,7 @@ impl Function {
                 TokenKind::RightParen => break,
                 // public input
                 TokenKind::Keyword(Keyword::Pub) => {
-                    let arg_name = parse_ident(ctx, tokens)?;
+                    let arg_name = Ident::parse(ctx, tokens)?;
                     (
                         Some(Attribute {
                             kind: AttributeKind::Pub,
@@ -1109,7 +1130,7 @@ impl Stmt {
 
                 // let mut x = 5;
                 //         ^
-                let lhs = parse_ident(ctx, tokens)?;
+                let lhs = Ident::parse(ctx, tokens)?;
 
                 // let mut x = 5;
                 //           ^
@@ -1141,7 +1162,7 @@ impl Stmt {
 
                 // for i in 0..5 { ... }
                 //     ^
-                let var = parse_ident(ctx, tokens)?;
+                let var = Ident::parse(ctx, tokens)?;
 
                 // for i in 0..5 { ... }
                 //       ^^
@@ -1309,7 +1330,7 @@ pub enum RootKind {
 }
 
 //
-// Struct
+// Custom Struct
 //
 
 #[derive(Debug)]
@@ -1354,7 +1375,7 @@ impl Struct {
             }
             // struct Foo { a: Field, b: Field }
             //              ^
-            let field_name = parse_ident(ctx, tokens)?;
+            let field_name = Ident::parse(ctx, tokens)?;
 
             // struct Foo { a: Field, b: Field }
             //               ^
@@ -1397,6 +1418,16 @@ impl Struct {
         Ok(Struct { name, fields, span })
     }
 }
+
+//
+// Struct access
+//
+
+pub struct StructAccess {
+    name: Ident,
+    field: Ident,
+}
+
 //
 // AST
 //
@@ -1491,20 +1522,6 @@ impl AST {
 // Helpers
 //
 
-pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident> {
-    let token = tokens.bump_err(ctx, ErrorKind::MissingToken)?;
-    match token.kind {
-        TokenKind::Identifier(ident) => Ok(Ident {
-            value: ident,
-            span: token.span,
-        }),
-        _ => Err(Error {
-            kind: ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
-            span: token.span,
-        }),
-    }
-}
-
 #[derive(Debug)]
 pub struct CustomType {
     pub value: String,
@@ -1516,7 +1533,7 @@ pub fn parse_type(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<CustomType
     match token.kind {
         TokenKind::Type(ty_name) => {
             // make sure that this type is allowed
-            if !matches!(reserved_types(&ty_name), TyKind::Custom(_)) {
+            if !matches!(Ty::reserved_types(&ty_name), TyKind::Custom(_)) {
                 return Err(Error {
                     kind: ErrorKind::ReservedType(ty_name.clone()),
                     span: token.span,
