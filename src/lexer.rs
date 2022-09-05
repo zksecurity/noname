@@ -38,6 +38,8 @@ pub enum Keyword {
     For,
     /// The `in` keyword for iterating
     In,
+    /// Allows custom structs to be defined
+    Struct,
 }
 
 impl Keyword {
@@ -55,6 +57,7 @@ impl Keyword {
             "else" => Some(Self::Else),
             "for" => Some(Self::For),
             "in" => Some(Self::In),
+            "struct" => Some(Self::Struct),
             _ => None,
         }
     }
@@ -75,6 +78,7 @@ impl Display for Keyword {
             Self::Else => "else",
             Self::For => "for",
             Self::In => "in",
+            Self::Struct => "struct",
         };
 
         write!(f, "{}", desc)

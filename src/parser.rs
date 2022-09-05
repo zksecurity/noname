@@ -166,7 +166,7 @@ pub enum TyKind {
     /// The main primitive type. 'Nuf said.
     Field,
 
-    /// Unused at the moment I believe
+    /// Custom / user-defined types
     Custom(String),
 
     /// This could be the same as Field, but we use this to also track the fact that it's a constant.
@@ -197,25 +197,26 @@ impl Display for TyKind {
     }
 }
 
+pub fn reserved_types(ty_name: &str) -> TyKind {
+    match ty_name {
+        "Field" => TyKind::Field,
+        "Bool" => TyKind::Bool,
+        _ => TyKind::Custom(ty_name.to_string()),
+    }
+}
+
 impl Ty {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
         match token.kind {
             // struct name
-            TokenKind::Type(name) => match name.as_str() {
-                "Field" => Ok(Self {
-                    kind: TyKind::Field,
+            TokenKind::Type(name) => {
+                let ty_kind = reserved_types(&name);
+                Ok(Self {
+                    kind: ty_kind,
                     span: token.span,
-                }),
-                "Bool" => Ok(Self {
-                    kind: TyKind::Bool,
-                    span: token.span,
-                }),
-                _ => Ok(Self {
-                    kind: TyKind::Custom(name.to_string()),
-                    span: token.span,
-                }),
-            },
+                })
+            }
 
             // array
             // [type; size]
@@ -1241,9 +1242,98 @@ pub enum RootKind {
     Use(Path),
     Function(Function),
     Comment(String),
-    //    Struct(Struct)
+    Struct(Struct),
 }
 
+//
+// Struct
+//
+
+#[derive(Debug)]
+pub struct Struct {
+    //pub attribute: Attribute,
+    pub name: CustomType,
+    pub fields: Vec<(Ident, Ty)>,
+    pub span: Span,
+}
+
+impl Struct {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        // ghetto way of getting the span of the function: get the span of the first token (name), then try to get the span of the last token
+        let span = tokens
+            .peek()
+            .ok_or(Error {
+                kind: ErrorKind::InvalidFunctionSignature("expected function name"),
+                span: ctx.last_span(),
+            })?
+            .span;
+
+        // struct Foo { a: Field, b: Field }
+        //        ^^^
+
+        let name = parse_type(ctx, tokens)?;
+
+        // struct Foo { a: Field, b: Field }
+        //            ^
+        tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
+
+        let mut fields = vec![];
+        loop {
+            // struct Foo { a: Field, b: Field }
+            //                                 ^
+            if let Some(Token {
+                kind: TokenKind::RightCurlyBracket,
+                ..
+            }) = tokens.peek()
+            {
+                tokens.bump(ctx);
+                break;
+            }
+            // struct Foo { a: Field, b: Field }
+            //              ^
+            let field_name = parse_ident(ctx, tokens)?;
+
+            // struct Foo { a: Field, b: Field }
+            //               ^
+            tokens.bump_expected(ctx, TokenKind::Colon)?;
+
+            // struct Foo { a: Field, b: Field }
+            //                 ^^^^^
+            let field_ty = Ty::parse(ctx, tokens)?;
+            fields.push((field_name, field_ty));
+
+            // struct Foo { a: Field, b: Field }
+            //                      ^          ^
+            match tokens.peek() {
+                Some(Token {
+                    kind: TokenKind::Comma,
+                    ..
+                }) => {
+                    tokens.bump(ctx);
+                }
+                Some(Token {
+                    kind: TokenKind::RightCurlyBracket,
+                    ..
+                }) => {
+                    tokens.bump(ctx);
+                    break;
+                }
+                _ => {
+                    return Err(Error {
+                        kind: ErrorKind::ExpectedToken(TokenKind::Comma),
+                        span: ctx.last_span(),
+                    })
+                }
+            }
+        }
+
+        // figure out the span
+        let span = span.merge_with(ctx.last_span());
+
+        //
+        Ok(Struct { name, fields, span })
+    }
+}
 //
 // AST
 //
@@ -1303,6 +1393,15 @@ impl AST {
                     });
                 }
 
+                // `struct Foo { a: Field, b: Field }`
+                TokenKind::Keyword(Keyword::Struct) => {
+                    let s = Struct::parse(ctx, &mut tokens)?;
+                    ast.push(Root {
+                        kind: RootKind::Struct(s),
+                        span: token.span,
+                    });
+                }
+
                 // `// some comment`
                 TokenKind::Comment(comment) => {
                     ast.push(Root {
@@ -1336,6 +1435,36 @@ pub fn parse_ident(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident> {
             value: ident,
             span: token.span,
         }),
+        _ => Err(Error {
+            kind: ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
+            span: token.span,
+        }),
+    }
+}
+
+#[derive(Debug)]
+pub struct CustomType {
+    pub value: String,
+    pub span: Span,
+}
+
+pub fn parse_type(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<CustomType> {
+    let token = tokens.bump_err(ctx, ErrorKind::MissingToken)?;
+    match token.kind {
+        TokenKind::Type(ty_name) => {
+            // make sure that this type is allowed
+            if !matches!(reserved_types(&ty_name), TyKind::Custom(_)) {
+                return Err(Error {
+                    kind: ErrorKind::ReservedType(ty_name.clone()),
+                    span: token.span,
+                });
+            }
+
+            Ok(CustomType {
+                value: ty_name,
+                span: token.span,
+            })
+        }
         _ => Err(Error {
             kind: ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
             span: token.span,

@@ -1,4 +1,14 @@
-fn main(pub x: [Field; 2]) {
-    let cond = x[0] == x[1];
-    assert(cond);
+struct Thing {
+    x: Field,
+    y: Field,
+}
+
+fn main(pub x: Field, pub y: Field) {
+    let thing = Thing {
+        x: 1,
+        y: 2,
+    };
+    
+    assert_eq(thing.x, x);
+    assert_eq(thing.y, y);
 }

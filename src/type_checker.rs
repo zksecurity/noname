@@ -317,6 +317,7 @@ impl TAST {
                 // `use crypto::poseidon;`
                 RootKind::Use(path) => global_env.resolve_imports(path)?,
                 RootKind::Function(_) => (),
+                RootKind::Struct(_) => (),
                 RootKind::Comment(_) => (),
             }
         }
@@ -416,6 +417,9 @@ impl TAST {
                     // exit the scope
                     type_env.pop();
                 }
+
+                // custom structs
+                RootKind::Struct(_struct_) => todo!(),
 
                 // ignore comments
                 RootKind::Comment(_comment) => (),

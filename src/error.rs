@@ -58,6 +58,9 @@ pub enum ErrorKind {
     #[error("invalid type, expected an array or a type name (starting with an uppercase letter, and only containing alphanumeric characters)")]
     InvalidType,
 
+    #[error("the custom type name used: `{0}` is a reserved type name")]
+    ReservedType(String),
+
     #[error("invalid array size, expected [_; x] with x in [0,2^32]")]
     InvalidArraySize,
 

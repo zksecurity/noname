@@ -457,6 +457,11 @@ impl CircuitWriter {
                     local_env.pop();
                 }
 
+                // struct definition
+                RootKind::Struct(_struct) => {
+                    todo!()
+                }
+
                 // ignore comments
                 // TODO: we could actually preserve the comment in the ASM!
                 RootKind::Comment(_comment) => (),
