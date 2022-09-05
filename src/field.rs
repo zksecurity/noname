@@ -2,7 +2,6 @@ use crate::{
     boolean,
     circuit_writer::{CircuitWriter, ConstOrCell, Constant, GateKind, Value, Var},
     constants::{Field, Span},
-    witness::{CompiledCircuit, WitnessEnv},
 };
 
 use ark_ff::{One, Zero};

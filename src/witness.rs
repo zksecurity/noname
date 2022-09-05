@@ -110,7 +110,7 @@ impl CompiledCircuit {
             }
             Value::Inverse(v) => {
                 let v = self.compute_var(env, *v)?;
-                let res = v.inverse().unwrap_or(Field::zero());
+                let res = v.inverse().unwrap_or_else(Field::zero);
                 env.cached_values.insert(var, res); // cache
                 Ok(res)
             }
