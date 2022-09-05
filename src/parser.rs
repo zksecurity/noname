@@ -317,6 +317,7 @@ pub enum ExprKind {
     Identifier(String),
     ArrayAccess(Path, Box<Expr>),
     ArrayDeclaration(Vec<Expr>),
+    CustomTypeDeclaration(String, Vec<(Ident, Expr)>),
     Bool(bool),
 }
 
@@ -579,6 +580,68 @@ impl Expr {
                     kind: ExprKind::ArrayDeclaration(items),
                     typ: None,
                     span: span.merge_with(last_span),
+                }
+            }
+
+            // type declaration
+            TokenKind::Type(type_name) => {
+                // Thing { x: 1, y: 2 }
+                //       ^
+                tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
+
+                let mut fields = vec![];
+
+                // Thing { x: 1, y: 2 }
+                //         ^^^^^^^^^^^^
+                loop {
+                    // Thing { x: 1, y: 2 }
+                    //                    ^
+                    if let Some(Token {
+                        kind: TokenKind::RightCurlyBracket,
+                        ..
+                    }) = tokens.peek()
+                    {
+                        tokens.bump(ctx);
+                        break;
+                    };
+
+                    // Thing { x: 1, y: 2 }
+                    //         ^
+                    let field_name = parse_ident(ctx, tokens)?;
+
+                    // Thing { x: 1, y: 2 }
+                    //          ^
+                    tokens.bump_expected(ctx, TokenKind::Colon)?;
+
+                    // Thing { x: 1, y: 2 }
+                    //            ^
+                    let field_value = Expr::parse(ctx, tokens)?;
+                    fields.push((field_name, field_value));
+
+                    // Thing { x: 1, y: 2 }
+                    //             ^      ^
+                    match tokens.bump_err(ctx, ErrorKind::InvalidEndOfLine)? {
+                        Token {
+                            kind: TokenKind::Comma,
+                            ..
+                        } => (),
+                        Token {
+                            kind: TokenKind::RightCurlyBracket,
+                            ..
+                        } => break,
+                        _ => {
+                            return Err(Error {
+                                kind: ErrorKind::InvalidEndOfLine,
+                                span: ctx.last_span(),
+                            })
+                        }
+                    };
+                }
+
+                Expr {
+                    kind: ExprKind::CustomTypeDeclaration(type_name.clone(), fields),
+                    typ: Some(TyKind::Custom(type_name)),
+                    span: span.merge_with(ctx.last_span()),
                 }
             }
 

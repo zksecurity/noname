@@ -851,6 +851,7 @@ impl CircuitWriter {
 
                 Some(cvar)
             }
+            ExprKind::CustomTypeDeclaration(name, fields) => todo!(),
         };
 
         Ok(var)

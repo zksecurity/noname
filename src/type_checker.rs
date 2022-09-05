@@ -159,6 +159,9 @@ impl Expr {
 
                 Ok(Some(TyKind::Array(Box::new(tykind), len)))
             }
+            ExprKind::CustomTypeDeclaration(name, fields) => {
+                todo!()
+            }
         }
     }
 }
