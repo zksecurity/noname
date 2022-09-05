@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Deref};
 
-use ark_ff::Zero;
+use ark_ff::{Field as _, Zero};
 use itertools::{chain, Itertools};
 
 use crate::{
@@ -105,6 +105,12 @@ impl CompiledCircuit {
                 let lhs = self.compute_var(env, *lhs)?;
                 let rhs = self.compute_var(env, *rhs)?;
                 let res = lhs * rhs;
+                env.cached_values.insert(var, res); // cache
+                Ok(res)
+            }
+            Value::Inverse(v) => {
+                let v = self.compute_var(env, *v)?;
+                let res = v.inverse().unwrap_or(Field::zero());
                 env.cached_values.insert(var, res); // cache
                 Ok(res)
             }

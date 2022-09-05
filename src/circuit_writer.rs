@@ -64,6 +64,10 @@ pub enum Value {
 
     Mul(CellVar, CellVar),
 
+    /// Returns the inverse of the given variable.
+    /// Note that it will potentially return 0 if the given variable is 0.
+    Inverse(CellVar),
+
     /// A public or private input to the function
     /// There's an index associated to a variable name, as the variable could be composed of several field elements.
     External(String, usize),
@@ -95,6 +99,7 @@ impl fmt::Debug for Value {
             Value::Constant(..) => write!(f, "Constant"),
             Value::LinearCombination(..) => write!(f, "LinearCombination"),
             Value::Mul(..) => write!(f, "Mul"),
+            Value::Inverse(_) => write!(f, "Inverse"),
             Value::External(..) => write!(f, "External"),
             Value::PublicOutput(..) => write!(f, "PublicOutput"),
         }
@@ -119,6 +124,10 @@ impl Constant {
     pub fn is_zero(&self) -> bool {
         self.value.is_zero()
     }
+
+    pub fn constrain(&self, label: Option<&'static str>, compiler: &mut CircuitWriter) -> CellVar {
+        compiler.add_constant(label, self.value, self.span)
+    }
 }
 
 /// Represents a cell in the execution trace.
@@ -139,6 +148,13 @@ impl ConstOrCell {
     pub fn cst(&self) -> Option<&Constant> {
         match self {
             Self::Const(cst) => Some(cst),
+            _ => None,
+        }
+    }
+
+    pub fn cvar(&self) -> Option<&CellVar> {
+        match self {
+            Self::Cell(cvar) => Some(cvar),
             _ => None,
         }
     }
@@ -719,7 +735,12 @@ impl CircuitWriter {
                 Op2::Subtraction => todo!(),
                 Op2::Multiplication => todo!(),
                 Op2::Division => todo!(),
-                Op2::Equality => todo!(),
+                Op2::Equality => {
+                    let lhs = self.compute_expr(global_env, local_env, lhs)?.unwrap();
+                    let rhs = self.compute_expr(global_env, local_env, rhs)?.unwrap();
+
+                    Some(field::equal_vars(self, lhs, rhs, expr.span))
+                }
                 Op2::BoolAnd => {
                     let lhs = self.compute_expr(global_env, local_env, lhs)?.unwrap();
                     let rhs = self.compute_expr(global_env, local_env, rhs)?.unwrap();
@@ -860,12 +881,17 @@ impl CircuitWriter {
     // TODO: we should cache constants to avoid creating a new variable for each constant
     /// This should be called only when you want to constrain a constant for real.
     /// Gates that handle constants should always make sure to call this function when they want them constrained.
-    pub fn add_constant(&mut self, value: Field, span: Span) -> CellVar {
+    pub fn add_constant(
+        &mut self,
+        label: Option<&'static str>,
+        value: Field,
+        span: Span,
+    ) -> CellVar {
         let var = self.new_internal_var(Value::Constant(value), span);
 
         let zero = Field::zero();
         self.add_gate(
-            "hardcode a constant",
+            label.unwrap_or("hardcode a constant"),
             GateKind::DoubleGeneric,
             vec![Some(var)],
             vec![Field::one(), zero, zero, zero, value.neg()],

@@ -194,20 +194,21 @@ fn is_hexadecimal(s: &str) -> bool {
 }
 
 fn is_identifier(s: &str) -> bool {
+    let mut chars = s.chars();
+    let first_letter = chars.next().unwrap();
     // first char is a letter
-    s.chars().next().unwrap().is_alphabetic()
+    first_letter.is_alphabetic() && first_letter.is_lowercase()
     // rest are lowercase alphanumeric or underscore
-        && s.chars()
-            .all(|c| (c.is_alphanumeric() && c.is_lowercase()) || c == '_')
+        && chars
+            .all(|c| (c.is_ascii_alphabetic() && c.is_lowercase()) || c.is_numeric() || c == '_')
 }
 
 fn is_type(s: &str) -> bool {
-    let first_char = s.chars().next().unwrap();
+    let mut chars = s.chars();
+    let first_char = chars.next().unwrap();
     // first char is an uppercase letter
     // rest are lowercase alphanumeric
-    first_char.is_alphabetic()
-        && first_char.is_uppercase()
-        && s.chars().all(|c| (c.is_alphanumeric()))
+    first_char.is_alphabetic() && first_char.is_uppercase() && chars.all(|c| (c.is_alphanumeric()))
     // TODO: check camel case?
 }
 
@@ -234,7 +235,7 @@ impl Token {
                         TokenKind::Type(ident_or_number)
                     } else {
                         return Err(Error {
-                            kind: ErrorKind::InvalidIdentifier,
+                            kind: ErrorKind::InvalidIdentifier(ident_or_number),
                             span: Span(ctx.offset, 1),
                         });
                     };
@@ -420,5 +421,11 @@ fn main(public_input: [fel; 3], private_input: [fel; 3]) -> [fel; 8] {
                 println!("{:?}", e);
             }
         }
+    }
+
+    #[test]
+    fn test_ident() {
+        assert!(is_identifier("cond2"));
+        assert!(is_type("Cond2"));
     }
 }

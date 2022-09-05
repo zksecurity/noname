@@ -73,8 +73,8 @@ pub enum ErrorKind {
     #[error("invalid expression")]
     InvalidExpression,
 
-    #[error("invalid identifier, expected lowercase alphanumeric string (including underscore `_`) and starting with a letter")]
-    InvalidIdentifier,
+    #[error("invalid identifier `{0}`, expected lowercase alphanumeric string (including underscore `_`) and starting with a letter")]
+    InvalidIdentifier(String),
 
     #[error("invalid function call: {0}")]
     InvalidFnCall(&'static str),

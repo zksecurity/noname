@@ -38,9 +38,7 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Optio
     for const_or_cell in input {
         match const_or_cell {
             ConstOrCell::Const(cst) => {
-                // TODO: should span point to creation of the constant,
-                // or the usage of the constant?
-                let cell = compiler.add_constant(cst.value, cst.span);
+                let cell = cst.constrain(Some("encoding constant input to poseidon"), compiler);
                 cells.push(cell);
             }
             ConstOrCell::Cell(cell) => cells.push(cell),
@@ -54,8 +52,12 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Optio
     let width = PlonkSpongeConstantsKimchi::SPONGE_WIDTH;
 
     // pad the input (for the capacity)
-    let zero = compiler.add_constant(Field::zero(), span);
-    cells.push(zero);
+    let zero_var = compiler.add_constant(
+        Some("encoding constant 0 for the capacity of poseidon"),
+        Field::zero(),
+        span,
+    );
+    cells.push(zero_var);
 
     let mut states = vec![cells.clone()];
 

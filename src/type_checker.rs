@@ -4,7 +4,7 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     imports::{FuncInScope, GlobalEnv},
-    parser::{Expr, ExprKind, FunctionSig, Path, RootKind, Stmt, StmtKind, Ty, TyKind, AST},
+    parser::{Expr, ExprKind, FunctionSig, Op2, Path, RootKind, Stmt, StmtKind, Ty, TyKind, AST},
 };
 
 //
@@ -45,7 +45,7 @@ impl Expr {
                 Ok(None)
             }
             ExprKind::Comparison(_, _, _) => todo!(),
-            ExprKind::Op(_, lhs, rhs) => {
+            ExprKind::Op(op, lhs, rhs) => {
                 let lhs_typ = lhs.compute_type(env, type_env)?.unwrap();
                 let rhs_typ = rhs.compute_type(env, type_env)?.unwrap();
 
@@ -62,7 +62,16 @@ impl Expr {
                     }
                 }
 
-                Ok(Some(lhs_typ))
+                match op {
+                    Op2::Equality => Ok(Some(TyKind::Bool)),
+                    Op2::Addition
+                    | Op2::Subtraction
+                    | Op2::Multiplication
+                    | Op2::Division
+                    | Op2::BoolAnd
+                    | Op2::BoolOr
+                    | Op2::BoolNot => Ok(Some(lhs_typ)),
+                }
             }
             ExprKind::Negated(inner) => {
                 let inner_typ = inner.compute_type(env, type_env)?.unwrap();

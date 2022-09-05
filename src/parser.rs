@@ -528,7 +528,7 @@ impl Expr {
             // array declaration
             TokenKind::LeftBracket => {
                 let mut items = vec![];
-                let mut last_span = span;
+                let last_span;
 
                 // [1, 2];
                 //  ^^^^

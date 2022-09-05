@@ -122,13 +122,13 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<V
             (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
             | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
                 // constrain the constant first
-                let cst_var = compiler.add_constant(cst.value, cst.span);
+                let cst_cvar = cst.constrain(Some("encoding the constant"), compiler);
 
                 // TODO: use permutation to check that
                 compiler.add_gate(
                     "constrain cst - var = 0 to check equality",
                     GateKind::DoubleGeneric,
-                    vec![Some(cst_var), Some(*cvar)],
+                    vec![Some(cst_cvar), Some(*cvar)],
                     vec![Field::one(), Field::one().neg()],
                     span,
                 );
