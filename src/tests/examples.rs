@@ -114,7 +114,7 @@ fn test_array() {
 #[test]
 fn test_equals() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"public_input": ["3", "3"]}"#;
+    let public_inputs = r#"{"x": ["3", "3"]}"#;
 
     test_file("equals", public_inputs, private_inputs, vec![]);
 }
