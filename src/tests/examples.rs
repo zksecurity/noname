@@ -13,7 +13,7 @@ fn test_file(
     expected_public_output: Vec<Field>,
 ) {
     let version = env!("CARGO_MANIFEST_DIR");
-    let prefix = Path::new(version).join("data");
+    let prefix = Path::new(version).join("examples");
 
     // read noname file
     let code = std::fs::read_to_string(prefix.clone().join(format!("{file_name}.no"))).unwrap();

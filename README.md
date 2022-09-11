@@ -25,7 +25,7 @@ fn main(pub public_input: Field, private_input: [Field; 2]) {
 You can compile it with the following command:
 
 ```console
-$ cargo run -- --path data/example.no --private-inputs '{"private_input": ["1", "1"]}' --public-inputs '{"public_input": ["3654913405619483358804575553468071097765421484960111776885779739261304758583"]}' --debug
+$ cargo run -- --path examples/example.no --private-inputs '{"private_input": ["1", "1"]}' --public-inputs '{"public_input": ["3654913405619483358804575553468071097765421484960111776885779739261304758583"]}' --debug
 ```
 
 Which will print the assembly, as well as try to create and verify a proof to make sure everything works. The assembly should look like this:
@@ -108,7 +108,7 @@ and what lines created what wiring:
 If you pass an invalid input it should fail with an error:
 
 ```
-$ cargo run -- --path data/example.no --private-inputs '{"private_input": ["2", "1"]}' --public-inputs '{"public_input": ["3654913405619483358804575553468071097765421484960111776885779739261304758583"]}'26177265001502838070204204
+$ cargo run -- --path examples/example.no --private-inputs '{"private_input": ["2", "1"]}' --public-inputs '{"public_input": ["3654913405619483358804575553468071097765421484960111776885779739261304758583"]}'26177265001502838070204204
 ```
 
 <img width="487" alt="Screen Shot 2022-09-02 at 12 08 41 PM" src="https://user-images.githubusercontent.com/1316043/188221355-4342b99c-3894-45f9-8bad-0f9477d93a63.png">
