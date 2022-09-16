@@ -168,7 +168,7 @@ pub enum ErrorKind {
     #[error("kimchi verifier: {0}")]
     KimchiVerifier(#[from] kimchi::error::VerifyError),
 
-    #[error("invalid witness (row {0})")]
+    #[error("the program did not run to completion with the given private and/or public inputs (row {0} of the witness failed to verify)")]
     InvalidWitness(usize),
 
     #[error("user provided input `{0}` is not defined in the main function's arguments")]
