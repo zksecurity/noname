@@ -1,6 +1,8 @@
 # CellVar
 
-A `CellVar` type (TODO: link to rust doc) is a type that represents an internal variable. Importantly, it is named after the fact that it relates to a specific cell, or even multiple cells (if wired), in the execution trace.
+A [`CellVar`](https://mimoo.github.io/noname/rustdoc/var/struct.CellVar.html) type is a type that represents an internal variable. Importantly, it is named after the fact that it relates to a specific cell, or even multiple cells if they will have the same value (using some wiring), in the execution trace.
+
+A `CellVar` looks like this:
 
 ```rust
 pub struct CellVar {

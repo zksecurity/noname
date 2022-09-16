@@ -16,17 +16,19 @@ jobs:
 
       - name: Build Rust Documentation
         run: |
-          cargo doc --no-deps
+          rustup install nightly
+          RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo +nightly doc --no-deps
 
       - name: Build the mdbook
         run: |
           cd book
           cargo install mdbook
+          cargo install mdbook-admonish
           mdbook build
 
       - name: Arrange website folder hierarchy
         run: |
-          mv ./target/doc/noname ./book/book/rustdoc
+          mv ./target/doc ./book/book/rustdoc
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3

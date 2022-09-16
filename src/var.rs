@@ -90,8 +90,12 @@ impl std::fmt::Debug for Value {
 }
 
 #[derive(Debug, Clone, Copy)]
+/// A constant value created in a noname program
 pub struct Constant {
+    /// The actual value.
     pub value: Field,
+
+    /// The span that created the constant.
     pub span: Span,
 }
 
@@ -151,6 +155,7 @@ impl ConstOrCell {
 }
 
 #[derive(Debug, Clone)]
+/// A variable in a program can have different shapes.
 pub enum VarKind {
     /// We pack [Const] and [CellVar] in the same enum because we often branch on these.
     ConstOrCell(ConstOrCell),
@@ -249,10 +254,13 @@ impl VarKind {
     }
 }
 
-/// Represents an expression or variable in a program
+/// Represents a variable in the noname language, or an anonymous variable during computation of expressions.
 #[derive(Debug, Clone)]
 pub struct Var {
+    /// The type of variable.
     pub kind: VarKind,
+
+    /// The span that created the variable.
     pub span: Span,
 }
 
