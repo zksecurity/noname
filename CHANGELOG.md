@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2022-09-16
+
+- custom structs now have light support
+- another large refactor on how `Var` works internally
+
 ## [0.2.0] - 2022-09-04
 
 - large refactor on how `Var` works internally
