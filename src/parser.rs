@@ -1435,15 +1435,6 @@ impl Struct {
 }
 
 //
-// Struct access
-//
-
-pub struct StructAccess {
-    name: Ident,
-    field: Ident,
-}
-
-//
 // AST
 //
 
@@ -1550,7 +1541,7 @@ pub fn parse_type(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<CustomType
             // make sure that this type is allowed
             if !matches!(Ty::reserved_types(&ty_name), TyKind::Custom(_)) {
                 return Err(Error {
-                    kind: ErrorKind::ReservedType(ty_name.clone()),
+                    kind: ErrorKind::ReservedType(ty_name),
                     span: token.span,
                 });
             }

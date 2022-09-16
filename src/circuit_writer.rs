@@ -20,7 +20,7 @@ use crate::{
     },
     type_checker::TAST,
     var::{CellVar, ConstOrCell, Constant, Value, Var, VarKind},
-    witness::{CompiledCircuit, WitnessEnv},
+    witness::CompiledCircuit,
 };
 
 //
@@ -128,7 +128,7 @@ pub struct CircuitWriter {
     /// Size of the public input.
     pub public_input_size: usize,
 
-    /// If a public output is set, this will be used to store its [Var::CircuitVar].
+    /// If a public output is set, this will be used to store its [Var].
     /// The public output generation works as follows:
     /// 1. This cvar is created and inserted in the circuit (gates) during compilation of the public input
     ///    (as the public output is the end of the public input)

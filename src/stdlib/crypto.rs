@@ -36,7 +36,7 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Resul
 
     // each element of the array is a VarCell/const
     let input: Vec<_> = input
-        .into_iter()
+        .iter()
         .map(|v| {
             v.const_or_cell()
                 .expect("bug in compiler: poseidon input must be an array of 2 cells")

@@ -157,7 +157,7 @@ impl ConstOrCell {
 #[derive(Debug, Clone)]
 /// A variable in a program can have different shapes.
 pub enum VarKind {
-    /// We pack [Const] and [CellVar] in the same enum because we often branch on these.
+    /// We pack [Constant] and [CellVar] in the same enum because we often branch on these.
     ConstOrCell(ConstOrCell),
 
     /// A struct is represented as a mapping between field names and other [VarKind]s.
@@ -184,7 +184,7 @@ impl VarKind {
                 ConstOrCell::Cell(_) => return false,
             },
             VarKind::Struct(stru) => {
-                for (_, var) in stru {
+                for var in stru.values() {
                     if var.has_constants() {
                         return true;
                     }
@@ -199,7 +199,7 @@ impl VarKind {
             }
         }
 
-        return false;
+        false
     }
 
     pub fn len(&self) -> usize {
@@ -367,7 +367,7 @@ impl std::ops::Index<usize> for Var {
     }
 }
 
-/// the equivalent of [CellVars] but for witness generation
+/// the equivalent of [CellVar]s but for witness generation
 #[derive(Debug, Clone)]
 pub struct CellValues {
     pub values: Vec<Field>,

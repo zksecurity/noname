@@ -177,7 +177,6 @@ pub fn sub(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
 
             Var::new_var(res, span)
         }
-        _ => panic!("bug in compiler: non-cells/consts in sub"),
     }
 }
 
@@ -208,7 +207,7 @@ pub fn equal(compiler: &mut CircuitWriter, lhs: &VarKind, rhs: &VarKind, span: S
         (VarKind::ArrayOrTuple(l), VarKind::ArrayOrTuple(r)) => {
             assert_eq!(l.len(), r.len());
 
-            for (l, r) in l.into_iter().zip(r) {
+            for (l, r) in l.iter().zip(r) {
                 let res = equal(compiler, l, r, span);
                 acc = boolean::and(compiler, res, acc, span);
             }
@@ -281,7 +280,6 @@ fn equal_cells(
                     span,
                 ),
                 ConstOrCell::Cell(cvar) => *cvar,
-                _ => panic!("bug: non const-cell in equals"),
             };
 
             let x2 = match x2 {
@@ -291,7 +289,6 @@ fn equal_cells(
                     span,
                 ),
                 ConstOrCell::Cell(cvar) => *cvar,
-                _ => panic!("bug: non const-cell in equals"),
             };
 
             // compute the result
