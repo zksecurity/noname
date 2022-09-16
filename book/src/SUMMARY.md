@@ -13,6 +13,7 @@
 - [Spans](./spans.md)
 - [Type Checker](./type-checker.md)
 - [Noname ASM](./asm.md)
+- [Structs](./structs.md)
 
 # Circuit Generation
 

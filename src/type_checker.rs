@@ -528,19 +528,19 @@ impl TAST {
         // enter the scope
         type_env.nest();
 
-        let mut early_return = None;
+        let mut return_typ = None;
 
         for stmt in stmts {
-            if early_return.is_some() {
+            if return_typ.is_some() {
                 panic!("early return detected: we don't allow that for now (TODO: return error");
             }
 
-            early_return = Self::check_stmt(env, type_env, stmt)?;
+            return_typ = Self::check_stmt(env, type_env, stmt)?;
         }
 
         // check the return
         if let Some(expected) = expected_return {
-            let observed = match early_return {
+            let observed = match return_typ {
                 None => {
                     return Err(Error {
                         kind: ErrorKind::MissingPublicOutput,

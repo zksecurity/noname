@@ -1,7 +1,8 @@
 use crate::{
     boolean,
-    circuit_writer::{CircuitWriter, ConstOrCell, Constant, GateKind, Value, Var},
+    circuit_writer::{CircuitWriter, GateKind},
     constants::{Field, Span},
+    var::{ConstOrCell, Constant, Value, Var, VarKind},
 };
 
 use ark_ff::{One, Zero};
@@ -13,11 +14,14 @@ pub fn add(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
     let zero = Field::zero();
     let one = Field::one();
 
-    // sanity check
-    assert_eq!(rhs.len(), 1);
-    assert_eq!(lhs.len(), 1);
+    let lhs_v = lhs
+        .const_or_cell()
+        .expect("add's lhs is not a constant or a cell");
+    let rhs_v = rhs
+        .const_or_cell()
+        .expect("add's lhs is not a constant or a cell");
 
-    match (&lhs[0], &rhs[0]) {
+    match (lhs_v, rhs_v) {
         // 2 constants
         (
             ConstOrCell::Const(Constant { value: lhs, .. }),
@@ -36,7 +40,7 @@ pub fn add(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
             // if the constant is zero, we can ignore this gate
             if cst.is_zero() {
                 // TODO: that span is incorrect, it should come from lhs or rhs...
-                return Var::new_vars(vec![*cvar], span);
+                return Var::new_var(*cvar, span);
             }
 
             // create a new variable to store the result
@@ -53,7 +57,7 @@ pub fn add(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
                 span,
             );
 
-            Var::new_vars(vec![res], span)
+            Var::new_var(res, span)
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // create a new variable to store the result
@@ -74,31 +78,24 @@ pub fn add(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
                 span,
             );
 
-            Var::new_vars(vec![res], span)
+            Var::new_var(res, span)
         }
     }
 }
 
 /// Subtracts two variables, we only support variables that are of length 1.
-pub fn sub_vars(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var {
-    // sanity check
-    assert_eq!(rhs.len(), 1);
-    assert_eq!(lhs.len(), 1);
-
-    sub_cells(compiler, &lhs[0], &rhs[0], span)
-}
-
-/// Subtracts two cells lhs - rhs
-pub fn sub_cells(
-    compiler: &mut CircuitWriter,
-    lhs: &ConstOrCell,
-    rhs: &ConstOrCell,
-    span: Span,
-) -> Var {
+pub fn sub(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var {
     let zero = Field::zero();
     let one = Field::one();
 
-    match (lhs, rhs) {
+    let lhs_v = lhs
+        .const_or_cell()
+        .expect("add's lhs is not a constant or a cell");
+    let rhs_v = rhs
+        .const_or_cell()
+        .expect("add's lhs is not a constant or a cell");
+
+    match (lhs_v, rhs_v) {
         // const1 - const2
         (
             ConstOrCell::Const(Constant { value: lhs, .. }),
@@ -129,7 +126,7 @@ pub fn sub_cells(
                 span,
             );
 
-            Var::new_vars(vec![res], span)
+            Var::new_var(res, span)
         }
 
         // var - const
@@ -137,7 +134,7 @@ pub fn sub_cells(
             // if the constant is zero, we can ignore this gate
             if cst.is_zero() {
                 // TODO: that span is incorrect, it should come from lhs or rhs...
-                return Var::new_vars(vec![*cvar], span);
+                return Var::new_var(*cvar, span);
             }
 
             // create a new variable to store the result
@@ -157,7 +154,7 @@ pub fn sub_cells(
                 span,
             );
 
-            Var::new_vars(vec![res], span)
+            Var::new_var(res, span)
         }
 
         // lhs - rhs
@@ -178,14 +175,15 @@ pub fn sub_cells(
                 span,
             );
 
-            Var::new_vars(vec![res], span)
+            Var::new_var(res, span)
         }
+        _ => panic!("bug in compiler: non-cells/consts in sub"),
     }
 }
 
 /// This takes variables that can be anything, and returns a boolean
 // TODO: so perhaps it's not really relevant in this file?
-pub fn equal_vars(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var {
+pub fn equal(compiler: &mut CircuitWriter, lhs: &VarKind, rhs: &VarKind, span: Span) -> Var {
     // sanity check
     assert_eq!(lhs.len(), rhs.len());
 
@@ -197,20 +195,48 @@ pub fn equal_vars(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) 
         one,
         span,
     );
-    let mut acc = Var::new_vars(vec![acc], span);
+    let mut acc = Var::new_var(acc, span);
 
-    for (lhs, rhs) in lhs.into_iter().zip(rhs.into_iter()) {
-        let res = equal_cells(compiler, lhs, rhs, span);
+    match (lhs, rhs) {
+        // if we just have cells or consts we can do the equality check
+        (VarKind::ConstOrCell(lhs), VarKind::ConstOrCell(rhs)) => {
+            let res = equal_cells(compiler, lhs, rhs, span);
+            acc = boolean::and(compiler, res, acc, span);
+        }
 
-        // AND the result
-        acc = boolean::and(compiler, res, acc, span);
+        // array/tuple: recurse
+        (VarKind::ArrayOrTuple(l), VarKind::ArrayOrTuple(r)) => {
+            assert_eq!(l.len(), r.len());
+
+            for (l, r) in l.into_iter().zip(r) {
+                let res = equal(compiler, l, r, span);
+                acc = boolean::and(compiler, res, acc, span);
+            }
+        }
+
+        // structs: recurse
+        (VarKind::Struct(l), VarKind::Struct(r)) => {
+            assert_eq!(l.len(), r.len());
+
+            for (l, r) in l.values().zip(r.values()) {
+                let res = equal(compiler, l, r, span);
+                acc = boolean::and(compiler, res, acc, span);
+            }
+        }
+
+        _ => panic!("bug in compiler: lhs and rhs of equals are of different types"),
     }
 
     acc
 }
 
 /// Returns a new variable set to 1 if x1 is equal to x2, 0 otherwise.
-fn equal_cells(compiler: &mut CircuitWriter, x1: ConstOrCell, x2: ConstOrCell, span: Span) -> Var {
+fn equal_cells(
+    compiler: &mut CircuitWriter,
+    x1: &ConstOrCell,
+    x2: &ConstOrCell,
+    span: Span,
+) -> Var {
     // These four constraints are enough:
     //
     // 1. `diff = x2 - x1`
@@ -254,7 +280,8 @@ fn equal_cells(compiler: &mut CircuitWriter, x1: ConstOrCell, x2: ConstOrCell, s
                     cst.value,
                     span,
                 ),
-                ConstOrCell::Cell(cvar) => cvar,
+                ConstOrCell::Cell(cvar) => *cvar,
+                _ => panic!("bug: non const-cell in equals"),
             };
 
             let x2 = match x2 {
@@ -263,7 +290,8 @@ fn equal_cells(compiler: &mut CircuitWriter, x1: ConstOrCell, x2: ConstOrCell, s
                     cst.value,
                     span,
                 ),
-                ConstOrCell::Cell(cvar) => cvar,
+                ConstOrCell::Cell(cvar) => *cvar,
+                _ => panic!("bug: non const-cell in equals"),
             };
 
             // compute the result
@@ -332,7 +360,7 @@ fn equal_cells(compiler: &mut CircuitWriter, x1: ConstOrCell, x2: ConstOrCell, s
                 span,
             );
 
-            Var::new_vars(vec![res], span)
+            Var::new_var(res, span)
         }
     }
 }

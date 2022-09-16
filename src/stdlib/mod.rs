@@ -3,12 +3,13 @@ use std::{collections::HashMap, ops::Neg as _};
 use ark_ff::{One as _, Zero};
 
 use crate::{
-    circuit_writer::{CircuitWriter, ConstOrCell, Constant, GateKind, Var},
+    circuit_writer::{CircuitWriter, GateKind},
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     imports::FuncType,
     lexer::Token,
     parser::{FunctionSig, Ident, ParserCtx, Path},
+    var::{ConstOrCell, Constant, Var},
 };
 
 use self::crypto::CRYPTO_FNS;
@@ -97,67 +98,70 @@ const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 pub const BUILTIN_FNS: [(&str, FuncType); 2] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
 
 /// Asserts that two vars are equal.
-/// This assumes that the two vars are made out of the same number of field elements.
-fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<Var> {
+fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<Option<Var>> {
     // double check (on top of type checker)
     assert_eq!(vars.len(), 2);
-    let lhs = &vars[0];
-    let rhs = &vars[1];
 
-    assert_eq!(lhs.len(), rhs.len());
+    let lhs = vars[0]
+        .const_or_cell()
+        .expect("assert_eq: lhs is not a constant or cell");
+    let rhs = vars[1]
+        .const_or_cell()
+        .expect("assert_eq: rhs is not a constant or cell");
 
-    for (lhs, rhs) in lhs.into_iter().zip(rhs.into_iter()) {
-        match (lhs, rhs) {
-            // two constants
-            (
-                ConstOrCell::Const(Constant { value: a, .. }),
-                ConstOrCell::Const(Constant { value: b, .. }),
-            ) => {
-                if a != b {
-                    panic!("assertion failed: {} != {} (TODO: return an error)", a, b);
-                }
-            }
-
-            // a const and a var
-            (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
-            | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-                // constrain the constant first
-                let cst_cvar = cst.constrain(Some("encoding the constant"), compiler);
-
-                // TODO: use permutation to check that
-                compiler.add_gate(
-                    "constrain cst - var = 0 to check equality",
-                    GateKind::DoubleGeneric,
-                    vec![Some(cst_cvar), Some(*cvar)],
-                    vec![Field::one(), Field::one().neg()],
+    match (lhs, rhs) {
+        // two constants
+        (
+            ConstOrCell::Const(Constant { value: a, .. }),
+            ConstOrCell::Const(Constant { value: b, .. }),
+        ) => {
+            if a != b {
+                return Err(Error {
+                    kind: ErrorKind::AssertionFailed,
                     span,
-                );
+                });
             }
-            (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-                // TODO: use permutation to check that
-                compiler.add_gate(
-                    "constrain lhs - rhs = 0 to assert that they are equal",
-                    GateKind::DoubleGeneric,
-                    vec![Some(*lhs), Some(*rhs)],
-                    vec![Field::one(), Field::one().neg()],
-                    span,
-                );
-            }
+        }
+
+        // a const and a var
+        (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
+        | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
+            // constrain the constant first
+            let cst_cvar = cst.constrain(Some("encoding the constant"), compiler);
+
+            // TODO: use permutation to check that
+            compiler.add_gate(
+                "constrain cst - var = 0 to check equality",
+                GateKind::DoubleGeneric,
+                vec![Some(cst_cvar), Some(*cvar)],
+                vec![Field::one(), Field::one().neg()],
+                span,
+            );
+        }
+        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
+            // TODO: use permutation to check that
+            compiler.add_gate(
+                "constrain lhs - rhs = 0 to assert that they are equal",
+                GateKind::DoubleGeneric,
+                vec![Some(*lhs), Some(*rhs)],
+                vec![Field::one(), Field::one().neg()],
+                span,
+            );
         }
     }
 
-    None
+    Ok(None)
 }
 
 /// Asserts that a condition is true.
-fn assert(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<Var> {
+fn assert(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<Option<Var>> {
     // double check (on top of type checker)
     assert_eq!(vars.len(), 1);
-    let cond = &vars[0];
+    let cond = vars[0]
+        .const_or_cell()
+        .expect("assert: condition is not a constant or cell");
 
-    assert_eq!(cond.len(), 1);
-
-    match cond[0] {
+    match cond {
         ConstOrCell::Const(Constant { value: a, .. }) => {
             assert!(a.is_one());
         }
@@ -168,7 +172,7 @@ fn assert(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<Var>
             compiler.add_gate(
                 "constrain 1 - X = 0 to assert that X is true",
                 GateKind::DoubleGeneric,
-                vec![None, Some(cvar)],
+                vec![None, Some(*cvar)],
                 // use the constant to constrain 1 - X = 0
                 vec![zero, one.neg(), zero, zero, one],
                 span,
@@ -176,5 +180,5 @@ fn assert(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<Var>
         }
     }
 
-    None
+    Ok(None)
 }

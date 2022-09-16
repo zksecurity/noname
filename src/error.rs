@@ -203,4 +203,10 @@ pub enum ErrorKind {
 
     #[error("struct `{0}` is never defined")]
     UndefinedStruct(String),
+
+    #[error("struct `{0}` does not have a field called `{1}`")]
+    UndefinedField(String, String),
+
+    #[error("this assertion failed")]
+    AssertionFailed,
 }

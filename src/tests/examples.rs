@@ -118,3 +118,11 @@ fn test_equals() {
 
     test_file("equals", public_inputs, private_inputs, vec![]);
 }
+
+#[test]
+fn test_types() {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"x": ["1"], "y": ["2"]}"#;
+
+    test_file("types", public_inputs, private_inputs, vec![]);
+}

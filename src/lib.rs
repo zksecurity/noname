@@ -17,6 +17,7 @@ pub mod prover;
 pub mod stdlib;
 pub mod tokens;
 pub mod type_checker;
+pub mod var;
 pub mod witness;
 
 #[cfg(test)]

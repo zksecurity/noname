@@ -5,12 +5,13 @@ use itertools::{chain, Itertools};
 
 use crate::{
     boolean,
-    circuit_writer::{CellValues, CellVar, CircuitWriter, Value},
+    circuit_writer::CircuitWriter,
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     helpers::PrettyField as _,
     inputs::Inputs,
     parser::TyKind,
+    var::{CellValues, CellVar, Value},
 };
 
 #[derive(Debug, Default)]

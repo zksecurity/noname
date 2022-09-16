@@ -9,31 +9,50 @@ use kimchi::{
 };
 
 use crate::{
-    circuit_writer::{CircuitWriter, ConstOrCell, GateKind, Value, Var},
+    circuit_writer::{CircuitWriter, GateKind},
     constants::{self, Field, Span},
+    error::Result,
     imports::FuncType,
+    var::{ConstOrCell, Value, Var, VarKind},
 };
 
 const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
 
 pub const CRYPTO_FNS: [(&str, FuncType); 1] = [(POSEIDON_FN, poseidon)];
 
-pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Option<Var> {
-    // double check input
-    assert_eq!(vars.len(), 1);
-    let input = vars[0].value.clone();
+pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<Option<Var>> {
+    //
+    // sanity checks
+    //
 
-    assert_eq!(input.len(), 2); // size of poseidon input
+    // only one [Var] is passed: an array
+    assert_eq!(vars.len(), 1);
+    let input = vars[0]
+        .array_or_tuple()
+        .expect("bug in compiler: poseidon input must be an array");
+
+    // that array is of length 2 (size of poseidon input)
+    assert_eq!(input.len(), 2);
+
+    // each element of the array is a VarCell/const
+    let input: Vec<_> = input
+        .into_iter()
+        .map(|v| {
+            v.const_or_cell()
+                .expect("bug in compiler: poseidon input must be an array of 2 cells")
+        })
+        .collect();
+
+    //
+    //
+    //
 
     // hashing a full-constant input is not a good idea
-    if matches!(
-        (&input[0], &input[1]),
-        (ConstOrCell::Const(_), ConstOrCell::Const(_))
-    ) {
+    if input[0].is_const() && input[1].is_const() {
         panic!("cannot hash a full-constant input (TODO: better error)");
     }
 
-    // time to constrain the input if they're constants
+    // IMPORTANT: time to constrain any constants
     let mut cells = vec![];
     for const_or_cell in input {
         match const_or_cell {
@@ -41,7 +60,7 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Optio
                 let cell = cst.constrain(Some("encoding constant input to poseidon"), compiler);
                 cells.push(cell);
             }
-            ConstOrCell::Cell(cell) => cells.push(cell),
+            ConstOrCell::Cell(cell) => cells.push(*cell),
         }
     }
 
@@ -149,6 +168,12 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Optio
     );
 
     //    states.borrow_mut().pop().unwrap();
-    let vars = final_row.iter().flatten().cloned().collect();
-    Some(Var::new_vars(vars, span))
+    let vars = final_row
+        .iter()
+        .flatten()
+        .cloned()
+        .map(|c| VarKind::ConstOrCell(ConstOrCell::Cell(c)))
+        .collect();
+
+    Ok(Some(Var::new_array(vars, span)))
 }

@@ -185,6 +185,21 @@ pub enum TyKind {
     // U64,
 }
 
+/*
+impl TyKind {
+    /// Returns the number of CellVar needed to track a given type.
+    pub fn type_len(&self) -> usize {
+        match self {
+            TyKind::Field => 1,
+            TyKind::Custom(_) => todo!(),
+            TyKind::BigInt => 1,
+            TyKind::Array(ty, len) => ty.type_len() * (*len as usize),
+            TyKind::Bool => 1,
+        }
+    }
+}
+*/
+
 impl Display for TyKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

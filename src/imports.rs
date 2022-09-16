@@ -1,11 +1,12 @@
 use std::{collections::HashMap, fmt};
 
 use crate::{
-    circuit_writer::{CircuitWriter, Var},
+    circuit_writer::CircuitWriter,
     constants::Span,
     error::{Error, ErrorKind, Result},
     parser::{FuncArg, FunctionSig, Path},
     stdlib::{self, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
+    var::Var,
 };
 
 /// This seems to be used by both the type checker and the AST
@@ -23,7 +24,7 @@ pub struct GlobalEnv {
     pub main_args: (HashMap<String, FuncArg>, Span),
 }
 
-pub type FuncType = fn(&mut CircuitWriter, &[Var], Span) -> Option<Var>;
+pub type FuncType = fn(&mut CircuitWriter, &[Var], Span) -> Result<Option<Var>>;
 
 pub enum FuncInScope {
     /// signature of the function

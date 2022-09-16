@@ -5,8 +5,9 @@ use std::ops::Neg;
 use ark_ff::{One, Zero};
 
 use crate::{
-    circuit_writer::{CircuitWriter, ConstOrCell, Constant, GateKind, Value, Var},
+    circuit_writer::{CircuitWriter, GateKind},
     constants::{Field, Span},
+    var::{ConstOrCell, Constant, Value, Var},
 };
 
 pub fn is_valid(f: Field) -> bool {
@@ -14,11 +15,14 @@ pub fn is_valid(f: Field) -> bool {
 }
 
 pub fn and(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var {
-    // sanity checks
-    assert_eq!(lhs.len(), 1);
-    assert_eq!(rhs.len(), 1);
+    let lhs = lhs
+        .const_or_cell()
+        .expect("bool.and: lhs is not a constant or cell");
+    let rhs = rhs
+        .const_or_cell()
+        .expect("bool.and: rhs is not a constant or cell");
 
-    match (&lhs[0], &rhs[0]) {
+    match (lhs, rhs) {
         // two constants
         (
             ConstOrCell::Const(Constant { value: lhs, .. }),
@@ -29,7 +33,7 @@ pub fn and(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
             if cst.is_one() {
-                Var::new_vars(vec![*cvar], span)
+                Var::new_var(*cvar, span)
             } else {
                 Var::new_constant(*cst, span)
             }
@@ -52,16 +56,17 @@ pub fn and(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
             );
 
             // return the result
-            Var::new_vars(vec![res], span)
+            Var::new_var(res, span)
         }
     }
 }
 
 pub fn neg(compiler: &mut CircuitWriter, var: Var, span: Span) -> Var {
-    // sanity check
-    assert_eq!(var.len(), 1);
+    let var = var
+        .const_or_cell()
+        .expect("bool.neg: var is not a constant or cell");
 
-    match var[0] {
+    match var {
         ConstOrCell::Const(cst) => {
             let value = if cst.is_one() {
                 Field::zero()
@@ -69,7 +74,7 @@ pub fn neg(compiler: &mut CircuitWriter, var: Var, span: Span) -> Var {
                 Field::one()
             };
 
-            Var::new_constant(Constant { value, ..cst }, span)
+            Var::new_constant(Constant { value, ..*cst }, span)
         }
 
         // constant and a var
@@ -78,21 +83,21 @@ pub fn neg(compiler: &mut CircuitWriter, var: Var, span: Span) -> Var {
             let one = Field::one();
 
             // create a new variable to store the result
-            let lc = Value::LinearCombination(vec![(one.neg(), cvar)], one); // 1 - X
+            let lc = Value::LinearCombination(vec![(one.neg(), *cvar)], one); // 1 - X
             let res = compiler.new_internal_var(lc, span);
 
             // create a gate to constrain the result
             compiler.add_gate(
                 "constrain the NOT as 1 - X",
                 GateKind::DoubleGeneric,
-                vec![None, Some(cvar), Some(res)],
+                vec![None, Some(*cvar), Some(res)],
                 // we use the constant to do 1 - X
                 vec![zero, one.neg(), one.neg(), zero, one],
                 span,
             );
 
             // return the result
-            Var::new_vars(vec![res], span)
+            Var::new_var(res, span)
         }
     }
 }
