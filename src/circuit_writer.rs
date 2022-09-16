@@ -170,6 +170,12 @@ impl CircuitWriter {
                 // imports (already dealt with in type checker)
                 RootKind::Use(_path) => (),
 
+                // `const THING = 42;`
+                RootKind::Const(cst) => {
+                    let var = Var::new_constant(Constant::new(cst.value, cst.span), cst.span);
+                    local_env.add_var(cst.name.value.clone(), var);
+                }
+
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
                     // we only support main for now

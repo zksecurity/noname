@@ -97,11 +97,50 @@ y = x + y; // BAD
 
 ## Custom types
 
-TODO
+```rust
+struct Thing {
+    x: Field,
+    y: Field,
+}
+
+fn main(pub x: Field, pub y: Field) {
+    let thing = Thing {
+        x: 1,
+        y: 2,
+    };
+    
+    assert_eq(thing.x, x);
+    assert_eq(thing.y, y);
+}
+```
 
 ## For loops
 
-TODO
+```rust
+fn main(pub public_input: Field, private_input: [Field; 3]) {
+    let mut sum = 0;
+
+    for i in 0..3 {
+        sum = sum + private_input[i];
+    }
+
+    assert_eq(sum, public_input);
+}
+```
+
+## Constants
+
+```rust
+const PLAYER_ONE = 1;
+const PLAYER_TWO = 2;
+
+fn main(pub player: Field) -> Field {
+    assert_eq(PLAYER_ONE, player);
+    let next_player = player + 1;
+    assert_eq(PLAYER_TWO, next_player);
+    return next_player;
+}
+```
 
 ## If Else statements
 

@@ -395,6 +395,7 @@ impl TAST {
                 RootKind::Function(_) => (),
                 RootKind::Struct(_) => (),
                 RootKind::Comment(_) => (),
+                RootKind::Const(_) => (),
             }
         }
 
@@ -410,6 +411,13 @@ impl TAST {
             match &root.kind {
                 // we already processed these in the import resolution
                 RootKind::Use(_) => (),
+
+                RootKind::Const(cst) => {
+                    type_env.store_type(
+                        cst.name.value.clone(),
+                        TypeInfo::new(TyKind::Field, cst.span),
+                    )?;
+                }
 
                 // `fn main() { ... }`
                 RootKind::Function(function) => {

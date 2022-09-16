@@ -40,6 +40,8 @@ pub enum Keyword {
     In,
     /// Allows custom structs to be defined
     Struct,
+    /// Allows constants to be defined
+    Const,
 }
 
 impl Keyword {
@@ -58,6 +60,7 @@ impl Keyword {
             "for" => Some(Self::For),
             "in" => Some(Self::In),
             "struct" => Some(Self::Struct),
+            "const" => Some(Self::Const),
             _ => None,
         }
     }
@@ -79,6 +82,7 @@ impl Display for Keyword {
             Self::For => "for",
             Self::In => "in",
             Self::Struct => "struct",
+            Self::Const => "const",
         };
 
         write!(f, "{}", desc)
@@ -89,6 +93,7 @@ impl Display for Keyword {
 pub enum TokenKind {
     Keyword(Keyword),   // reserved keywords
     Identifier(String), // [a-z_](a-z0-9_)*
+    Const(String),      // [A-Z_](A-Z0-9_)*
     Type(String),       // [A-Z](a-zA-Z0-9)*
     BigInt(String),     // (0-9)*
     Hex(String),        // 0x[0-9a-fA-F]+
@@ -127,6 +132,9 @@ impl Display for TokenKind {
             Keyword(_) => "keyword (use, let, etc.)",
             Identifier(_) => {
                 "a lowercase alphanumeric (including underscore) string starting with a letter"
+            }
+            Const(_) => {
+                "an uppercase alphanumeric (including underscore) string starting with a letter"
             }
             Type(_) => "an alphanumeric string starting with an uppercase letter",
             BigInt(_) => "a number",
@@ -207,6 +215,16 @@ fn is_identifier(s: &str) -> bool {
             .all(|c| (c.is_ascii_alphabetic() && c.is_lowercase()) || c.is_numeric() || c == '_')
 }
 
+fn is_const(s: &str) -> bool {
+    let mut chars = s.chars();
+    let first_letter = chars.next().unwrap();
+    // first char is a letter
+    first_letter.is_alphabetic() && first_letter.is_uppercase()
+    // rest are lowercase alphanumeric or underscore
+        && chars
+            .all(|c| (c.is_ascii_alphabetic() && c.is_uppercase()) || c.is_numeric() || c == '_')
+}
+
 fn is_type(s: &str) -> bool {
     let mut chars = s.chars();
     let first_char = chars.next().unwrap();
@@ -237,6 +255,8 @@ impl Token {
                         TokenKind::Identifier(ident_or_number)
                     } else if is_type(&ident_or_number) {
                         TokenKind::Type(ident_or_number)
+                    } else if is_const(&ident_or_number) {
+                        TokenKind::Const(ident_or_number)
                     } else {
                         return Err(Error {
                             kind: ErrorKind::InvalidIdentifier(ident_or_number),

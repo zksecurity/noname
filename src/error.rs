@@ -64,6 +64,9 @@ pub enum ErrorKind {
     #[error("invalid array size, expected [_; x] with x in [0,2^32]")]
     InvalidArraySize,
 
+    #[error("the value passed could not be converted to a field element")]
+    InvalidField(String),
+
     #[error("invalid range size, expected x..y with x and y integers in [0,2^32]")]
     InvalidRangeSize,
 
@@ -209,4 +212,7 @@ pub enum ErrorKind {
 
     #[error("this assertion failed")]
     AssertionFailed,
+
+    #[error("constants can only have a literal decimal value")]
+    InvalidConstType,
 }

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
-    constants::Span,
+    constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind},
     tokens::Tokens,
@@ -170,6 +170,7 @@ pub enum TyKind {
     Custom(String),
 
     /// This could be the same as Field, but we use this to also track the fact that it's a constant.
+    // TODO: get rid of this type tho no?
     BigInt,
 
     /// An array of a fixed size.
@@ -378,7 +379,7 @@ impl Expr {
             },
 
             // identifier
-            TokenKind::Identifier(ident) => {
+            TokenKind::Identifier(ident) | TokenKind::Const(ident) => {
                 let mut path = Path {
                     path: vec![Ident {
                         value: ident,
@@ -670,7 +671,7 @@ impl Expr {
                 return Err(Error {
                     kind: ErrorKind::InvalidExpression,
                     span: token.span,
-                })
+                });
             }
         };
 
@@ -771,6 +772,22 @@ impl Ident {
                 value: ident,
                 span: token.span,
             }),
+
+            _ => Err(Error {
+                kind: ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
+                span: token.span,
+            }),
+        }
+    }
+
+    pub fn parse_const(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        let token = tokens.bump_err(ctx, ErrorKind::MissingToken)?;
+        match token.kind {
+            TokenKind::Const(ident) => Ok(Self {
+                value: ident,
+                span: token.span,
+            }),
+
             _ => Err(Error {
                 kind: ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
                 span: token.span,
@@ -1342,6 +1359,54 @@ pub enum RootKind {
     Function(Function),
     Comment(String),
     Struct(Struct),
+    Const(Const),
+}
+
+//
+// Const
+//
+
+#[derive(Debug)]
+pub struct Const {
+    pub name: Ident,
+    pub value: Field,
+    pub span: Span,
+}
+
+impl Const {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        // const FOO = 42;
+        //       ^^^
+        let name = Ident::parse_const(ctx, tokens)?;
+
+        // const FOO = 42;
+        //           ^
+        tokens.bump_expected(ctx, TokenKind::Equal)?;
+
+        // const FOO = 42;
+        //             ^^
+        let value = Expr::parse(ctx, tokens)?;
+        let value = match &value.kind {
+            ExprKind::BigInt(s) => s.parse().map_err(|_e| Error {
+                kind: ErrorKind::InvalidField(s.clone()),
+                span: value.span,
+            })?,
+            _ => {
+                return Err(Error {
+                    kind: ErrorKind::InvalidConstType,
+                    span: value.span,
+                });
+            }
+        };
+
+        // const FOO = 42;
+        //               ^
+        tokens.bump_expected(ctx, TokenKind::SemiColon)?;
+
+        //
+        let span = name.span;
+        Ok(Const { name, value, span })
+    }
 }
 
 //
@@ -1480,6 +1545,16 @@ impl AST {
                             span: token.span,
                         });
                     }
+                }
+
+                // `const FOO = 42;`
+                TokenKind::Keyword(Keyword::Const) => {
+                    let cst = Const::parse(ctx, &mut tokens)?;
+
+                    ast.push(Root {
+                        kind: RootKind::Const(cst),
+                        span: token.span,
+                    });
                 }
 
                 // `fn main() { }`

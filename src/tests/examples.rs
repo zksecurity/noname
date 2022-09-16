@@ -126,3 +126,17 @@ fn test_types() {
 
     test_file("types", public_inputs, private_inputs, vec![]);
 }
+
+#[test]
+fn test_const() {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"player": ["1"]}"#;
+    let expected_public_output = vec![Field::from(2)];
+
+    test_file(
+        "const",
+        public_inputs,
+        private_inputs,
+        expected_public_output,
+    );
+}
