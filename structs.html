@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Spans - noname</title>
+        <title>Structs - noname</title>
 
 
         <!-- Custom HTML head -->
@@ -81,7 +81,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html" class="active"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">6.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">7.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">8.</strong> Structs</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">9.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">10.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">11.</strong> Constants</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">12.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">13.</strong> Witness Generation</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">6.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">7.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html" class="active"><strong aria-hidden="true">8.</strong> Structs</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">9.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">10.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">11.</strong> Constants</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">12.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">13.</strong> Witness Generation</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -145,29 +145,125 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="spans"><a class="header" href="#spans">Spans</a></h1>
-<p>To be able to efficiently track errors, we have a span type:</p>
+                        <h1 id="structs"><a class="header" href="#structs">Structs</a></h1>
+<p>User can define custom structs like so:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct Span(pub usize, pub usize);
+</span>struct Thing {
+    x: Field,
+    y: Field,
+}
 <span class="boring">}
 </span></code></pre></pre>
-<p>which represents a location in the original source code:</p>
+<p>and can declare and access such structs like so:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let thing = Thing { x: 1, y: 2 };
+let z = thing.x + thing.y;
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="implementation"><a class="header" href="#implementation">implementation</a></h2>
+<p>A struct is a list of fields that each have a name and a type.
+Like any type, a struct can be serialized as a list of <code>CellVar</code>s.
+So that fields of an instantiated struct can be accessed, the following information needs to be known:</p>
 <ul>
-<li>the first number is the offset in the source code file</li>
-<li>the second numebr if the length of the span (e.g. 1 character)</li>
+<li>at what offset each field is stored</li>
+<li>how many <code>CellVar</code> each field takes</li>
 </ul>
-<p>We start tracking spans in the lexer, and then pass them around to the parser, and then to the compiler. Even gates and wirings have spans associated with them so that we can easily debug those.</p>
+<p>During type checking, the type checker calculates the length of each field, and stores this information in the <code>TypeEnv</code> structure:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct FieldInfo {
+    typ: TyKind,
+    offset: usize,
+    len: usize,
+}
+
+pub struct TypeEnv {
+    // ...
+
+    // struct name -&gt; Vec&lt;(field name -&gt; (type, offset, length))&gt;
+    pub structs: HashMap&lt;String, Vec&lt;name, FieldInfo&gt;&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The length, in addition to the offset, is important because the circuit writer does not know what types it is really querying (it does not have this information anymore).</p>
+<p>–</p>
+<p>or:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let thing = Thing { x: 5, y: 5 };
+<span class="boring">}
+</span></code></pre></pre>
+<p>could be stored as thing -&gt; x: var, y: var</p>
+<p>and</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>thing.x
+<span class="boring">}
+</span></code></pre></pre>
+<p>could be retrieved via the hashmap:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum VarChoice {
+    /// Used by simple types
+    Flat(Var),
+
+    /// Used by types with fields
+    Named(HashMap&lt;String, Var&gt;),
+
+    /// Used by arrays, tuples
+    List(Vec&lt;Var&gt;),
+}
+
+pub struct VarInfo {
+    scope: usize,
+    cvars: VarChoice,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>the problem with this is that we can’t use assert_eq to check an array or a struct, unless we generalize assert_eq to take a VarChoice and handle all cases. It’s easier if everything’s just a list of cellvars eventually</p>
+<p>it’s easy to handle arrays with arbitrary types with the the flat way as well <code>a: [3; T]</code> and <code>a[1]</code> will just have to figure out the array type</p>
+<p>so maybe we should have a hashmap that stores the length of everything, from struct fields to array item</p>
+<p>hummm, but the problem is that in <code>a[1]</code> or <code>a.x</code> the circuit writer doesn’t know the type of <code>a</code> anymore, and so they don’t know what to look for?</p>
+<p>solution3: perhaps a var can contain this information themselves? (name -&gt; offset and length, and array could use “array” as name?)</p>
+<p>so to recap:</p>
+<ul>
+<li>solution 1: store it in type_env 
+<ul>
+<li>circuit writer can’t access the type of a var anymore</li>
+<li>one solution would be to create node id like in Rust</li>
+<li>and store some information under a hashmap linked to a specific node</li>
+</ul>
+</li>
+<li>solution 2: store it in local_env
+<ul>
+<li>we have to store that information at creation</li>
+<li>when we create an array/struct, we have that information</li>
+<li>although, what about array of array, and struct of struct…</li>
+</ul>
+</li>
+<li>solution 3: store it in Var
+<ul>
+<li>but what about struct of struct, and array of array?</li>
+</ul>
+</li>
+</ul>
+<pre><code>x.y.z 
+</code></pre>
+<ul>
+<li>I need to know what y is in x so that I can get z</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="grammar.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="asm.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="type-checker.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="cellvar.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -177,11 +273,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="grammar.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="asm.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="type-checker.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="cellvar.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
