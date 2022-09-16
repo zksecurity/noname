@@ -2,14 +2,17 @@ const EMPTY = 0;
 const PLAYER_ONE = 1;
 const PLAYER_TWO = 2;
 
-struct Sudoku([Field; 9 * 9]);
+struct Sudoku {
+    inner: [Field; 9 * 9]
+};
 
-fn (Sudoku) cell(row: T, col: T) {
-    return self.0[row * 9 + col];
+fn Sudoku.cell(self, row: T, col: T) {
+    return self.inner[row * 9 + col];
 }
 
 // doesn't matter which one is the grid and which one is the solution
-fn (Sudoku) merge(grid2: Sudoku) -> Self {
+// this function merges `self` and `grid2` into a new grid
+fn Sudoku.merge(self, grid2: Sudoku) -> Sudoku {
     let merged = Sudoku([0; 9 * 9]);
     for row in 0..9 {
         for col in 0..9 {
@@ -21,7 +24,7 @@ fn (Sudoku) merge(grid2: Sudoku) -> Self {
             merged.cell(row, col) = if grid1_empty {
                 grid2.cell(row, col)
             } else {
-                self.cell(row, col)
+                self.inner.cell(row, col)
             };
         }
     }
@@ -29,7 +32,7 @@ fn (Sudoku) merge(grid2: Sudoku) -> Self {
     return merged;
 }
 
-fn (Sudoku) verify(sudoku: Sudoku) {
+fn Sudoku.verify(sudoku: Sudoku) {
     // rows
     for row in 0..9 {
         for num in 0..9 {

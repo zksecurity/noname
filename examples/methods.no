@@ -1,0 +1,12 @@
+struct House {
+    doors: Field
+}
+
+fn House.verify(self, x: Field) {
+    assert!(x == self.doors);
+}
+
+fn main(pub doors: Field) {
+    let house = House { doors };
+    house.verify(3);
+}
