@@ -1,0 +1,208 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/boolean.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>boolean.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../noname/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<span id="2">2</span>
+<span id="3">3</span>
+<span id="4">4</span>
+<span id="5">5</span>
+<span id="6">6</span>
+<span id="7">7</span>
+<span id="8">8</span>
+<span id="9">9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
+<span id="89">89</span>
+<span id="90">90</span>
+<span id="91">91</span>
+<span id="92">92</span>
+<span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Custom types
+
+</span><span class="kw">use </span>std::ops::Neg;
+
+<span class="kw">use </span>ark_ff::{One, Zero};
+
+<span class="kw">use crate</span>::{
+    circuit_writer::{CircuitWriter, GateKind},
+    constants::{Field, Span},
+    var::{ConstOrCell, Constant, Value, Var},
+};
+
+<span class="kw">pub fn </span>is_valid(f: Field) -&gt; bool {
+    f.is_one() || f.is_zero()
+}
+
+<span class="kw">pub fn </span>and(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, lhs: Var, rhs: Var, span: Span) -&gt; Var {
+    <span class="kw">let </span>lhs = lhs
+        .const_or_cell()
+        .expect(<span class="string">&quot;bool.and: lhs is not a constant or cell&quot;</span>);
+    <span class="kw">let </span>rhs = rhs
+        .const_or_cell()
+        .expect(<span class="string">&quot;bool.and: rhs is not a constant or cell&quot;</span>);
+
+    <span class="kw">match </span>(lhs, rhs) {
+        <span class="comment">// two constants
+        </span>(
+            ConstOrCell::Const(Constant { value: lhs, .. }),
+            ConstOrCell::Const(Constant { value: rhs, .. }),
+        ) =&gt; Var::new_constant(Constant::new(<span class="kw-2">*</span>lhs * <span class="kw-2">*</span>rhs, span), span),
+
+        <span class="comment">// constant and a var
+        </span>(ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
+        | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) =&gt; {
+            <span class="kw">if </span>cst.is_one() {
+                Var::new_var(<span class="kw-2">*</span>cvar, span)
+            } <span class="kw">else </span>{
+                Var::new_constant(<span class="kw-2">*</span>cst, span)
+            }
+        }
+
+        <span class="comment">// two vars
+        </span>(ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) =&gt; {
+            <span class="comment">// create a new variable to store the result
+            </span><span class="kw">let </span>res = compiler.new_internal_var(Value::Mul(<span class="kw-2">*</span>lhs, <span class="kw-2">*</span>rhs), span);
+
+            <span class="comment">// create a gate to constrain the result
+            </span><span class="kw">let </span>zero = Field::zero();
+            <span class="kw">let </span>one = Field::one();
+            compiler.add_gate(
+                <span class="string">&quot;constrain the AND as lhs * rhs&quot;</span>,
+                GateKind::DoubleGeneric,
+                <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>lhs), <span class="prelude-val">Some</span>(<span class="kw-2">*</span>rhs), <span class="prelude-val">Some</span>(res)],
+                <span class="macro">vec!</span>[zero, zero, one.neg(), one], <span class="comment">// mul
+                </span>span,
+            );
+
+            <span class="comment">// return the result
+            </span>Var::new_var(res, span)
+        }
+    }
+}
+
+<span class="kw">pub fn </span>neg(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, var: Var, span: Span) -&gt; Var {
+    <span class="kw">let </span>var = var
+        .const_or_cell()
+        .expect(<span class="string">&quot;bool.neg: var is not a constant or cell&quot;</span>);
+
+    <span class="kw">match </span>var {
+        ConstOrCell::Const(cst) =&gt; {
+            <span class="kw">let </span>value = <span class="kw">if </span>cst.is_one() {
+                Field::zero()
+            } <span class="kw">else </span>{
+                Field::one()
+            };
+
+            Var::new_constant(Constant { value, ..<span class="kw-2">*</span>cst }, span)
+        }
+
+        <span class="comment">// constant and a var
+        </span>ConstOrCell::Cell(cvar) =&gt; {
+            <span class="kw">let </span>zero = Field::zero();
+            <span class="kw">let </span>one = Field::one();
+
+            <span class="comment">// create a new variable to store the result
+            </span><span class="kw">let </span>lc = Value::LinearCombination(<span class="macro">vec!</span>[(one.neg(), <span class="kw-2">*</span>cvar)], one); <span class="comment">// 1 - X
+            </span><span class="kw">let </span>res = compiler.new_internal_var(lc, span);
+
+            <span class="comment">// create a gate to constrain the result
+            </span>compiler.add_gate(
+                <span class="string">&quot;constrain the NOT as 1 - X&quot;</span>,
+                GateKind::DoubleGeneric,
+                <span class="macro">vec!</span>[<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="kw-2">*</span>cvar), <span class="prelude-val">Some</span>(res)],
+                <span class="comment">// we use the constant to do 1 - X
+                </span><span class="macro">vec!</span>[zero, one.neg(), one.neg(), zero, one],
+                span,
+            );
+
+            <span class="comment">// return the result
+            </span>Var::new_var(res, span)
+        }
+    }
+}
+</code></pre></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (cf9ed0dd5 2022-09-15)" ></div></body></html>

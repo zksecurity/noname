@@ -31,6 +31,7 @@
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="././mdbook-admonish.css">
 
     </head>
     <body>
@@ -224,9 +225,43 @@ y = x + y; // BAD
 <span class="boring">}
 </span></code></pre></pre>
 <h2 id="custom-types"><a class="header" href="#custom-types">Custom types</a></h2>
-<p>TODO</p>
+<pre><pre class="playground"><code class="language-rust">struct Thing {
+    x: Field,
+    y: Field,
+}
+
+fn main(pub x: Field, pub y: Field) {
+    let thing = Thing {
+        x: 1,
+        y: 2,
+    };
+    
+    assert_eq(thing.x, x);
+    assert_eq(thing.y, y);
+}
+</code></pre></pre>
 <h2 id="for-loops"><a class="header" href="#for-loops">For loops</a></h2>
-<p>TODO</p>
+<pre><pre class="playground"><code class="language-rust">fn main(pub public_input: Field, private_input: [Field; 3]) {
+    let mut sum = 0;
+
+    for i in 0..3 {
+        sum = sum + private_input[i];
+    }
+
+    assert_eq(sum, public_input);
+}
+</code></pre></pre>
+<h2 id="constants"><a class="header" href="#constants">Constants</a></h2>
+<pre><pre class="playground"><code class="language-rust">const PLAYER_ONE = 1;
+const PLAYER_TWO = 2;
+
+fn main(pub player: Field) -&gt; Field {
+    assert_eq(PLAYER_ONE, player);
+    let next_player = player + 1;
+    assert_eq(PLAYER_TWO, next_player);
+    return next_player;
+}
+</code></pre></pre>
 <h2 id="if-else-statements"><a class="header" href="#if-else-statements">If Else statements</a></h2>
 <p>TODO</p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
@@ -385,7 +420,7 @@ let z = 1 + y; // BAD: y doesn't exist outside of the for loop
 }
 </code></pre></pre>
 <p>will be compiled to the following noname asm:</p>
-<pre><code>@ noname.0.1.0
+<pre><code>@ noname.0.3.0
 
 DoubleGeneric&lt;1&gt;
 DoubleGeneric&lt;1,1,-1&gt;
@@ -418,100 +453,10 @@ DoubleGeneric&lt;1,-1&gt;
 let z = thing.x + thing.y;
 <span class="boring">}
 </span></code></pre></pre>
-<h2 id="implementation"><a class="header" href="#implementation">implementation</a></h2>
-<p>A struct is a list of fields that each have a name and a type.
-Like any type, a struct can be serialized as a list of <code>CellVar</code>s.
-So that fields of an instantiated struct can be accessed, the following information needs to be known:</p>
-<ul>
-<li>at what offset each field is stored</li>
-<li>how many <code>CellVar</code> each field takes</li>
-</ul>
-<p>During type checking, the type checker calculates the length of each field, and stores this information in the <code>TypeEnv</code> structure:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct FieldInfo {
-    typ: TyKind,
-    offset: usize,
-    len: usize,
-}
-
-pub struct TypeEnv {
-    // ...
-
-    // struct name -&gt; Vec&lt;(field name -&gt; (type, offset, length))&gt;
-    pub structs: HashMap&lt;String, Vec&lt;name, FieldInfo&gt;&gt;,
-}
-<span class="boring">}
-</span></code></pre></pre>
-<p>The length, in addition to the offset, is important because the circuit writer does not know what types it is really querying (it does not have this information anymore).</p>
-<p>–</p>
-<p>or:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let thing = Thing { x: 5, y: 5 };
-<span class="boring">}
-</span></code></pre></pre>
-<p>could be stored as thing -&gt; x: var, y: var</p>
-<p>and</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>thing.x
-<span class="boring">}
-</span></code></pre></pre>
-<p>could be retrieved via the hashmap:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub enum VarChoice {
-    /// Used by simple types
-    Flat(Var),
-
-    /// Used by types with fields
-    Named(HashMap&lt;String, Var&gt;),
-
-    /// Used by arrays, tuples
-    List(Vec&lt;Var&gt;),
-}
-
-pub struct VarInfo {
-    scope: usize,
-    cvars: VarChoice,
-}
-<span class="boring">}
-</span></code></pre></pre>
-<p>the problem with this is that we can’t use assert_eq to check an array or a struct, unless we generalize assert_eq to take a VarChoice and handle all cases. It’s easier if everything’s just a list of cellvars eventually</p>
-<p>it’s easy to handle arrays with arbitrary types with the the flat way as well <code>a: [3; T]</code> and <code>a[1]</code> will just have to figure out the array type</p>
-<p>so maybe we should have a hashmap that stores the length of everything, from struct fields to array item</p>
-<p>hummm, but the problem is that in <code>a[1]</code> or <code>a.x</code> the circuit writer doesn’t know the type of <code>a</code> anymore, and so they don’t know what to look for?</p>
-<p>solution3: perhaps a var can contain this information themselves? (name -&gt; offset and length, and array could use “array” as name?)</p>
-<p>so to recap:</p>
-<ul>
-<li>solution 1: store it in type_env 
-<ul>
-<li>circuit writer can’t access the type of a var anymore</li>
-<li>one solution would be to create node id like in Rust</li>
-<li>and store some information under a hashmap linked to a specific node</li>
-</ul>
-</li>
-<li>solution 2: store it in local_env
-<ul>
-<li>we have to store that information at creation</li>
-<li>when we create an array/struct, we have that information</li>
-<li>although, what about array of array, and struct of struct…</li>
-</ul>
-</li>
-<li>solution 3: store it in Var
-<ul>
-<li>but what about struct of struct, and array of array?</li>
-</ul>
-</li>
-</ul>
-<pre><code>x.y.z 
-</code></pre>
-<ul>
-<li>I need to know what y is in x so that I can get z</li>
-</ul>
+<p>Internally, a struct is represented within the <a href="https://mimoo.github.io/noname/rustdoc/var/struct.Var.html"><code>Var</code></a> type.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="cellvar"><a class="header" href="#cellvar">CellVar</a></h1>
-<p>A <code>CellVar</code> type (TODO: link to rust doc) is a type that represents an internal variable. Importantly, it is named after the fact that it relates to a specific cell, or even multiple cells (if wired), in the execution trace.</p>
+<p>A <a href="https://mimoo.github.io/noname/rustdoc/var/struct.CellVar.html"><code>CellVar</code></a> type is a type that represents an internal variable. Importantly, it is named after the fact that it relates to a specific cell, or even multiple cells if they will have the same value (using some wiring), in the execution trace.</p>
+<p>A <code>CellVar</code> looks like this:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct CellVar {
@@ -569,11 +514,11 @@ but only added to the rows when it appears in a constraint for the first time.</
 </ul>
 <p>TODO: explain the LinearCombination. I think we only need an <code>Add((Field, Var), (Field, Var), Field)</code></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="vars"><a class="header" href="#vars">Vars</a></h1>
-<p>We already have <a href="./cellvar.html"><code>CellVar</code></a>s, why have vars? 
-The distinction is a matter of level: </p>
+<p>We already have <a href="./cellvar.html"><code>CellVar</code></a>s, why have <a href="https://mimoo.github.io/noname/rustdoc/var/struct.Var.html"><code>Var</code></a>s? 
+The distinction is a matter of abstraction: </p>
 <ul>
-<li><code>CellVar</code>s are low-level: they track actual cells of the execution trace. When a single <code>CellVar</code> is assigned to multiple cells the wiring must make sure the cells are wired.</li>
-<li><code>Var</code>s are a higher-level concept: they track variables that are created in the language either directly (<code>let x = ...</code>) or indirectly (in <code>x + (y + z)</code> the term <code>y + z</code> is stored under a <code>Var</code>)</li>
+<li><code>CellVar</code>s are low-level: they track actual cells of the execution trace. When a single <code>CellVar</code> is assigned to multiple cells the wiring must make sure the cells are wired (so that they can only have the same value).</li>
+<li><code>Var</code>s are a higher-level concept: they track variables that are created in the noname language either directly (e.g. <code>let x = 3</code>) or indirectly (e.g. in <code>x + (y + z)</code> the term <code>y + z</code> is stored under an anonymous <code>Var</code>)</li>
 </ul>
 <p>While a <code>CellVar</code> represents a single field element, a <code>Var</code> can potentially represent several field elements (and as such several cells in the execution trace). 
 Here are some examples of <code>Var</code>s:</p>
@@ -589,14 +534,23 @@ let y = private_input + 1;
 let z = [y, x, 6];
 
 // or a custom type
-// we don't support that yet
+let s = Thing { x, y };
 <span class="boring">}
 </span></code></pre></pre>
-<p>See the <a href="./constants.html">Constant chapter</a> to see why constants are treated differently.</p>
-<p>Internally, a <code>Var</code> is represented as such:</p>
+<p>Internally, a <a href="https://mimoo.github.io/noname/rustdoc/var/struct.Var.html"><code>Var</code></a> is represented as such:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub enum ConstOrCell {
+</span>/// A constant value created in a noname program
+pub struct Constant {
+    /// The actual value.
+    pub value: Field,
+
+    /// The span that created the constant.
+    pub span: Span,
+}
+
+/// Represents a cell in the execution trace.
+pub enum ConstOrCell {
     /// A constant value.
     Const(Constant),
 
@@ -604,24 +558,59 @@ let z = [y, x, 6];
     Cell(CellVar),
 }
 
+/// A variable in a program can have different shapes.
+pub enum VarKind {
+    /// We pack [Const] and [CellVar] in the same enum because we often branch on these.
+    ConstOrCell(ConstOrCell),
+
+    /// A struct is represented as a mapping between field names and other [VarKind]s.
+    Struct(HashMap&lt;String, VarKind&gt;),
+
+    /// An array or a tuple is represetend as a list of other [VarKind]s.
+    ArrayOrTuple(Vec&lt;VarKind&gt;),
+}
+
+/// Represents a variable in the noname language, or an anonymous variable during computation of expressions.
 pub struct Var {
-    pub value: Vec&lt;ConstOrCell&gt;,
+    /// The type of variable.
+    pub kind: VarKind,
+
+    /// The span that created the variable.
     pub span: Span,
 }
 <span class="boring">}
 </span></code></pre></pre>
-<p>and the circuit-writer will always return a <code>Var</code> from an expression.</p>
-<p>In our example of:</p>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="var.html#admonition-note"></a></p>
+</div>
+<div>
+<p>Note: see the <a href="./constants.html">Constant chapter</a> to see why constants are treated differently.</p>
+</div>
+</div>
+<h2 id="anonymous-variable"><a class="header" href="#anonymous-variable">Anonymous variable</a></h2>
+<p>Here’s a short note on anonymous variable.</p>
+<p>When circuit writer parses the <a href="./compilation.html">ast</a>, it will convert each expression into a <code>Var</code> (unless the expression does not compute to an actual value).</p>
+<p>In our example:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let x = t + (z + y);
 <span class="boring">}
 </span></code></pre></pre>
-<p>the <code>z + y</code> is parsed as an expression (a binary operation involving <code>z</code> and <code>y</code>) and stored under a var <code>var1</code> (TODO: I believe it’s called anonymous var? Because it doesn’t have a name). 
+<p>the <code>z + y</code> is parsed as an expression (a binary operation involving <code>z</code> and <code>y</code>) and stored under a var <code>var1</code>. 
 Then <code>t + ...</code> is also parsed as another binary operation expression and stored under another var <code>var2</code>.
-Finally the <code>let x = ...</code> is parsed as an assignment statement, and <code>x</code> is stored as a local variable associated to the right handside var <code>var2</code>.
-See the <a href="./scope.html">Scope chapter</a> for more information on local variables.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="constants"><a class="header" href="#constants">Constants</a></h1>
+Finally the <code>let x = ...</code> is parsed as an assignment statement, and <code>x</code> is stored as a local variable associated to the right handside var <code>var2</code>.</p>
+<div id="admonition-note-1" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="var.html#admonition-note-1"></a></p>
+</div>
+<div>
+<p>See the <a href="./scope.html">Scope chapter</a> for more information on local variables.</p>
+</div>
+</div>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="constants-1"><a class="header" href="#constants-1">Constants</a></h1>
 <p>Developers write constants in their code all the time. For example, the following code has two constants <code>2</code> and <code>4</code>:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {

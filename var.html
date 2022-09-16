@@ -30,6 +30,7 @@
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="././mdbook-admonish.css">
 
     </head>
     <body>
@@ -146,11 +147,11 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="vars"><a class="header" href="#vars">Vars</a></h1>
-<p>We already have <a href="./cellvar.html"><code>CellVar</code></a>s, why have vars? 
-The distinction is a matter of level: </p>
+<p>We already have <a href="./cellvar.html"><code>CellVar</code></a>s, why have <a href="https://mimoo.github.io/noname/rustdoc/var/struct.Var.html"><code>Var</code></a>s? 
+The distinction is a matter of abstraction: </p>
 <ul>
-<li><code>CellVar</code>s are low-level: they track actual cells of the execution trace. When a single <code>CellVar</code> is assigned to multiple cells the wiring must make sure the cells are wired.</li>
-<li><code>Var</code>s are a higher-level concept: they track variables that are created in the language either directly (<code>let x = ...</code>) or indirectly (in <code>x + (y + z)</code> the term <code>y + z</code> is stored under a <code>Var</code>)</li>
+<li><code>CellVar</code>s are low-level: they track actual cells of the execution trace. When a single <code>CellVar</code> is assigned to multiple cells the wiring must make sure the cells are wired (so that they can only have the same value).</li>
+<li><code>Var</code>s are a higher-level concept: they track variables that are created in the noname language either directly (e.g. <code>let x = 3</code>) or indirectly (e.g. in <code>x + (y + z)</code> the term <code>y + z</code> is stored under an anonymous <code>Var</code>)</li>
 </ul>
 <p>While a <code>CellVar</code> represents a single field element, a <code>Var</code> can potentially represent several field elements (and as such several cells in the execution trace). 
 Here are some examples of <code>Var</code>s:</p>
@@ -166,14 +167,23 @@ let y = private_input + 1;
 let z = [y, x, 6];
 
 // or a custom type
-// we don't support that yet
+let s = Thing { x, y };
 <span class="boring">}
 </span></code></pre></pre>
-<p>See the <a href="./constants.html">Constant chapter</a> to see why constants are treated differently.</p>
-<p>Internally, a <code>Var</code> is represented as such:</p>
+<p>Internally, a <a href="https://mimoo.github.io/noname/rustdoc/var/struct.Var.html"><code>Var</code></a> is represented as such:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub enum ConstOrCell {
+</span>/// A constant value created in a noname program
+pub struct Constant {
+    /// The actual value.
+    pub value: Field,
+
+    /// The span that created the constant.
+    pub span: Span,
+}
+
+/// Represents a cell in the execution trace.
+pub enum ConstOrCell {
     /// A constant value.
     Const(Constant),
 
@@ -181,23 +191,58 @@ let z = [y, x, 6];
     Cell(CellVar),
 }
 
+/// A variable in a program can have different shapes.
+pub enum VarKind {
+    /// We pack [Const] and [CellVar] in the same enum because we often branch on these.
+    ConstOrCell(ConstOrCell),
+
+    /// A struct is represented as a mapping between field names and other [VarKind]s.
+    Struct(HashMap&lt;String, VarKind&gt;),
+
+    /// An array or a tuple is represetend as a list of other [VarKind]s.
+    ArrayOrTuple(Vec&lt;VarKind&gt;),
+}
+
+/// Represents a variable in the noname language, or an anonymous variable during computation of expressions.
 pub struct Var {
-    pub value: Vec&lt;ConstOrCell&gt;,
+    /// The type of variable.
+    pub kind: VarKind,
+
+    /// The span that created the variable.
     pub span: Span,
 }
 <span class="boring">}
 </span></code></pre></pre>
-<p>and the circuit-writer will always return a <code>Var</code> from an expression.</p>
-<p>In our example of:</p>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<div>
+<p>Note: see the <a href="./constants.html">Constant chapter</a> to see why constants are treated differently.</p>
+</div>
+</div>
+<h2 id="anonymous-variable"><a class="header" href="#anonymous-variable">Anonymous variable</a></h2>
+<p>Here’s a short note on anonymous variable.</p>
+<p>When circuit writer parses the <a href="./compilation.html">ast</a>, it will convert each expression into a <code>Var</code> (unless the expression does not compute to an actual value).</p>
+<p>In our example:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let x = t + (z + y);
 <span class="boring">}
 </span></code></pre></pre>
-<p>the <code>z + y</code> is parsed as an expression (a binary operation involving <code>z</code> and <code>y</code>) and stored under a var <code>var1</code> (TODO: I believe it’s called anonymous var? Because it doesn’t have a name). 
+<p>the <code>z + y</code> is parsed as an expression (a binary operation involving <code>z</code> and <code>y</code>) and stored under a var <code>var1</code>. 
 Then <code>t + ...</code> is also parsed as another binary operation expression and stored under another var <code>var2</code>.
-Finally the <code>let x = ...</code> is parsed as an assignment statement, and <code>x</code> is stored as a local variable associated to the right handside var <code>var2</code>.
-See the <a href="./scope.html">Scope chapter</a> for more information on local variables.</p>
+Finally the <code>let x = ...</code> is parsed as an assignment statement, and <code>x</code> is stored as a local variable associated to the right handside var <code>var2</code>.</p>
+<div id="admonition-note-1" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note-1"></a></p>
+</div>
+<div>
+<p>See the <a href="./scope.html">Scope chapter</a> for more information on local variables.</p>
+</div>
+</div>
 
                     </main>
 

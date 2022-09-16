@@ -30,6 +30,7 @@
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="././mdbook-admonish.css">
 
     </head>
     <body>
@@ -221,9 +222,43 @@ y = x + y; // BAD
 <span class="boring">}
 </span></code></pre></pre>
 <h2 id="custom-types"><a class="header" href="#custom-types">Custom types</a></h2>
-<p>TODO</p>
+<pre><pre class="playground"><code class="language-rust">struct Thing {
+    x: Field,
+    y: Field,
+}
+
+fn main(pub x: Field, pub y: Field) {
+    let thing = Thing {
+        x: 1,
+        y: 2,
+    };
+    
+    assert_eq(thing.x, x);
+    assert_eq(thing.y, y);
+}
+</code></pre></pre>
 <h2 id="for-loops"><a class="header" href="#for-loops">For loops</a></h2>
-<p>TODO</p>
+<pre><pre class="playground"><code class="language-rust">fn main(pub public_input: Field, private_input: [Field; 3]) {
+    let mut sum = 0;
+
+    for i in 0..3 {
+        sum = sum + private_input[i];
+    }
+
+    assert_eq(sum, public_input);
+}
+</code></pre></pre>
+<h2 id="constants"><a class="header" href="#constants">Constants</a></h2>
+<pre><pre class="playground"><code class="language-rust">const PLAYER_ONE = 1;
+const PLAYER_TWO = 2;
+
+fn main(pub player: Field) -&gt; Field {
+    assert_eq(PLAYER_ONE, player);
+    let next_player = player + 1;
+    assert_eq(PLAYER_TWO, next_player);
+    return next_player;
+}
+</code></pre></pre>
 <h2 id="if-else-statements"><a class="header" href="#if-else-statements">If Else statements</a></h2>
 <p>TODO</p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
