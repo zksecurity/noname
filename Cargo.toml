@@ -13,7 +13,7 @@ ena = "0.14.0" # union-find implementation for the wiring
 num-bigint = "0.4.3" # big int library
 clap = { version = "3.2.6", features = ["derive"] } # CLI library
 itertools = "0.10.3" # useful iter traits
-kimchi = { git = "https://github.com/o1-labs/proof-systems" } # ZKP
+kimchi = { git = "https://github.com/o1-labs/proof-systems", version = "0.1.0" } # ZKP
 miette = { version = "5.0.0", features = ["fancy"] } # nice errors
 num-traits = "0.2.15" # useful traits on big ints
 serde_json = "1.0.85" # to (de)serialize JSON
