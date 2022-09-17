@@ -4,7 +4,7 @@ use crate::{
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind},
-    syntax::is_type,
+    syntax::{is_identifier, is_type},
     tokens::Tokens,
 };
 
@@ -194,6 +194,44 @@ pub fn parse_type_declaration(
     })
 }
 
+pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<Expr>> {
+    tokens.bump(ctx); // (
+
+    let mut args = vec![];
+    let mut end_span = Span::default();
+    loop {
+        let arg = Expr::parse(ctx, tokens)?;
+
+        args.push(arg);
+
+        let pp = tokens.peek();
+
+        match pp {
+            Some(x) => {
+                end_span = x.span;
+                match x.kind {
+                    TokenKind::Comma => {
+                        tokens.bump(ctx);
+                    }
+                    TokenKind::RightParen => {
+                        tokens.bump(ctx);
+                        break;
+                    }
+                    _ => (),
+                }
+            }
+            None => {
+                return Err(Error {
+                    kind: ErrorKind::InvalidFnCall("unexpected end of function call"),
+                    span: ctx.last_span(),
+                })
+            }
+        }
+    }
+
+    Ok(args)
+}
+
 /// after a path, there can be a method call, an array access, a const, a var, a function call, etc.
 pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -> Result<Expr> {
     match tokens.peek() {
@@ -229,42 +267,13 @@ pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -
             kind: TokenKind::LeftParen,
             span,
         }) => {
-            tokens.bump(ctx); // (
+            let args = parse_fn_call_args(ctx, tokens)?;
 
-            let mut args = vec![];
-            #[allow(unused_assignments)]
-            let mut end_span = span;
-            loop {
-                let arg = Expr::parse(ctx, tokens)?;
-
-                args.push(arg);
-
-                let pp = tokens.peek();
-
-                match pp {
-                    Some(x) => {
-                        end_span = x.span;
-                        match x.kind {
-                            TokenKind::Comma => {
-                                tokens.bump(ctx);
-                            }
-                            TokenKind::RightParen => {
-                                tokens.bump(ctx);
-                                break;
-                            }
-                            _ => (),
-                        }
-                    }
-                    None => {
-                        return Err(Error {
-                            kind: ErrorKind::InvalidFnCall("unexpected end of function call"),
-                            span: ctx.last_span(),
-                        })
-                    }
-                }
-            }
-
-            let span = path.span.merge_with(end_span);
+            let span = if let Some(arg) = args.last() {
+                path.span.merge_with(arg.span)
+            } else {
+                path.span
+            };
 
             Ok(Expr {
                 kind: ExprKind::FnCall { name: path, args },
@@ -273,7 +282,7 @@ pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -
             })
         }
 
-        // a struct access or method access
+        // a struct access or method call
         Some(Token {
             kind: TokenKind::Dot,
             ..
@@ -284,10 +293,30 @@ pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -
 
             let span = path.span.merge_with(field.span);
 
-            if is_type(&path.name) {
-                todo!() // TODO: method access
-            } else {
-                Ok(Expr {
+            match tokens.peek() {
+                // method call
+                Some(Token {
+                    kind: TokenKind::LeftParen,
+                    ..
+                }) => {
+                    let args = parse_fn_call_args(ctx, tokens)?;
+
+                    if !is_identifier(&field.value) {
+                        panic!("method call on a non-ident (TODO: better error)");
+                    }
+
+                    Ok(Expr {
+                        kind: ExprKind::MethodCall {
+                            self_name: path,
+                            name: field.value,
+                            args,
+                        },
+                        span,
+                    })
+                }
+
+                // struct access
+                _ => Ok(Expr {
                     kind: ExprKind::StructAccess(
                         Ident {
                             value: path.name.clone(),
@@ -296,7 +325,7 @@ pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -
                         field,
                     ),
                     span,
-                })
+                }),
             }
         }
 
@@ -1447,7 +1476,7 @@ impl Const {
             }
         };
 
-        // const FOO = 42;
+        // const foo = 42;
         //               ^
         tokens.bump_expected(ctx, TokenKind::SemiColon)?;
 
