@@ -13,7 +13,7 @@ use crate::{
 // Consts
 //
 
-const RESERVED_ARGS: [&'static str; 1] = ["public_output"];
+const RESERVED_ARGS: [&str; 1] = ["public_output"];
 
 //
 // Data Structures

@@ -636,7 +636,7 @@ impl Expr {
                 }
 
                 Expr {
-                    kind: ExprKind::CustomTypeDeclaration(type_name.clone(), fields),
+                    kind: ExprKind::CustomTypeDeclaration(type_name, fields),
                     span: span.merge_with(ctx.last_span()),
                 }
             }

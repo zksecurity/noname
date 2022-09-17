@@ -236,7 +236,7 @@ impl CircuitWriter {
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
                     // create the env
-                    let mut fn_env = FnEnv::default();
+                    let fn_env = &mut FnEnv::default();
 
                     // we only compile the main function
                     if !function.is_main() {
@@ -299,7 +299,7 @@ impl CircuitWriter {
                     }
 
                     // compile function
-                    circuit_writer.compile_main_function(&global_env, &mut fn_env, function)?;
+                    circuit_writer.compile_main_function(global_env, fn_env, function)?;
                 }
 
                 // struct definition (already dealt with in type checker)
@@ -422,7 +422,6 @@ impl CircuitWriter {
         global_env: &GlobalEnv,
         function: &Function,
         args: Vec<Var>,
-        span: Span,
     ) -> Result<Option<Var>> {
         assert!(!function.is_main());
 
@@ -547,14 +546,12 @@ impl CircuitWriter {
                     match &fn_info.kind {
                         FnKind::BuiltIn(_, handle) => handle(self, &vars, expr.span),
                         FnKind::Native(func) => {
-                            self.compile_native_function_call(global_env, func, vars, expr.span)
+                            self.compile_native_function_call(global_env, func, vars)
                         }
-                        FnKind::Main(_) => {
-                            return Err(Error {
-                                kind: ErrorKind::RecursiveMain,
-                                span: expr.span,
-                            });
-                        }
+                        FnKind::Main(_) => Err(Error {
+                            kind: ErrorKind::RecursiveMain,
+                            span: expr.span,
+                        }),
                     }
                 } else if name.len() == 2 {
                     // check module present in the scope
@@ -572,12 +569,10 @@ impl CircuitWriter {
                     match &fn_info.kind {
                         FnKind::BuiltIn(_, handle) => handle(self, &vars, expr.span),
                         FnKind::Native(_) => todo!(),
-                        FnKind::Main(_) => {
-                            return Err(Error {
-                                kind: ErrorKind::RecursiveMain,
-                                span: expr.span,
-                            });
-                        }
+                        FnKind::Main(_) => Err(Error {
+                            kind: ErrorKind::RecursiveMain,
+                            span: expr.span,
+                        }),
                     }
                 } else {
                     Err(Error {

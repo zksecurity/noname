@@ -1,9 +1,6 @@
 use std::{collections::HashMap, vec};
 
-use ark_ff::{One, Zero};
-
 use crate::{
-    circuit_writer::CircuitWriter,
     constants::{Field, Span},
     error::Result,
     witness::{CompiledCircuit, WitnessEnv},
