@@ -796,6 +796,24 @@
 <span id="796">796</span>
 <span id="797">797</span>
 <span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -871,9 +889,17 @@
 
 <span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>FnInfo {
-    <span class="kw">pub </span>sig: FnSig,
     <span class="kw">pub </span>kind: FnKind,
     <span class="kw">pub </span>span: Span,
+}
+
+<span class="kw">impl </span>FnInfo {
+    <span class="kw">pub fn </span>sig(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>FnSig {
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
+            FnKind::BuiltIn(sig, <span class="kw">_</span>) =&gt; sig,
+            FnKind::Native(func) =&gt; <span class="kw-2">&amp;</span>func.sig,
+        }
+    }
 }
 
 <span class="kw">impl </span>TypedGlobalEnv {
@@ -882,7 +908,7 @@
         <span class="kw">for </span>fn_info <span class="kw">in </span>builtin_functions {
             <span class="kw">if </span><span class="self">self
                 </span>.functions
-                .insert(fn_info.sig.name.value.clone(), fn_info)
+                .insert(fn_info.sig().name.value.clone(), fn_info)
                 .is_some()
             {
                 <span class="macro">panic!</span>(<span class="string">&quot;global imports conflict (TODO: better error)&quot;</span>);
@@ -1303,16 +1329,26 @@
             <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
                 <span class="comment">// `fn main() { ... }`
                 </span>RootKind::Function(function) =&gt; {
-                    <span class="kw">let </span><span class="kw-2">mut </span>typed_fn_env = TypedFnEnv::default();
+                    <span class="comment">// create a new typed fn environment to type check the function
+                    </span><span class="kw">let </span><span class="kw-2">mut </span>typed_fn_env = TypedFnEnv::default();
 
                     <span class="comment">// if this is main, witness it
                     </span><span class="kw">if </span>function.is_main() {
                         typed_global_env.has_main = <span class="bool-val">true</span>;
                         typed_global_env.main_args.<span class="number">1 </span>= function.span;
+                    } <span class="kw">else </span>{
+                        <span class="comment">// if it&#39;s a non-main function, save its AST in the global env
+                        </span><span class="kw">let </span>fn_info = FnInfo {
+                            kind: FnKind::Native(function.clone()),
+                            span: function.span,
+                        };
+                        typed_global_env
+                            .functions
+                            .insert(function.sig.name.value.clone(), fn_info);
                     }
 
                     <span class="comment">// store variables and their types in the env
-                    </span><span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span>function.arguments {
+                    </span><span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span>function.sig.arguments {
                         <span class="comment">// public_output is a reserved name,
                         // associated automatically to the public output of the main function
                         </span><span class="kw">if </span>arg.name.value == <span class="string">&quot;public_output&quot; </span>{
@@ -1347,7 +1383,7 @@
                             t =&gt; <span class="macro">panic!</span>(<span class="string">&quot;unimplemented type {:?}&quot;</span>, t),
                         }
 
-                        <span class="comment">// when we witness main, we do some stuff
+                        <span class="comment">// if it&#39;s main, save its arguments
                         </span><span class="kw">if </span>function.is_main() {
                             typed_global_env
                                 .main_args
@@ -1357,7 +1393,7 @@
                     }
 
                     <span class="comment">// the output value returned by the main function is also a main_args with a special name (public_output)
-                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="kw-2">&amp;</span>function.return_type {
+                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="kw-2">&amp;</span>function.sig.return_type {
                         <span class="kw">if </span>!<span class="macro">matches!</span>(typ.kind, TyKind::Field) {
                             <span class="macro">unimplemented!</span>();
                         }
@@ -1375,7 +1411,7 @@
                         <span class="kw-2">&amp;</span>typed_global_env,
                         <span class="kw-2">&amp;mut </span>typed_fn_env,
                         <span class="kw-2">&amp;</span>function.body,
-                        function.return_type.as_ref(),
+                        function.sig.return_type.as_ref(),
                     )<span class="question-mark">?</span>;
                 }
 
@@ -1528,7 +1564,7 @@
             kind: ErrorKind::UndefinedFunction(fn_name.clone()),
             span: name.span,
         })<span class="question-mark">?</span>;
-        fn_info.sig.clone()
+        fn_info.sig().clone()
     } <span class="kw">else if </span>path_len == <span class="number">2 </span>{
         <span class="comment">// check module present in the scope
         </span><span class="kw">let </span>module = <span class="kw-2">&amp;</span>name.path[<span class="number">0</span>];
@@ -1541,7 +1577,7 @@
             kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
             span: fn_name.span,
         })<span class="question-mark">?</span>;
-        fn_info.sig.clone()
+        fn_info.sig().clone()
     } <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
             kind: ErrorKind::InvalidFnCall(<span class="string">&quot;sub-sub modules unsupported&quot;</span>),

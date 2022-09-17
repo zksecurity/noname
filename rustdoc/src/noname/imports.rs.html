@@ -56,7 +56,7 @@
     circuit_writer::CircuitWriter,
     constants::Span,
     error::Result,
-    parser::{Function, Path},
+    parser::{FnSig, Function, Path},
     stdlib::{<span class="self">self</span>, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
     type_checker::FnInfo,
     var::Var,
@@ -75,7 +75,7 @@
 </span><span class="attribute">#[derive(Clone)]
 </span><span class="kw">pub enum </span>FnKind {
     <span class="doccomment">/// a built-in is just a handle to a function written in Rust.
-    </span>BuiltIn(FnHandle),
+    </span>BuiltIn(FnSig, FnHandle),
 
     <span class="doccomment">/// a native function is represented as an AST
     </span>Native(Function),

@@ -187,6 +187,7 @@
 <span id="187">187</span>
 <span id="188">188</span>
 <span id="189">189</span>
+<span id="190">190</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Neg <span class="kw">as _</span>};
 
 <span class="kw">use </span>ark_ff::{One <span class="kw">as _</span>, Zero};
@@ -246,7 +247,7 @@
         <span class="string">&quot;crypto&quot; </span>=&gt; {
             <span class="kw">let </span>crypto_functions = parse_fn_sigs(<span class="kw-2">&amp;</span>CRYPTO_FNS);
             <span class="kw">for </span>func <span class="kw">in </span>crypto_functions {
-                res.functions.insert(func.sig.name.value.clone(), func);
+                res.functions.insert(func.sig().name.value.clone(), func);
             }
         }
         <span class="kw">_ </span>=&gt; {
@@ -272,8 +273,7 @@
         <span class="kw">let </span>sig = FnSig::parse(ctx, <span class="kw-2">&amp;mut </span>tokens).unwrap();
 
         functions.push(FnInfo {
-            sig,
-            kind: FnKind::BuiltIn(<span class="kw-2">*</span>fn_ptr),
+            kind: FnKind::BuiltIn(sig, <span class="kw-2">*</span>fn_ptr),
             span: Span::default(),
         });
     }
@@ -320,15 +320,17 @@
         <span class="comment">// a const and a var
         </span>(ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) =&gt; {
-            <span class="comment">// constrain the constant first
-            </span><span class="kw">let </span>cst_cvar = cst.constrain(<span class="prelude-val">Some</span>(<span class="string">&quot;encoding the constant&quot;</span>), compiler);
-
-            <span class="comment">// TODO: use permutation to check that
-            </span>compiler.add_gate(
-                <span class="string">&quot;constrain cst - var = 0 to check equality&quot;</span>,
+            compiler.add_gate(
+                <span class="string">&quot;constrain var - cst = 0 to check equality&quot;</span>,
                 GateKind::DoubleGeneric,
-                <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(cst_cvar), <span class="prelude-val">Some</span>(<span class="kw-2">*</span>cvar)],
-                <span class="macro">vec!</span>[Field::one(), Field::one().neg()],
+                <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>cvar)],
+                <span class="macro">vec!</span>[
+                    Field::one(),
+                    Field::zero(),
+                    Field::zero(),
+                    Field::zero(),
+                    cst.value.neg(),
+                ],
                 span,
             );
         }

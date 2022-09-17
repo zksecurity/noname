@@ -1665,9 +1665,6 @@
 <span id="1665">1665</span>
 <span id="1666">1666</span>
 <span id="1667">1667</span>
-<span id="1668">1668</span>
-<span id="1669">1669</span>
-<span id="1670">1670</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -2485,12 +2482,7 @@ impl TyKind {
 
 <span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>Function {
-    <span class="kw">pub </span>name: Ident,
-
-    <span class="doccomment">/// (pub, ident, type)
-    </span><span class="kw">pub </span>arguments: Vec&lt;FnArg&gt;,
-
-    <span class="kw">pub </span>return_type: <span class="prelude-ty">Option</span>&lt;Ty&gt;,
+    <span class="kw">pub </span>sig: FnSig,
 
     <span class="kw">pub </span>body: Vec&lt;Stmt&gt;,
 
@@ -2519,7 +2511,7 @@ impl TyKind {
 
 <span class="kw">impl </span>Function {
     <span class="kw">pub fn </span>is_main(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.name.value == <span class="string">&quot;main&quot;
+        <span class="self">self</span>.sig.name.value == <span class="string">&quot;main&quot;
     </span>}
 
     <span class="kw">pub fn </span>parse_name(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;Ident&gt; {
@@ -2705,9 +2697,11 @@ impl TyKind {
         }
 
         <span class="kw">let </span>func = <span class="self">Self </span>{
-            name,
-            arguments,
-            return_type,
+            sig: FnSig {
+                name,
+                arguments,
+                return_type,
+            },
             body,
             span,
         };
