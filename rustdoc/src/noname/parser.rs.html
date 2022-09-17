@@ -1714,13 +1714,42 @@
 <span id="1714">1714</span>
 <span id="1715">1715</span>
 <span id="1716">1716</span>
+<span id="1717">1717</span>
+<span id="1718">1718</span>
+<span id="1719">1719</span>
+<span id="1720">1720</span>
+<span id="1721">1721</span>
+<span id="1722">1722</span>
+<span id="1723">1723</span>
+<span id="1724">1724</span>
+<span id="1725">1725</span>
+<span id="1726">1726</span>
+<span id="1727">1727</span>
+<span id="1728">1728</span>
+<span id="1729">1729</span>
+<span id="1730">1730</span>
+<span id="1731">1731</span>
+<span id="1732">1732</span>
+<span id="1733">1733</span>
+<span id="1734">1734</span>
+<span id="1735">1735</span>
+<span id="1736">1736</span>
+<span id="1737">1737</span>
+<span id="1738">1738</span>
+<span id="1739">1739</span>
+<span id="1740">1740</span>
+<span id="1741">1741</span>
+<span id="1742">1742</span>
+<span id="1743">1743</span>
+<span id="1744">1744</span>
+<span id="1745">1745</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
     constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     lexer::{Keyword, Token, TokenKind},
-    syntax::is_type,
+    syntax::{is_identifier, is_type},
     tokens::Tokens,
 };
 
@@ -1910,6 +1939,44 @@
     })
 }
 
+<span class="kw">pub fn </span>parse_fn_call_args(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Expr&gt;&gt; {
+    tokens.bump(ctx); <span class="comment">// (
+
+    </span><span class="kw">let </span><span class="kw-2">mut </span>args = <span class="macro">vec!</span>[];
+    <span class="kw">let </span><span class="kw-2">mut </span>end_span = Span::default();
+    <span class="kw">loop </span>{
+        <span class="kw">let </span>arg = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+
+        args.push(arg);
+
+        <span class="kw">let </span>pp = tokens.peek();
+
+        <span class="kw">match </span>pp {
+            <span class="prelude-val">Some</span>(x) =&gt; {
+                end_span = x.span;
+                <span class="kw">match </span>x.kind {
+                    TokenKind::Comma =&gt; {
+                        tokens.bump(ctx);
+                    }
+                    TokenKind::RightParen =&gt; {
+                        tokens.bump(ctx);
+                        <span class="kw">break</span>;
+                    }
+                    <span class="kw">_ </span>=&gt; (),
+                }
+            }
+            <span class="prelude-val">None </span>=&gt; {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
+                    kind: ErrorKind::InvalidFnCall(<span class="string">&quot;unexpected end of function call&quot;</span>),
+                    span: ctx.last_span(),
+                })
+            }
+        }
+    }
+
+    <span class="prelude-val">Ok</span>(args)
+}
+
 <span class="doccomment">/// after a path, there can be a method call, an array access, a const, a var, a function call, etc.
 </span><span class="kw">pub fn </span>parse_complicated(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens, path: Path) -&gt; <span class="prelude-ty">Result</span>&lt;Expr&gt; {
     <span class="kw">match </span>tokens.peek() {
@@ -1945,42 +2012,13 @@
             kind: TokenKind::LeftParen,
             span,
         }) =&gt; {
-            tokens.bump(ctx); <span class="comment">// (
+            <span class="kw">let </span>args = parse_fn_call_args(ctx, tokens)<span class="question-mark">?</span>;
 
-            </span><span class="kw">let </span><span class="kw-2">mut </span>args = <span class="macro">vec!</span>[];
-            <span class="attribute">#[allow(unused_assignments)]
-            </span><span class="kw">let </span><span class="kw-2">mut </span>end_span = span;
-            <span class="kw">loop </span>{
-                <span class="kw">let </span>arg = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
-
-                args.push(arg);
-
-                <span class="kw">let </span>pp = tokens.peek();
-
-                <span class="kw">match </span>pp {
-                    <span class="prelude-val">Some</span>(x) =&gt; {
-                        end_span = x.span;
-                        <span class="kw">match </span>x.kind {
-                            TokenKind::Comma =&gt; {
-                                tokens.bump(ctx);
-                            }
-                            TokenKind::RightParen =&gt; {
-                                tokens.bump(ctx);
-                                <span class="kw">break</span>;
-                            }
-                            <span class="kw">_ </span>=&gt; (),
-                        }
-                    }
-                    <span class="prelude-val">None </span>=&gt; {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::InvalidFnCall(<span class="string">&quot;unexpected end of function call&quot;</span>),
-                            span: ctx.last_span(),
-                        })
-                    }
-                }
-            }
-
-            <span class="kw">let </span>span = path.span.merge_with(end_span);
+            <span class="kw">let </span>span = <span class="kw">if let </span><span class="prelude-val">Some</span>(arg) = args.last() {
+                path.span.merge_with(arg.span)
+            } <span class="kw">else </span>{
+                path.span
+            };
 
             <span class="prelude-val">Ok</span>(Expr {
                 kind: ExprKind::FnCall { name: path, args },
@@ -1989,7 +2027,7 @@
             })
         }
 
-        <span class="comment">// a struct access or method access
+        <span class="comment">// a struct access or method call
         </span><span class="prelude-val">Some</span>(Token {
             kind: TokenKind::Dot,
             ..
@@ -2000,10 +2038,30 @@
 
             <span class="kw">let </span>span = path.span.merge_with(field.span);
 
-            <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>path.name) {
-                <span class="macro">todo!</span>() <span class="comment">// TODO: method access
-            </span>} <span class="kw">else </span>{
-                <span class="prelude-val">Ok</span>(Expr {
+            <span class="kw">match </span>tokens.peek() {
+                <span class="comment">// method call
+                </span><span class="prelude-val">Some</span>(Token {
+                    kind: TokenKind::LeftParen,
+                    ..
+                }) =&gt; {
+                    <span class="kw">let </span>args = parse_fn_call_args(ctx, tokens)<span class="question-mark">?</span>;
+
+                    <span class="kw">if </span>!is_identifier(<span class="kw-2">&amp;</span>field.value) {
+                        <span class="macro">panic!</span>(<span class="string">&quot;method call on a non-ident (TODO: better error)&quot;</span>);
+                    }
+
+                    <span class="prelude-val">Ok</span>(Expr {
+                        kind: ExprKind::MethodCall {
+                            self_name: path,
+                            name: field.value,
+                            args,
+                        },
+                        span,
+                    })
+                }
+
+                <span class="comment">// struct access
+                </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(Expr {
                     kind: ExprKind::StructAccess(
                         Ident {
                             value: path.name.clone(),
@@ -2012,7 +2070,7 @@
                         field,
                     ),
                     span,
-                })
+                }),
             }
         }
 
@@ -3163,7 +3221,7 @@
             }
         };
 
-        <span class="comment">// const FOO = 42;
+        <span class="comment">// const foo = 42;
         //               ^
         </span>tokens.bump_expected(ctx, TokenKind::SemiColon)<span class="question-mark">?</span>;
 
