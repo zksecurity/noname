@@ -732,7 +732,7 @@ impl Expr {
 //~ param ::= { "pub" } ident ":" type
 //~
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct FnSig {
     pub name: Ident,
 

@@ -4,12 +4,16 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     imports::{resolve_builtin_functions, resolve_imports, FnKind},
-    parser::{
-        Expr, ExprKind, FnArg, FnSig, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind, AST,
-    },
+    parser::{Expr, ExprKind, FnSig, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind, AST},
     stdlib::ImportedModule,
     syntax::is_const,
 };
+
+//
+// Consts
+//
+
+const RESERVED_ARGS: [&'static str; 1] = ["public_output"];
 
 //
 // Data Structures
@@ -60,9 +64,6 @@ pub struct TypedGlobalEnv {
     /// stores the imported modules
     pub modules: HashMap<String, ImportedModule>,
 
-    /// the arguments expected by main
-    pub main_args: (HashMap<String, FnArg>, Span),
-
     /// If there's a main function in this module, then this is true
     /// (in other words, it's not a library)
     pub has_main: bool,
@@ -82,6 +83,7 @@ impl FnInfo {
         match &self.kind {
             FnKind::BuiltIn(sig, _) => sig,
             FnKind::Native(func) => &func.sig,
+            FnKind::Main(sig) => sig,
         }
     }
 }
@@ -519,25 +521,29 @@ impl TAST {
                     // if this is main, witness it
                     if function.is_main() {
                         typed_global_env.has_main = true;
-                        typed_global_env.main_args.1 = function.span;
-                    } else {
-                        // if it's a non-main function, save its AST in the global env
-                        let fn_info = FnInfo {
-                            kind: FnKind::Native(function.clone()),
-                            span: function.span,
-                        };
-                        typed_global_env
-                            .functions
-                            .insert(function.sig.name.value.clone(), fn_info);
                     }
+
+                    // save the function in the typed global env
+                    let fn_kind = if function.is_main() {
+                        FnKind::Main(function.sig.clone())
+                    } else {
+                        FnKind::Native(function.clone())
+                    };
+                    let fn_info = FnInfo {
+                        kind: fn_kind,
+                        span: function.span,
+                    };
+                    typed_global_env
+                        .functions
+                        .insert(function.sig.name.value.clone(), fn_info);
 
                     // store variables and their types in the env
                     for arg in &function.sig.arguments {
                         // public_output is a reserved name,
                         // associated automatically to the public output of the main function
-                        if arg.name.value == "public_output" {
+                        if RESERVED_ARGS.contains(&arg.name.value.as_str()) {
                             return Err(Error {
-                                kind: ErrorKind::PublicOutputReserved,
+                                kind: ErrorKind::PublicOutputReserved(arg.name.value.to_string()),
                                 span: arg.name.span,
                             });
                         }
@@ -565,14 +571,6 @@ impl TAST {
                             }
 
                             t => panic!("unimplemented type {:?}", t),
-                        }
-
-                        // if it's main, save its arguments
-                        if function.is_main() {
-                            typed_global_env
-                                .main_args
-                                .0
-                                .insert(arg.name.value.clone(), arg.clone());
                         }
                     }
 

@@ -135,7 +135,9 @@ impl CompiledCircuit {
         let mut env = WitnessEnv::default();
 
         // create the argument's variables?
-        for (name, arg) in &self.main_args.0 {
+        for arg in &self.main.0.arguments {
+            let name = &arg.name.value;
+
             let cval = match &arg.typ.kind {
                 TyKind::Field => {
                     let input = if arg.is_public() {
@@ -196,7 +198,7 @@ impl CompiledCircuit {
         if let Some(name) = chain![private_inputs.0.keys(), public_inputs.0.keys()].next() {
             return Err(Error {
                 kind: ErrorKind::UnusedInput(name.clone()),
-                span: self.main_args.1,
+                span: self.main.1,
             });
         }
 

@@ -22,11 +22,14 @@ pub type FnHandle = fn(&mut CircuitWriter, &[Var], Span) -> Result<Option<Var>>;
 /// The different types of a noname function.
 #[derive(Clone)]
 pub enum FnKind {
-    /// a built-in is just a handle to a function written in Rust.
+    /// A built-in is just a handle to a function written in Rust.
     BuiltIn(FnSig, FnHandle),
 
-    /// a native function is represented as an AST
+    /// A native function is represented as an AST.
     Native(Function),
+
+    /// For the main function, we don't need the AST, just the signature
+    Main(FnSig),
 }
 
 impl fmt::Debug for FnKind {

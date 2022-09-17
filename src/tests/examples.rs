@@ -17,13 +17,21 @@ fn test_file(
 
     // read noname file
     let code = std::fs::read_to_string(prefix.clone().join(format!("{file_name}.no"))).unwrap();
-    let asm = std::fs::read_to_string(prefix.clone().join(format!("{file_name}.asm"))).unwrap();
+    let expected_asm =
+        std::fs::read_to_string(prefix.clone().join(format!("{file_name}.asm"))).unwrap();
 
     // compile
     let (prover_index, verifier_index) = compile_and_prove(&code).unwrap();
 
     // check compiled ASM
-    assert_eq!(prover_index.asm(false), asm);
+    let obtained_asm = prover_index.asm(false);
+    if obtained_asm != expected_asm {
+        eprintln!("obtained:");
+        eprintln!("{obtained_asm}");
+        eprintln!("expected:");
+        eprintln!("{expected_asm}");
+        panic!("Obtained ASM does not match expected ASM");
+    }
 
     // parse inputs
     let public_inputs = parse_inputs(public_inputs).unwrap();

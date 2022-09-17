@@ -141,8 +141,8 @@ pub enum ErrorKind {
     #[error("tried to import the same module `{0}` twice")]
     DuplicateModule(String),
 
-    #[error("`public_output` is a reserved argument name")]
-    PublicOutputReserved,
+    #[error("`{0}` is a reserved argument name")]
+    PublicOutputReserved(String),
 
     #[error("function `{0}` not present in scope")]
     UndefinedFunction(String),

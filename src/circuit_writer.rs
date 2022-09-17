@@ -14,9 +14,10 @@ use crate::{
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     field,
-    imports::{FnHandle, FnKind},
+    imports::FnKind,
     parser::{
-        AttributeKind, Expr, ExprKind, FnArg, Function, Op2, RootKind, Stmt, StmtKind, TyKind,
+        AttributeKind, Expr, ExprKind, FnArg, FnSig, Function, Op2, RootKind, Stmt, StmtKind,
+        TyKind,
     },
     syntax::is_const,
     type_checker::{TypedGlobalEnv, TAST},
@@ -185,7 +186,7 @@ pub struct CircuitWriter {
 
     /// Used during the witness generation to check
     /// public and private inputs given by the prover.
-    pub main_args: (HashMap<String, FnArg>, Span),
+    pub main: (FnSig, Span),
 }
 
 impl CircuitWriter {
@@ -203,9 +204,15 @@ impl CircuitWriter {
             });
         }
 
+        let (main_sig, main_span) = {
+            let fn_info = typed_global_env.functions.get("main").cloned().unwrap();
+
+            (fn_info.sig().clone(), fn_info.span)
+        };
+
         let mut circuit_writer = CircuitWriter {
             source: code.to_string(),
-            main_args: typed_global_env.main_args.clone(),
+            main: (main_sig, main_span),
             ..CircuitWriter::default()
         };
 
@@ -317,7 +324,7 @@ impl CircuitWriter {
                 if circuit_writer.private_input_indices.contains(&var) {
                     return Err(Error {
                         kind: ErrorKind::PrivateInputNotUsed,
-                        span: circuit_writer.main_args.1,
+                        span: circuit_writer.main.1,
                     });
                 } else {
                     panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
@@ -407,7 +414,6 @@ impl CircuitWriter {
         fn_env.nest();
         for stmt in stmts {
             let res = self.compile_stmt(global_env, fn_env, stmt)?;
-            dbg!(&stmt, &res, &self.gates.len());
             if res.is_some() {
                 // we already checked for early returns in type checking
                 return Ok(res);
@@ -549,6 +555,9 @@ impl CircuitWriter {
                         FnKind::Native(func) => {
                             self.compile_native_function_call(global_env, func, vars, expr.span)
                         }
+                        FnKind::Main(_) => {
+                            panic!("bug in compiler: main function is not recursive (TODO: better error)")
+                        }
                     }
                 } else if name.len() == 2 {
                     // check module present in the scope
@@ -566,6 +575,9 @@ impl CircuitWriter {
                     match &fn_info.kind {
                         FnKind::BuiltIn(_, handle) => handle(self, &vars, expr.span),
                         FnKind::Native(_) => todo!(),
+                        FnKind::Main(_) => {
+                            panic!("main function is not recursive (TODO: better error)")
+                        }
                     }
                 } else {
                     Err(Error {
