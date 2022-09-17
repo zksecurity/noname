@@ -341,43 +341,6 @@
 <span id="341">341</span>
 <span id="342">342</span>
 <span id="343">343</span>
-<span id="344">344</span>
-<span id="345">345</span>
-<span id="346">346</span>
-<span id="347">347</span>
-<span id="348">348</span>
-<span id="349">349</span>
-<span id="350">350</span>
-<span id="351">351</span>
-<span id="352">352</span>
-<span id="353">353</span>
-<span id="354">354</span>
-<span id="355">355</span>
-<span id="356">356</span>
-<span id="357">357</span>
-<span id="358">358</span>
-<span id="359">359</span>
-<span id="360">360</span>
-<span id="361">361</span>
-<span id="362">362</span>
-<span id="363">363</span>
-<span id="364">364</span>
-<span id="365">365</span>
-<span id="366">366</span>
-<span id="367">367</span>
-<span id="368">368</span>
-<span id="369">369</span>
-<span id="370">370</span>
-<span id="371">371</span>
-<span id="372">372</span>
-<span id="373">373</span>
-<span id="374">374</span>
-<span id="375">375</span>
-<span id="376">376</span>
-<span id="377">377</span>
-<span id="378">378</span>
-<span id="379">379</span>
-<span id="380">380</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, vec};
 
 <span class="kw">use </span>ark_ff::{One, Zero};
@@ -446,15 +409,6 @@
     }
 }
 
-<span class="kw">impl </span>From&lt;usize&gt; <span class="kw">for </span>Value {
-    <span class="kw">fn </span>from(cst: usize) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>cst: u32 = cst
-            .try_into()
-            .expect(<span class="string">&quot;number too large (TODO: better error?)&quot;</span>);
-        <span class="self">Self</span>::Constant(Field::try_from(cst).unwrap())
-    }
-}
-
 <span class="kw">impl </span>std::fmt::Debug <span class="kw">for </span>Value {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
@@ -469,39 +423,11 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone, Copy)]
-</span><span class="doccomment">/// A constant value created in a noname program
-</span><span class="kw">pub struct </span>Constant {
-    <span class="doccomment">/// The actual value.
-    </span><span class="kw">pub </span>value: Field,
-
-    <span class="doccomment">/// The span that created the constant.
-    </span><span class="kw">pub </span>span: Span,
-}
-
-<span class="kw">impl </span>Constant {
-    <span class="kw">pub fn </span>new(value: Field, span: Span) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ value, span }
-    }
-
-    <span class="kw">pub fn </span>is_one(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.value.is_one()
-    }
-
-    <span class="kw">pub fn </span>is_zero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.value.is_zero()
-    }
-
-    <span class="kw">pub fn </span>constrain(<span class="kw-2">&amp;</span><span class="self">self</span>, label: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str&gt;, compiler: <span class="kw-2">&amp;mut </span>CircuitWriter) -&gt; CellVar {
-        compiler.add_constant(label, <span class="self">self</span>.value, <span class="self">self</span>.span)
-    }
-}
-
 <span class="doccomment">/// Represents a cell in the execution trace.
 </span><span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub enum </span>ConstOrCell {
     <span class="doccomment">/// A constant value.
-    </span>Const(Constant),
+    </span>Const(Field),
 
     <span class="doccomment">/// A cell in the execution trace.
     </span>Cell(CellVar),
@@ -512,9 +438,9 @@
         <span class="macro">matches!</span>(<span class="self">self</span>, <span class="self">Self</span>::Const(..))
     }
 
-    <span class="kw">pub fn </span>cst(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Constant&gt; {
+    <span class="kw">pub fn </span>cst(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Field&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            <span class="self">Self</span>::Const(cst) =&gt; <span class="prelude-val">Some</span>(cst),
+            <span class="self">Self</span>::Const(cst) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>cst),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
@@ -552,7 +478,7 @@
         <span class="self">Self</span>::ConstOrCell(ConstOrCell::Cell(cell))
     }
 
-    <span class="kw">pub fn </span>new_constant(cst: Constant) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new_constant(cst: Field) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::ConstOrCell(ConstOrCell::Const(cst))
     }
 
@@ -656,7 +582,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>new_constant(cst: Constant, span: Span) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new_constant(cst: Field, span: Span) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             kind: VarKind::ConstOrCell(ConstOrCell::Const(cst)),
             span,
@@ -700,7 +626,7 @@
         <span class="self">self</span>.kind.const_or_cell()
     }
 
-    <span class="kw">pub fn </span>constant(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Constant&gt; {
+    <span class="kw">pub fn </span>constant(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Field&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
             VarKind::ConstOrCell(ConstOrCell::Const(cst)) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>cst),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,

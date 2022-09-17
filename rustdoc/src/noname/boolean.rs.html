@@ -98,9 +98,6 @@
 <span id="98">98</span>
 <span id="99">99</span>
 <span id="100">100</span>
-<span id="101">101</span>
-<span id="102">102</span>
-<span id="103">103</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Custom types
 
 </span><span class="kw">use </span>std::ops::Neg;
@@ -110,7 +107,7 @@
 <span class="kw">use crate</span>::{
     circuit_writer::{CircuitWriter, GateKind},
     constants::{Field, Span},
-    var::{ConstOrCell, Constant, Value, Var},
+    var::{ConstOrCell, Value, Var},
 };
 
 <span class="kw">pub fn </span>is_valid(f: Field) -&gt; bool {
@@ -127,10 +124,7 @@
 
     <span class="kw">match </span>(lhs, rhs) {
         <span class="comment">// two constants
-        </span>(
-            ConstOrCell::Const(Constant { value: lhs, .. }),
-            ConstOrCell::Const(Constant { value: rhs, .. }),
-        ) =&gt; Var::new_constant(Constant::new(<span class="kw-2">*</span>lhs * <span class="kw-2">*</span>rhs, span), span),
+        </span>(ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) =&gt; Var::new_constant(<span class="kw-2">*</span>lhs * <span class="kw-2">*</span>rhs, span),
 
         <span class="comment">// constant and a var
         </span>(ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
@@ -177,7 +171,7 @@
                 Field::one()
             };
 
-            Var::new_constant(Constant { value, ..<span class="kw-2">*</span>cst }, span)
+            Var::new_constant(value, span)
         }
 
         <span class="comment">// constant and a var

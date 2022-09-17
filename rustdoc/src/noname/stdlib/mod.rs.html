@@ -185,9 +185,6 @@
 <span id="185">185</span>
 <span id="186">186</span>
 <span id="187">187</span>
-<span id="188">188</span>
-<span id="189">189</span>
-<span id="190">190</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Neg <span class="kw">as _</span>};
 
 <span class="kw">use </span>ark_ff::{One <span class="kw">as _</span>, Zero};
@@ -200,7 +197,7 @@
     lexer::Token,
     parser::{FnSig, Ident, ParserCtx, Path},
     type_checker::FnInfo,
-    var::{ConstOrCell, Constant, Var},
+    var::{ConstOrCell, Var},
 };
 
 <span class="kw">use </span><span class="self">self</span>::crypto::CRYPTO_FNS;
@@ -305,10 +302,7 @@
 
     <span class="kw">match </span>(lhs, rhs) {
         <span class="comment">// two constants
-        </span>(
-            ConstOrCell::Const(Constant { value: a, .. }),
-            ConstOrCell::Const(Constant { value: b, .. }),
-        ) =&gt; {
+        </span>(ConstOrCell::Const(a), ConstOrCell::Const(b)) =&gt; {
             <span class="kw">if </span>a != b {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
                     kind: ErrorKind::AssertionFailed,
@@ -329,7 +323,7 @@
                     Field::zero(),
                     Field::zero(),
                     Field::zero(),
-                    cst.value.neg(),
+                    cst.neg(),
                 ],
                 span,
             );
@@ -358,8 +352,8 @@
         .expect(<span class="string">&quot;assert: condition is not a constant or cell&quot;</span>);
 
     <span class="kw">match </span>cond {
-        ConstOrCell::Const(Constant { value: a, .. }) =&gt; {
-            <span class="macro">assert!</span>(a.is_one());
+        ConstOrCell::Const(cst) =&gt; {
+            <span class="macro">assert!</span>(cst.is_one());
         }
         ConstOrCell::Cell(cvar) =&gt; {
             <span class="comment">// TODO: use permutation to check that

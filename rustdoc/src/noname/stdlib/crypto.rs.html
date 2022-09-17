@@ -177,6 +177,7 @@
 <span id="177">177</span>
 <span id="178">178</span>
 <span id="179">179</span>
+<span id="180">180</span>
 </pre><pre class="rust"><code><span class="kw">use </span>ark_ff::Zero;
 <span class="kw">use </span>kimchi::{
     circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW},
@@ -236,7 +237,8 @@
     <span class="kw">for </span>const_or_cell <span class="kw">in </span>input {
         <span class="kw">match </span>const_or_cell {
             ConstOrCell::Const(cst) =&gt; {
-                <span class="kw">let </span>cell = cst.constrain(<span class="prelude-val">Some</span>(<span class="string">&quot;encoding constant input to poseidon&quot;</span>), compiler);
+                <span class="kw">let </span>cell =
+                    compiler.add_constant(<span class="prelude-val">Some</span>(<span class="string">&quot;encoding constant input to poseidon&quot;</span>), <span class="kw-2">*</span>cst, span);
                 cells.push(cell);
             }
             ConstOrCell::Cell(cell) =&gt; cells.push(<span class="kw-2">*</span>cell),

@@ -1016,24 +1016,6 @@
 <span id="1016">1016</span>
 <span id="1017">1017</span>
 <span id="1018">1018</span>
-<span id="1019">1019</span>
-<span id="1020">1020</span>
-<span id="1021">1021</span>
-<span id="1022">1022</span>
-<span id="1023">1023</span>
-<span id="1024">1024</span>
-<span id="1025">1025</span>
-<span id="1026">1026</span>
-<span id="1027">1027</span>
-<span id="1028">1028</span>
-<span id="1029">1029</span>
-<span id="1030">1030</span>
-<span id="1031">1031</span>
-<span id="1032">1032</span>
-<span id="1033">1033</span>
-<span id="1034">1034</span>
-<span id="1035">1035</span>
-<span id="1036">1036</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1057,7 +1039,7 @@
     },
     syntax::is_const,
     type_checker::{TypedGlobalEnv, TAST},
-    var::{CellVar, ConstOrCell, Constant, Value, Var, VarKind},
+    var::{CellVar, ConstOrCell, Value, Var, VarKind},
     witness::CompiledCircuit,
 };
 
@@ -1086,7 +1068,7 @@
     <span class="doccomment">/// Stores type information about a local variable.
     /// Note that we forbid shadowing at all scopes.
     </span><span class="kw">pub fn </span>add_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, constant: Field, span: Span) {
-        <span class="kw">let </span>var = Var::new_constant(Constant::new(constant, span), span);
+        <span class="kw">let </span>var = Var::new_constant(constant, span);
         <span class="kw">if </span><span class="self">self</span>.constants.insert(name.clone(), var).is_some() {
             <span class="macro">panic!</span>(<span class="string">&quot;constant `{name}` already exists&quot;</span>);
         }
@@ -1404,13 +1386,7 @@
                 <span class="kw">for </span>ii <span class="kw">in </span>range.range() {
                     fn_env.nest();
 
-                    <span class="kw">let </span>cst_var = Var::new_constant(
-                        Constant {
-                            value: ii.into(),
-                            span: range.span,
-                        },
-                        var.span,
-                    );
+                    <span class="kw">let </span>cst_var = Var::new_constant(ii.into(), var.span);
                     fn_env.add_var(var.value.clone(), cst_var);
 
                     <span class="self">self</span>.compile_block(global_env, fn_env, body)<span class="question-mark">?</span>;
@@ -1680,23 +1656,11 @@
                     span: expr.span,
                 })<span class="question-mark">?</span>;
 
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_constant(
-                    Constant {
-                        value: ff,
-                        span: expr.span,
-                    },
-                    expr.span,
-                )))
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_constant(ff, expr.span)))
             }
             ExprKind::Bool(b) =&gt; {
                 <span class="kw">let </span>value = <span class="kw">if </span><span class="kw-2">*</span>b { Field::one() } <span class="kw">else </span>{ Field::zero() };
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_constant(
-                    Constant {
-                        value,
-                        span: expr.span,
-                    },
-                    expr.span,
-                )))
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_constant(value, expr.span)))
             }
             ExprKind::Identifier(name) =&gt; {
                 <span class="kw">let </span>var = <span class="kw">if </span>is_const(name) {
@@ -1740,7 +1704,7 @@
                     span: expr.span,
                 })<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>idx: BigUint = idx.value.into();
+                <span class="kw">let </span>idx: BigUint = idx.into();
                 <span class="kw">let </span>idx: usize = idx.try_into().unwrap();
 
                 <span class="comment">// index into the CircuitVar (and prevent out of bounds)
