@@ -1011,11 +1011,6 @@
 <span id="1011">1011</span>
 <span id="1012">1012</span>
 <span id="1013">1013</span>
-<span id="1014">1014</span>
-<span id="1015">1015</span>
-<span id="1016">1016</span>
-<span id="1017">1017</span>
-<span id="1018">1018</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1254,7 +1249,7 @@
                 <span class="comment">// `fn main() { ... }`
                 </span>RootKind::Function(function) =&gt; {
                     <span class="comment">// create the env
-                    </span><span class="kw">let </span><span class="kw-2">mut </span>fn_env = FnEnv::default();
+                    </span><span class="kw">let </span>fn_env = <span class="kw-2">&amp;mut </span>FnEnv::default();
 
                     <span class="comment">// we only compile the main function
                     </span><span class="kw">if </span>!function.is_main() {
@@ -1317,7 +1312,7 @@
                     }
 
                     <span class="comment">// compile function
-                    </span>circuit_writer.compile_main_function(<span class="kw-2">&amp;</span>global_env, <span class="kw-2">&amp;mut </span>fn_env, function)<span class="question-mark">?</span>;
+                    </span>circuit_writer.compile_main_function(global_env, fn_env, function)<span class="question-mark">?</span>;
                 }
 
                 <span class="comment">// struct definition (already dealt with in type checker)
@@ -1440,7 +1435,6 @@
         global_env: <span class="kw-2">&amp;</span>GlobalEnv,
         function: <span class="kw-2">&amp;</span>Function,
         args: Vec&lt;Var&gt;,
-        span: Span,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
         <span class="macro">assert!</span>(!function.is_main());
 
@@ -1565,14 +1559,12 @@
                     <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
                         FnKind::BuiltIn(<span class="kw">_</span>, handle) =&gt; handle(<span class="self">self</span>, <span class="kw-2">&amp;</span>vars, expr.span),
                         FnKind::Native(func) =&gt; {
-                            <span class="self">self</span>.compile_native_function_call(global_env, func, vars, expr.span)
+                            <span class="self">self</span>.compile_native_function_call(global_env, func, vars)
                         }
-                        FnKind::Main(<span class="kw">_</span>) =&gt; {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                kind: ErrorKind::RecursiveMain,
-                                span: expr.span,
-                            });
-                        }
+                        FnKind::Main(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error {
+                            kind: ErrorKind::RecursiveMain,
+                            span: expr.span,
+                        }),
                     }
                 } <span class="kw">else if </span>name.len() == <span class="number">2 </span>{
                     <span class="comment">// check module present in the scope
@@ -1590,12 +1582,10 @@
                     <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
                         FnKind::BuiltIn(<span class="kw">_</span>, handle) =&gt; handle(<span class="self">self</span>, <span class="kw-2">&amp;</span>vars, expr.span),
                         FnKind::Native(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
-                        FnKind::Main(<span class="kw">_</span>) =&gt; {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                kind: ErrorKind::RecursiveMain,
-                                span: expr.span,
-                            });
-                        }
+                        FnKind::Main(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error {
+                            kind: ErrorKind::RecursiveMain,
+                            span: expr.span,
+                        }),
                     }
                 } <span class="kw">else </span>{
                     <span class="prelude-val">Err</span>(Error {
