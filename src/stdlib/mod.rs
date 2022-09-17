@@ -10,7 +10,7 @@ use crate::{
     lexer::Token,
     parser::{FnSig, Ident, ParserCtx, Path},
     type_checker::FnInfo,
-    var::{ConstOrCell, Constant, Var},
+    var::{ConstOrCell, Var},
 };
 
 use self::crypto::CRYPTO_FNS;
@@ -115,10 +115,7 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<O
 
     match (lhs, rhs) {
         // two constants
-        (
-            ConstOrCell::Const(Constant { value: a, .. }),
-            ConstOrCell::Const(Constant { value: b, .. }),
-        ) => {
+        (ConstOrCell::Const(a), ConstOrCell::Const(b)) => {
             if a != b {
                 return Err(Error {
                     kind: ErrorKind::AssertionFailed,
@@ -139,7 +136,7 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<O
                     Field::zero(),
                     Field::zero(),
                     Field::zero(),
-                    cst.value.neg(),
+                    cst.neg(),
                 ],
                 span,
             );
@@ -168,8 +165,8 @@ fn assert(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<Opti
         .expect("assert: condition is not a constant or cell");
 
     match cond {
-        ConstOrCell::Const(Constant { value: a, .. }) => {
-            assert!(a.is_one());
+        ConstOrCell::Const(cst) => {
+            assert!(cst.is_one());
         }
         ConstOrCell::Cell(cvar) => {
             // TODO: use permutation to check that

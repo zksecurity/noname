@@ -80,39 +80,11 @@ impl std::fmt::Debug for Value {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-/// A constant value created in a noname program
-pub struct Constant {
-    /// The actual value.
-    pub value: Field,
-
-    /// The span that created the constant.
-    pub span: Span,
-}
-
-impl Constant {
-    pub fn new(value: Field, span: Span) -> Self {
-        Self { value, span }
-    }
-
-    pub fn is_one(&self) -> bool {
-        self.value.is_one()
-    }
-
-    pub fn is_zero(&self) -> bool {
-        self.value.is_zero()
-    }
-
-    pub fn constrain(&self, label: Option<&'static str>, compiler: &mut CircuitWriter) -> CellVar {
-        compiler.add_constant(label, self.value, self.span)
-    }
-}
-
 /// Represents a cell in the execution trace.
 #[derive(Debug, Clone)]
 pub enum ConstOrCell {
     /// A constant value.
-    Const(Constant),
+    Const(Field),
 
     /// A cell in the execution trace.
     Cell(CellVar),
@@ -123,9 +95,9 @@ impl ConstOrCell {
         matches!(self, Self::Const(..))
     }
 
-    pub fn cst(&self) -> Option<&Constant> {
+    pub fn cst(&self) -> Option<Field> {
         match self {
-            Self::Const(cst) => Some(cst),
+            Self::Const(cst) => Some(*cst),
             _ => None,
         }
     }
@@ -163,7 +135,7 @@ impl VarKind {
         Self::ConstOrCell(ConstOrCell::Cell(cell))
     }
 
-    pub fn new_constant(cst: Constant) -> Self {
+    pub fn new_constant(cst: Field) -> Self {
         Self::ConstOrCell(ConstOrCell::Const(cst))
     }
 
@@ -267,7 +239,7 @@ impl Var {
         }
     }
 
-    pub fn new_constant(cst: Constant, span: Span) -> Self {
+    pub fn new_constant(cst: Field, span: Span) -> Self {
         Self {
             kind: VarKind::ConstOrCell(ConstOrCell::Const(cst)),
             span,
@@ -311,7 +283,7 @@ impl Var {
         self.kind.const_or_cell()
     }
 
-    pub fn constant(&self) -> Option<Constant> {
+    pub fn constant(&self) -> Option<Field> {
         match &self.kind {
             VarKind::ConstOrCell(ConstOrCell::Const(cst)) => Some(*cst),
             _ => None,

@@ -7,7 +7,7 @@ use ark_ff::{One, Zero};
 use crate::{
     circuit_writer::{CircuitWriter, GateKind},
     constants::{Field, Span},
-    var::{ConstOrCell, Constant, Value, Var},
+    var::{ConstOrCell, Value, Var},
 };
 
 pub fn is_valid(f: Field) -> bool {
@@ -24,10 +24,7 @@ pub fn and(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
 
     match (lhs, rhs) {
         // two constants
-        (
-            ConstOrCell::Const(Constant { value: lhs, .. }),
-            ConstOrCell::Const(Constant { value: rhs, .. }),
-        ) => Var::new_constant(Constant::new(*lhs * *rhs, span), span),
+        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs * *rhs, span),
 
         // constant and a var
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
@@ -74,7 +71,7 @@ pub fn neg(compiler: &mut CircuitWriter, var: Var, span: Span) -> Var {
                 Field::one()
             };
 
-            Var::new_constant(Constant { value, ..*cst }, span)
+            Var::new_constant(value, span)
         }
 
         // constant and a var

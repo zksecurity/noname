@@ -2,7 +2,7 @@ use crate::{
     boolean,
     circuit_writer::{CircuitWriter, GateKind},
     constants::{Field, Span},
-    var::{ConstOrCell, Constant, Value, Var, VarKind},
+    var::{ConstOrCell, Value, Var, VarKind},
 };
 
 use ark_ff::{One, Zero};
@@ -23,20 +23,11 @@ pub fn add(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
 
     match (lhs_v, rhs_v) {
         // 2 constants
-        (
-            ConstOrCell::Const(Constant { value: lhs, .. }),
-            ConstOrCell::Const(Constant { value: rhs, .. }),
-        ) => Var::new_constant(
-            Constant {
-                value: *lhs + *rhs,
-                span,
-            },
-            span,
-        ),
+        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs + *rhs, span),
 
         // const and a var
-        (ConstOrCell::Const(Constant { value: cst, .. }), ConstOrCell::Cell(cvar))
-        | (ConstOrCell::Cell(cvar), ConstOrCell::Const(Constant { value: cst, .. })) => {
+        (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
+        | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
             // if the constant is zero, we can ignore this gate
             if cst.is_zero() {
                 // TODO: that span is incorrect, it should come from lhs or rhs...
@@ -97,19 +88,10 @@ pub fn sub(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
 
     match (lhs_v, rhs_v) {
         // const1 - const2
-        (
-            ConstOrCell::Const(Constant { value: lhs, .. }),
-            ConstOrCell::Const(Constant { value: rhs, .. }),
-        ) => Var::new_constant(
-            Constant {
-                value: *lhs - *rhs,
-                span,
-            },
-            span,
-        ),
+        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs - *rhs, span),
 
         // const - var
-        (ConstOrCell::Const(Constant { value: cst, .. }), ConstOrCell::Cell(cvar)) => {
+        (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar)) => {
             // create a new variable to store the result
             let res = compiler.new_internal_var(
                 Value::LinearCombination(vec![(one.neg(), *cvar)], *cst),
@@ -130,7 +112,7 @@ pub fn sub(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
         }
 
         // var - const
-        (ConstOrCell::Cell(cvar), ConstOrCell::Const(Constant { value: cst, .. })) => {
+        (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
             // if the constant is zero, we can ignore this gate
             if cst.is_zero() {
                 // TODO: that span is incorrect, it should come from lhs or rhs...
@@ -264,19 +246,15 @@ fn equal_cells(
     match (x1, x2) {
         // two constants
         (ConstOrCell::Const(x1), ConstOrCell::Const(x2)) => {
-            let res = if x1.value == x2.value {
-                one
-            } else {
-                Field::zero()
-            };
-            Var::new_constant(Constant { value: res, span }, span)
+            let res = if x1 == x2 { one } else { Field::zero() };
+            Var::new_constant(res, span)
         }
 
         (x1, x2) => {
             let x1 = match x1 {
                 ConstOrCell::Const(cst) => compiler.add_constant(
                     Some("encode the lhs constant of the equality check in the circuit"),
-                    cst.value,
+                    *cst,
                     span,
                 ),
                 ConstOrCell::Cell(cvar) => *cvar,
@@ -285,7 +263,7 @@ fn equal_cells(
             let x2 = match x2 {
                 ConstOrCell::Const(cst) => compiler.add_constant(
                     Some("encode the rhs constant of the equality check in the circuit"),
-                    cst.value,
+                    *cst,
                     span,
                 ),
                 ConstOrCell::Cell(cvar) => *cvar,

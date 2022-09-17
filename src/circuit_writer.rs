@@ -21,7 +21,7 @@ use crate::{
     },
     syntax::is_const,
     type_checker::{TypedGlobalEnv, TAST},
-    var::{CellVar, ConstOrCell, Constant, Value, Var, VarKind},
+    var::{CellVar, ConstOrCell, Value, Var, VarKind},
     witness::CompiledCircuit,
 };
 
@@ -50,7 +50,7 @@ impl GlobalEnv {
     /// Stores type information about a local variable.
     /// Note that we forbid shadowing at all scopes.
     pub fn add_constant(&mut self, name: String, constant: Field, span: Span) {
-        let var = Var::new_constant(Constant::new(constant, span), span);
+        let var = Var::new_constant(constant, span);
         if self.constants.insert(name.clone(), var).is_some() {
             panic!("constant `{name}` already exists");
         }
@@ -368,13 +368,7 @@ impl CircuitWriter {
                 for ii in range.range() {
                     fn_env.nest();
 
-                    let cst_var = Var::new_constant(
-                        Constant {
-                            value: ii.into(),
-                            span: range.span,
-                        },
-                        var.span,
-                    );
+                    let cst_var = Var::new_constant(ii.into(), var.span);
                     fn_env.add_var(var.value.clone(), cst_var);
 
                     self.compile_block(global_env, fn_env, body)?;
@@ -644,23 +638,11 @@ impl CircuitWriter {
                     span: expr.span,
                 })?;
 
-                Ok(Some(Var::new_constant(
-                    Constant {
-                        value: ff,
-                        span: expr.span,
-                    },
-                    expr.span,
-                )))
+                Ok(Some(Var::new_constant(ff, expr.span)))
             }
             ExprKind::Bool(b) => {
                 let value = if *b { Field::one() } else { Field::zero() };
-                Ok(Some(Var::new_constant(
-                    Constant {
-                        value,
-                        span: expr.span,
-                    },
-                    expr.span,
-                )))
+                Ok(Some(Var::new_constant(value, expr.span)))
             }
             ExprKind::Identifier(name) => {
                 let var = if is_const(name) {
@@ -704,7 +686,7 @@ impl CircuitWriter {
                     span: expr.span,
                 })?;
 
-                let idx: BigUint = idx.value.into();
+                let idx: BigUint = idx.into();
                 let idx: usize = idx.try_into().unwrap();
 
                 // index into the CircuitVar (and prevent out of bounds)

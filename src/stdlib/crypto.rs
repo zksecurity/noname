@@ -57,7 +57,8 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Resul
     for const_or_cell in input {
         match const_or_cell {
             ConstOrCell::Const(cst) => {
-                let cell = cst.constrain(Some("encoding constant input to poseidon"), compiler);
+                let cell =
+                    compiler.add_constant(Some("encoding constant input to poseidon"), *cst, span);
                 cells.push(cell);
             }
             ConstOrCell::Cell(cell) => cells.push(*cell),
