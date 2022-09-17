@@ -812,15 +812,45 @@
 <span id="812">812</span>
 <span id="813">813</span>
 <span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
+<span id="836">836</span>
+<span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
     constants::Span,
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     imports::{resolve_builtin_functions, resolve_imports, FnKind},
-    parser::{Expr, ExprKind, FnSig, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind, AST},
+    parser::{
+        Expr, ExprKind, FnSig, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind, UsePath,
+        AST,
+    },
     stdlib::ImportedModule,
-    syntax::is_const,
 };
 
 <span class="comment">//
@@ -884,6 +914,8 @@
 
     <span class="doccomment">/// Custom structs
     </span>structs: HashMap&lt;String, Vec&lt;(String, TyKind)&gt;&gt;,
+
+    constants: HashMap&lt;String, Ty&gt;,
 }
 
 <span class="attribute">#[derive(Debug, Clone)]
@@ -908,7 +940,7 @@
         <span class="kw">for </span>fn_info <span class="kw">in </span>builtin_functions {
             <span class="kw">if </span><span class="self">self
                 </span>.functions
-                .insert(fn_info.sig().name.value.clone(), fn_info)
+                .insert(fn_info.sig().name.name.value.clone(), fn_info)
                 .is_some()
             {
                 <span class="macro">panic!</span>(<span class="string">&quot;global imports conflict (TODO: better error)&quot;</span>);
@@ -918,7 +950,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub fn </span>import(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">pub fn </span>import(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>UsePath) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>module = resolve_imports(path)<span class="question-mark">?</span>;
 
         <span class="kw">if </span><span class="self">self
@@ -1034,13 +1066,18 @@
                 <span class="comment">// lhs can be a local variable or a path to an array
                 </span><span class="kw">let </span>name = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs.kind {
                     ExprKind::Identifier(var) =&gt; var,
-                    ExprKind::ArrayAccess(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
+                    ExprKind::ArrayAccess { .. } =&gt; <span class="macro">todo!</span>(),
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;bad expression assignment (TODO: replace with error)&quot;</span>),
                 };
 
+                <span class="comment">// but not an external variable or something
+                </span><span class="kw">if </span>name.module.is_some() {
+                    <span class="macro">panic!</span>(<span class="string">&quot;can&#39;t assign to an external variable (TODO: replace with error)&quot;</span>);
+                }
+
                 <span class="comment">// check that the var exists locally
                 </span><span class="kw">let </span>lhs_info = typed_fn_env
-                    .get_type_info(name)
+                    .get_type_info(<span class="kw-2">&amp;</span>name.name)
                     .expect(<span class="string">&quot;variable not found (TODO: replace with error&quot;</span>)
                     .clone();
 
@@ -1098,12 +1135,16 @@
             }
             ExprKind::BigInt(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(TyKind::BigInt)),
             ExprKind::Bool(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(TyKind::Bool)),
-            ExprKind::Identifier(ident) =&gt; {
-                <span class="kw">let </span>typ = <span class="kw">if </span>is_const(ident) {
-                    TyKind::Field
+            ExprKind::Identifier(path) =&gt; {
+                <span class="kw">if </span>path.module.is_some() {
+                    <span class="macro">unimplemented!</span>();
+                }
+
+                <span class="kw">let </span>typ = <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typed_global_env.constants.get(<span class="kw-2">&amp;</span>path.name) {
+                    typ.kind.clone()
                 } <span class="kw">else </span>{
                     typed_fn_env
-                        .get_type(ident)
+                        .get_type(<span class="kw-2">&amp;</span>path.name)
                         .ok_or(Error {
                             kind: ErrorKind::UndefinedVariable,
                             span: <span class="self">self</span>.span,
@@ -1113,14 +1154,14 @@
 
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(typ))
             }
-            ExprKind::ArrayAccess(path, expr) =&gt; {
+            ExprKind::ArrayAccess { name, idx } =&gt; {
                 <span class="comment">// only support scoped variable for now
-                </span><span class="kw">if </span>path.len() != <span class="number">1 </span>{
+                </span><span class="kw">if </span>name.module.is_some() {
                     <span class="macro">unimplemented!</span>();
                 }
 
                 <span class="comment">// figure out if variable is in scope
-                </span><span class="kw">let </span>name = <span class="kw-2">&amp;</span>path.path[<span class="number">0</span>].value;
+                </span><span class="kw">let </span>name = <span class="kw-2">&amp;</span>name.name;
                 <span class="kw">let </span>typ = typed_fn_env
                     .get_type(name)
                     .ok_or(Error {
@@ -1130,7 +1171,7 @@
                     </span>.clone();
 
                 <span class="comment">// check that expression is a bigint
-                </span><span class="kw">match </span>expr.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">? </span>{
+                </span><span class="kw">match </span>idx.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">? </span>{
                     <span class="prelude-val">Some</span>(TyKind::BigInt) =&gt; (),
                     <span class="kw">_ </span>=&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
@@ -1249,6 +1290,11 @@
 
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(field_type.clone()))
             }
+            ExprKind::MethodCall {
+                self_name,
+                name,
+                args,
+            } =&gt; <span class="macro">todo!</span>(),
         }
     }
 }
@@ -1312,10 +1358,18 @@
                         .collect();
                     typed_global_env.structs.insert(name.value.clone(), fields);
                 }
-                RootKind::Use(<span class="kw">_</span>)
-                | RootKind::Function(<span class="kw">_</span>)
-                | RootKind::Comment(<span class="kw">_</span>)
-                | RootKind::Const(<span class="kw">_</span>) =&gt; (),
+
+                RootKind::Const(cst) =&gt; {
+                    typed_global_env.constants.insert(
+                        cst.name.value.clone(),
+                        Ty {
+                            kind: TyKind::Field,
+                            span: cst.span,
+                        },
+                    );
+                }
+
+                RootKind::Use(<span class="kw">_</span>) | RootKind::Function(<span class="kw">_</span>) | RootKind::Comment(<span class="kw">_</span>) =&gt; (),
             }
         }
 
@@ -1333,12 +1387,13 @@
                     </span><span class="kw">let </span><span class="kw-2">mut </span>typed_fn_env = TypedFnEnv::default();
 
                     <span class="comment">// if this is main, witness it
-                    </span><span class="kw">if </span>function.is_main() {
+                    </span><span class="kw">let </span>is_main = function.is_main();
+                    <span class="kw">if </span>is_main {
                         typed_global_env.has_main = <span class="bool-val">true</span>;
                     }
 
                     <span class="comment">// save the function in the typed global env
-                    </span><span class="kw">let </span>fn_kind = <span class="kw">if </span>function.is_main() {
+                    </span><span class="kw">let </span>fn_kind = <span class="kw">if </span>is_main {
                         FnKind::Main(function.sig.clone())
                     } <span class="kw">else </span>{
                         FnKind::Native(function.clone())
@@ -1349,7 +1404,7 @@
                     };
                     typed_global_env
                         .functions
-                        .insert(function.sig.name.value.clone(), fn_info);
+                        .insert(function.sig.name.name.value.clone(), fn_info);
 
                     <span class="comment">// store variables and their types in the env
                     </span><span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span>function.sig.arguments {
@@ -1358,6 +1413,14 @@
                         </span><span class="kw">if </span>RESERVED_ARGS.contains(<span class="kw-2">&amp;</span>arg.name.value.as_str()) {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
                                 kind: ErrorKind::PublicOutputReserved(arg.name.value.to_string()),
+                                span: arg.name.span,
+                            });
+                        }
+
+                        <span class="comment">// `pub` arguments are only for the main function
+                        </span><span class="kw">if </span>!is_main &amp;&amp; arg.is_public() {
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
+                                kind: ErrorKind::PubArgumentOutsideMain,
                                 span: arg.name.span,
                             });
                         }
@@ -1552,33 +1615,26 @@
     span: Span,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TyKind&gt;&gt; {
     <span class="comment">// retrieve the function sig in the env
-    </span><span class="kw">let </span>path_len = name.path.len();
-    <span class="kw">let </span>sig: FnSig = <span class="kw">if </span>path_len == <span class="number">1 </span>{
+    </span><span class="kw">let </span>sig: FnSig = <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = <span class="kw-2">&amp;</span>name.module {
+        <span class="comment">// check module present in the scope
+        </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.name;
+        <span class="kw">let </span>module = typed_global_env.modules.get(module).ok_or(Error {
+            kind: ErrorKind::UndefinedModule(module.clone()),
+            span: name.span, <span class="comment">// TODO: should be module span
+        </span>})<span class="question-mark">?</span>;
+        <span class="kw">let </span>fn_info = module.functions.get(fn_name).ok_or(Error {
+            kind: ErrorKind::UndefinedFunction(fn_name.clone()),
+            span: name.span, <span class="comment">// TODO: should be fn_name.span
+        </span>})<span class="question-mark">?</span>;
+        fn_info.sig().clone()
+    } <span class="kw">else </span>{
         <span class="comment">// functions present in the scope
-        </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.path[<span class="number">0</span>].value;
+        </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.name;
         <span class="kw">let </span>fn_info = typed_global_env.functions.get(fn_name).ok_or(Error {
             kind: ErrorKind::UndefinedFunction(fn_name.clone()),
             span: name.span,
         })<span class="question-mark">?</span>;
         fn_info.sig().clone()
-    } <span class="kw">else if </span>path_len == <span class="number">2 </span>{
-        <span class="comment">// check module present in the scope
-        </span><span class="kw">let </span>module = <span class="kw-2">&amp;</span>name.path[<span class="number">0</span>];
-        <span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.path[<span class="number">1</span>];
-        <span class="kw">let </span>module = typed_global_env.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or(Error {
-            kind: ErrorKind::UndefinedModule(module.value.clone()),
-            span: module.span,
-        })<span class="question-mark">?</span>;
-        <span class="kw">let </span>fn_info = module.functions.get(<span class="kw-2">&amp;</span>fn_name.value).ok_or(Error {
-            kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-            span: fn_name.span,
-        })<span class="question-mark">?</span>;
-        fn_info.sig().clone()
-    } <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-            kind: ErrorKind::InvalidFnCall(<span class="string">&quot;sub-sub modules unsupported&quot;</span>),
-            span: name.span,
-        });
     };
 
     <span class="comment">// compute the arguments

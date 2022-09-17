@@ -179,12 +179,6 @@
 <span id="179">179</span>
 <span id="180">180</span>
 <span id="181">181</span>
-<span id="182">182</span>
-<span id="183">183</span>
-<span id="184">184</span>
-<span id="185">185</span>
-<span id="186">186</span>
-<span id="187">187</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Neg <span class="kw">as _</span>};
 
 <span class="kw">use </span>ark_ff::{One <span class="kw">as _</span>, Zero};
@@ -208,7 +202,8 @@
 </span><span class="kw">pub struct </span>ImportedModule {
     <span class="kw">pub </span>name: String,
     <span class="kw">pub </span>functions: HashMap&lt;String, FnInfo&gt;,
-    <span class="kw">pub </span>span: Span,
+    <span class="comment">// TODO: delete?
+    </span><span class="kw">pub </span>span: Span,
 }
 
 <span class="kw">impl </span>std::fmt::Debug <span class="kw">for </span>ImportedModule {
@@ -224,33 +219,26 @@
 }
 
 <span class="doccomment">/// Parses the rest of a `use std::` statement. Returns a list of functions to import in the scope.
-</span><span class="kw">pub fn </span>parse_std_import&lt;<span class="lifetime">&#39;a</span>&gt;(
-    path: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Path,
-    path_iter: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Ident&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;ImportedModule&gt; {
-    <span class="kw">let </span>module = path_iter.next().ok_or(Error {
-        kind: ErrorKind::StdImport(<span class="string">&quot;no module name found&quot;</span>),
-        span: path.span,
-    })<span class="question-mark">?</span>;
-
+</span><span class="kw">pub fn </span>parse_std_import&lt;<span class="lifetime">&#39;a</span>&gt;(submodule: <span class="kw-2">&amp;</span>str, span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;ImportedModule&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>res = ImportedModule {
-        name: module.value.clone(),
+        name: submodule.to_string(),
         functions: HashMap::new(),
-        span: module.span,
+        span,
     };
 
     <span class="comment">// TODO: make sure we&#39;re not importing the same module twice no?
-    </span><span class="kw">match </span>module.value.as_ref() {
+    </span><span class="kw">match </span>submodule {
         <span class="string">&quot;crypto&quot; </span>=&gt; {
             <span class="kw">let </span>crypto_functions = parse_fn_sigs(<span class="kw-2">&amp;</span>CRYPTO_FNS);
             <span class="kw">for </span>func <span class="kw">in </span>crypto_functions {
-                res.functions.insert(func.sig().name.value.clone(), func);
+                res.functions
+                    .insert(func.sig().name.name.value.clone(), func);
             }
         }
         <span class="kw">_ </span>=&gt; {
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
                 kind: ErrorKind::StdImport(<span class="string">&quot;unknown module&quot;</span>),
-                span: module.span,
+                span,
             })
         }
     }

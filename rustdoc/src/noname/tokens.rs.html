@@ -73,6 +73,18 @@
 <span id="73">73</span>
 <span id="74">74</span>
 <span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Since [std::iter::Peekable] in Rust advances the iterator,
 //! I can&#39;t use it for peeking tokens.
 //! I haven&#39;t found a better way than implementing a wrapper
@@ -83,7 +95,7 @@
 <span class="kw">use crate</span>::{
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     lexer::{Token, TokenKind},
-    parser::ParserCtx,
+    parser::{Ident, ParserCtx},
 };
 
 <span class="attribute">#[derive(Debug)]
@@ -145,6 +157,18 @@
                 kind: ErrorKind::ExpectedToken(typ),
                 span: ctx.last_span(),
             })
+        }
+    }
+
+    <span class="kw">pub fn </span>bump_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>ParserCtx, kind: ErrorKind) -&gt; <span class="prelude-ty">Result</span>&lt;Ident&gt; {
+        <span class="kw">let </span>token = <span class="self">self</span>.bump_err(ctx, kind.clone())<span class="question-mark">?</span>;
+        <span class="kw">let </span>span = token.span;
+        <span class="kw">match </span><span class="kw-2">&amp;</span>token.kind {
+            TokenKind::Identifier(value) =&gt; <span class="prelude-val">Ok</span>(Ident {
+                value: value.to_string(),
+                span,
+            }),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error { kind, span }),
         }
     }
 }

@@ -252,13 +252,15 @@ fn main(pub x: Field, pub y: Field) {
 }
 </code></pre></pre>
 <h2 id="constants"><a class="header" href="#constants">Constants</a></h2>
-<pre><pre class="playground"><code class="language-rust">const PLAYER_ONE = 1;
-const PLAYER_TWO = 2;
+<p>Like variables and function names, constants must be lowercase.</p>
+<p>At the moment they can only represent field elements. Perhaps it would be nice to be able to represent different types in the future.</p>
+<pre><pre class="playground"><code class="language-rust">const player_one = 1;
+const player_two = 2;
 
 fn main(pub player: Field) -&gt; Field {
-    assert_eq(PLAYER_ONE, player);
+    assert_eq(player_one, player);
     let next_player = player + 1;
-    assert_eq(PLAYER_TWO, next_player);
+    assert_eq(player_two, next_player);
     return next_player;
 }
 </code></pre></pre>

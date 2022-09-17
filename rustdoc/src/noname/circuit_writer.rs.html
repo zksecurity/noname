@@ -1006,11 +1006,6 @@
 <span id="1006">1006</span>
 <span id="1007">1007</span>
 <span id="1008">1008</span>
-<span id="1009">1009</span>
-<span id="1010">1010</span>
-<span id="1011">1011</span>
-<span id="1012">1012</span>
-<span id="1013">1013</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1032,7 +1027,6 @@
         AttributeKind, Expr, ExprKind, FnArg, FnSig, Function, Op2, RootKind, Stmt, StmtKind,
         TyKind,
     },
-    syntax::is_const,
     type_checker::{TypedGlobalEnv, TAST},
     var::{CellVar, ConstOrCell, Value, Var, VarKind},
     witness::CompiledCircuit,
@@ -1065,20 +1059,15 @@
     </span><span class="kw">pub fn </span>add_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, constant: Field, span: Span) {
         <span class="kw">let </span>var = Var::new_constant(constant, span);
         <span class="kw">if </span><span class="self">self</span>.constants.insert(name.clone(), var).is_some() {
-            <span class="macro">panic!</span>(<span class="string">&quot;constant `{name}` already exists&quot;</span>);
+            <span class="macro">panic!</span>(<span class="string">&quot;constant `{name}` already exists (TODO: better error)&quot;</span>);
         }
     }
 
     <span class="doccomment">/// Retrieves type information on a constantiable, given a name.
     /// If the constantiable is not in scope, return false.
     </span><span class="comment">// TODO: return an error no?
-    </span><span class="kw">pub fn </span>get_constant(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="kw-2">&amp;</span>Var {
-        <span class="kw">let </span>constant = <span class="self">self
-            </span>.constants
-            .get(ident)
-            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;constant `{ident}` not found&quot;</span>));
-
-        constant
+    </span><span class="kw">pub fn </span>get_constant(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Var&gt; {
+        <span class="self">self</span>.constants.get(ident)
     }
 }
 
@@ -1241,7 +1230,7 @@
                 <span class="comment">// imports (already dealt with in type checker)
                 </span>RootKind::Use(_path) =&gt; (),
 
-                <span class="comment">// `const THING = 42;`
+                <span class="comment">// `const thing = 42;`
                 </span>RootKind::Const(cst) =&gt; {
                     global_env.add_constant(cst.name.value.clone(), cst.value, cst.span);
                 }
@@ -1298,7 +1287,7 @@
                         };
 
                         <span class="comment">// add argument variable to the ast env
-                        </span>fn_env.add_var(name.value.clone(), var);
+                        </span>fn_env.add_var(global_env, name.value.clone(), var);
                     }
 
                     <span class="comment">// create public output
@@ -1375,14 +1364,14 @@
 
                 <span class="comment">// store the new variable
                 // TODO: do we really need to store that in the scope? That&#39;s not an actual var in the scope that&#39;s an internal var...
-                </span>fn_env.add_var(lhs.value.clone(), var);
+                </span>fn_env.add_var(global_env, lhs.value.clone(), var);
             }
             StmtKind::For { var, range, body } =&gt; {
                 <span class="kw">for </span>ii <span class="kw">in </span>range.range() {
                     fn_env.nest();
 
                     <span class="kw">let </span>cst_var = Var::new_constant(ii.into(), var.span);
-                    fn_env.add_var(var.value.clone(), cst_var);
+                    fn_env.add_var(global_env, var.value.clone(), cst_var);
 
                     <span class="self">self</span>.compile_block(global_env, fn_env, body)<span class="question-mark">?</span>;
 
@@ -1445,7 +1434,7 @@
         </span><span class="macro">assert_eq!</span>(function.sig.arguments.len(), args.len());
 
         <span class="kw">for </span>(name, var) <span class="kw">in </span>function.sig.arguments.iter().zip(args) {
-            fn_env.add_var(name.name.value.clone(), var);
+            fn_env.add_var(global_env, name.name.value.clone(), var);
         }
 
         <span class="comment">// compile it and potentially return a return value
@@ -1548,9 +1537,9 @@
                 }
 
                 <span class="comment">// retrieve the function in the env
-                </span><span class="kw">if </span>name.len() == <span class="number">1 </span>{
+                </span><span class="kw">if </span>name.module.is_none() {
                     <span class="comment">// functions present in the scope
-                    </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.path[<span class="number">0</span>].value;
+                    </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.name;
                     <span class="kw">let </span>fn_info = global_env.typed.functions.get(fn_name).ok_or(Error {
                         kind: ErrorKind::UndefinedFunction(fn_name.clone()),
                         span: name.span,
@@ -1566,18 +1555,17 @@
                             span: expr.span,
                         }),
                     }
-                } <span class="kw">else if </span>name.len() == <span class="number">2 </span>{
+                } <span class="kw">else if let </span><span class="prelude-val">Some</span>(module) = <span class="kw-2">&amp;</span>name.module {
                     <span class="comment">// check module present in the scope
-                    </span><span class="kw">let </span>module = <span class="kw-2">&amp;</span>name.path[<span class="number">0</span>];
-                    <span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.path[<span class="number">1</span>];
-                    <span class="kw">let </span>module = global_env.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedModule(module.value.clone()),
-                        span: module.span,
-                    })<span class="question-mark">?</span>;
-                    <span class="kw">let </span>fn_info = module.functions.get(<span class="kw-2">&amp;</span>fn_name.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                        span: fn_name.span,
-                    })<span class="question-mark">?</span>;
+                    </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.name;
+                    <span class="kw">let </span>module = global_env.typed.modules.get(module).ok_or(Error {
+                        kind: ErrorKind::UndefinedModule(module.clone()),
+                        span: name.span, <span class="comment">// TODO: should be module.span
+                    </span>})<span class="question-mark">?</span>;
+                    <span class="kw">let </span>fn_info = module.functions.get(fn_name).ok_or(Error {
+                        kind: ErrorKind::UndefinedFunction(fn_name.clone()),
+                        span: name.span, <span class="comment">// TODO: should be fn_name span
+                    </span>})<span class="question-mark">?</span>;
 
                     <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
                         FnKind::BuiltIn(<span class="kw">_</span>, handle) =&gt; handle(<span class="self">self</span>, <span class="kw-2">&amp;</span>vars, expr.span),
@@ -1598,15 +1586,17 @@
                 <span class="comment">// figure out the local var name of lhs
                 </span><span class="kw">let </span>lhs_name = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs.kind {
                     ExprKind::Identifier(n) =&gt; n,
-                    ExprKind::ArrayAccess(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
+                    ExprKind::ArrayAccess { .. } =&gt; <span class="macro">todo!</span>(),
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;type checker error&quot;</span>),
                 };
+
+                <span class="macro">assert!</span>(lhs_name.module.is_none());
 
                 <span class="comment">// figure out the var of what&#39;s on the right
                 </span><span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
                 <span class="comment">// replace the left with the right
-                </span>fn_env.reassign_var(lhs_name, rhs);
+                </span>fn_env.reassign_var(<span class="kw-2">&amp;</span>lhs_name.name, rhs);
 
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
             }
@@ -1653,37 +1643,22 @@
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_constant(value, expr.span)))
             }
             ExprKind::Identifier(name) =&gt; {
-                <span class="kw">let </span>var = <span class="kw">if </span>is_const(name) {
-                    global_env.get_constant(name).clone()
-                } <span class="kw">else </span>{
-                    fn_env.get_var(name).clone()
-                };
+                <span class="kw">let </span>var = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>name.name).clone();
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
             }
-            ExprKind::ArrayAccess(path, expr) =&gt; {
+            ExprKind::ArrayAccess { name, idx } =&gt; {
                 <span class="comment">// retrieve the CircuitVar at the path
-                </span><span class="kw">let </span>array: Var = <span class="kw">if </span>path.len() == <span class="number">1 </span>{
-                    <span class="comment">// var present in the scope
-                    </span><span class="kw">let </span>name = <span class="kw-2">&amp;</span>path.path[<span class="number">0</span>].value;
-                    fn_env.get_var(name).clone()
-                } <span class="kw">else if </span>path.len() == <span class="number">2 </span>{
+                </span><span class="kw">let </span>array: Var = <span class="kw">if let </span><span class="prelude-val">Some</span>(_module) = <span class="kw-2">&amp;</span>name.module {
                     <span class="comment">// check module present in the scope
-                    </span><span class="kw">let </span>module = <span class="kw-2">&amp;</span>path.path[<span class="number">0</span>];
-                    <span class="kw">let </span>_name = <span class="kw-2">&amp;</span>path.path[<span class="number">1</span>];
-                    <span class="kw">let </span>_module = global_env.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedModule(module.value.clone()),
-                        span: module.span,
-                    })<span class="question-mark">?</span>;
-                    <span class="macro">unimplemented!</span>()
+                    </span><span class="macro">unimplemented!</span>()
                 } <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::InvalidPath,
-                        span: path.span,
-                    });
+                    <span class="comment">// var present in the scope
+                    </span><span class="kw">let </span>name = <span class="kw-2">&amp;</span>name.name;
+                    fn_env.get_var(global_env, name).clone()
                 };
 
                 <span class="comment">// compute the index
-                </span><span class="kw">let </span>idx_var = <span class="self">self</span>.compute_expr(global_env, fn_env, expr)<span class="question-mark">?</span>.ok_or(Error {
+                </span><span class="kw">let </span>idx_var = <span class="self">self</span>.compute_expr(global_env, fn_env, idx)<span class="question-mark">?</span>.ok_or(Error {
                     kind: ErrorKind::CannotComputeExpression,
                     span: expr.span,
                 })<span class="question-mark">?</span>;
@@ -1735,12 +1710,12 @@
                 }
                 <span class="kw">let </span>var = Var::new_struct(vars, expr.span);
 
-                fn_env.add_var(name.clone(), var.clone());
+                fn_env.add_var(global_env, name.clone(), var.clone());
 
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
             }
             ExprKind::StructAccess(name, field) =&gt; {
-                <span class="kw">let </span>stru = fn_env.get_var(<span class="kw-2">&amp;</span>name.value);
+                <span class="kw">let </span>stru = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>name.value);
 
                 <span class="kw">let </span>fields = stru.fields().expect(<span class="string">&quot;type-checker bug: expected struct&quot;</span>);
 
@@ -1751,6 +1726,11 @@
 
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(var, expr.span)))
             }
+            ExprKind::MethodCall {
+                self_name,
+                name,
+                args,
+            } =&gt; <span class="macro">todo!</span>(),
         }
     }
 
@@ -1985,43 +1965,53 @@
 
     <span class="doccomment">/// Stores type information about a local variable.
     /// Note that we forbid shadowing at all scopes.
-    </span><span class="kw">pub fn </span>add_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, var: Var) {
+    </span><span class="kw">pub fn </span>add_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, global_env: <span class="kw-2">&amp;</span>GlobalEnv, var_name: String, var: Var) {
+        <span class="kw">if </span>global_env.get_constant(<span class="kw-2">&amp;</span>var_name).is_some() {
+            <span class="macro">panic!</span>(<span class="string">&quot;cannot shadow global variable {}&quot;</span>, var_name);
+        }
+
         <span class="kw">if </span><span class="self">self
             </span>.vars
-            .insert(name.clone(), (<span class="self">self</span>.current_scope, var))
+            .insert(var_name.clone(), (<span class="self">self</span>.current_scope, var))
             .is_some()
         {
-            <span class="macro">panic!</span>(<span class="string">&quot;type checker error: var {name} already exists&quot;</span>);
+            <span class="macro">panic!</span>(<span class="string">&quot;type checker error: var {var_name} already exists&quot;</span>);
         }
     }
 
     <span class="doccomment">/// Retrieves type information on a variable, given a name.
     /// If the variable is not in scope, return false.
     </span><span class="comment">// TODO: return an error no?
-    </span><span class="kw">pub fn </span>get_var(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="kw-2">&amp;</span>Var {
-        <span class="kw">let </span>(scope, var) = <span class="self">self
+    </span><span class="kw">pub fn </span>get_var(<span class="kw-2">&amp;</span><span class="self">self</span>, global_env: <span class="kw-2">&amp;</span>GlobalEnv, var_name: <span class="kw-2">&amp;</span>str) -&gt; Var {
+        <span class="comment">// look for global constants first
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(var) = global_env.get_constant(var_name) {
+            <span class="kw">return </span>var.clone();
+        }
+
+        <span class="comment">// if not found, then look into local variables
+        </span><span class="kw">let </span>(scope, var) = <span class="self">self
             </span>.vars
-            .get(ident)
-            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable {ident} not found&quot;</span>));
+            .get(var_name)
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable {var_name} not found&quot;</span>));
         <span class="kw">if </span>!<span class="self">self</span>.is_in_scope(<span class="kw-2">*</span>scope) {
             <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable not in scope&quot;</span>);
         }
 
-        var
+        var.clone()
     }
 
-    <span class="kw">pub fn </span>reassign_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str, var: Var) {
+    <span class="kw">pub fn </span>reassign_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_name: <span class="kw-2">&amp;</span>str, var: Var) {
         <span class="comment">// get the scope first, we don&#39;t want to modify that
         </span><span class="kw">let </span>(scope, <span class="kw">_</span>) = <span class="self">self
             </span>.vars
-            .get(ident)
+            .get(var_name)
             .expect(<span class="string">&quot;type checking bug: local variable for reassigning not found&quot;</span>);
 
         <span class="kw">if </span>!<span class="self">self</span>.is_in_scope(<span class="kw-2">*</span>scope) {
             <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable for reassigning not in scope&quot;</span>);
         }
 
-        <span class="self">self</span>.vars.insert(ident.to_string(), (<span class="kw-2">*</span>scope, var));
+        <span class="self">self</span>.vars.insert(var_name.to_string(), (<span class="kw-2">*</span>scope, var));
     }
 }
 </code></pre></div>

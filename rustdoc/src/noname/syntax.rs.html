@@ -51,6 +51,21 @@
 <span id="51">51</span>
 <span id="52">52</span>
 <span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
 </pre><pre class="rust"><code><span class="doccomment">//! A number of helper function to check the syntax of some types.
 
 /// Returns true if the given string is a number in decimal.
@@ -70,6 +85,17 @@
     </span>}
 }
 
+<span class="doccomment">/// Returns true if the given string is an identifier or type
+</span><span class="kw">pub fn </span>is_identifier_or_type(s: <span class="kw-2">&amp;</span>str) -&gt; bool {
+    <span class="kw">let </span><span class="kw-2">mut </span>chars = s.chars();
+    <span class="kw">let </span>first_letter = chars.next().unwrap();
+    <span class="comment">// first char is a letter
+    </span>first_letter.is_alphabetic()
+    <span class="comment">// rest are lowercase alphanumeric or underscore
+        </span>&amp;&amp; chars
+            .all(|c| (c.is_ascii_alphabetic() &amp;&amp; c.is_lowercase()) || c.is_numeric() || c == <span class="string">&#39;_&#39;</span>)
+}
+
 <span class="doccomment">/// Returns true if the given string is an identifier
 /// (starts with a lowercase letter)
 </span><span class="kw">pub fn </span>is_identifier(s: <span class="kw-2">&amp;</span>str) -&gt; bool {
@@ -82,18 +108,6 @@
             .all(|c| (c.is_ascii_alphabetic() &amp;&amp; c.is_lowercase()) || c.is_numeric() || c == <span class="string">&#39;_&#39;</span>)
 }
 
-<span class="doccomment">/// Returns true if the given string is a constant
-/// (uppercase letters)
-</span><span class="kw">pub fn </span>is_const(s: <span class="kw-2">&amp;</span>str) -&gt; bool {
-    <span class="kw">let </span><span class="kw-2">mut </span>chars = s.chars();
-    <span class="kw">let </span>first_letter = chars.next().unwrap();
-    <span class="comment">// first char is a letter
-    </span>first_letter.is_alphabetic() &amp;&amp; first_letter.is_uppercase()
-    <span class="comment">// rest are lowercase alphanumeric or underscore
-        </span>&amp;&amp; chars
-            .all(|c| (c.is_ascii_alphabetic() &amp;&amp; c.is_uppercase()) || c.is_numeric() || c == <span class="string">&#39;_&#39;</span>)
-}
-
 <span class="doccomment">/// Returns true if the given string is a type
 /// (first letter is an uppercase)
 </span><span class="kw">pub fn </span>is_type(s: <span class="kw-2">&amp;</span>str) -&gt; bool {
@@ -104,5 +118,21 @@
     </span>first_char.is_alphabetic() &amp;&amp; first_char.is_uppercase() &amp;&amp; chars.all(|c| (c.is_alphanumeric()))
     <span class="comment">// TODO: check camel case?
 </span>}
+
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_syntax() {
+        <span class="macro">assert!</span>(is_identifier_or_type(<span class="string">&quot;cond2&quot;</span>));
+        <span class="macro">assert!</span>(is_identifier_or_type(<span class="string">&quot;Cond2&quot;</span>));
+        <span class="macro">assert!</span>(!is_identifier_or_type(<span class="string">&quot;_cond2&quot;</span>));
+        <span class="macro">assert!</span>(!is_identifier_or_type(<span class="string">&quot;2_cond2&quot;</span>));
+        <span class="macro">assert!</span>(is_identifier_or_type(<span class="string">&quot;c_ond2&quot;</span>));
+        <span class="macro">assert!</span>(is_identifier(<span class="string">&quot;cond2&quot;</span>));
+        <span class="macro">assert!</span>(is_type(<span class="string">&quot;Cond2&quot;</span>));
+    }
+}
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (95a992a68 2022-09-16)" ></div></body></html>
