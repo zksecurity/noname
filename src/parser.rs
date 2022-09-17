@@ -4,6 +4,7 @@ use crate::{
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind},
+    syntax::is_type,
     tokens::Tokens,
 };
 
@@ -63,83 +64,247 @@ impl ParserCtx {
 // Path
 //
 
+/// A path represents a path to a type, a function, a method, or a constant.
+/// It follows the syntax: `module::X` where `X` can be a type, a function, a method, or a constant.
+/// In the case it is a method `a` on some type `A` then it would read:
+/// `module::A.a`.
 #[derive(Debug, Clone)]
 pub struct Path {
-    pub path: Vec<Ident>,
+    /// A module, if this is an foreign import.
+    pub module: Option<String>,
+
+    /// The name of the type, function, method, or constant.
+    pub name: String,
+
+    /// Its span.
     pub span: Span,
 }
 
 impl Path {
-    pub fn len(&self) -> usize {
-        self.path.len()
+    /// Parsing a path is hard...
+    fn parse(
+        ctx: &mut ParserCtx,
+        tokens: &mut Tokens,
+        maybe_module: String,
+        span: Span,
+    ) -> Result<Self> {
+        let peeked = match tokens.peek() {
+            // it's highly likely that this will be an error,
+            // but we'll let the parent decide
+            None => {
+                return Ok(Path {
+                    module: None,
+                    name: maybe_module,
+                    span,
+                });
+            }
+            Some(peeked) => peeked,
+        };
+
+        let is_module = matches!(peeked.kind, TokenKind::DoubleColon);
+
+        if is_module {
+            // if it's a module, bump and parse the next thing
+            tokens.bump(ctx);
+
+            // next ident
+            let ident = Ident::parse(ctx, tokens)?;
+
+            let span = span.merge_with(ident.span);
+            Ok(Path {
+                module: Some(maybe_module),
+                name: ident.value,
+                span,
+            })
+        } else {
+            Ok(Path {
+                module: None,
+                name: maybe_module,
+                span,
+            })
+        }
+    }
+}
+
+pub fn parse_type_declaration(
+    ctx: &mut ParserCtx,
+    tokens: &mut Tokens,
+    path: Path,
+) -> Result<Expr> {
+    if !is_type(&path.name) {
+        panic!("this looks like a type declaration but not on a type (types start with an uppercase) (TODO: better error)");
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.path.is_empty()
+    // Thing { x: 1, y: 2 }
+    //       ^
+    tokens.bump(ctx);
+
+    let mut fields = vec![];
+
+    // Thing { x: 1, y: 2 }
+    //         ^^^^^^^^^^^^
+    loop {
+        // Thing { x: 1, y: 2 }
+        //                    ^
+        if let Some(Token {
+            kind: TokenKind::RightCurlyBracket,
+            ..
+        }) = tokens.peek()
+        {
+            tokens.bump(ctx);
+            break;
+        };
+
+        // Thing { x: 1, y: 2 }
+        //         ^
+        let field_name = Ident::parse(ctx, tokens)?;
+
+        // Thing { x: 1, y: 2 }
+        //          ^
+        tokens.bump_expected(ctx, TokenKind::Colon)?;
+
+        // Thing { x: 1, y: 2 }
+        //            ^
+        let field_value = Expr::parse(ctx, tokens)?;
+        fields.push((field_name, field_value));
+
+        // Thing { x: 1, y: 2 }
+        //             ^      ^
+        match tokens.bump_err(ctx, ErrorKind::InvalidEndOfLine)? {
+            Token {
+                kind: TokenKind::Comma,
+                ..
+            } => (),
+            Token {
+                kind: TokenKind::RightCurlyBracket,
+                ..
+            } => break,
+            _ => {
+                return Err(Error {
+                    kind: ErrorKind::InvalidEndOfLine,
+                    span: ctx.last_span(),
+                })
+            }
+        };
     }
 
-    /// Parses a path from a list of tokens.
-    pub fn parse_path(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
-        let mut path = vec![];
-        let mut span: Option<Span> = None;
+    Ok(Expr {
+        kind: ExprKind::CustomTypeDeclaration(path.name, fields),
+        span: path.span.merge_with(ctx.last_span()),
+    })
+}
 
-        loop {
-            // no token to read
-            let token = tokens.bump(ctx).ok_or(Error {
-                kind: ErrorKind::InvalidPath,
-                span: ctx.last_span(),
-            })?;
-            ctx.last_token = Some(token.clone());
+/// after a path, there can be a method call, an array access, a const, a var, a function call, etc.
+pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -> Result<Expr> {
+    match tokens.peek() {
+        // type declaration
+        Some(Token {
+            kind: TokenKind::LeftCurlyBracket,
+            ..
+        }) => parse_type_declaration(ctx, tokens, path),
 
-            match &token.kind {
-                // a chunk of the path
-                TokenKind::Identifier(chunk) => {
-                    if let Some(span) = &mut span {
-                        span.1 += token.span.1 + 2 /* double colon */;
-                    } else {
-                        span = Some(token.span);
+        // array access
+        Some(Token {
+            kind: TokenKind::LeftBracket,
+            ..
+        }) => {
+            tokens.bump(ctx); // [
+
+            let expr = Expr::parse(ctx, tokens)?;
+            tokens.bump_expected(ctx, TokenKind::RightBracket)?;
+
+            let span = path.span.merge_with(expr.span);
+
+            Ok(Expr {
+                kind: ExprKind::ArrayAccess {
+                    name: path,
+                    idx: Box::new(expr),
+                },
+                span,
+            })
+        }
+
+        // fn call
+        Some(Token {
+            kind: TokenKind::LeftParen,
+            span,
+        }) => {
+            tokens.bump(ctx); // (
+
+            let mut args = vec![];
+            #[allow(unused_assignments)]
+            let mut end_span = span;
+            loop {
+                let arg = Expr::parse(ctx, tokens)?;
+
+                args.push(arg);
+
+                let pp = tokens.peek();
+
+                match pp {
+                    Some(x) => {
+                        end_span = x.span;
+                        match x.kind {
+                            TokenKind::Comma => {
+                                tokens.bump(ctx);
+                            }
+                            TokenKind::RightParen => {
+                                tokens.bump(ctx);
+                                break;
+                            }
+                            _ => (),
+                        }
                     }
-                    path.push(Ident {
-                        value: chunk.to_string(),
-                        span: token.span,
-                    });
-
-                    // next, we expect a `::` to continue the path,
-                    // or a separator, for example, `;` or `)`
-                    match tokens.peek() {
-                        None => {
-                            return Err(Error {
-                                kind: ErrorKind::InvalidEndOfLine,
-                                span: token.span,
-                            })
-                        }
-                        // path separator
-                        Some(Token {
-                            kind: TokenKind::DoubleColon,
-                            ..
-                        }) => {
-                            let token = tokens.bump(ctx);
-                            ctx.last_token = token;
-                            continue;
-                        }
-                        // end of path
-                        _ => {
-                            return Ok(Path {
-                                path,
-                                span: span.unwrap(),
-                            });
-                        }
+                    None => {
+                        return Err(Error {
+                            kind: ErrorKind::InvalidFnCall("unexpected end of function call"),
+                            span: ctx.last_span(),
+                        })
                     }
-                }
-                // path must start with an alphanumeric thing
-                _ => {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidPath,
-                        span: token.span,
-                    });
                 }
             }
+
+            let span = path.span.merge_with(end_span);
+
+            Ok(Expr {
+                kind: ExprKind::FnCall { name: path, args },
+
+                span,
+            })
         }
+
+        // a struct access or method access
+        Some(Token {
+            kind: TokenKind::Dot,
+            ..
+        }) => {
+            tokens.bump(ctx); // .
+
+            let field = Ident::parse(ctx, tokens)?;
+
+            let span = path.span.merge_with(field.span);
+
+            if is_type(&path.name) {
+                todo!() // TODO: method access
+            } else {
+                Ok(Expr {
+                    kind: ExprKind::StructAccess(
+                        Ident {
+                            value: path.name.clone(),
+                            span: Span::default(),
+                        },
+                        field,
+                    ),
+                    span,
+                })
+            }
+        }
+
+        // easy case, it's just an identifier
+        _ => Ok(Expr {
+            kind: ExprKind::Identifier(path.clone()),
+            span: path.span,
+        }),
     }
 }
 
@@ -211,7 +376,11 @@ impl Ty {
         let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
         match token.kind {
             // struct name
-            TokenKind::Type(name) => {
+            TokenKind::Identifier(name) => {
+                if !is_type(&name) {
+                    panic!("bad name for a type (TODO: better error)");
+                }
+
                 let ty_kind = Self::reserved_types(&name);
                 Ok(Self {
                     kind: ty_kind,
@@ -298,14 +467,27 @@ pub struct Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
-    //    Literal(String),
-    FnCall { name: Path, args: Vec<Expr> },
-    Assignment { lhs: Box<Expr>, rhs: Box<Expr> },
+    FnCall {
+        name: Path,
+        args: Vec<Expr>,
+    },
+    MethodCall {
+        self_name: Path,
+        name: String,
+        args: Vec<Expr>,
+    },
+    Assignment {
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
     Op(Op2, Box<Expr>, Box<Expr>),
     Negated(Box<Expr>),
     BigInt(String),
-    Identifier(String),
-    ArrayAccess(Path, Box<Expr>),
+    Identifier(Path),
+    ArrayAccess {
+        name: Path,
+        idx: Box<Expr>,
+    },
     ArrayDeclaration(Vec<Expr>),
     CustomTypeDeclaration(String, Vec<(Ident, Expr)>),
     StructAccess(Ident, Ident),
@@ -362,130 +544,10 @@ impl Expr {
             },
 
             // identifier
-            TokenKind::Identifier(ident) | TokenKind::Const(ident) => {
-                let mut path = Path {
-                    path: vec![Ident {
-                        value: ident,
-                        span: token.span,
-                    }],
-                    span,
-                };
+            TokenKind::Identifier(ident) => {
+                let path = Path::parse(ctx, tokens, ident, span)?;
 
-                let peeked = match tokens.peek() {
-                    None => {
-                        return Err(Error {
-                            kind: ErrorKind::InvalidEndOfLine,
-                            span: ctx.last_span(),
-                        })
-                    }
-                    Some(x) => x,
-                };
-
-                // ident could be path
-                let peeked = if matches!(peeked.kind, TokenKind::DoubleColon) {
-                    tokens.bump(ctx);
-                    let rest = Path::parse_path(ctx, tokens)?;
-                    path.path.extend(rest.path);
-
-                    path.span.1 = rest.span.1 + rest.span.0 - path.span.0;
-
-                    match tokens.peek() {
-                        None => {
-                            return Err(Error {
-                                kind: ErrorKind::InvalidEndOfLine,
-                                span: ctx.last_span(),
-                            })
-                        }
-                        Some(x) => x,
-                    }
-                } else {
-                    peeked
-                };
-
-                // could be array access, fn call
-                match peeked.kind {
-                    // array access
-                    TokenKind::LeftBracket => {
-                        tokens.bump(ctx); // [
-
-                        let expr = Expr::parse(ctx, tokens)?;
-                        tokens.bump_expected(ctx, TokenKind::RightBracket)?;
-
-                        let span = path.span.merge_with(expr.span);
-
-                        Expr {
-                            kind: ExprKind::ArrayAccess(path, Box::new(expr)),
-                            span,
-                        }
-                    }
-                    // fn call
-                    TokenKind::LeftParen => {
-                        tokens.bump(ctx); // (
-
-                        let mut args = vec![];
-                        #[allow(unused_assignments)]
-                        let mut end_span = span;
-                        loop {
-                            let arg = Expr::parse(ctx, tokens)?;
-
-                            args.push(arg);
-
-                            let pp = tokens.peek();
-
-                            match pp {
-                                Some(x) => {
-                                    end_span = x.span;
-                                    match x.kind {
-                                        TokenKind::Comma => {
-                                            tokens.bump(ctx);
-                                        }
-                                        TokenKind::RightParen => {
-                                            tokens.bump(ctx);
-                                            break;
-                                        }
-                                        _ => (),
-                                    }
-                                }
-                                None => {
-                                    return Err(Error {
-                                        kind: ErrorKind::InvalidFnCall(
-                                            "unexpected end of function call",
-                                        ),
-                                        span: ctx.last_span(),
-                                    })
-                                }
-                            }
-                        }
-
-                        let span = path.span.merge_with(end_span);
-
-                        Expr {
-                            kind: ExprKind::FnCall { name: path, args },
-
-                            span,
-                        }
-                    }
-
-                    // a struct access
-                    TokenKind::Period => {
-                        tokens.bump(ctx); // .
-
-                        let field = Ident::parse(ctx, tokens)?;
-
-                        let span = path.span.merge_with(field.span);
-
-                        Expr {
-                            kind: ExprKind::StructAccess(path.path[0].clone(), field),
-                            span,
-                        }
-                    }
-
-                    // just a variable
-                    _ => Expr {
-                        kind: ExprKind::Identifier(path.path[0].value.clone()),
-                        span,
-                    },
-                }
+                parse_complicated(ctx, tokens, path)?
             }
 
             // negated expr
@@ -580,67 +642,6 @@ impl Expr {
                 }
             }
 
-            // type declaration
-            TokenKind::Type(type_name) => {
-                // Thing { x: 1, y: 2 }
-                //       ^
-                tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
-
-                let mut fields = vec![];
-
-                // Thing { x: 1, y: 2 }
-                //         ^^^^^^^^^^^^
-                loop {
-                    // Thing { x: 1, y: 2 }
-                    //                    ^
-                    if let Some(Token {
-                        kind: TokenKind::RightCurlyBracket,
-                        ..
-                    }) = tokens.peek()
-                    {
-                        tokens.bump(ctx);
-                        break;
-                    };
-
-                    // Thing { x: 1, y: 2 }
-                    //         ^
-                    let field_name = Ident::parse(ctx, tokens)?;
-
-                    // Thing { x: 1, y: 2 }
-                    //          ^
-                    tokens.bump_expected(ctx, TokenKind::Colon)?;
-
-                    // Thing { x: 1, y: 2 }
-                    //            ^
-                    let field_value = Expr::parse(ctx, tokens)?;
-                    fields.push((field_name, field_value));
-
-                    // Thing { x: 1, y: 2 }
-                    //             ^      ^
-                    match tokens.bump_err(ctx, ErrorKind::InvalidEndOfLine)? {
-                        Token {
-                            kind: TokenKind::Comma,
-                            ..
-                        } => (),
-                        Token {
-                            kind: TokenKind::RightCurlyBracket,
-                            ..
-                        } => break,
-                        _ => {
-                            return Err(Error {
-                                kind: ErrorKind::InvalidEndOfLine,
-                                span: ctx.last_span(),
-                            })
-                        }
-                    };
-                }
-
-                Expr {
-                    kind: ExprKind::CustomTypeDeclaration(type_name, fields),
-                    span: span.merge_with(ctx.last_span()),
-                }
-            }
-
             // unrecognized pattern
             _ => {
                 return Err(Error {
@@ -660,7 +661,7 @@ impl Expr {
         ) {
             if !matches!(
                 &lhs.kind,
-                ExprKind::Identifier(..) | ExprKind::ArrayAccess(..),
+                ExprKind::Identifier(..) | ExprKind::ArrayAccess { .. },
             ) {
                 return Err(Error {
                     kind: ErrorKind::InvalidAssignmentExpression,
@@ -707,7 +708,7 @@ impl Expr {
 
 #[derive(Debug, Default, Clone)]
 pub struct FnSig {
-    pub name: Ident,
+    pub name: FnNameDef,
 
     /// (pub, ident, type)
     pub arguments: Vec<FnArg>,
@@ -717,9 +718,9 @@ pub struct FnSig {
 
 impl FnSig {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
-        let name = Function::parse_name(ctx, tokens)?;
+        let name = FnNameDef::parse(ctx, tokens)?;
 
-        let arguments = Function::parse_args(ctx, tokens)?;
+        let arguments = Function::parse_args(ctx, tokens, name.self_name.as_ref())?;
 
         let return_type = Function::parse_fn_return_type(ctx, tokens)?;
 
@@ -742,21 +743,6 @@ impl Ident {
         let token = tokens.bump_err(ctx, ErrorKind::MissingToken)?;
         match token.kind {
             TokenKind::Identifier(ident) => Ok(Self {
-                value: ident,
-                span: token.span,
-            }),
-
-            _ => Err(Error {
-                kind: ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
-                span: token.span,
-            }),
-        }
-    }
-
-    pub fn parse_const(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
-        let token = tokens.bump_err(ctx, ErrorKind::MissingToken)?;
-        match token.kind {
-            TokenKind::Const(ident) => Ok(Self {
                 value: ident,
                 span: token.span,
             }),
@@ -815,40 +801,75 @@ impl FnArg {
     }
 }
 
-impl Function {
-    pub fn is_main(&self) -> bool {
-        self.sig.name.value == "main"
-    }
+/// Represents the name of a function.
+#[derive(Debug, Clone, Default)]
+pub struct FnNameDef {
+    /// The name of the type that this function is implemented on.
+    pub self_name: Option<Ident>,
 
-    pub fn parse_name(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident> {
-        let token = tokens.bump_err(
+    /// The name of the function.
+    pub name: Ident,
+
+    /// The span of the function.
+    pub span: Span,
+}
+
+impl FnNameDef {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        // fn House.verify(   or   fn verify(
+        //    ^^^^^                   ^^^^^
+        let maybe_self_name = tokens.bump_ident(
             ctx,
             ErrorKind::InvalidFunctionSignature("expected function name"),
         )?;
+        let span = maybe_self_name.span;
 
-        let name = match token {
-            Token {
-                kind: TokenKind::Identifier(name),
-                ..
-            } => name,
-            _ => {
-                return Err(Error {
-                    kind: ErrorKind::InvalidFunctionSignature("expected function name to be lowercase alphanumeric (including underscore `_`) and starting with a letter"),
-                    span: token.span,
-                });
-            }
-        };
+        // fn House.verify(
+        //    ^^^^^
+        if is_type(&maybe_self_name.value) {
+            // fn House.verify(
+            //         ^
+            tokens.bump_expected(ctx, TokenKind::Dot)?;
 
-        Ok(Ident {
-            value: name,
-            span: token.span,
-        })
+            // fn House.verify(
+            //          ^^^^^^
+            let name = tokens.bump_ident(
+                ctx,
+                ErrorKind::InvalidFunctionSignature("expected function name"),
+            )?;
+
+            let span = span.merge_with(name.span);
+
+            Ok(Self {
+                self_name: Some(maybe_self_name),
+                name,
+                span,
+            })
+        } else {
+            // fn verify(
+            //    ^^^^^^
+            Ok(Self {
+                self_name: None,
+                name: maybe_self_name,
+                span,
+            })
+        }
+    }
+}
+
+impl Function {
+    pub fn is_main(&self) -> bool {
+        self.sig.name.name.value == "main"
     }
 
-    pub fn parse_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<FnArg>> {
+    pub fn parse_args(
+        ctx: &mut ParserCtx,
+        tokens: &mut Tokens,
+        self_name: Option<&Ident>,
+    ) -> Result<Vec<FnArg>> {
         // (pub arg1: type1, arg2: type2)
         // ^
-        tokens.bump_expected(ctx, TokenKind::LeftParen)?;
+        let Token { span, .. } = tokens.bump_expected(ctx, TokenKind::LeftParen)?;
 
         // (pub arg1: type1, arg2: type2)
         //   ^
@@ -891,11 +912,35 @@ impl Function {
                 }
             };
 
-            // :
-            tokens.bump_expected(ctx, TokenKind::Colon)?;
+            // self takes no value
+            let arg_typ = if arg_name.value == "self" {
+                let self_name = self_name.ok_or(Error {
+                    kind: ErrorKind::InvalidFunctionSignature(
+                        "the `self` argynebt is only allowed in struct methods",
+                    ),
+                    span: arg_name.span,
+                })?;
 
-            // type
-            let arg_typ = Ty::parse(ctx, tokens)?;
+                if args.len() != 0 {
+                    return Err(Error {
+                        kind: ErrorKind::InvalidFunctionSignature(
+                            "`self` must be the first argument",
+                        ),
+                        span: arg_name.span,
+                    });
+                }
+
+                Ty {
+                    kind: TyKind::Custom(self_name.value.clone()),
+                    span: self_name.span,
+                }
+            } else {
+                // :
+                tokens.bump_expected(ctx, TokenKind::Colon)?;
+
+                // type
+                Ty::parse(ctx, tokens)?
+            };
 
             // , or )
             let separator = tokens.bump_err(
@@ -903,7 +948,7 @@ impl Function {
                 ErrorKind::InvalidFunctionSignature("expected end of function or other argument"),
             )?;
 
-            let span = token.span.merge_with(arg_typ.span);
+            let span = span.merge_with(separator.span);
             let arg = FnArg {
                 name: arg_name,
                 typ: arg_typ,
@@ -986,8 +1031,8 @@ impl Function {
             })?
             .span;
 
-        let name = Self::parse_name(ctx, tokens)?;
-        let arguments = Self::parse_args(ctx, tokens)?;
+        let name = FnNameDef::parse(ctx, tokens)?;
+        let arguments = Self::parse_args(ctx, tokens, name.self_name.as_ref())?;
         let return_type = Self::parse_fn_return_type(ctx, tokens)?;
         let body = Self::parse_fn_body(ctx, tokens)?;
 
@@ -1193,7 +1238,7 @@ impl Stmt {
 
                 // for i in 0..5 { ... }
                 //           ^^
-                tokens.bump_expected(ctx, TokenKind::DoublePeriod)?;
+                tokens.bump_expected(ctx, TokenKind::DoubleDot)?;
 
                 // for i in 0..5 { ... }
                 //             ^
@@ -1324,8 +1369,41 @@ pub struct Root {
 }
 
 #[derive(Debug)]
+pub struct UsePath {
+    pub module: Ident,
+    pub submodule: Ident,
+    pub span: Span,
+}
+
+impl UsePath {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        let module = tokens.bump_ident(
+            ctx,
+            ErrorKind::InvalidPath("wrong path: expected a module (TODO: better error"),
+        )?;
+        let span = module.span;
+
+        let separator = tokens.bump_expected(ctx, TokenKind::DoubleColon)?;
+
+        let submodule = tokens.bump_ident(
+            ctx,
+            ErrorKind::InvalidPath(
+                "wrong path: expected a submodule after `::` (TODO: better error",
+            ),
+        )?;
+
+        let span = span.merge_with(submodule.span);
+        Ok(UsePath {
+            module,
+            submodule,
+            span,
+        })
+    }
+}
+
+#[derive(Debug)]
 pub enum RootKind {
-    Use(Path),
+    Use(UsePath),
     Function(Function),
     Comment(String),
     Struct(Struct),
@@ -1345,15 +1423,15 @@ pub struct Const {
 
 impl Const {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
-        // const FOO = 42;
+        // const foo = 42;
         //       ^^^
-        let name = Ident::parse_const(ctx, tokens)?;
+        let name = Ident::parse(ctx, tokens)?;
 
-        // const FOO = 42;
+        // const foo = 42;
         //           ^
         tokens.bump_expected(ctx, TokenKind::Equal)?;
 
-        // const FOO = 42;
+        // const foo = 42;
         //             ^^
         let value = Expr::parse(ctx, tokens)?;
         let value = match &value.kind {
@@ -1495,7 +1573,7 @@ impl AST {
                         });
                     }
 
-                    let path = Path::parse_path(ctx, &mut tokens)?;
+                    let path = UsePath::parse(ctx, &mut tokens)?;
                     ast.push(Root {
                         kind: RootKind::Use(path),
                         span: token.span,
@@ -1570,7 +1648,7 @@ impl AST {
 }
 
 //
-// Helpers
+// CustomType
 //
 
 #[derive(Debug)]
@@ -1579,28 +1657,26 @@ pub struct CustomType {
     pub span: Span,
 }
 
+// TODO: implement as impl CustomType
 pub fn parse_type(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<CustomType> {
-    let token = tokens.bump_err(ctx, ErrorKind::MissingToken)?;
-    match token.kind {
-        TokenKind::Type(ty_name) => {
-            // make sure that this type is allowed
-            if !matches!(Ty::reserved_types(&ty_name), TyKind::Custom(_)) {
-                return Err(Error {
-                    kind: ErrorKind::ReservedType(ty_name),
-                    span: token.span,
-                });
-            }
+    let ty_name = tokens.bump_ident(ctx, ErrorKind::InvalidType)?;
 
-            Ok(CustomType {
-                value: ty_name,
-                span: token.span,
-            })
-        }
-        _ => Err(Error {
-            kind: ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
-            span: token.span,
-        }),
+    if !is_type(&ty_name.value) {
+        panic!("type name should start with uppercase letter (TODO: better error");
     }
+
+    // make sure that this type is allowed
+    if !matches!(Ty::reserved_types(&ty_name.value), TyKind::Custom(_)) {
+        return Err(Error {
+            kind: ErrorKind::ReservedType(ty_name.value),
+            span: ty_name.span,
+        });
+    }
+
+    Ok(CustomType {
+        value: ty_name.value,
+        span: ty_name.span,
+    })
 }
 
 //

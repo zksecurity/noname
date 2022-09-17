@@ -20,8 +20,11 @@ pub struct Error {
     pub span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, Debug, Clone)]
 pub enum ErrorKind {
+    #[error("the `pub` keyword is reserved for arguments of the main function")]
+    PubArgumentOutsideMain,
+
     #[error("the function main is not recursive")]
     RecursiveMain,
 
@@ -37,8 +40,8 @@ pub enum ErrorKind {
     #[error("invalid token, expected: {0}")]
     ExpectedToken(TokenKind),
 
-    #[error("invalid path")]
-    InvalidPath,
+    #[error("invalid path: {0}")]
+    InvalidPath(&'static str),
 
     #[error("invalid end of line")]
     InvalidEndOfLine,

@@ -17,6 +17,17 @@ pub fn is_hexadecimal(s: &str) -> bool {
     }
 }
 
+/// Returns true if the given string is an identifier or type
+pub fn is_identifier_or_type(s: &str) -> bool {
+    let mut chars = s.chars();
+    let first_letter = chars.next().unwrap();
+    // first char is a letter
+    first_letter.is_alphabetic()
+    // rest are lowercase alphanumeric or underscore
+        && chars
+            .all(|c| (c.is_ascii_alphabetic() && c.is_lowercase()) || c.is_numeric() || c == '_')
+}
+
 /// Returns true if the given string is an identifier
 /// (starts with a lowercase letter)
 pub fn is_identifier(s: &str) -> bool {
@@ -29,18 +40,6 @@ pub fn is_identifier(s: &str) -> bool {
             .all(|c| (c.is_ascii_alphabetic() && c.is_lowercase()) || c.is_numeric() || c == '_')
 }
 
-/// Returns true if the given string is a constant
-/// (uppercase letters)
-pub fn is_const(s: &str) -> bool {
-    let mut chars = s.chars();
-    let first_letter = chars.next().unwrap();
-    // first char is a letter
-    first_letter.is_alphabetic() && first_letter.is_uppercase()
-    // rest are lowercase alphanumeric or underscore
-        && chars
-            .all(|c| (c.is_ascii_alphabetic() && c.is_uppercase()) || c.is_numeric() || c == '_')
-}
-
 /// Returns true if the given string is a type
 /// (first letter is an uppercase)
 pub fn is_type(s: &str) -> bool {
@@ -50,4 +49,20 @@ pub fn is_type(s: &str) -> bool {
     // rest are lowercase alphanumeric
     first_char.is_alphabetic() && first_char.is_uppercase() && chars.all(|c| (c.is_alphanumeric()))
     // TODO: check camel case?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_syntax() {
+        assert!(is_identifier_or_type("cond2"));
+        assert!(is_identifier_or_type("Cond2"));
+        assert!(!is_identifier_or_type("_cond2"));
+        assert!(!is_identifier_or_type("2_cond2"));
+        assert!(is_identifier_or_type("c_ond2"));
+        assert!(is_identifier("cond2"));
+        assert!(is_type("Cond2"));
+    }
 }

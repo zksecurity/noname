@@ -130,14 +130,18 @@ fn main(pub public_input: Field, private_input: [Field; 3]) {
 
 ## Constants
 
+Like variables and function names, constants must be lowercase.
+
+At the moment they can only represent field elements. Perhaps it would be nice to be able to represent different types in the future.
+
 ```rust
-const PLAYER_ONE = 1;
-const PLAYER_TWO = 2;
+const player_one = 1;
+const player_two = 2;
 
 fn main(pub player: Field) -> Field {
-    assert_eq(PLAYER_ONE, player);
+    assert_eq(player_one, player);
     let next_player = player + 1;
-    assert_eq(PLAYER_TWO, next_player);
+    assert_eq(player_two, next_player);
     return next_player;
 }
 ```

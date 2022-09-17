@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
-    syntax::{is_const, is_hexadecimal, is_identifier, is_numeric, is_type},
+    syntax::{is_hexadecimal, is_identifier_or_type, is_numeric},
     tokens::Tokens,
 };
 
@@ -93,13 +93,11 @@ impl Display for Keyword {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenKind {
     Keyword(Keyword),   // reserved keywords
-    Identifier(String), // [a-z_](a-z0-9_)*
-    Const(String),      // [A-Z_](A-Z0-9_)*
-    Type(String),       // [A-Z](a-zA-Z0-9)*
+    Identifier(String), // [a-zA-Z](A-Za-z0-9_)*
     BigInt(String),     // (0-9)*
     Hex(String),        // 0x[0-9a-fA-F]+
-    Period,             // .
-    DoublePeriod,       // ..
+    Dot,                // .
+    DoubleDot,          // ..
     Comma,              // ,
     Colon,              // :
     DoubleColon,        // ::
@@ -134,14 +132,10 @@ impl Display for TokenKind {
             Identifier(_) => {
                 "a lowercase alphanumeric (including underscore) string starting with a letter"
             }
-            Const(_) => {
-                "an uppercase alphanumeric (including underscore) string starting with a letter"
-            }
-            Type(_) => "an alphanumeric string starting with an uppercase letter",
             BigInt(_) => "a number",
             Hex(_) => "a hexadecimal string, starting with 0x",
-            Period => ".",
-            DoublePeriod => "..",
+            Dot => ".",
+            DoubleDot => "..",
             Comma => "`,`",
             Colon => "`:`",
             DoubleColon => "`::`",
@@ -208,12 +202,8 @@ impl Token {
                         TokenKind::BigInt(ident_or_number)
                     } else if is_hexadecimal(&ident_or_number) {
                         TokenKind::Hex(ident_or_number)
-                    } else if is_identifier(&ident_or_number) {
+                    } else if is_identifier_or_type(&ident_or_number) {
                         TokenKind::Identifier(ident_or_number)
-                    } else if is_type(&ident_or_number) {
-                        TokenKind::Type(ident_or_number)
-                    } else if is_const(&ident_or_number) {
-                        TokenKind::Const(ident_or_number)
                     } else {
                         return Err(Error {
                             kind: ErrorKind::InvalidIdentifier(ident_or_number),
@@ -260,10 +250,10 @@ impl Token {
                 '.' => {
                     let next_c = chars.peek();
                     if matches!(next_c, Some(&'.')) {
-                        tokens.push(TokenKind::DoublePeriod.new_token(ctx, 2));
+                        tokens.push(TokenKind::DoubleDot.new_token(ctx, 2));
                         chars.next();
                     } else {
-                        tokens.push(TokenKind::Period.new_token(ctx, 1));
+                        tokens.push(TokenKind::Dot.new_token(ctx, 1));
                     }
                 }
                 ',' => {
@@ -402,11 +392,5 @@ fn main(public_input: [fel; 3], private_input: [fel; 3]) -> [fel; 8] {
                 println!("{:?}", e);
             }
         }
-    }
-
-    #[test]
-    fn test_ident() {
-        assert!(is_identifier("cond2"));
-        assert!(is_type("Cond2"));
     }
 }

@@ -19,7 +19,6 @@ use crate::{
         AttributeKind, Expr, ExprKind, FnArg, FnSig, Function, Op2, RootKind, Stmt, StmtKind,
         TyKind,
     },
-    syntax::is_const,
     type_checker::{TypedGlobalEnv, TAST},
     var::{CellVar, ConstOrCell, Value, Var, VarKind},
     witness::CompiledCircuit,
@@ -52,20 +51,15 @@ impl GlobalEnv {
     pub fn add_constant(&mut self, name: String, constant: Field, span: Span) {
         let var = Var::new_constant(constant, span);
         if self.constants.insert(name.clone(), var).is_some() {
-            panic!("constant `{name}` already exists");
+            panic!("constant `{name}` already exists (TODO: better error)");
         }
     }
 
     /// Retrieves type information on a constantiable, given a name.
     /// If the constantiable is not in scope, return false.
     // TODO: return an error no?
-    pub fn get_constant(&self, ident: &str) -> &Var {
-        let constant = self
-            .constants
-            .get(ident)
-            .unwrap_or_else(|| panic!("constant `{ident}` not found"));
-
-        constant
+    pub fn get_constant(&self, ident: &str) -> Option<&Var> {
+        self.constants.get(ident)
     }
 }
 
@@ -228,7 +222,7 @@ impl CircuitWriter {
                 // imports (already dealt with in type checker)
                 RootKind::Use(_path) => (),
 
-                // `const THING = 42;`
+                // `const thing = 42;`
                 RootKind::Const(cst) => {
                     global_env.add_constant(cst.name.value.clone(), cst.value, cst.span);
                 }
@@ -285,7 +279,7 @@ impl CircuitWriter {
                         };
 
                         // add argument variable to the ast env
-                        fn_env.add_var(name.value.clone(), var);
+                        fn_env.add_var(global_env, name.value.clone(), var);
                     }
 
                     // create public output
@@ -362,14 +356,14 @@ impl CircuitWriter {
 
                 // store the new variable
                 // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
-                fn_env.add_var(lhs.value.clone(), var);
+                fn_env.add_var(global_env, lhs.value.clone(), var);
             }
             StmtKind::For { var, range, body } => {
                 for ii in range.range() {
                     fn_env.nest();
 
                     let cst_var = Var::new_constant(ii.into(), var.span);
-                    fn_env.add_var(var.value.clone(), cst_var);
+                    fn_env.add_var(global_env, var.value.clone(), cst_var);
 
                     self.compile_block(global_env, fn_env, body)?;
 
@@ -432,7 +426,7 @@ impl CircuitWriter {
         assert_eq!(function.sig.arguments.len(), args.len());
 
         for (name, var) in function.sig.arguments.iter().zip(args) {
-            fn_env.add_var(name.name.value.clone(), var);
+            fn_env.add_var(global_env, name.name.value.clone(), var);
         }
 
         // compile it and potentially return a return value
@@ -535,9 +529,9 @@ impl CircuitWriter {
                 }
 
                 // retrieve the function in the env
-                if name.len() == 1 {
+                if name.module.is_none() {
                     // functions present in the scope
-                    let fn_name = &name.path[0].value;
+                    let fn_name = &name.name;
                     let fn_info = global_env.typed.functions.get(fn_name).ok_or(Error {
                         kind: ErrorKind::UndefinedFunction(fn_name.clone()),
                         span: name.span,
@@ -553,17 +547,16 @@ impl CircuitWriter {
                             span: expr.span,
                         }),
                     }
-                } else if name.len() == 2 {
+                } else if let Some(module) = &name.module {
                     // check module present in the scope
-                    let module = &name.path[0];
-                    let fn_name = &name.path[1];
-                    let module = global_env.typed.modules.get(&module.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedModule(module.value.clone()),
-                        span: module.span,
+                    let fn_name = &name.name;
+                    let module = global_env.typed.modules.get(module).ok_or(Error {
+                        kind: ErrorKind::UndefinedModule(module.clone()),
+                        span: name.span, // TODO: should be module.span
                     })?;
-                    let fn_info = module.functions.get(&fn_name.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                        span: fn_name.span,
+                    let fn_info = module.functions.get(fn_name).ok_or(Error {
+                        kind: ErrorKind::UndefinedFunction(fn_name.clone()),
+                        span: name.span, // TODO: should be fn_name span
                     })?;
 
                     match &fn_info.kind {
@@ -585,15 +578,17 @@ impl CircuitWriter {
                 // figure out the local var name of lhs
                 let lhs_name = match &lhs.kind {
                     ExprKind::Identifier(n) => n,
-                    ExprKind::ArrayAccess(_, _) => todo!(),
+                    ExprKind::ArrayAccess { .. } => todo!(),
                     _ => panic!("type checker error"),
                 };
+
+                assert!(lhs_name.module.is_none());
 
                 // figure out the var of what's on the right
                 let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
                 // replace the left with the right
-                fn_env.reassign_var(lhs_name, rhs);
+                fn_env.reassign_var(&lhs_name.name, rhs);
 
                 Ok(None)
             }
@@ -640,37 +635,22 @@ impl CircuitWriter {
                 Ok(Some(Var::new_constant(value, expr.span)))
             }
             ExprKind::Identifier(name) => {
-                let var = if is_const(name) {
-                    global_env.get_constant(name).clone()
-                } else {
-                    fn_env.get_var(name).clone()
-                };
+                let var = fn_env.get_var(global_env, &name.name).clone();
                 Ok(Some(var))
             }
-            ExprKind::ArrayAccess(path, expr) => {
+            ExprKind::ArrayAccess { name, idx } => {
                 // retrieve the CircuitVar at the path
-                let array: Var = if path.len() == 1 {
-                    // var present in the scope
-                    let name = &path.path[0].value;
-                    fn_env.get_var(name).clone()
-                } else if path.len() == 2 {
+                let array: Var = if let Some(_module) = &name.module {
                     // check module present in the scope
-                    let module = &path.path[0];
-                    let _name = &path.path[1];
-                    let _module = global_env.typed.modules.get(&module.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedModule(module.value.clone()),
-                        span: module.span,
-                    })?;
                     unimplemented!()
                 } else {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidPath,
-                        span: path.span,
-                    });
+                    // var present in the scope
+                    let name = &name.name;
+                    fn_env.get_var(global_env, name).clone()
                 };
 
                 // compute the index
-                let idx_var = self.compute_expr(global_env, fn_env, expr)?.ok_or(Error {
+                let idx_var = self.compute_expr(global_env, fn_env, idx)?.ok_or(Error {
                     kind: ErrorKind::CannotComputeExpression,
                     span: expr.span,
                 })?;
@@ -722,12 +702,12 @@ impl CircuitWriter {
                 }
                 let var = Var::new_struct(vars, expr.span);
 
-                fn_env.add_var(name.clone(), var.clone());
+                fn_env.add_var(global_env, name.clone(), var.clone());
 
                 Ok(Some(var))
             }
             ExprKind::StructAccess(name, field) => {
-                let stru = fn_env.get_var(&name.value);
+                let stru = fn_env.get_var(global_env, &name.value);
 
                 let fields = stru.fields().expect("type-checker bug: expected struct");
 
@@ -738,6 +718,11 @@ impl CircuitWriter {
 
                 Ok(Some(Var::new(var, expr.span)))
             }
+            ExprKind::MethodCall {
+                self_name,
+                name,
+                args,
+            } => todo!(),
         }
     }
 
@@ -972,42 +957,52 @@ impl FnEnv {
 
     /// Stores type information about a local variable.
     /// Note that we forbid shadowing at all scopes.
-    pub fn add_var(&mut self, name: String, var: Var) {
+    pub fn add_var(&mut self, global_env: &GlobalEnv, var_name: String, var: Var) {
+        if global_env.get_constant(&var_name).is_some() {
+            panic!("cannot shadow global variable {}", var_name);
+        }
+
         if self
             .vars
-            .insert(name.clone(), (self.current_scope, var))
+            .insert(var_name.clone(), (self.current_scope, var))
             .is_some()
         {
-            panic!("type checker error: var {name} already exists");
+            panic!("type checker error: var {var_name} already exists");
         }
     }
 
     /// Retrieves type information on a variable, given a name.
     /// If the variable is not in scope, return false.
     // TODO: return an error no?
-    pub fn get_var(&self, ident: &str) -> &Var {
+    pub fn get_var(&self, global_env: &GlobalEnv, var_name: &str) -> Var {
+        // look for global constants first
+        if let Some(var) = global_env.get_constant(var_name) {
+            return var.clone();
+        }
+
+        // if not found, then look into local variables
         let (scope, var) = self
             .vars
-            .get(ident)
-            .unwrap_or_else(|| panic!("type checking bug: local variable {ident} not found"));
+            .get(var_name)
+            .unwrap_or_else(|| panic!("type checking bug: local variable {var_name} not found"));
         if !self.is_in_scope(*scope) {
             panic!("type checking bug: local variable not in scope");
         }
 
-        var
+        var.clone()
     }
 
-    pub fn reassign_var(&mut self, ident: &str, var: Var) {
+    pub fn reassign_var(&mut self, var_name: &str, var: Var) {
         // get the scope first, we don't want to modify that
         let (scope, _) = self
             .vars
-            .get(ident)
+            .get(var_name)
             .expect("type checking bug: local variable for reassigning not found");
 
         if !self.is_in_scope(*scope) {
             panic!("type checking bug: local variable for reassigning not in scope");
         }
 
-        self.vars.insert(ident.to_string(), (*scope, var));
+        self.vars.insert(var_name.to_string(), (*scope, var));
     }
 }

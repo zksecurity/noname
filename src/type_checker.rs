@@ -4,9 +4,11 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     imports::{resolve_builtin_functions, resolve_imports, FnKind},
-    parser::{Expr, ExprKind, FnSig, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind, AST},
+    parser::{
+        Expr, ExprKind, FnSig, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind, UsePath,
+        AST,
+    },
     stdlib::ImportedModule,
-    syntax::is_const,
 };
 
 //
@@ -70,6 +72,8 @@ pub struct TypedGlobalEnv {
 
     /// Custom structs
     structs: HashMap<String, Vec<(String, TyKind)>>,
+
+    constants: HashMap<String, Ty>,
 }
 
 #[derive(Debug, Clone)]
@@ -94,7 +98,7 @@ impl TypedGlobalEnv {
         for fn_info in builtin_functions {
             if self
                 .functions
-                .insert(fn_info.sig().name.value.clone(), fn_info)
+                .insert(fn_info.sig().name.name.value.clone(), fn_info)
                 .is_some()
             {
                 panic!("global imports conflict (TODO: better error)");
@@ -104,7 +108,7 @@ impl TypedGlobalEnv {
         Ok(())
     }
 
-    pub fn import(&mut self, path: &Path) -> Result<()> {
+    pub fn import(&mut self, path: &UsePath) -> Result<()> {
         let module = resolve_imports(path)?;
 
         if self
@@ -220,13 +224,18 @@ impl Expr {
                 // lhs can be a local variable or a path to an array
                 let name = match &lhs.kind {
                     ExprKind::Identifier(var) => var,
-                    ExprKind::ArrayAccess(_, _) => todo!(),
+                    ExprKind::ArrayAccess { .. } => todo!(),
                     _ => panic!("bad expression assignment (TODO: replace with error)"),
                 };
 
+                // but not an external variable or something
+                if name.module.is_some() {
+                    panic!("can't assign to an external variable (TODO: replace with error)");
+                }
+
                 // check that the var exists locally
                 let lhs_info = typed_fn_env
-                    .get_type_info(name)
+                    .get_type_info(&name.name)
                     .expect("variable not found (TODO: replace with error")
                     .clone();
 
@@ -284,12 +293,16 @@ impl Expr {
             }
             ExprKind::BigInt(_) => Ok(Some(TyKind::BigInt)),
             ExprKind::Bool(_) => Ok(Some(TyKind::Bool)),
-            ExprKind::Identifier(ident) => {
-                let typ = if is_const(ident) {
-                    TyKind::Field
+            ExprKind::Identifier(path) => {
+                if path.module.is_some() {
+                    unimplemented!();
+                }
+
+                let typ = if let Some(typ) = typed_global_env.constants.get(&path.name) {
+                    typ.kind.clone()
                 } else {
                     typed_fn_env
-                        .get_type(ident)
+                        .get_type(&path.name)
                         .ok_or(Error {
                             kind: ErrorKind::UndefinedVariable,
                             span: self.span,
@@ -299,14 +312,14 @@ impl Expr {
 
                 Ok(Some(typ))
             }
-            ExprKind::ArrayAccess(path, expr) => {
+            ExprKind::ArrayAccess { name, idx } => {
                 // only support scoped variable for now
-                if path.len() != 1 {
+                if name.module.is_some() {
                     unimplemented!();
                 }
 
                 // figure out if variable is in scope
-                let name = &path.path[0].value;
+                let name = &name.name;
                 let typ = typed_fn_env
                     .get_type(name)
                     .ok_or(Error {
@@ -316,7 +329,7 @@ impl Expr {
                     .clone();
 
                 // check that expression is a bigint
-                match expr.compute_type(typed_global_env, typed_fn_env)? {
+                match idx.compute_type(typed_global_env, typed_fn_env)? {
                     Some(TyKind::BigInt) => (),
                     _ => {
                         return Err(Error {
@@ -435,6 +448,11 @@ impl Expr {
 
                 Ok(Some(field_type.clone()))
             }
+            ExprKind::MethodCall {
+                self_name,
+                name,
+                args,
+            } => todo!(),
         }
     }
 }
@@ -498,10 +516,18 @@ impl TAST {
                         .collect();
                     typed_global_env.structs.insert(name.value.clone(), fields);
                 }
-                RootKind::Use(_)
-                | RootKind::Function(_)
-                | RootKind::Comment(_)
-                | RootKind::Const(_) => (),
+
+                RootKind::Const(cst) => {
+                    typed_global_env.constants.insert(
+                        cst.name.value.clone(),
+                        Ty {
+                            kind: TyKind::Field,
+                            span: cst.span,
+                        },
+                    );
+                }
+
+                RootKind::Use(_) | RootKind::Function(_) | RootKind::Comment(_) => (),
             }
         }
 
@@ -519,12 +545,13 @@ impl TAST {
                     let mut typed_fn_env = TypedFnEnv::default();
 
                     // if this is main, witness it
-                    if function.is_main() {
+                    let is_main = function.is_main();
+                    if is_main {
                         typed_global_env.has_main = true;
                     }
 
                     // save the function in the typed global env
-                    let fn_kind = if function.is_main() {
+                    let fn_kind = if is_main {
                         FnKind::Main(function.sig.clone())
                     } else {
                         FnKind::Native(function.clone())
@@ -535,7 +562,7 @@ impl TAST {
                     };
                     typed_global_env
                         .functions
-                        .insert(function.sig.name.value.clone(), fn_info);
+                        .insert(function.sig.name.name.value.clone(), fn_info);
 
                     // store variables and their types in the env
                     for arg in &function.sig.arguments {
@@ -544,6 +571,14 @@ impl TAST {
                         if RESERVED_ARGS.contains(&arg.name.value.as_str()) {
                             return Err(Error {
                                 kind: ErrorKind::PublicOutputReserved(arg.name.value.to_string()),
+                                span: arg.name.span,
+                            });
+                        }
+
+                        // `pub` arguments are only for the main function
+                        if !is_main && arg.is_public() {
+                            return Err(Error {
+                                kind: ErrorKind::PubArgumentOutsideMain,
                                 span: arg.name.span,
                             });
                         }
@@ -738,33 +773,26 @@ pub fn typecheck_fn_call(
     span: Span,
 ) -> Result<Option<TyKind>> {
     // retrieve the function sig in the env
-    let path_len = name.path.len();
-    let sig: FnSig = if path_len == 1 {
+    let sig: FnSig = if let Some(module) = &name.module {
+        // check module present in the scope
+        let fn_name = &name.name;
+        let module = typed_global_env.modules.get(module).ok_or(Error {
+            kind: ErrorKind::UndefinedModule(module.clone()),
+            span: name.span, // TODO: should be module span
+        })?;
+        let fn_info = module.functions.get(fn_name).ok_or(Error {
+            kind: ErrorKind::UndefinedFunction(fn_name.clone()),
+            span: name.span, // TODO: should be fn_name.span
+        })?;
+        fn_info.sig().clone()
+    } else {
         // functions present in the scope
-        let fn_name = &name.path[0].value;
+        let fn_name = &name.name;
         let fn_info = typed_global_env.functions.get(fn_name).ok_or(Error {
             kind: ErrorKind::UndefinedFunction(fn_name.clone()),
             span: name.span,
         })?;
         fn_info.sig().clone()
-    } else if path_len == 2 {
-        // check module present in the scope
-        let module = &name.path[0];
-        let fn_name = &name.path[1];
-        let module = typed_global_env.modules.get(&module.value).ok_or(Error {
-            kind: ErrorKind::UndefinedModule(module.value.clone()),
-            span: module.span,
-        })?;
-        let fn_info = module.functions.get(&fn_name.value).ok_or(Error {
-            kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-            span: fn_name.span,
-        })?;
-        fn_info.sig().clone()
-    } else {
-        return Err(Error {
-            kind: ErrorKind::InvalidFnCall("sub-sub modules unsupported"),
-            span: name.span,
-        });
     };
 
     // compute the arguments

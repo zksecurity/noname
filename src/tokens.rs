@@ -8,7 +8,7 @@ use std::vec::IntoIter;
 use crate::{
     error::{Error, ErrorKind, Result},
     lexer::{Token, TokenKind},
-    parser::ParserCtx,
+    parser::{Ident, ParserCtx},
 };
 
 #[derive(Debug)]
@@ -70,6 +70,18 @@ impl Tokens {
                 kind: ErrorKind::ExpectedToken(typ),
                 span: ctx.last_span(),
             })
+        }
+    }
+
+    pub fn bump_ident(&mut self, ctx: &mut ParserCtx, kind: ErrorKind) -> Result<Ident> {
+        let token = self.bump_err(ctx, kind.clone())?;
+        let span = token.span;
+        match &token.kind {
+            TokenKind::Identifier(value) => Ok(Ident {
+                value: value.to_string(),
+                span,
+            }),
+            _ => Err(Error { kind, span }),
         }
     }
 }

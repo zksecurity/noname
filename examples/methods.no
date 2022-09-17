@@ -3,10 +3,10 @@ struct House {
 }
 
 fn House.verify(self, x: Field) {
-    assert!(x == self.doors);
+    assert_eq(x, self.doors);
 }
 
 fn main(pub doors: Field) {
-    let house = House { doors };
+    let house = House { doors: doors };
     house.verify(3);
 }

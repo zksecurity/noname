@@ -4,7 +4,7 @@ use crate::{
     circuit_writer::CircuitWriter,
     constants::Span,
     error::Result,
-    parser::{FnSig, Function, Path},
+    parser::{FnSig, Function, Path, UsePath},
     stdlib::{self, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
     type_checker::FnInfo,
     var::Var,
@@ -42,12 +42,9 @@ pub fn resolve_builtin_functions() -> Vec<FnInfo> {
     parse_fn_sigs(&BUILTIN_FNS)
 }
 
-pub fn resolve_imports(path: &Path) -> Result<ImportedModule> {
-    let path_iter = &mut path.path.iter();
-    let root_module = path_iter.next().expect("empty imports can't be parsed");
-
-    if root_module.value == "std" {
-        stdlib::parse_std_import(path, path_iter)
+pub fn resolve_imports(path: &UsePath) -> Result<ImportedModule> {
+    if path.module.value == "std" {
+        stdlib::parse_std_import(&path.submodule.value, path.span)
     } else {
         // we only support std root module for now
         unimplemented!()

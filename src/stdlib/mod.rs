@@ -21,6 +21,7 @@ pub mod crypto;
 pub struct ImportedModule {
     pub name: String,
     pub functions: HashMap<String, FnInfo>,
+    // TODO: delete?
     pub span: Span,
 }
 
@@ -37,33 +38,26 @@ impl std::fmt::Debug for ImportedModule {
 }
 
 /// Parses the rest of a `use std::` statement. Returns a list of functions to import in the scope.
-pub fn parse_std_import<'a>(
-    path: &'a Path,
-    path_iter: &mut impl Iterator<Item = &'a Ident>,
-) -> Result<ImportedModule> {
-    let module = path_iter.next().ok_or(Error {
-        kind: ErrorKind::StdImport("no module name found"),
-        span: path.span,
-    })?;
-
+pub fn parse_std_import<'a>(submodule: &str, span: Span) -> Result<ImportedModule> {
     let mut res = ImportedModule {
-        name: module.value.clone(),
+        name: submodule.to_string(),
         functions: HashMap::new(),
-        span: module.span,
+        span,
     };
 
     // TODO: make sure we're not importing the same module twice no?
-    match module.value.as_ref() {
+    match submodule {
         "crypto" => {
             let crypto_functions = parse_fn_sigs(&CRYPTO_FNS);
             for func in crypto_functions {
-                res.functions.insert(func.sig().name.value.clone(), func);
+                res.functions
+                    .insert(func.sig().name.name.value.clone(), func);
             }
         }
         _ => {
             return Err(Error {
                 kind: ErrorKind::StdImport("unknown module"),
-                span: module.span,
+                span,
             })
         }
     }
