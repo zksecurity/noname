@@ -186,21 +186,6 @@ pub enum TyKind {
     // U64,
 }
 
-/*
-impl TyKind {
-    /// Returns the number of CellVar needed to track a given type.
-    pub fn type_len(&self) -> usize {
-        match self {
-            TyKind::Field => 1,
-            TyKind::Custom(_) => todo!(),
-            TyKind::BigInt => 1,
-            TyKind::Array(ty, len) => ty.type_len() * (*len as usize),
-            TyKind::Bool => 1,
-        }
-    }
-}
-*/
-
 impl Display for TyKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -308,7 +293,6 @@ impl Ty {
 #[derive(Debug, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
-    pub typ: Option<TyKind>,
     pub span: Span,
 }
 
@@ -374,7 +358,6 @@ impl Expr {
             // numeric
             TokenKind::BigInt(b) => Expr {
                 kind: ExprKind::BigInt(b),
-                typ: Some(TyKind::BigInt),
                 span,
             },
 
@@ -432,7 +415,6 @@ impl Expr {
 
                         Expr {
                             kind: ExprKind::ArrayAccess(path, Box::new(expr)),
-                            typ: None,
                             span,
                         }
                     }
@@ -479,7 +461,7 @@ impl Expr {
 
                         Expr {
                             kind: ExprKind::FnCall { name: path, args },
-                            typ: None,
+
                             span,
                         }
                     }
@@ -494,7 +476,6 @@ impl Expr {
 
                         Expr {
                             kind: ExprKind::StructAccess(path.path[0].clone(), field),
-                            typ: None,
                             span,
                         }
                     }
@@ -502,7 +483,6 @@ impl Expr {
                     // just a variable
                     _ => Expr {
                         kind: ExprKind::Identifier(path.path[0].value.clone()),
-                        typ: None,
                         span,
                     },
                 }
@@ -514,7 +494,6 @@ impl Expr {
 
                 Expr {
                     kind: ExprKind::Negated(Box::new(expr)),
-                    typ: None,
                     span,
                 }
             }
@@ -532,7 +511,6 @@ impl Expr {
 
                 Expr {
                     kind: ExprKind::Bool(is_true),
-                    typ: Some(TyKind::Bool),
                     span,
                 }
             }
@@ -543,7 +521,6 @@ impl Expr {
 
                 Expr {
                     kind: ExprKind::Negated(Box::new(expr)),
-                    typ: Some(TyKind::Bool),
                     span,
                 }
             }
@@ -599,7 +576,6 @@ impl Expr {
 
                 Expr {
                     kind: ExprKind::ArrayDeclaration(items),
-                    typ: None,
                     span: span.merge_with(last_span),
                 }
             }
@@ -661,7 +637,6 @@ impl Expr {
 
                 Expr {
                     kind: ExprKind::CustomTypeDeclaration(type_name.clone(), fields),
-                    typ: Some(TyKind::Custom(type_name)),
                     span: span.merge_with(ctx.last_span()),
                 }
             }
@@ -701,7 +676,6 @@ impl Expr {
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
                 },
-                typ: None,
                 span,
             })
         }
@@ -711,7 +685,6 @@ impl Expr {
             let span = span.merge_with(rhs.span);
             Ok(Expr {
                 kind: ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
-                typ: None,
                 span,
             })
         }
