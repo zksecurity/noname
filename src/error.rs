@@ -22,8 +22,8 @@ pub struct Error {
 
 #[derive(Error, Diagnostic, Debug)]
 pub enum ErrorKind {
-    #[error("error used for tests only")]
-    TestError,
+    #[error("the function main is not recursive")]
+    RecursiveMain,
 
     #[error("invalid token")]
     InvalidToken,

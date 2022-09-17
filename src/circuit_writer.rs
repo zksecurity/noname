@@ -556,7 +556,10 @@ impl CircuitWriter {
                             self.compile_native_function_call(global_env, func, vars, expr.span)
                         }
                         FnKind::Main(_) => {
-                            panic!("bug in compiler: main function is not recursive (TODO: better error)")
+                            return Err(Error {
+                                kind: ErrorKind::RecursiveMain,
+                                span: expr.span,
+                            });
                         }
                     }
                 } else if name.len() == 2 {
@@ -576,7 +579,10 @@ impl CircuitWriter {
                         FnKind::BuiltIn(_, handle) => handle(self, &vars, expr.span),
                         FnKind::Native(_) => todo!(),
                         FnKind::Main(_) => {
-                            panic!("main function is not recursive (TODO: better error)")
+                            return Err(Error {
+                                kind: ErrorKind::RecursiveMain,
+                                span: expr.span,
+                            });
                         }
                     }
                 } else {
