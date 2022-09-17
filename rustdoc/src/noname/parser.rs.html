@@ -1638,33 +1638,6 @@
 <span id="1638">1638</span>
 <span id="1639">1639</span>
 <span id="1640">1640</span>
-<span id="1641">1641</span>
-<span id="1642">1642</span>
-<span id="1643">1643</span>
-<span id="1644">1644</span>
-<span id="1645">1645</span>
-<span id="1646">1646</span>
-<span id="1647">1647</span>
-<span id="1648">1648</span>
-<span id="1649">1649</span>
-<span id="1650">1650</span>
-<span id="1651">1651</span>
-<span id="1652">1652</span>
-<span id="1653">1653</span>
-<span id="1654">1654</span>
-<span id="1655">1655</span>
-<span id="1656">1656</span>
-<span id="1657">1657</span>
-<span id="1658">1658</span>
-<span id="1659">1659</span>
-<span id="1660">1660</span>
-<span id="1661">1661</span>
-<span id="1662">1662</span>
-<span id="1663">1663</span>
-<span id="1664">1664</span>
-<span id="1665">1665</span>
-<span id="1666">1666</span>
-<span id="1667">1667</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -1853,22 +1826,7 @@
     // U64,
 </span>}
 
-<span class="comment">/*
-impl TyKind {
-    /// Returns the number of CellVar needed to track a given type.
-    pub fn type_len(&amp;self) -&gt; usize {
-        match self {
-            TyKind::Field =&gt; 1,
-            TyKind::Custom(_) =&gt; todo!(),
-            TyKind::BigInt =&gt; 1,
-            TyKind::Array(ty, len) =&gt; ty.type_len() * (*len as usize),
-            TyKind::Bool =&gt; 1,
-        }
-    }
-}
-*/
-
-</span><span class="kw">impl </span>Display <span class="kw">for </span>TyKind {
+<span class="kw">impl </span>Display <span class="kw">for </span>TyKind {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             TyKind::Custom(name) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, name),
@@ -1975,7 +1933,6 @@ impl TyKind {
 </span><span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>Expr {
     <span class="kw">pub </span>kind: ExprKind,
-    <span class="kw">pub </span>typ: <span class="prelude-ty">Option</span>&lt;TyKind&gt;,
     <span class="kw">pub </span>span: Span,
 }
 
@@ -2041,7 +1998,6 @@ impl TyKind {
             <span class="comment">// numeric
             </span>TokenKind::BigInt(b) =&gt; Expr {
                 kind: ExprKind::BigInt(b),
-                typ: <span class="prelude-val">Some</span>(TyKind::BigInt),
                 span,
             },
 
@@ -2099,7 +2055,6 @@ impl TyKind {
 
                         Expr {
                             kind: ExprKind::ArrayAccess(path, Box::new(expr)),
-                            typ: <span class="prelude-val">None</span>,
                             span,
                         }
                     }
@@ -2146,7 +2101,7 @@ impl TyKind {
 
                         Expr {
                             kind: ExprKind::FnCall { name: path, args },
-                            typ: <span class="prelude-val">None</span>,
+
                             span,
                         }
                     }
@@ -2161,7 +2116,6 @@ impl TyKind {
 
                         Expr {
                             kind: ExprKind::StructAccess(path.path[<span class="number">0</span>].clone(), field),
-                            typ: <span class="prelude-val">None</span>,
                             span,
                         }
                     }
@@ -2169,7 +2123,6 @@ impl TyKind {
                     <span class="comment">// just a variable
                     </span><span class="kw">_ </span>=&gt; Expr {
                         kind: ExprKind::Identifier(path.path[<span class="number">0</span>].value.clone()),
-                        typ: <span class="prelude-val">None</span>,
                         span,
                     },
                 }
@@ -2181,7 +2134,6 @@ impl TyKind {
 
                 Expr {
                     kind: ExprKind::Negated(Box::new(expr)),
-                    typ: <span class="prelude-val">None</span>,
                     span,
                 }
             }
@@ -2199,7 +2151,6 @@ impl TyKind {
 
                 Expr {
                     kind: ExprKind::Bool(is_true),
-                    typ: <span class="prelude-val">Some</span>(TyKind::Bool),
                     span,
                 }
             }
@@ -2210,7 +2161,6 @@ impl TyKind {
 
                 Expr {
                     kind: ExprKind::Negated(Box::new(expr)),
-                    typ: <span class="prelude-val">Some</span>(TyKind::Bool),
                     span,
                 }
             }
@@ -2266,7 +2216,6 @@ impl TyKind {
 
                 Expr {
                     kind: ExprKind::ArrayDeclaration(items),
-                    typ: <span class="prelude-val">None</span>,
                     span: span.merge_with(last_span),
                 }
             }
@@ -2328,7 +2277,6 @@ impl TyKind {
 
                 Expr {
                     kind: ExprKind::CustomTypeDeclaration(type_name.clone(), fields),
-                    typ: <span class="prelude-val">Some</span>(TyKind::Custom(type_name)),
                     span: span.merge_with(ctx.last_span()),
                 }
             }
@@ -2368,7 +2316,6 @@ impl TyKind {
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
                 },
-                typ: <span class="prelude-val">None</span>,
                 span,
             })
         }
@@ -2378,7 +2325,6 @@ impl TyKind {
             <span class="kw">let </span>span = span.merge_with(rhs.span);
             <span class="prelude-val">Ok</span>(Expr {
                 kind: ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
-                typ: <span class="prelude-val">None</span>,
                 span,
             })
         }

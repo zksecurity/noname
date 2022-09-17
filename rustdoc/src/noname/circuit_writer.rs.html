@@ -1028,6 +1028,12 @@
 <span id="1028">1028</span>
 <span id="1029">1029</span>
 <span id="1030">1030</span>
+<span id="1031">1031</span>
+<span id="1032">1032</span>
+<span id="1033">1033</span>
+<span id="1034">1034</span>
+<span id="1035">1035</span>
+<span id="1036">1036</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1586,7 +1592,10 @@
                             <span class="self">self</span>.compile_native_function_call(global_env, func, vars, expr.span)
                         }
                         FnKind::Main(<span class="kw">_</span>) =&gt; {
-                            <span class="macro">panic!</span>(<span class="string">&quot;bug in compiler: main function is not recursive (TODO: better error)&quot;</span>)
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
+                                kind: ErrorKind::RecursiveMain,
+                                span: expr.span,
+                            });
                         }
                     }
                 } <span class="kw">else if </span>name.len() == <span class="number">2 </span>{
@@ -1606,7 +1615,10 @@
                         FnKind::BuiltIn(<span class="kw">_</span>, handle) =&gt; handle(<span class="self">self</span>, <span class="kw-2">&amp;</span>vars, expr.span),
                         FnKind::Native(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
                         FnKind::Main(<span class="kw">_</span>) =&gt; {
-                            <span class="macro">panic!</span>(<span class="string">&quot;main function is not recursive (TODO: better error)&quot;</span>)
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
+                                kind: ErrorKind::RecursiveMain,
+                                span: expr.span,
+                            });
                         }
                     }
                 } <span class="kw">else </span>{

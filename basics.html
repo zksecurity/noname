@@ -262,7 +262,22 @@ fn main(pub player: Field) -&gt; Field {
 <h2 id="if-else-statements"><a class="header" href="#if-else-statements">If Else statements</a></h2>
 <p>TODO</p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
-<p>TODO</p>
+<pre><pre class="playground"><code class="language-rust">fn add(x: Field, y: Field) -&gt; Field {
+    return x + y;
+}
+
+fn double(x: Field) -&gt; Field {
+    return x + x;
+}
+
+fn main(pub one: Field) {
+    let four = add(one, 3);
+    assert_eq(four, 4);
+
+    let eight = double(4);
+    assert_eq(eight, double(four));
+}
+</code></pre></pre>
 <h2 id="early-returns"><a class="header" href="#early-returns">Early returns</a></h2>
 <p>TODO</p>
 <h2 id="hints"><a class="header" href="#hints">Hints</a></h2>
