@@ -66,15 +66,6 @@ impl From<Field> for Value {
     }
 }
 
-impl From<usize> for Value {
-    fn from(cst: usize) -> Self {
-        let cst: u32 = cst
-            .try_into()
-            .expect("number too large (TODO: better error?)");
-        Self::Constant(Field::try_from(cst).unwrap())
-    }
-}
-
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
