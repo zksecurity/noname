@@ -410,54 +410,12 @@
 <span id="410">410</span>
 <span id="411">411</span>
 <span id="412">412</span>
-<span id="413">413</span>
-<span id="414">414</span>
-<span id="415">415</span>
-<span id="416">416</span>
-<span id="417">417</span>
-<span id="418">418</span>
-<span id="419">419</span>
-<span id="420">420</span>
-<span id="421">421</span>
-<span id="422">422</span>
-<span id="423">423</span>
-<span id="424">424</span>
-<span id="425">425</span>
-<span id="426">426</span>
-<span id="427">427</span>
-<span id="428">428</span>
-<span id="429">429</span>
-<span id="430">430</span>
-<span id="431">431</span>
-<span id="432">432</span>
-<span id="433">433</span>
-<span id="434">434</span>
-<span id="435">435</span>
-<span id="436">436</span>
-<span id="437">437</span>
-<span id="438">438</span>
-<span id="439">439</span>
-<span id="440">440</span>
-<span id="441">441</span>
-<span id="442">442</span>
-<span id="443">443</span>
-<span id="444">444</span>
-<span id="445">445</span>
-<span id="446">446</span>
-<span id="447">447</span>
-<span id="448">448</span>
-<span id="449">449</span>
-<span id="450">450</span>
-<span id="451">451</span>
-<span id="452">452</span>
-<span id="453">453</span>
-<span id="454">454</span>
-<span id="455">455</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
     constants::Span,
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
+    syntax::{is_const, is_hexadecimal, is_identifier, is_numeric, is_type},
     tokens::Tokens,
 };
 
@@ -644,50 +602,6 @@
     <span class="kw">pub </span>kind: TokenKind,
     <span class="kw">pub </span>span: Span,
 }
-
-<span class="kw">fn </span>is_numeric(s: <span class="kw-2">&amp;</span>str) -&gt; bool {
-    s.chars().all(|c| c.is_ascii_digit())
-}
-
-<span class="kw">fn </span>is_hexadecimal(s: <span class="kw-2">&amp;</span>str) -&gt; bool {
-    <span class="kw">let </span><span class="kw-2">mut </span>s = s.chars();
-    <span class="kw">let </span>s0 = s.next();
-    <span class="kw">let </span>s1 = s.next();
-    <span class="kw">if </span><span class="macro">matches!</span>((s0, s1), (<span class="prelude-val">Some</span>(<span class="string">&#39;0&#39;</span>), <span class="prelude-val">Some</span>(<span class="string">&#39;x&#39;</span>) | <span class="prelude-val">Some</span>(<span class="string">&#39;X&#39;</span>))) {
-        s.all(|c| c.is_ascii_hexdigit())
-    } <span class="kw">else </span>{
-        <span class="bool-val">false
-    </span>}
-}
-
-<span class="kw">fn </span>is_identifier(s: <span class="kw-2">&amp;</span>str) -&gt; bool {
-    <span class="kw">let </span><span class="kw-2">mut </span>chars = s.chars();
-    <span class="kw">let </span>first_letter = chars.next().unwrap();
-    <span class="comment">// first char is a letter
-    </span>first_letter.is_alphabetic() &amp;&amp; first_letter.is_lowercase()
-    <span class="comment">// rest are lowercase alphanumeric or underscore
-        </span>&amp;&amp; chars
-            .all(|c| (c.is_ascii_alphabetic() &amp;&amp; c.is_lowercase()) || c.is_numeric() || c == <span class="string">&#39;_&#39;</span>)
-}
-
-<span class="kw">fn </span>is_const(s: <span class="kw-2">&amp;</span>str) -&gt; bool {
-    <span class="kw">let </span><span class="kw-2">mut </span>chars = s.chars();
-    <span class="kw">let </span>first_letter = chars.next().unwrap();
-    <span class="comment">// first char is a letter
-    </span>first_letter.is_alphabetic() &amp;&amp; first_letter.is_uppercase()
-    <span class="comment">// rest are lowercase alphanumeric or underscore
-        </span>&amp;&amp; chars
-            .all(|c| (c.is_ascii_alphabetic() &amp;&amp; c.is_uppercase()) || c.is_numeric() || c == <span class="string">&#39;_&#39;</span>)
-}
-
-<span class="kw">fn </span>is_type(s: <span class="kw-2">&amp;</span>str) -&gt; bool {
-    <span class="kw">let </span><span class="kw-2">mut </span>chars = s.chars();
-    <span class="kw">let </span>first_char = chars.next().unwrap();
-    <span class="comment">// first char is an uppercase letter
-    // rest are lowercase alphanumeric
-    </span>first_char.is_alphabetic() &amp;&amp; first_char.is_uppercase() &amp;&amp; chars.all(|c| (c.is_alphanumeric()))
-    <span class="comment">// TODO: check camel case?
-</span>}
 
 <span class="kw">impl </span>Token {
     <span class="kw">fn </span>parse_line(ctx: <span class="kw-2">&amp;mut </span>LexerCtx, line: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="self">Self</span>&gt;&gt; {
@@ -909,4 +823,4 @@ fn main(public_input: [fel; 3], private_input: [fel; 3]) -&gt; [fel; 8] {
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (cf9ed0dd5 2022-09-15)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (95a992a68 2022-09-16)" ></div></body></html>

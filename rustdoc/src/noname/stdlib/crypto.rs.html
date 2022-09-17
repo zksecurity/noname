@@ -191,13 +191,13 @@
     circuit_writer::{CircuitWriter, GateKind},
     constants::{<span class="self">self</span>, Field, Span},
     error::Result,
-    imports::FuncType,
+    imports::FnHandle,
     var::{ConstOrCell, Value, Var, VarKind},
 };
 
 <span class="kw">const </span>POSEIDON_FN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;poseidon(input: [Field; 2]) -&gt; [Field; 3]&quot;</span>;
 
-<span class="kw">pub const </span>CRYPTO_FNS: [(<span class="kw-2">&amp;</span>str, FuncType); <span class="number">1</span>] = [(POSEIDON_FN, poseidon)];
+<span class="kw">pub const </span>CRYPTO_FNS: [(<span class="kw-2">&amp;</span>str, FnHandle); <span class="number">1</span>] = [(POSEIDON_FN, poseidon)];
 
 <span class="kw">pub fn </span>poseidon(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, vars: <span class="kw-2">&amp;</span>[Var], span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
     <span class="comment">//
@@ -357,4 +357,4 @@
     <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_array(vars, span)))
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (cf9ed0dd5 2022-09-15)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (95a992a68 2022-09-16)" ></div></body></html>

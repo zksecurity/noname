@@ -2403,16 +2403,16 @@ impl TyKind {
 //~
 
 </span><span class="attribute">#[derive(Debug, Clone)]
-</span><span class="kw">pub struct </span>FunctionSig {
+</span><span class="kw">pub struct </span>FnSig {
     <span class="kw">pub </span>name: Ident,
 
     <span class="doccomment">/// (pub, ident, type)
-    </span><span class="kw">pub </span>arguments: Vec&lt;FuncArg&gt;,
+    </span><span class="kw">pub </span>arguments: Vec&lt;FnArg&gt;,
 
     <span class="kw">pub </span>return_type: <span class="prelude-ty">Option</span>&lt;Ty&gt;,
 }
 
-<span class="kw">impl </span>FunctionSig {
+<span class="kw">impl </span>FnSig {
     <span class="kw">pub fn </span>parse(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>name = Function::parse_name(ctx, tokens)<span class="question-mark">?</span>;
 
@@ -2483,12 +2483,12 @@ impl TyKind {
     <span class="kw">pub </span>span: Span,
 }
 
-<span class="attribute">#[derive(Debug)]
+<span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>Function {
     <span class="kw">pub </span>name: Ident,
 
     <span class="doccomment">/// (pub, ident, type)
-    </span><span class="kw">pub </span>arguments: Vec&lt;FuncArg&gt;,
+    </span><span class="kw">pub </span>arguments: Vec&lt;FnArg&gt;,
 
     <span class="kw">pub </span>return_type: <span class="prelude-ty">Option</span>&lt;Ty&gt;,
 
@@ -2498,14 +2498,14 @@ impl TyKind {
 }
 
 <span class="attribute">#[derive(Debug, Clone)]
-</span><span class="kw">pub struct </span>FuncArg {
+</span><span class="kw">pub struct </span>FnArg {
     <span class="kw">pub </span>name: Ident,
     <span class="kw">pub </span>typ: Ty,
     <span class="kw">pub </span>attribute: <span class="prelude-ty">Option</span>&lt;Attribute&gt;,
     <span class="kw">pub </span>span: Span,
 }
 
-<span class="kw">impl </span>FuncArg {
+<span class="kw">impl </span>FnArg {
     <span class="kw">pub fn </span>is_public(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="macro">matches!</span>(
             <span class="self">self</span>.attribute,
@@ -2547,7 +2547,7 @@ impl TyKind {
         })
     }
 
-    <span class="kw">pub fn </span>parse_args(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FuncArg&gt;&gt; {
+    <span class="kw">pub fn </span>parse_args(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FnArg&gt;&gt; {
         <span class="comment">// (pub arg1: type1, arg2: type2)
         // ^
         </span>tokens.bump_expected(ctx, TokenKind::LeftParen)<span class="question-mark">?</span>;
@@ -2606,7 +2606,7 @@ impl TyKind {
             )<span class="question-mark">?</span>;
 
             <span class="kw">let </span>span = token.span.merge_with(arg_typ.span);
-            <span class="kw">let </span>arg = FuncArg {
+            <span class="kw">let </span>arg = FnArg {
                 name: arg_name,
                 typ: arg_typ,
                 attribute: public,
@@ -2762,7 +2762,7 @@ impl TyKind {
 //~ path ::= ident { &quot;::&quot; ident }
 //~
 
-</span><span class="attribute">#[derive(Debug)]
+</span><span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>Range {
     <span class="kw">pub </span>start: u32,
     <span class="kw">pub </span>end: u32,
@@ -2775,13 +2775,13 @@ impl TyKind {
     }
 }
 
-<span class="attribute">#[derive(Debug)]
+<span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>Stmt {
     <span class="kw">pub </span>kind: StmtKind,
     <span class="kw">pub </span>span: Span,
 }
 
-<span class="attribute">#[derive(Debug)]
+<span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub enum </span>StmtKind {
     Assign {
         mutable: bool,
@@ -3339,4 +3339,4 @@ impl TyKind {
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (cf9ed0dd5 2022-09-15)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (95a992a68 2022-09-16)" ></div></body></html>

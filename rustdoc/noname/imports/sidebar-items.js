@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":[["FuncInScope",""]],"struct":[["GlobalEnv","This seems to be used by both the type checker and the AST"]],"type":[["FuncType",""]]};
+window.SIDEBAR_ITEMS = {"enum":[["FnKind","The different types of a noname function."]],"fn":[["resolve_builtin_functions",""],["resolve_imports",""]],"type":[["FnHandle","An actual handle to the internal function to call to resolve a built-in function call."]]};

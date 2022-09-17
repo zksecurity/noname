@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">6.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">7.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">8.</strong> Structs</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">9.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">10.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">11.</strong> Constants</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">12.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">13.</strong> Witness Generation</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">6.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">7.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">8.</strong> Structs</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">9.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">10.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">11.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">12.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">13.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">14.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">15.</strong> Witness Generation</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -304,6 +304,14 @@ for i in 0..4 {
 </li>
 </ol>
 <p>A simple ASM language is also used, and the circuit can be encoded in this language. See the <a href="asm.html">ASM chapter</a>.</p>
+<h2 id="terminology"><a class="header" href="#terminology">Terminology</a></h2>
+<p>A note on topology:</p>
+<ul>
+<li><strong>functions</strong>: noname functions each contain their scope and can be interacted with their interface (arguments and return value)</li>
+<li><strong>module/program</strong>: a noname module is a single file (this is a nice current limitation of noname) containing functions, constants, and structures. </li>
+<li><strong>library</strong>: a noname library is a module/program without a <code>main()</code> function, as well as dependencies (other libraries)</li>
+<li><strong>executable</strong>: a noname executable is like a library, except that its module/program has a <code>main()</code> function.</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="grammar"><a class="header" href="#grammar">Grammar</a></h1>
 <p>The syntax of the noname language is described through its grammar.</p>
 <p>We use a notation similar to the Backus-Naur Form (BNF)
@@ -646,6 +654,216 @@ It uses the generic gate to constrain the value, and is not cached (so calling i
 <p>Note that the <code>Value</code> keep track of the constant as well.</p>
 <p>Warning: gadgets must all handle constants gracefuly.
 That is, they must constrain constants themselves (by calling <code>CircuitWriter::add_constant</code>).</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="global-environment"><a class="header" href="#global-environment">Global environment</a></h1>
+<p>In this chapter we will talk about functions.</p>
+<h2 id="local-functions"><a class="header" href="#local-functions">Local functions</a></h2>
+<p>Third-party libraries can have function names that collide with your own function names. 
+Due to this, they are tracked in a different data structure that we will see later.</p>
+<p>Local functions include:</p>
+<ul>
+<li><strong>automatically imported built-ins</strong>. Think functions like <code>assert</code> and <code>assert_eq</code>. See <a href="./basics.html#Builtins-and-use-statements">here</a> for a full list.</li>
+<li><strong>main</strong>, this is the main function that your program runs. Of course if you’re writing a library this function is not present.</li>
+<li><strong>normal functions</strong>, these are functions that you define in your program. They can be recursive.</li>
+<li><strong>methods</strong>, these are functions that are defined on a type. They can be recursive as well.</li>
+</ul>
+<p>Built-ins are different from all other functions listed because they are not written in noname, but written in Rust within the compiler. </p>
+<p>For this reason we track functions according to this enum:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum FnKind {
+    /// signature of the function
+    BuiltIn(FnHandle),
+
+    /// Any function declared in the noname program (including main)
+    LocalFn(AST)
+
+    /// path, and signature of the function
+    Library(Vec&lt;String&gt;),
+}
+
+/// An actual handle to the internal function to call to resolve a built-in function call.
+pub type FnHandle = fn(&amp;mut CircuitWriter, &amp;[Var], Span) -&gt; Result&lt;Option&lt;Var&gt;&gt;;
+
+pub struct FnInfo {
+    pub name: Ident,
+    pub sig: FnSig,
+    pub kind: FnKind,
+    pub span: Span,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Note that the signature of a <code>FnHandle</code> is designed to:</p>
+<ul>
+<li><code>&amp;mut CircuitWriter</code>: take a mutable reference to the circuit writer, this is because built-ins need to be able to register new variables and add gates to the circuit</li>
+<li><code>&amp;[Var]</code>: take an unbounded list of variables, this is because built-ins can take any number of arguments, and different built-ins might take different types of arguments</li>
+<li><code>Span</code>: take a span to return user-friendly errors</li>
+<li><code>-&gt; Result&lt;Option&lt;Var&gt;&gt;</code>: return a <code>Result</code> with an <code>Option</code> of a <code>Var</code>. This is because built-ins can return a variable, or they can return nothing. If they return nothing, then the <code>Option</code> will be <code>None</code>. If they return a variable, then the <code>Option</code> will be <code>Some(Var)</code>.</li>
+</ul>
+<p>We track all of these functions in the following structure:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct GlobalEnv {
+    /// the functions present in the scope
+    /// contains at least the set of builtin functions (like assert_eq)
+    functions: HashMap&lt;String, FnInfo&gt;,
+
+    // ...
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="handling-builtins"><a class="header" href="#handling-builtins">Handling builtins</a></h2>
+<p>Builtins are handled in a special way. They are not written in noname, but in Rust.</p>
+<h2 id="handling-local-functions"><a class="header" href="#handling-local-functions">Handling local functions</a></h2>
+<p>The parser:</p>
+<ul>
+<li>saves the AST of each function it encounters. Specifically, the function’s AST is stored under the <code>GlobalEnv</code> (TODO: where exactly?). This is necessary as the circuit writer will have to switch to a function’s AST when a function is called (and then return to its own AST).</li>
+</ul>
+<p>The first step of the type checker resolves imports by doing the following:</p>
+<ul>
+<li>store all built-ins in the <code>functions</code> map of the <code>GlobalEnv</code></li>
+<li>resolve all imports (e.g. <code>use std::crypto</code>)</li>
+<li>type check each function individually, and save their signature in the <code>GlobalEnv</code> using the <code>FnSig</code> type</li>
+<li>type check function calls with the signatures they just saved </li>
+</ul>
+<p>(TODO: this means that function declaration must be ordered. I think it is a GOOD thing)</p>
+<p>When a function is called, we do the following:</p>
+<ul>
+<li>if the function is qualified (e.g. <code>crypto::poseidon</code>), then lookup imported modules (see next section)</li>
+<li>otherwise, check if the function exist in the <code>GlobalEnv</code>, if it doesn’t then return an error</li>
+<li>if the function exist, then create a new <code>FnEnv</code> and register the arguments as local variables there</li>
+<li>switch to the function’s AST and pass the new <code>FnEnv</code> as argument</li>
+<li>TODO: how to handle the return value? it should be saved in the <code>FnEnv</code></li>
+</ul>
+<h2 id="third-party-libraries"><a class="header" href="#third-party-libraries">Third-party libraries</a></h2>
+<p>TODO: write this part</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// This seems to be used by both the type checker and the AST
+// TODO: right now there's only one scope, but if we want to deal with multiple scopes then we'll need to make sure child scopes have access to parent scope, shadowing, etc.
+#[derive(Default, Debug)]
+pub struct GlobalEnv {
+    /// the functions present in the scope
+    /// contains at least the set of builtin functions (like assert_eq)
+    pub functions: HashMap&lt;String, FuncInScope&gt;,
+
+    /// stores the imported modules
+    pub modules: HashMap&lt;String, ImportedModule&gt;,
+
+    /// the arguments expected by main
+    pub main_args: (HashMap&lt;String, FuncArg&gt;, Span),
+}
+
+pub type FnHandle = fn(&amp;mut CircuitWriter, &amp;[Var], Span) -&gt; Result&lt;Option&lt;Var&gt;&gt;;
+
+pub enum FuncInScope {
+    /// signature of the function
+    BuiltIn(FnSig, FnHandle),
+
+    /// path, and signature of the function
+    Library(Vec&lt;String&gt;, FnSig),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="functions.html#admonition-note"></a></p>
+</div>
+<div>
+<p>Not all modules are third-party libraries, some are also built-ins (e.g. <code>std::crypto</code>).</p>
+</div>
+</div>
+<p>As part of resolving imports, the type checker looks at third-party libraries differently…</p>
+<p>TODO: implement this</p>
+<p>TODO: how to handle diamond dependency graph or cycles? We must form a dependency graph first, and resolve dependency according to this graph</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="scope-1"><a class="header" href="#scope-1">Scope</a></h1>
+<p>Like most languages, noname has a notion of scope within a function.
+Unlike a lot of languages noname forbids shadowing at all scope level.
+This means that eventhough different functions can use local variable with colliding names, the local variable of one function must all have different names.</p>
+<p>For example, the following code does not compile:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = 2;
+let x = 3; // this won't compile
+
+let y = 4;
+for i in 0..4 {
+    let y = i; // this won't compile either
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Scopes are only used for:</p>
+<ul>
+<li>for loops</li>
+<li>in the future: if/else statements</li>
+</ul>
+<h2 id="scope-mechanisms"><a class="header" href="#scope-mechanisms">Scope mechanisms</a></h2>
+<p>Both the type checker and the circuit writer need to keep track of local variable.
+For the type checker (<code>type_checker.rs</code>), a <code>TypeEnv</code> structure keeps track of the association between all local variables names and their type information.
+For the circuit writer (<code>circuit_writer.rs</code>), a <code>FnEnv</code> structure keeps track of the association between all local variable names and their circuit variable.</p>
+<p>Both structure also keep track of how nested the current block is (the top level starting at level 0).
+For this reason, it is important to remember to increase the current scope when entering a new block (for loop, if statement, etc.) and to decrease it when exiting the block.
+In addition, all variables from a scope must be disabled (but not deleted, in order to detect shadowing) when exiting that scope.</p>
+<p>For example, the type checker’s <code>TypeEnv</code> structure implements the following logic:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl TypeEnv {
+    // ...
+
+
+    /// Enters a scoped block.
+    pub fn nest(&amp;mut self) {
+        self.current_scope += 1;
+    }
+
+    /// Exits a scoped block.
+    pub fn pop(&amp;mut self) {
+        self.current_scope.checked_sub(1).expect(&quot;scope bug&quot;);
+
+        // disable variables as we exit the scope
+        for (name, (scope, type_info)) in self.vars.iter_mut() {
+            if *scope &gt; self.current_scope {
+                type_info.disabled = true;
+            }
+        }
+    }
+
+    /// Returns true if a scope is a prefix of our scope.
+    pub fn is_in_scope(&amp;self, prefix_scope: usize) -&gt; bool {
+        self.current_scope &gt;= prefix_scope
+    }
+
+    /// Stores type information about a local variable.
+    /// Note that we forbid shadowing at all scopes.
+    pub fn store_type(&amp;mut self, ident: String, type_info: TypeInfo) -&gt; Result&lt;()&gt; {
+        match self
+            .vars
+            .insert(ident.clone(), (self.current_scope, type_info.clone()))
+        {
+            Some(_) =&gt; Err(Error {
+                kind: ErrorKind::DuplicateDefinition(ident),
+                span: type_info.span,
+            }),
+            None =&gt; Ok(()),
+        }
+    }
+
+    /// Retrieves type information on a variable, given a name.
+    /// If the variable is not in scope, return false.
+    pub fn get_type_info(&amp;self, ident: &amp;str) -&gt; Option&lt;TypeInfo&gt; {
+        if let Some((scope, type_info)) = self.vars.get(ident) {
+            if self.is_in_scope(*scope) &amp;&amp; !type_info.disabled {
+                Some(type_info.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="public-outputs"><a class="header" href="#public-outputs">Public Outputs</a></h1>
 <p>Public outputs are usually part of the public inputs in Plonk.</p>
 <p>In noname, public ouputs are treated differently than the public inputs for one reason: unlike (real) public inputs they cannot be computed directly during witness generation (proving).</p>

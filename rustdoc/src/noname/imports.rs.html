@@ -50,121 +50,57 @@
 <span id="50">50</span>
 <span id="51">51</span>
 <span id="52">52</span>
-<span id="53">53</span>
-<span id="54">54</span>
-<span id="55">55</span>
-<span id="56">56</span>
-<span id="57">57</span>
-<span id="58">58</span>
-<span id="59">59</span>
-<span id="60">60</span>
-<span id="61">61</span>
-<span id="62">62</span>
-<span id="63">63</span>
-<span id="64">64</span>
-<span id="65">65</span>
-<span id="66">66</span>
-<span id="67">67</span>
-<span id="68">68</span>
-<span id="69">69</span>
-<span id="70">70</span>
-<span id="71">71</span>
-<span id="72">72</span>
-<span id="73">73</span>
-<span id="74">74</span>
-<span id="75">75</span>
-<span id="76">76</span>
-<span id="77">77</span>
-<span id="78">78</span>
-<span id="79">79</span>
-<span id="80">80</span>
-<span id="81">81</span>
-<span id="82">82</span>
-<span id="83">83</span>
-<span id="84">84</span>
-</pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fmt};
+</pre><pre class="rust"><code><span class="kw">use </span>std::fmt;
 
 <span class="kw">use crate</span>::{
     circuit_writer::CircuitWriter,
     constants::Span,
-    error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
-    parser::{FuncArg, FunctionSig, Path},
+    error::Result,
+    parser::{Function, Path},
     stdlib::{<span class="self">self</span>, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
+    type_checker::FnInfo,
     var::Var,
 };
 
-<span class="doccomment">/// This seems to be used by both the type checker and the AST
-</span><span class="comment">// TODO: right now there&#39;s only one scope, but if we want to deal with multiple scopes then we&#39;ll need to make sure child scopes have access to parent scope, shadowing, etc.
-</span><span class="attribute">#[derive(Default, Debug)]
-</span><span class="kw">pub struct </span>GlobalEnv {
-    <span class="doccomment">/// the functions present in the scope
-    /// contains at least the set of builtin functions (like assert_eq)
-    </span><span class="kw">pub </span>functions: HashMap&lt;String, FuncInScope&gt;,
+<span class="doccomment">/// An actual handle to the internal function to call to resolve a built-in function call.
+///
+/// Note that the signature of a `FnHandle` is designed to:
+/// * `&amp;mut CircuitWriter`: take a mutable reference to the circuit writer, this is because built-ins need to be able to register new variables and add gates to the circuit
+/// * `&amp;[Var]`: take an unbounded list of variables, this is because built-ins can take any number of arguments, and different built-ins might take different types of arguments
+/// * `Span`: take a span to return user-friendly errors
+/// * `-&gt; Result&lt;Option&lt;Var&gt;&gt;`: return a `Result` with an `Option` of a `Var`. This is because built-ins can return a variable, or they can return nothing. If they return nothing, then the `Option` will be `None`. If they return a variable, then the `Option` will be `Some(Var)`.
+</span><span class="kw">pub type </span>FnHandle = <span class="kw">fn</span>(<span class="kw-2">&amp;mut </span>CircuitWriter, <span class="kw-2">&amp;</span>[Var], Span) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt;;
 
-    <span class="doccomment">/// stores the imported modules
-    </span><span class="kw">pub </span>modules: HashMap&lt;String, ImportedModule&gt;,
+<span class="doccomment">/// The different types of a noname function.
+</span><span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub enum </span>FnKind {
+    <span class="doccomment">/// a built-in is just a handle to a function written in Rust.
+    </span>BuiltIn(FnHandle),
 
-    <span class="doccomment">/// the arguments expected by main
-    </span><span class="kw">pub </span>main_args: (HashMap&lt;String, FuncArg&gt;, Span),
+    <span class="doccomment">/// a native function is represented as an AST
+    </span>Native(Function),
 }
 
-<span class="kw">pub type </span>FuncType = <span class="kw">fn</span>(<span class="kw-2">&amp;mut </span>CircuitWriter, <span class="kw-2">&amp;</span>[Var], Span) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt;;
-
-<span class="kw">pub enum </span>FuncInScope {
-    <span class="doccomment">/// signature of the function
-    </span>BuiltIn(FunctionSig, FuncType),
-    <span class="doccomment">/// path, and signature of the function
-    </span>Library(Vec&lt;String&gt;, FunctionSig),
-}
-
-<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>FuncInScope {
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>FnKind {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
-        <span class="kw">match </span><span class="self">self </span>{
-            <span class="self">Self</span>::BuiltIn(arg0, _arg1) =&gt; f.debug_tuple(<span class="string">&quot;BuiltIn&quot;</span>).field(arg0).field(<span class="kw-2">&amp;</span><span class="string">&quot;_&quot;</span>).finish(),
-            <span class="self">Self</span>::Library(arg0, arg1) =&gt; f.debug_tuple(<span class="string">&quot;Library&quot;</span>).field(arg0).field(arg1).finish(),
-        }
+        <span class="macro">write!</span>(f, <span class="string">&quot;&lt;fnkind&gt;&quot;</span>)
     }
 }
 
-<span class="kw">impl </span>GlobalEnv {
-    <span class="kw">pub fn </span>resolve_global_imports(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>builtin_functions = parse_fn_sigs(<span class="kw-2">&amp;</span>BUILTIN_FNS);
-        <span class="kw">for </span>(sig, func) <span class="kw">in </span>builtin_functions {
-            <span class="kw">if </span><span class="self">self
-                </span>.functions
-                .insert(sig.name.value.clone(), FuncInScope::BuiltIn(sig, func))
-                .is_some()
-            {
-                <span class="macro">panic!</span>(<span class="string">&quot;global imports conflict&quot;</span>);
-            }
-        }
+<span class="kw">pub fn </span>resolve_builtin_functions() -&gt; Vec&lt;FnInfo&gt; {
+    parse_fn_sigs(<span class="kw-2">&amp;</span>BUILTIN_FNS)
+}
 
-        <span class="prelude-val">Ok</span>(())
-    }
+<span class="kw">pub fn </span>resolve_imports(path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Result</span>&lt;ImportedModule&gt; {
+    <span class="kw">let </span>path_iter = <span class="kw-2">&amp;mut </span>path.path.iter();
+    <span class="kw">let </span>root_module = path_iter.next().expect(<span class="string">&quot;empty imports can&#39;t be parsed&quot;</span>);
 
-    <span class="kw">pub fn </span>resolve_imports(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>path_iter = <span class="kw-2">&amp;mut </span>path.path.iter();
-        <span class="kw">let </span>root_module = path_iter.next().expect(<span class="string">&quot;empty imports can&#39;t be parsed&quot;</span>);
-
-        <span class="kw">if </span>root_module.value == <span class="string">&quot;std&quot; </span>{
-            <span class="kw">let </span>module = stdlib::parse_std_import(path, path_iter)<span class="question-mark">?</span>;
-            <span class="kw">if </span><span class="self">self
-                </span>.modules
-                .insert(module.name.clone(), module.clone())
-                .is_some()
-            {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                    kind: ErrorKind::DuplicateModule(module.name.clone()),
-                    span: module.span,
-                });
-            }
-        } <span class="kw">else </span>{
-            <span class="comment">// we only support std root module for now
-            </span><span class="macro">unimplemented!</span>()
-        };
-
-        <span class="prelude-val">Ok</span>(())
+    <span class="kw">if </span>root_module.value == <span class="string">&quot;std&quot; </span>{
+        stdlib::parse_std_import(path, path_iter)
+    } <span class="kw">else </span>{
+        <span class="comment">// we only support std root module for now
+        </span><span class="macro">unimplemented!</span>()
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (cf9ed0dd5 2022-09-15)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (95a992a68 2022-09-16)" ></div></body></html>

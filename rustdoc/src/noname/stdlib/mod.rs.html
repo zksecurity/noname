@@ -182,6 +182,11 @@
 <span id="182">182</span>
 <span id="183">183</span>
 <span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Neg <span class="kw">as _</span>};
 
 <span class="kw">use </span>ark_ff::{One <span class="kw">as _</span>, Zero};
@@ -190,9 +195,10 @@
     circuit_writer::{CircuitWriter, GateKind},
     constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
-    imports::FuncType,
+    imports::{FnHandle, FnKind},
     lexer::Token,
-    parser::{FunctionSig, Ident, ParserCtx, Path},
+    parser::{FnSig, Ident, ParserCtx, Path},
+    type_checker::FnInfo,
     var::{ConstOrCell, Constant, Var},
 };
 
@@ -203,7 +209,7 @@
 <span class="attribute">#[derive(Clone)]
 </span><span class="kw">pub struct </span>ImportedModule {
     <span class="kw">pub </span>name: String,
-    <span class="kw">pub </span>functions: HashMap&lt;String, (FunctionSig, FuncType)&gt;,
+    <span class="kw">pub </span>functions: HashMap&lt;String, FnInfo&gt;,
     <span class="kw">pub </span>span: Span,
 }
 
@@ -240,7 +246,7 @@
         <span class="string">&quot;crypto&quot; </span>=&gt; {
             <span class="kw">let </span>crypto_functions = parse_fn_sigs(<span class="kw-2">&amp;</span>CRYPTO_FNS);
             <span class="kw">for </span>func <span class="kw">in </span>crypto_functions {
-                res.functions.insert(func.<span class="number">0</span>.name.value.clone(), func);
+                res.functions.insert(func.sig.name.value.clone(), func);
             }
         }
         <span class="kw">_ </span>=&gt; {
@@ -256,16 +262,20 @@
 
 <span class="doccomment">/// Takes a list of function signatures (as strings) and their associated function pointer,
 /// returns the same list but with the parsed functions (as [FunctionSig]).
-</span><span class="kw">pub fn </span>parse_fn_sigs(fn_sigs: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, FuncType)]) -&gt; Vec&lt;(FunctionSig, FuncType)&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>functions: Vec&lt;(FunctionSig, FuncType)&gt; = <span class="macro">vec!</span>[];
+</span><span class="kw">pub fn </span>parse_fn_sigs(fn_sigs: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, FnHandle)]) -&gt; Vec&lt;FnInfo&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>functions: Vec&lt;FnInfo&gt; = <span class="macro">vec!</span>[];
     <span class="kw">let </span>ctx = <span class="kw-2">&amp;mut </span>ParserCtx::default();
 
     <span class="kw">for </span>(sig, fn_ptr) <span class="kw">in </span>fn_sigs {
         <span class="kw">let </span><span class="kw-2">mut </span>tokens = Token::parse(sig).unwrap();
 
-        <span class="kw">let </span>sig = FunctionSig::parse(ctx, <span class="kw-2">&amp;mut </span>tokens).unwrap();
+        <span class="kw">let </span>sig = FnSig::parse(ctx, <span class="kw-2">&amp;mut </span>tokens).unwrap();
 
-        functions.push((sig, <span class="kw-2">*</span>fn_ptr));
+        functions.push(FnInfo {
+            sig,
+            kind: FnKind::BuiltIn(<span class="kw-2">*</span>fn_ptr),
+            span: Span::default(),
+        });
     }
 
     functions
@@ -279,7 +289,7 @@
 </span><span class="kw">const </span>ASSERT_FN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;assert(condition: Bool)&quot;</span>;
 <span class="kw">const </span>ASSERT_EQ_FN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;assert_eq(a: Field, b: Field)&quot;</span>;
 
-<span class="kw">pub const </span>BUILTIN_FNS: [(<span class="kw-2">&amp;</span>str, FuncType); <span class="number">2</span>] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
+<span class="kw">pub const </span>BUILTIN_FNS: [(<span class="kw-2">&amp;</span>str, FnHandle); <span class="number">2</span>] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
 
 <span class="doccomment">/// Asserts that two vars are equal.
 </span><span class="kw">fn </span>assert_eq(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, vars: <span class="kw-2">&amp;</span>[Var], span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
@@ -367,4 +377,4 @@
     <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (cf9ed0dd5 2022-09-15)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (95a992a68 2022-09-16)" ></div></body></html>

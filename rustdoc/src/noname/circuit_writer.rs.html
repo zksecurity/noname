@@ -947,6 +947,56 @@
 <span id="947">947</span>
 <span id="948">948</span>
 <span id="949">949</span>
+<span id="950">950</span>
+<span id="951">951</span>
+<span id="952">952</span>
+<span id="953">953</span>
+<span id="954">954</span>
+<span id="955">955</span>
+<span id="956">956</span>
+<span id="957">957</span>
+<span id="958">958</span>
+<span id="959">959</span>
+<span id="960">960</span>
+<span id="961">961</span>
+<span id="962">962</span>
+<span id="963">963</span>
+<span id="964">964</span>
+<span id="965">965</span>
+<span id="966">966</span>
+<span id="967">967</span>
+<span id="968">968</span>
+<span id="969">969</span>
+<span id="970">970</span>
+<span id="971">971</span>
+<span id="972">972</span>
+<span id="973">973</span>
+<span id="974">974</span>
+<span id="975">975</span>
+<span id="976">976</span>
+<span id="977">977</span>
+<span id="978">978</span>
+<span id="979">979</span>
+<span id="980">980</span>
+<span id="981">981</span>
+<span id="982">982</span>
+<span id="983">983</span>
+<span id="984">984</span>
+<span id="985">985</span>
+<span id="986">986</span>
+<span id="987">987</span>
+<span id="988">988</span>
+<span id="989">989</span>
+<span id="990">990</span>
+<span id="991">991</span>
+<span id="992">992</span>
+<span id="993">993</span>
+<span id="994">994</span>
+<span id="995">995</span>
+<span id="996">996</span>
+<span id="997">997</span>
+<span id="998">998</span>
+<span id="999">999</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -963,11 +1013,12 @@
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     field,
-    imports::{FuncInScope, FuncType, GlobalEnv},
+    imports::{FnHandle, FnKind},
     parser::{
-        AttributeKind, Expr, ExprKind, FuncArg, Function, Op2, RootKind, Stmt, StmtKind, TyKind,
+        AttributeKind, Expr, ExprKind, FnArg, Function, Op2, RootKind, Stmt, StmtKind, TyKind,
     },
-    type_checker::TAST,
+    syntax::is_const,
+    type_checker::{TypedGlobalEnv, TAST},
     var::{CellVar, ConstOrCell, Constant, Value, Var, VarKind},
     witness::CompiledCircuit,
 };
@@ -976,7 +1027,47 @@
 // Data structures
 //
 
-</span><span class="attribute">#[derive(Debug, Clone, Copy)]
+</span><span class="doccomment">/// The environment of the module/program.
+</span><span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub struct </span>GlobalEnv {
+    typed: TypedGlobalEnv,
+
+    <span class="doccomment">/// Constants defined in the module/program.
+    </span>constants: HashMap&lt;String, Var&gt;,
+}
+
+<span class="kw">impl </span>GlobalEnv {
+    <span class="doccomment">/// Creates a global environment from the one created by the type checker.
+    </span><span class="kw">pub fn </span>new(typed_global_env: TypedGlobalEnv) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            typed: typed_global_env,
+            constants: HashMap::new(),
+        }
+    }
+
+    <span class="doccomment">/// Stores type information about a local variable.
+    /// Note that we forbid shadowing at all scopes.
+    </span><span class="kw">pub fn </span>add_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, constant: Field, span: Span) {
+        <span class="kw">let </span>var = Var::new_constant(Constant::new(constant, span), span);
+        <span class="kw">if </span><span class="self">self</span>.constants.insert(name.clone(), var).is_some() {
+            <span class="macro">panic!</span>(<span class="string">&quot;constant `{name}` already exists&quot;</span>);
+        }
+    }
+
+    <span class="doccomment">/// Retrieves type information on a constantiable, given a name.
+    /// If the constantiable is not in scope, return false.
+    </span><span class="comment">// TODO: return an error no?
+    </span><span class="kw">pub fn </span>get_constant(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="kw-2">&amp;</span>Var {
+        <span class="kw">let </span>constant = <span class="self">self
+            </span>.constants
+            .get(ident)
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;constant `{ident}` not found&quot;</span>));
+
+        constant
+    }
+}
+
+<span class="attribute">#[derive(Debug, Clone, Copy)]
 </span><span class="kw">pub enum </span>GateKind {
     DoubleGeneric,
     Poseidon,
@@ -1093,16 +1184,27 @@
 
     <span class="doccomment">/// Used during the witness generation to check
     /// public and private inputs given by the prover.
-    </span><span class="kw">pub </span>main_args: (HashMap&lt;String, FuncArg&gt;, Span),
+    </span><span class="kw">pub </span>main_args: (HashMap&lt;String, FnArg&gt;, Span),
 }
 
 <span class="kw">impl </span>CircuitWriter {
     <span class="kw">pub fn </span>generate_circuit(tast: TAST, code: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledCircuit&gt; {
-        <span class="kw">let </span>TAST { ast, global_env } = tast;
+        <span class="comment">// if there&#39;s no main function, then return an error
+        </span><span class="kw">let </span>TAST {
+            ast,
+            typed_global_env,
+        } = tast;
+
+        <span class="kw">if </span>!typed_global_env.has_main {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
+                kind: ErrorKind::NoMainFunction,
+                span: Span::default(),
+            });
+        }
 
         <span class="kw">let </span><span class="kw-2">mut </span>circuit_writer = CircuitWriter {
             source: code.to_string(),
-            main_args: global_env.main_args.clone(),
+            main_args: typed_global_env.main_args.clone(),
             ..CircuitWriter::default()
         };
 
@@ -1111,8 +1213,7 @@
             <span class="macro">panic!</span>(<span class="string">&quot;circuit already finalized (TODO: return a proper error&quot;</span>);
         }
 
-        <span class="comment">// create the env
-        </span><span class="kw">let </span><span class="kw-2">mut </span>local_env = LocalEnv::default();
+        <span class="kw">let </span>global_env = <span class="kw-2">&amp;mut </span>GlobalEnv::new(typed_global_env);
 
         <span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
             <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
@@ -1121,18 +1222,21 @@
 
                 <span class="comment">// `const THING = 42;`
                 </span>RootKind::Const(cst) =&gt; {
-                    <span class="kw">let </span>var = Var::new_constant(Constant::new(cst.value, cst.span), cst.span);
-                    local_env.add_var(cst.name.value.clone(), var);
+                    global_env.add_constant(cst.name.value.clone(), cst.value, cst.span);
                 }
 
                 <span class="comment">// `fn main() { ... }`
                 </span>RootKind::Function(function) =&gt; {
-                    <span class="comment">// we only support main for now
+                    <span class="comment">// create the env
+                    </span><span class="kw">let </span><span class="kw-2">mut </span>fn_env = FnEnv::default();
+
+                    <span class="comment">// we only compile the main function
                     </span><span class="kw">if </span>!function.is_main() {
-                        <span class="macro">unimplemented!</span>();
+                        <span class="kw">continue</span>;
                     }
 
                     <span class="comment">// if there are no arguments, return an error
+                    // TODO: should we check this in the type checker?
                     </span><span class="kw">if </span>function.arguments.is_empty() {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
                             kind: ErrorKind::NoArgsInMain,
@@ -1140,11 +1244,8 @@
                         });
                     }
 
-                    <span class="comment">// nest scope
-                    </span>local_env.nest();
-
                     <span class="comment">// create public and private inputs
-                    </span><span class="kw">for </span>FuncArg {
+                    </span><span class="kw">for </span>FnArg {
                         attribute,
                         name,
                         typ,
@@ -1176,7 +1277,7 @@
                         };
 
                         <span class="comment">// add argument variable to the ast env
-                        </span>local_env.add_var(name.value.clone(), var);
+                        </span>fn_env.add_var(name.value.clone(), var);
                     }
 
                     <span class="comment">// create public output
@@ -1190,10 +1291,7 @@
                     }
 
                     <span class="comment">// compile function
-                    </span>circuit_writer.compile_function(<span class="kw-2">&amp;</span>global_env, <span class="kw-2">&amp;mut </span>local_env, function)<span class="question-mark">?</span>;
-
-                    <span class="comment">// pop scope
-                    </span>local_env.pop();
+                    </span>circuit_writer.compile_function(<span class="kw-2">&amp;</span>global_env, <span class="kw-2">&amp;mut </span>fn_env, function)<span class="question-mark">?</span>;
                 }
 
                 <span class="comment">// struct definition (already dealt with in type checker)
@@ -1243,26 +1341,24 @@
     <span class="kw">fn </span>compile_stmt(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         global_env: <span class="kw-2">&amp;</span>GlobalEnv,
-        local_env: <span class="kw-2">&amp;mut </span>LocalEnv,
+        fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
         stmt: <span class="kw-2">&amp;</span>Stmt,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span>stmt.kind {
             StmtKind::Assign { lhs, rhs, .. } =&gt; {
                 <span class="comment">// compute the rhs
-                </span><span class="kw">let </span>var = <span class="self">self
-                    </span>.compute_expr(global_env, local_env, rhs)<span class="question-mark">?
-                    </span>.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: stmt.span,
-                    })<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.ok_or(Error {
+                    kind: ErrorKind::CannotComputeExpression,
+                    span: stmt.span,
+                })<span class="question-mark">?</span>;
 
                 <span class="comment">// store the new variable
                 // TODO: do we really need to store that in the scope? That&#39;s not an actual var in the scope that&#39;s an internal var...
-                </span>local_env.add_var(lhs.value.clone(), var);
+                </span>fn_env.add_var(lhs.value.clone(), var);
             }
             StmtKind::For { var, range, body } =&gt; {
                 <span class="kw">for </span>ii <span class="kw">in </span>range.range() {
-                    local_env.nest();
+                    fn_env.nest();
 
                     <span class="kw">let </span>cst_var = Var::new_constant(
                         Constant {
@@ -1271,27 +1367,25 @@
                         },
                         var.span,
                     );
-                    local_env.add_var(var.value.clone(), cst_var);
+                    fn_env.add_var(var.value.clone(), cst_var);
 
-                    <span class="self">self</span>.compile_block(global_env, local_env, body)<span class="question-mark">?</span>;
+                    <span class="self">self</span>.compile_block(global_env, fn_env, body)<span class="question-mark">?</span>;
 
-                    local_env.pop();
+                    fn_env.pop();
                 }
             }
             StmtKind::Expr(expr) =&gt; {
                 <span class="comment">// compute the expression
-                </span><span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, local_env, expr)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, expr)<span class="question-mark">?</span>;
 
                 <span class="comment">// make sure it does not return any value.
                 </span><span class="macro">assert!</span>(var.is_none());
             }
             StmtKind::Return(res) =&gt; {
-                <span class="kw">let </span>var = <span class="self">self
-                    </span>.compute_expr(global_env, local_env, res)<span class="question-mark">?
-                    </span>.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: stmt.span,
-                    })<span class="question-mark">?</span>;
+                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, res)<span class="question-mark">?</span>.ok_or(Error {
+                    kind: ErrorKind::CannotComputeExpression,
+                    span: stmt.span,
+                })<span class="question-mark">?</span>;
 
                 <span class="comment">// we already checked in type checking that this is not an early return
                 </span><span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var));
@@ -1306,18 +1400,18 @@
     </span><span class="kw">fn </span>compile_block(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         global_env: <span class="kw-2">&amp;</span>GlobalEnv,
-        local_env: <span class="kw-2">&amp;mut </span>LocalEnv,
+        fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
         stmts: <span class="kw-2">&amp;</span>[Stmt],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
-        local_env.nest();
+        fn_env.nest();
         <span class="kw">for </span>stmt <span class="kw">in </span>stmts {
-            <span class="kw">let </span>res = <span class="self">self</span>.compile_stmt(global_env, local_env, stmt)<span class="question-mark">?</span>;
+            <span class="kw">let </span>res = <span class="self">self</span>.compile_stmt(global_env, fn_env, stmt)<span class="question-mark">?</span>;
             <span class="kw">if </span>res.is_some() {
                 <span class="comment">// we already checked for early returns in type checking
                 </span><span class="kw">return </span><span class="prelude-val">Ok</span>(res);
             }
         }
-        local_env.pop();
+        fn_env.pop();
         <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
     }
 
@@ -1325,7 +1419,7 @@
     </span><span class="kw">fn </span>compile_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         global_env: <span class="kw-2">&amp;</span>GlobalEnv,
-        local_env: <span class="kw-2">&amp;mut </span>LocalEnv,
+        fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
         function: <span class="kw-2">&amp;</span>Function,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">if </span>!function.is_main() {
@@ -1333,7 +1427,7 @@
         }
 
         <span class="comment">// compile the block
-        </span><span class="kw">let </span>returned = <span class="self">self</span>.compile_block(global_env, local_env, <span class="kw-2">&amp;</span>function.body)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>returned = <span class="self">self</span>.compile_block(global_env, fn_env, <span class="kw-2">&amp;</span>function.body)<span class="question-mark">?</span>;
 
         <span class="comment">// we&#39;re expecting something returned?
         </span><span class="kw">match </span>(function.return_type.as_ref(), returned) {
@@ -1403,35 +1497,41 @@
     <span class="kw">fn </span>compute_expr(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         global_env: <span class="kw-2">&amp;</span>GlobalEnv,
-        local_env: <span class="kw-2">&amp;mut </span>LocalEnv,
+        fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
         expr: <span class="kw-2">&amp;</span>Expr,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
         <span class="kw">let </span>var: <span class="prelude-ty">Option</span>&lt;Var&gt; = <span class="kw">match </span><span class="kw-2">&amp;</span>expr.kind {
             ExprKind::FnCall { name, args } =&gt; {
                 <span class="comment">// retrieve the function in the env
-                </span><span class="kw">let </span>func: FuncType = <span class="kw">if </span>name.len() == <span class="number">1 </span>{
+                </span><span class="kw">let </span>func: FnHandle = <span class="kw">if </span>name.len() == <span class="number">1 </span>{
                     <span class="comment">// functions present in the scope
                     </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.path[<span class="number">0</span>].value;
-                    <span class="kw">match </span>global_env.functions.get(fn_name).ok_or(Error {
+                    <span class="kw">let </span>fn_info = global_env.typed.functions.get(fn_name).ok_or(Error {
                         kind: ErrorKind::UndefinedFunction(fn_name.clone()),
                         span: name.span,
-                    })<span class="question-mark">? </span>{
-                        FuncInScope::BuiltIn(<span class="kw">_</span>, func) =&gt; <span class="kw-2">*</span>func,
-                        FuncInScope::Library(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
+                    })<span class="question-mark">?</span>;
+
+                    <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
+                        FnKind::BuiltIn(handle) =&gt; <span class="kw-2">*</span>handle,
+                        FnKind::Native(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
                     }
                 } <span class="kw">else if </span>name.len() == <span class="number">2 </span>{
                     <span class="comment">// check module present in the scope
                     </span><span class="kw">let </span>module = <span class="kw-2">&amp;</span>name.path[<span class="number">0</span>];
                     <span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.path[<span class="number">1</span>];
-                    <span class="kw">let </span>module = global_env.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or(Error {
+                    <span class="kw">let </span>module = global_env.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or(Error {
                         kind: ErrorKind::UndefinedModule(module.value.clone()),
                         span: module.span,
                     })<span class="question-mark">?</span>;
-                    <span class="kw">let </span>(<span class="kw">_</span>, func) = module.functions.get(<span class="kw-2">&amp;</span>fn_name.value).ok_or(Error {
+                    <span class="kw">let </span>fn_info = module.functions.get(<span class="kw-2">&amp;</span>fn_name.value).ok_or(Error {
                         kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
                         span: fn_name.span,
                     })<span class="question-mark">?</span>;
-                    <span class="kw-2">*</span>func
+
+                    <span class="kw">match </span>fn_info.kind {
+                        FnKind::BuiltIn(handle) =&gt; handle,
+                        FnKind::Native(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
+                    }
                 } <span class="kw">else </span>{
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
                         kind: ErrorKind::InvalidFnCall(<span class="string">&quot;sub-sub modules unsupported&quot;</span>),
@@ -1442,12 +1542,10 @@
                 <span class="comment">// compute the arguments
                 </span><span class="kw">let </span><span class="kw-2">mut </span>vars = Vec::with_capacity(args.len());
                 <span class="kw">for </span>arg <span class="kw">in </span>args {
-                    <span class="kw">let </span>var = <span class="self">self
-                        </span>.compute_expr(global_env, local_env, arg)<span class="question-mark">?
-                        </span>.ok_or(Error {
-                            kind: ErrorKind::CannotComputeExpression,
-                            span: arg.span,
-                        })<span class="question-mark">?</span>;
+                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, arg)<span class="question-mark">?</span>.ok_or(Error {
+                        kind: ErrorKind::CannotComputeExpression,
+                        span: arg.span,
+                    })<span class="question-mark">?</span>;
                     vars.push(var);
                 }
 
@@ -1463,17 +1561,17 @@
                 };
 
                 <span class="comment">// figure out the var of what&#39;s on the right
-                </span><span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, local_env, rhs)<span class="question-mark">?</span>.unwrap();
+                </span><span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
                 <span class="comment">// replace the left with the right
-                </span>local_env.reassign_var(lhs_name, rhs);
+                </span>fn_env.reassign_var(lhs_name, rhs);
 
                 <span class="prelude-val">None
             </span>}
             ExprKind::Op(op, lhs, rhs) =&gt; <span class="kw">match </span>op {
                 Op2::Addition =&gt; {
-                    <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, local_env, lhs)<span class="question-mark">?</span>.unwrap();
-                    <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, local_env, rhs)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
                     <span class="prelude-val">Some</span>(field::add(<span class="self">self</span>, lhs, rhs, expr.span))
                 }
@@ -1481,14 +1579,14 @@
                 Op2::Multiplication =&gt; <span class="macro">todo!</span>(),
                 Op2::Division =&gt; <span class="macro">todo!</span>(),
                 Op2::Equality =&gt; {
-                    <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, local_env, lhs)<span class="question-mark">?</span>.unwrap();
-                    <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, local_env, rhs)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
                     <span class="prelude-val">Some</span>(field::equal(<span class="self">self</span>, <span class="kw-2">&amp;</span>lhs.kind, <span class="kw-2">&amp;</span>rhs.kind, expr.span))
                 }
                 Op2::BoolAnd =&gt; {
-                    <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, local_env, lhs)<span class="question-mark">?</span>.unwrap();
-                    <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, local_env, rhs)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
                     <span class="prelude-val">Some</span>(boolean::and(<span class="self">self</span>, lhs, rhs, expr.span))
                 }
@@ -1496,7 +1594,7 @@
                 Op2::BoolNot =&gt; <span class="macro">todo!</span>(),
             },
             ExprKind::Negated(b) =&gt; {
-                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, local_env, b)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, b)<span class="question-mark">?</span>.unwrap();
                 <span class="prelude-val">Some</span>(boolean::neg(<span class="self">self</span>, var, expr.span))
             }
             ExprKind::BigInt(b) =&gt; {
@@ -1525,7 +1623,11 @@
                 ))
             }
             ExprKind::Identifier(name) =&gt; {
-                <span class="kw">let </span>var = local_env.get_var(name).clone();
+                <span class="kw">let </span>var = <span class="kw">if </span>is_const(name) {
+                    global_env.get_constant(name).clone()
+                } <span class="kw">else </span>{
+                    fn_env.get_var(name).clone()
+                };
                 <span class="prelude-val">Some</span>(var)
             }
             ExprKind::ArrayAccess(path, expr) =&gt; {
@@ -1533,12 +1635,12 @@
                 </span><span class="kw">let </span>array: Var = <span class="kw">if </span>path.len() == <span class="number">1 </span>{
                     <span class="comment">// var present in the scope
                     </span><span class="kw">let </span>name = <span class="kw-2">&amp;</span>path.path[<span class="number">0</span>].value;
-                    local_env.get_var(name).clone()
+                    fn_env.get_var(name).clone()
                 } <span class="kw">else if </span>path.len() == <span class="number">2 </span>{
                     <span class="comment">// check module present in the scope
                     </span><span class="kw">let </span>module = <span class="kw-2">&amp;</span>path.path[<span class="number">0</span>];
                     <span class="kw">let </span>_name = <span class="kw-2">&amp;</span>path.path[<span class="number">1</span>];
-                    <span class="kw">let </span>_module = global_env.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or(Error {
+                    <span class="kw">let </span>_module = global_env.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or(Error {
                         kind: ErrorKind::UndefinedModule(module.value.clone()),
                         span: module.span,
                     })<span class="question-mark">?</span>;
@@ -1551,12 +1653,10 @@
                 };
 
                 <span class="comment">// compute the index
-                </span><span class="kw">let </span>idx_var = <span class="self">self
-                    </span>.compute_expr(global_env, local_env, expr)<span class="question-mark">?
-                    </span>.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: expr.span,
-                    })<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>idx_var = <span class="self">self</span>.compute_expr(global_env, fn_env, expr)<span class="question-mark">?</span>.ok_or(Error {
+                    kind: ErrorKind::CannotComputeExpression,
+                    span: expr.span,
+                })<span class="question-mark">?</span>;
 
                 <span class="comment">// the index must be a constant!!
                 </span><span class="kw">let </span>idx = idx_var.constant().ok_or(Error {
@@ -1583,7 +1683,7 @@
                 </span><span class="kw">let </span><span class="kw-2">mut </span>vars = Vec::with_capacity(items.len());
 
                 <span class="kw">for </span>item <span class="kw">in </span>items {
-                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, local_env, item)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, item)<span class="question-mark">?</span>.unwrap();
                     vars.push(var.kind.clone());
                     <span class="comment">/*
                     to support other types:
@@ -1600,17 +1700,17 @@
             ExprKind::CustomTypeDeclaration(name, fields) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>vars = HashMap::new();
                 <span class="kw">for </span>(name, rhs) <span class="kw">in </span>fields {
-                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, local_env, rhs)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
                     vars.insert(name.value.clone(), var.kind.clone());
                 }
                 <span class="kw">let </span>var = Var::new_struct(vars, expr.span);
 
-                local_env.add_var(name.clone(), var.clone());
+                fn_env.add_var(name.clone(), var.clone());
 
                 <span class="prelude-val">Some</span>(var)
             }
             ExprKind::StructAccess(name, field) =&gt; {
-                <span class="kw">let </span>stru = local_env.get_var(<span class="kw-2">&amp;</span>name.value);
+                <span class="kw">let </span>stru = fn_env.get_var(<span class="kw-2">&amp;</span>name.value);
 
                 <span class="kw">let </span>fields = stru.fields().expect(<span class="string">&quot;type-checker bug: expected struct&quot;</span>);
 
@@ -1809,7 +1909,7 @@
 /// This include inputs and output of the function being processed,
 /// as well as local variables.
 </span><span class="attribute">#[derive(Default, Debug, Clone)]
-</span><span class="kw">pub struct </span>LocalEnv {
+</span><span class="kw">pub struct </span>FnEnv {
     <span class="doccomment">/// The current nesting level.
     /// Starting at 0 (top level), and increasing as we go into a block.
     </span>current_scope: usize,
@@ -1821,8 +1921,8 @@
     </span>vars: HashMap&lt;String, (usize, Var)&gt;,
 }
 
-<span class="kw">impl </span>LocalEnv {
-    <span class="doccomment">/// Creates a new LocalEnv
+<span class="kw">impl </span>FnEnv {
+    <span class="doccomment">/// Creates a new FnEnv
     </span><span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::default()
     }
@@ -1897,4 +1997,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (cf9ed0dd5 2022-09-15)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (95a992a68 2022-09-16)" ></div></body></html>
