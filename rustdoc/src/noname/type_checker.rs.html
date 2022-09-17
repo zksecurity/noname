@@ -812,20 +812,22 @@
 <span id="812">812</span>
 <span id="813">813</span>
 <span id="814">814</span>
-<span id="815">815</span>
-<span id="816">816</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
     constants::Span,
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     imports::{resolve_builtin_functions, resolve_imports, FnKind},
-    parser::{
-        Expr, ExprKind, FnArg, FnSig, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind, AST,
-    },
+    parser::{Expr, ExprKind, FnSig, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind, AST},
     stdlib::ImportedModule,
     syntax::is_const,
 };
+
+<span class="comment">//
+// Consts
+//
+
+</span><span class="kw">const </span>RESERVED_ARGS: [<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str; <span class="number">1</span>] = [<span class="string">&quot;public_output&quot;</span>];
 
 <span class="comment">//
 // Data Structures
@@ -876,9 +878,6 @@
     <span class="doccomment">/// stores the imported modules
     </span><span class="kw">pub </span>modules: HashMap&lt;String, ImportedModule&gt;,
 
-    <span class="doccomment">/// the arguments expected by main
-    </span><span class="kw">pub </span>main_args: (HashMap&lt;String, FnArg&gt;, Span),
-
     <span class="doccomment">/// If there&#39;s a main function in this module, then this is true
     /// (in other words, it&#39;s not a library)
     </span><span class="kw">pub </span>has_main: bool,
@@ -898,6 +897,7 @@
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
             FnKind::BuiltIn(sig, <span class="kw">_</span>) =&gt; sig,
             FnKind::Native(func) =&gt; <span class="kw-2">&amp;</span>func.sig,
+            FnKind::Main(sig) =&gt; sig,
         }
     }
 }
@@ -1335,25 +1335,29 @@
                     <span class="comment">// if this is main, witness it
                     </span><span class="kw">if </span>function.is_main() {
                         typed_global_env.has_main = <span class="bool-val">true</span>;
-                        typed_global_env.main_args.<span class="number">1 </span>= function.span;
-                    } <span class="kw">else </span>{
-                        <span class="comment">// if it&#39;s a non-main function, save its AST in the global env
-                        </span><span class="kw">let </span>fn_info = FnInfo {
-                            kind: FnKind::Native(function.clone()),
-                            span: function.span,
-                        };
-                        typed_global_env
-                            .functions
-                            .insert(function.sig.name.value.clone(), fn_info);
                     }
+
+                    <span class="comment">// save the function in the typed global env
+                    </span><span class="kw">let </span>fn_kind = <span class="kw">if </span>function.is_main() {
+                        FnKind::Main(function.sig.clone())
+                    } <span class="kw">else </span>{
+                        FnKind::Native(function.clone())
+                    };
+                    <span class="kw">let </span>fn_info = FnInfo {
+                        kind: fn_kind,
+                        span: function.span,
+                    };
+                    typed_global_env
+                        .functions
+                        .insert(function.sig.name.value.clone(), fn_info);
 
                     <span class="comment">// store variables and their types in the env
                     </span><span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span>function.sig.arguments {
                         <span class="comment">// public_output is a reserved name,
                         // associated automatically to the public output of the main function
-                        </span><span class="kw">if </span>arg.name.value == <span class="string">&quot;public_output&quot; </span>{
+                        </span><span class="kw">if </span>RESERVED_ARGS.contains(<span class="kw-2">&amp;</span>arg.name.value.as_str()) {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                kind: ErrorKind::PublicOutputReserved,
+                                kind: ErrorKind::PublicOutputReserved(arg.name.value.to_string()),
                                 span: arg.name.span,
                             });
                         }
@@ -1381,14 +1385,6 @@
                             }
 
                             t =&gt; <span class="macro">panic!</span>(<span class="string">&quot;unimplemented type {:?}&quot;</span>, t),
-                        }
-
-                        <span class="comment">// if it&#39;s main, save its arguments
-                        </span><span class="kw">if </span>function.is_main() {
-                            typed_global_env
-                                .main_args
-                                .<span class="number">0
-                                </span>.insert(arg.name.value.clone(), arg.clone());
                         }
                     }
 

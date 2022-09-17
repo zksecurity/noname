@@ -1016,6 +1016,18 @@
 <span id="1016">1016</span>
 <span id="1017">1017</span>
 <span id="1018">1018</span>
+<span id="1019">1019</span>
+<span id="1020">1020</span>
+<span id="1021">1021</span>
+<span id="1022">1022</span>
+<span id="1023">1023</span>
+<span id="1024">1024</span>
+<span id="1025">1025</span>
+<span id="1026">1026</span>
+<span id="1027">1027</span>
+<span id="1028">1028</span>
+<span id="1029">1029</span>
+<span id="1030">1030</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1032,9 +1044,10 @@
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     field,
-    imports::{FnHandle, FnKind},
+    imports::FnKind,
     parser::{
-        AttributeKind, Expr, ExprKind, FnArg, Function, Op2, RootKind, Stmt, StmtKind, TyKind,
+        AttributeKind, Expr, ExprKind, FnArg, FnSig, Function, Op2, RootKind, Stmt, StmtKind,
+        TyKind,
     },
     syntax::is_const,
     type_checker::{TypedGlobalEnv, TAST},
@@ -1203,7 +1216,7 @@
 
     <span class="doccomment">/// Used during the witness generation to check
     /// public and private inputs given by the prover.
-    </span><span class="kw">pub </span>main_args: (HashMap&lt;String, FnArg&gt;, Span),
+    </span><span class="kw">pub </span>main: (FnSig, Span),
 }
 
 <span class="kw">impl </span>CircuitWriter {
@@ -1221,9 +1234,15 @@
             });
         }
 
+        <span class="kw">let </span>(main_sig, main_span) = {
+            <span class="kw">let </span>fn_info = typed_global_env.functions.get(<span class="string">&quot;main&quot;</span>).cloned().unwrap();
+
+            (fn_info.sig().clone(), fn_info.span)
+        };
+
         <span class="kw">let </span><span class="kw-2">mut </span>circuit_writer = CircuitWriter {
             source: code.to_string(),
-            main_args: typed_global_env.main_args.clone(),
+            main: (main_sig, main_span),
             ..CircuitWriter::default()
         };
 
@@ -1335,7 +1354,7 @@
                 <span class="kw">if </span>circuit_writer.private_input_indices.contains(<span class="kw-2">&amp;</span>var) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
                         kind: ErrorKind::PrivateInputNotUsed,
-                        span: circuit_writer.main_args.<span class="number">1</span>,
+                        span: circuit_writer.main.<span class="number">1</span>,
                     });
                 } <span class="kw">else </span>{
                     <span class="macro">panic!</span>(<span class="string">&quot;there&#39;s a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!&quot;</span>);
@@ -1425,7 +1444,6 @@
         fn_env.nest();
         <span class="kw">for </span>stmt <span class="kw">in </span>stmts {
             <span class="kw">let </span>res = <span class="self">self</span>.compile_stmt(global_env, fn_env, stmt)<span class="question-mark">?</span>;
-            <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>stmt, <span class="kw-2">&amp;</span>res, <span class="kw-2">&amp;</span><span class="self">self</span>.gates.len());
             <span class="kw">if </span>res.is_some() {
                 <span class="comment">// we already checked for early returns in type checking
                 </span><span class="kw">return </span><span class="prelude-val">Ok</span>(res);
@@ -1567,6 +1585,9 @@
                         FnKind::Native(func) =&gt; {
                             <span class="self">self</span>.compile_native_function_call(global_env, func, vars, expr.span)
                         }
+                        FnKind::Main(<span class="kw">_</span>) =&gt; {
+                            <span class="macro">panic!</span>(<span class="string">&quot;bug in compiler: main function is not recursive (TODO: better error)&quot;</span>)
+                        }
                     }
                 } <span class="kw">else if </span>name.len() == <span class="number">2 </span>{
                     <span class="comment">// check module present in the scope
@@ -1584,6 +1605,9 @@
                     <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
                         FnKind::BuiltIn(<span class="kw">_</span>, handle) =&gt; handle(<span class="self">self</span>, <span class="kw-2">&amp;</span>vars, expr.span),
                         FnKind::Native(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
+                        FnKind::Main(<span class="kw">_</span>) =&gt; {
+                            <span class="macro">panic!</span>(<span class="string">&quot;main function is not recursive (TODO: better error)&quot;</span>)
+                        }
                     }
                 } <span class="kw">else </span>{
                     <span class="prelude-val">Err</span>(Error {

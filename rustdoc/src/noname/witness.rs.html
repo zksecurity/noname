@@ -277,6 +277,8 @@
 <span id="277">277</span>
 <span id="278">278</span>
 <span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Deref};
 
 <span class="kw">use </span>ark_ff::{Field <span class="kw">as _</span>, Zero};
@@ -414,7 +416,9 @@
         <span class="kw">let </span><span class="kw-2">mut </span>env = WitnessEnv::default();
 
         <span class="comment">// create the argument&#39;s variables?
-        </span><span class="kw">for </span>(name, arg) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.main_args.<span class="number">0 </span>{
+        </span><span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.main.<span class="number">0</span>.arguments {
+            <span class="kw">let </span>name = <span class="kw-2">&amp;</span>arg.name.value;
+
             <span class="kw">let </span>cval = <span class="kw">match </span><span class="kw-2">&amp;</span>arg.typ.kind {
                 TyKind::Field =&gt; {
                     <span class="kw">let </span>input = <span class="kw">if </span>arg.is_public() {
@@ -475,7 +479,7 @@
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(name) = <span class="macro">chain!</span>[private_inputs.<span class="number">0</span>.keys(), public_inputs.<span class="number">0</span>.keys()].next() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
                 kind: ErrorKind::UnusedInput(name.clone()),
-                span: <span class="self">self</span>.main_args.<span class="number">1</span>,
+                span: <span class="self">self</span>.main.<span class="number">1</span>,
             });
         }
 

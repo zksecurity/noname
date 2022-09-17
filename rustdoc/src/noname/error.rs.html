@@ -362,8 +362,8 @@
     <span class="attribute">#[error(<span class="string">&quot;tried to import the same module `{0}` twice&quot;</span>)]
     </span>DuplicateModule(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;`public_output` is a reserved argument name&quot;</span>)]
-    </span>PublicOutputReserved,
+    <span class="attribute">#[error(<span class="string">&quot;`{0}` is a reserved argument name&quot;</span>)]
+    </span>PublicOutputReserved(String),
 
     <span class="attribute">#[error(<span class="string">&quot;function `{0}` not present in scope&quot;</span>)]
     </span>UndefinedFunction(String),
