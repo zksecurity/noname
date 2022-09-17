@@ -1,0 +1,5 @@
+// no main function in here!
+
+fn add(x: Field, y: Field) -> Field {
+    return x + y;
+}

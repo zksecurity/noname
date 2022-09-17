@@ -1,84 +1,52 @@
-use std::{collections::HashMap, fmt};
+use std::fmt;
 
 use crate::{
     circuit_writer::CircuitWriter,
     constants::Span,
-    error::{Error, ErrorKind, Result},
-    parser::{FuncArg, FunctionSig, Path},
+    error::Result,
+    parser::{Function, Path},
     stdlib::{self, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
+    type_checker::FnInfo,
     var::Var,
 };
 
-/// This seems to be used by both the type checker and the AST
-// TODO: right now there's only one scope, but if we want to deal with multiple scopes then we'll need to make sure child scopes have access to parent scope, shadowing, etc.
-#[derive(Default, Debug)]
-pub struct GlobalEnv {
-    /// the functions present in the scope
-    /// contains at least the set of builtin functions (like assert_eq)
-    pub functions: HashMap<String, FuncInScope>,
+/// An actual handle to the internal function to call to resolve a built-in function call.
+///
+/// Note that the signature of a `FnHandle` is designed to:
+/// * `&mut CircuitWriter`: take a mutable reference to the circuit writer, this is because built-ins need to be able to register new variables and add gates to the circuit
+/// * `&[Var]`: take an unbounded list of variables, this is because built-ins can take any number of arguments, and different built-ins might take different types of arguments
+/// * `Span`: take a span to return user-friendly errors
+/// * `-> Result<Option<Var>>`: return a `Result` with an `Option` of a `Var`. This is because built-ins can return a variable, or they can return nothing. If they return nothing, then the `Option` will be `None`. If they return a variable, then the `Option` will be `Some(Var)`.
+pub type FnHandle = fn(&mut CircuitWriter, &[Var], Span) -> Result<Option<Var>>;
 
-    /// stores the imported modules
-    pub modules: HashMap<String, ImportedModule>,
+/// The different types of a noname function.
+#[derive(Clone)]
+pub enum FnKind {
+    /// a built-in is just a handle to a function written in Rust.
+    BuiltIn(FnHandle),
 
-    /// the arguments expected by main
-    pub main_args: (HashMap<String, FuncArg>, Span),
+    /// a native function is represented as an AST
+    Native(Function),
 }
 
-pub type FuncType = fn(&mut CircuitWriter, &[Var], Span) -> Result<Option<Var>>;
-
-pub enum FuncInScope {
-    /// signature of the function
-    BuiltIn(FunctionSig, FuncType),
-    /// path, and signature of the function
-    Library(Vec<String>, FunctionSig),
-}
-
-impl fmt::Debug for FuncInScope {
+impl fmt::Debug for FnKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::BuiltIn(arg0, _arg1) => f.debug_tuple("BuiltIn").field(arg0).field(&"_").finish(),
-            Self::Library(arg0, arg1) => f.debug_tuple("Library").field(arg0).field(arg1).finish(),
-        }
+        write!(f, "<fnkind>")
     }
 }
 
-impl GlobalEnv {
-    pub fn resolve_global_imports(&mut self) -> Result<()> {
-        let builtin_functions = parse_fn_sigs(&BUILTIN_FNS);
-        for (sig, func) in builtin_functions {
-            if self
-                .functions
-                .insert(sig.name.value.clone(), FuncInScope::BuiltIn(sig, func))
-                .is_some()
-            {
-                panic!("global imports conflict");
-            }
-        }
+pub fn resolve_builtin_functions() -> Vec<FnInfo> {
+    parse_fn_sigs(&BUILTIN_FNS)
+}
 
-        Ok(())
-    }
+pub fn resolve_imports(path: &Path) -> Result<ImportedModule> {
+    let path_iter = &mut path.path.iter();
+    let root_module = path_iter.next().expect("empty imports can't be parsed");
 
-    pub fn resolve_imports(&mut self, path: &Path) -> Result<()> {
-        let path_iter = &mut path.path.iter();
-        let root_module = path_iter.next().expect("empty imports can't be parsed");
-
-        if root_module.value == "std" {
-            let module = stdlib::parse_std_import(path, path_iter)?;
-            if self
-                .modules
-                .insert(module.name.clone(), module.clone())
-                .is_some()
-            {
-                return Err(Error {
-                    kind: ErrorKind::DuplicateModule(module.name.clone()),
-                    span: module.span,
-                });
-            }
-        } else {
-            // we only support std root module for now
-            unimplemented!()
-        };
-
-        Ok(())
+    if root_module.value == "std" {
+        stdlib::parse_std_import(path, path_iter)
+    } else {
+        // we only support std root module for now
+        unimplemented!()
     }
 }

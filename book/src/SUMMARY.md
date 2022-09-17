@@ -20,6 +20,8 @@
 - [CellVars](./cellvar.md)
 - [Vars](./var.md)
 - [Constants](./constants.md)
+- [Functions](./functions.md)
+- [Scope](./scope.md)
 
 # Proof Creation
 

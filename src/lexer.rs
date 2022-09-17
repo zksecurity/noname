@@ -3,6 +3,7 @@ use std::fmt::Display;
 use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
+    syntax::{is_const, is_hexadecimal, is_identifier, is_numeric, is_type},
     tokens::Tokens,
 };
 
@@ -188,50 +189,6 @@ impl TokenKind {
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
-}
-
-fn is_numeric(s: &str) -> bool {
-    s.chars().all(|c| c.is_ascii_digit())
-}
-
-fn is_hexadecimal(s: &str) -> bool {
-    let mut s = s.chars();
-    let s0 = s.next();
-    let s1 = s.next();
-    if matches!((s0, s1), (Some('0'), Some('x') | Some('X'))) {
-        s.all(|c| c.is_ascii_hexdigit())
-    } else {
-        false
-    }
-}
-
-fn is_identifier(s: &str) -> bool {
-    let mut chars = s.chars();
-    let first_letter = chars.next().unwrap();
-    // first char is a letter
-    first_letter.is_alphabetic() && first_letter.is_lowercase()
-    // rest are lowercase alphanumeric or underscore
-        && chars
-            .all(|c| (c.is_ascii_alphabetic() && c.is_lowercase()) || c.is_numeric() || c == '_')
-}
-
-fn is_const(s: &str) -> bool {
-    let mut chars = s.chars();
-    let first_letter = chars.next().unwrap();
-    // first char is a letter
-    first_letter.is_alphabetic() && first_letter.is_uppercase()
-    // rest are lowercase alphanumeric or underscore
-        && chars
-            .all(|c| (c.is_ascii_alphabetic() && c.is_uppercase()) || c.is_numeric() || c == '_')
-}
-
-fn is_type(s: &str) -> bool {
-    let mut chars = s.chars();
-    let first_char = chars.next().unwrap();
-    // first char is an uppercase letter
-    // rest are lowercase alphanumeric
-    first_char.is_alphabetic() && first_char.is_uppercase() && chars.all(|c| (c.is_alphanumeric()))
-    // TODO: check camel case?
 }
 
 impl Token {

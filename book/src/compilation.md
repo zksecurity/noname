@@ -13,3 +13,12 @@ The compilation of noname programs goes through the following flow:
    - **prover instructions**: instructions on how to run the function for the witness generation (used by the prover)
 
 A simple ASM language is also used, and the circuit can be encoded in this language. See the [ASM chapter](asm.md).
+
+## Terminology
+
+A note on topology:
+
+* **functions**: noname functions each contain their scope and can be interacted with their interface (arguments and return value)
+* **module/program**: a noname module is a single file (this is a nice current limitation of noname) containing functions, constants, and structures. 
+* **library**: a noname library is a module/program without a `main()` function, as well as dependencies (other libraries)
+* **executable**: a noname executable is like a library, except that its module/program has a `main()` function.

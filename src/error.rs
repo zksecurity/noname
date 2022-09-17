@@ -215,4 +215,7 @@ pub enum ErrorKind {
 
     #[error("constants can only have a literal decimal value")]
     InvalidConstType,
+
+    #[error("cannot compile a module without a main function")]
+    NoMainFunction,
 }

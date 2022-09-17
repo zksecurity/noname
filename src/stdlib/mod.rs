@@ -6,9 +6,10 @@ use crate::{
     circuit_writer::{CircuitWriter, GateKind},
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    imports::FuncType,
+    imports::{FnHandle, FnKind},
     lexer::Token,
-    parser::{FunctionSig, Ident, ParserCtx, Path},
+    parser::{FnSig, Ident, ParserCtx, Path},
+    type_checker::FnInfo,
     var::{ConstOrCell, Constant, Var},
 };
 
@@ -19,7 +20,7 @@ pub mod crypto;
 #[derive(Clone)]
 pub struct ImportedModule {
     pub name: String,
-    pub functions: HashMap<String, (FunctionSig, FuncType)>,
+    pub functions: HashMap<String, FnInfo>,
     pub span: Span,
 }
 
@@ -56,7 +57,7 @@ pub fn parse_std_import<'a>(
         "crypto" => {
             let crypto_functions = parse_fn_sigs(&CRYPTO_FNS);
             for func in crypto_functions {
-                res.functions.insert(func.0.name.value.clone(), func);
+                res.functions.insert(func.sig.name.value.clone(), func);
             }
         }
         _ => {
@@ -72,16 +73,20 @@ pub fn parse_std_import<'a>(
 
 /// Takes a list of function signatures (as strings) and their associated function pointer,
 /// returns the same list but with the parsed functions (as [FunctionSig]).
-pub fn parse_fn_sigs(fn_sigs: &[(&str, FuncType)]) -> Vec<(FunctionSig, FuncType)> {
-    let mut functions: Vec<(FunctionSig, FuncType)> = vec![];
+pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> Vec<FnInfo> {
+    let mut functions: Vec<FnInfo> = vec![];
     let ctx = &mut ParserCtx::default();
 
     for (sig, fn_ptr) in fn_sigs {
         let mut tokens = Token::parse(sig).unwrap();
 
-        let sig = FunctionSig::parse(ctx, &mut tokens).unwrap();
+        let sig = FnSig::parse(ctx, &mut tokens).unwrap();
 
-        functions.push((sig, *fn_ptr));
+        functions.push(FnInfo {
+            sig,
+            kind: FnKind::BuiltIn(*fn_ptr),
+            span: Span::default(),
+        });
     }
 
     functions
@@ -95,7 +100,7 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FuncType)]) -> Vec<(FunctionSig, FuncType
 const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 
-pub const BUILTIN_FNS: [(&str, FuncType); 2] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
+pub const BUILTIN_FNS: [(&str, FnHandle); 2] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
 
 /// Asserts that two vars are equal.
 fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<Option<Var>> {

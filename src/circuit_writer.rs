@@ -14,11 +14,12 @@ use crate::{
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     field,
-    imports::{FuncInScope, FuncType, GlobalEnv},
+    imports::{FnHandle, FnKind},
     parser::{
-        AttributeKind, Expr, ExprKind, FuncArg, Function, Op2, RootKind, Stmt, StmtKind, TyKind,
+        AttributeKind, Expr, ExprKind, FnArg, Function, Op2, RootKind, Stmt, StmtKind, TyKind,
     },
-    type_checker::TAST,
+    syntax::is_const,
+    type_checker::{TypedGlobalEnv, TAST},
     var::{CellVar, ConstOrCell, Constant, Value, Var, VarKind},
     witness::CompiledCircuit,
 };
@@ -26,6 +27,46 @@ use crate::{
 //
 // Data structures
 //
+
+/// The environment of the module/program.
+#[derive(Debug)]
+pub struct GlobalEnv {
+    typed: TypedGlobalEnv,
+
+    /// Constants defined in the module/program.
+    constants: HashMap<String, Var>,
+}
+
+impl GlobalEnv {
+    /// Creates a global environment from the one created by the type checker.
+    pub fn new(typed_global_env: TypedGlobalEnv) -> Self {
+        Self {
+            typed: typed_global_env,
+            constants: HashMap::new(),
+        }
+    }
+
+    /// Stores type information about a local variable.
+    /// Note that we forbid shadowing at all scopes.
+    pub fn add_constant(&mut self, name: String, constant: Field, span: Span) {
+        let var = Var::new_constant(Constant::new(constant, span), span);
+        if self.constants.insert(name.clone(), var).is_some() {
+            panic!("constant `{name}` already exists");
+        }
+    }
+
+    /// Retrieves type information on a constantiable, given a name.
+    /// If the constantiable is not in scope, return false.
+    // TODO: return an error no?
+    pub fn get_constant(&self, ident: &str) -> &Var {
+        let constant = self
+            .constants
+            .get(ident)
+            .unwrap_or_else(|| panic!("constant `{ident}` not found"));
+
+        constant
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum GateKind {
@@ -144,16 +185,27 @@ pub struct CircuitWriter {
 
     /// Used during the witness generation to check
     /// public and private inputs given by the prover.
-    pub main_args: (HashMap<String, FuncArg>, Span),
+    pub main_args: (HashMap<String, FnArg>, Span),
 }
 
 impl CircuitWriter {
     pub fn generate_circuit(tast: TAST, code: &str) -> Result<CompiledCircuit> {
-        let TAST { ast, global_env } = tast;
+        // if there's no main function, then return an error
+        let TAST {
+            ast,
+            typed_global_env,
+        } = tast;
+
+        if !typed_global_env.has_main {
+            return Err(Error {
+                kind: ErrorKind::NoMainFunction,
+                span: Span::default(),
+            });
+        }
 
         let mut circuit_writer = CircuitWriter {
             source: code.to_string(),
-            main_args: global_env.main_args.clone(),
+            main_args: typed_global_env.main_args.clone(),
             ..CircuitWriter::default()
         };
 
@@ -162,8 +214,7 @@ impl CircuitWriter {
             panic!("circuit already finalized (TODO: return a proper error");
         }
 
-        // create the env
-        let mut local_env = LocalEnv::default();
+        let global_env = &mut GlobalEnv::new(typed_global_env);
 
         for root in &ast.0 {
             match &root.kind {
@@ -172,18 +223,21 @@ impl CircuitWriter {
 
                 // `const THING = 42;`
                 RootKind::Const(cst) => {
-                    let var = Var::new_constant(Constant::new(cst.value, cst.span), cst.span);
-                    local_env.add_var(cst.name.value.clone(), var);
+                    global_env.add_constant(cst.name.value.clone(), cst.value, cst.span);
                 }
 
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
-                    // we only support main for now
+                    // create the env
+                    let mut fn_env = FnEnv::default();
+
+                    // we only compile the main function
                     if !function.is_main() {
-                        unimplemented!();
+                        continue;
                     }
 
                     // if there are no arguments, return an error
+                    // TODO: should we check this in the type checker?
                     if function.arguments.is_empty() {
                         return Err(Error {
                             kind: ErrorKind::NoArgsInMain,
@@ -191,11 +245,8 @@ impl CircuitWriter {
                         });
                     }
 
-                    // nest scope
-                    local_env.nest();
-
                     // create public and private inputs
-                    for FuncArg {
+                    for FnArg {
                         attribute,
                         name,
                         typ,
@@ -227,7 +278,7 @@ impl CircuitWriter {
                         };
 
                         // add argument variable to the ast env
-                        local_env.add_var(name.value.clone(), var);
+                        fn_env.add_var(name.value.clone(), var);
                     }
 
                     // create public output
@@ -241,10 +292,7 @@ impl CircuitWriter {
                     }
 
                     // compile function
-                    circuit_writer.compile_function(&global_env, &mut local_env, function)?;
-
-                    // pop scope
-                    local_env.pop();
+                    circuit_writer.compile_function(&global_env, &mut fn_env, function)?;
                 }
 
                 // struct definition (already dealt with in type checker)
@@ -294,26 +342,24 @@ impl CircuitWriter {
     fn compile_stmt(
         &mut self,
         global_env: &GlobalEnv,
-        local_env: &mut LocalEnv,
+        fn_env: &mut FnEnv,
         stmt: &Stmt,
     ) -> Result<Option<Var>> {
         match &stmt.kind {
             StmtKind::Assign { lhs, rhs, .. } => {
                 // compute the rhs
-                let var = self
-                    .compute_expr(global_env, local_env, rhs)?
-                    .ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: stmt.span,
-                    })?;
+                let var = self.compute_expr(global_env, fn_env, rhs)?.ok_or(Error {
+                    kind: ErrorKind::CannotComputeExpression,
+                    span: stmt.span,
+                })?;
 
                 // store the new variable
                 // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
-                local_env.add_var(lhs.value.clone(), var);
+                fn_env.add_var(lhs.value.clone(), var);
             }
             StmtKind::For { var, range, body } => {
                 for ii in range.range() {
-                    local_env.nest();
+                    fn_env.nest();
 
                     let cst_var = Var::new_constant(
                         Constant {
@@ -322,27 +368,25 @@ impl CircuitWriter {
                         },
                         var.span,
                     );
-                    local_env.add_var(var.value.clone(), cst_var);
+                    fn_env.add_var(var.value.clone(), cst_var);
 
-                    self.compile_block(global_env, local_env, body)?;
+                    self.compile_block(global_env, fn_env, body)?;
 
-                    local_env.pop();
+                    fn_env.pop();
                 }
             }
             StmtKind::Expr(expr) => {
                 // compute the expression
-                let var = self.compute_expr(global_env, local_env, expr)?;
+                let var = self.compute_expr(global_env, fn_env, expr)?;
 
                 // make sure it does not return any value.
                 assert!(var.is_none());
             }
             StmtKind::Return(res) => {
-                let var = self
-                    .compute_expr(global_env, local_env, res)?
-                    .ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: stmt.span,
-                    })?;
+                let var = self.compute_expr(global_env, fn_env, res)?.ok_or(Error {
+                    kind: ErrorKind::CannotComputeExpression,
+                    span: stmt.span,
+                })?;
 
                 // we already checked in type checking that this is not an early return
                 return Ok(Some(var));
@@ -357,18 +401,18 @@ impl CircuitWriter {
     fn compile_block(
         &mut self,
         global_env: &GlobalEnv,
-        local_env: &mut LocalEnv,
+        fn_env: &mut FnEnv,
         stmts: &[Stmt],
     ) -> Result<Option<Var>> {
-        local_env.nest();
+        fn_env.nest();
         for stmt in stmts {
-            let res = self.compile_stmt(global_env, local_env, stmt)?;
+            let res = self.compile_stmt(global_env, fn_env, stmt)?;
             if res.is_some() {
                 // we already checked for early returns in type checking
                 return Ok(res);
             }
         }
-        local_env.pop();
+        fn_env.pop();
         Ok(None)
     }
 
@@ -376,7 +420,7 @@ impl CircuitWriter {
     fn compile_function(
         &mut self,
         global_env: &GlobalEnv,
-        local_env: &mut LocalEnv,
+        fn_env: &mut FnEnv,
         function: &Function,
     ) -> Result<()> {
         if !function.is_main() {
@@ -384,7 +428,7 @@ impl CircuitWriter {
         }
 
         // compile the block
-        let returned = self.compile_block(global_env, local_env, &function.body)?;
+        let returned = self.compile_block(global_env, fn_env, &function.body)?;
 
         // we're expecting something returned?
         match (function.return_type.as_ref(), returned) {
@@ -454,35 +498,41 @@ impl CircuitWriter {
     fn compute_expr(
         &mut self,
         global_env: &GlobalEnv,
-        local_env: &mut LocalEnv,
+        fn_env: &mut FnEnv,
         expr: &Expr,
     ) -> Result<Option<Var>> {
         let var: Option<Var> = match &expr.kind {
             ExprKind::FnCall { name, args } => {
                 // retrieve the function in the env
-                let func: FuncType = if name.len() == 1 {
+                let func: FnHandle = if name.len() == 1 {
                     // functions present in the scope
                     let fn_name = &name.path[0].value;
-                    match global_env.functions.get(fn_name).ok_or(Error {
+                    let fn_info = global_env.typed.functions.get(fn_name).ok_or(Error {
                         kind: ErrorKind::UndefinedFunction(fn_name.clone()),
                         span: name.span,
-                    })? {
-                        FuncInScope::BuiltIn(_, func) => *func,
-                        FuncInScope::Library(_, _) => todo!(),
+                    })?;
+
+                    match &fn_info.kind {
+                        FnKind::BuiltIn(handle) => *handle,
+                        FnKind::Native(_) => todo!(),
                     }
                 } else if name.len() == 2 {
                     // check module present in the scope
                     let module = &name.path[0];
                     let fn_name = &name.path[1];
-                    let module = global_env.modules.get(&module.value).ok_or(Error {
+                    let module = global_env.typed.modules.get(&module.value).ok_or(Error {
                         kind: ErrorKind::UndefinedModule(module.value.clone()),
                         span: module.span,
                     })?;
-                    let (_, func) = module.functions.get(&fn_name.value).ok_or(Error {
+                    let fn_info = module.functions.get(&fn_name.value).ok_or(Error {
                         kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
                         span: fn_name.span,
                     })?;
-                    *func
+
+                    match fn_info.kind {
+                        FnKind::BuiltIn(handle) => handle,
+                        FnKind::Native(_) => todo!(),
+                    }
                 } else {
                     return Err(Error {
                         kind: ErrorKind::InvalidFnCall("sub-sub modules unsupported"),
@@ -493,12 +543,10 @@ impl CircuitWriter {
                 // compute the arguments
                 let mut vars = Vec::with_capacity(args.len());
                 for arg in args {
-                    let var = self
-                        .compute_expr(global_env, local_env, arg)?
-                        .ok_or(Error {
-                            kind: ErrorKind::CannotComputeExpression,
-                            span: arg.span,
-                        })?;
+                    let var = self.compute_expr(global_env, fn_env, arg)?.ok_or(Error {
+                        kind: ErrorKind::CannotComputeExpression,
+                        span: arg.span,
+                    })?;
                     vars.push(var);
                 }
 
@@ -514,17 +562,17 @@ impl CircuitWriter {
                 };
 
                 // figure out the var of what's on the right
-                let rhs = self.compute_expr(global_env, local_env, rhs)?.unwrap();
+                let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
                 // replace the left with the right
-                local_env.reassign_var(lhs_name, rhs);
+                fn_env.reassign_var(lhs_name, rhs);
 
                 None
             }
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
-                    let lhs = self.compute_expr(global_env, local_env, lhs)?.unwrap();
-                    let rhs = self.compute_expr(global_env, local_env, rhs)?.unwrap();
+                    let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
+                    let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
                     Some(field::add(self, lhs, rhs, expr.span))
                 }
@@ -532,14 +580,14 @@ impl CircuitWriter {
                 Op2::Multiplication => todo!(),
                 Op2::Division => todo!(),
                 Op2::Equality => {
-                    let lhs = self.compute_expr(global_env, local_env, lhs)?.unwrap();
-                    let rhs = self.compute_expr(global_env, local_env, rhs)?.unwrap();
+                    let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
+                    let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
                     Some(field::equal(self, &lhs.kind, &rhs.kind, expr.span))
                 }
                 Op2::BoolAnd => {
-                    let lhs = self.compute_expr(global_env, local_env, lhs)?.unwrap();
-                    let rhs = self.compute_expr(global_env, local_env, rhs)?.unwrap();
+                    let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
+                    let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
                     Some(boolean::and(self, lhs, rhs, expr.span))
                 }
@@ -547,7 +595,7 @@ impl CircuitWriter {
                 Op2::BoolNot => todo!(),
             },
             ExprKind::Negated(b) => {
-                let var = self.compute_expr(global_env, local_env, b)?.unwrap();
+                let var = self.compute_expr(global_env, fn_env, b)?.unwrap();
                 Some(boolean::neg(self, var, expr.span))
             }
             ExprKind::BigInt(b) => {
@@ -576,7 +624,11 @@ impl CircuitWriter {
                 ))
             }
             ExprKind::Identifier(name) => {
-                let var = local_env.get_var(name).clone();
+                let var = if is_const(name) {
+                    global_env.get_constant(name).clone()
+                } else {
+                    fn_env.get_var(name).clone()
+                };
                 Some(var)
             }
             ExprKind::ArrayAccess(path, expr) => {
@@ -584,12 +636,12 @@ impl CircuitWriter {
                 let array: Var = if path.len() == 1 {
                     // var present in the scope
                     let name = &path.path[0].value;
-                    local_env.get_var(name).clone()
+                    fn_env.get_var(name).clone()
                 } else if path.len() == 2 {
                     // check module present in the scope
                     let module = &path.path[0];
                     let _name = &path.path[1];
-                    let _module = global_env.modules.get(&module.value).ok_or(Error {
+                    let _module = global_env.typed.modules.get(&module.value).ok_or(Error {
                         kind: ErrorKind::UndefinedModule(module.value.clone()),
                         span: module.span,
                     })?;
@@ -602,12 +654,10 @@ impl CircuitWriter {
                 };
 
                 // compute the index
-                let idx_var = self
-                    .compute_expr(global_env, local_env, expr)?
-                    .ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: expr.span,
-                    })?;
+                let idx_var = self.compute_expr(global_env, fn_env, expr)?.ok_or(Error {
+                    kind: ErrorKind::CannotComputeExpression,
+                    span: expr.span,
+                })?;
 
                 // the index must be a constant!!
                 let idx = idx_var.constant().ok_or(Error {
@@ -634,7 +684,7 @@ impl CircuitWriter {
                 let mut vars = Vec::with_capacity(items.len());
 
                 for item in items {
-                    let var = self.compute_expr(global_env, local_env, item)?.unwrap();
+                    let var = self.compute_expr(global_env, fn_env, item)?.unwrap();
                     vars.push(var.kind.clone());
                     /*
                     to support other types:
@@ -651,17 +701,17 @@ impl CircuitWriter {
             ExprKind::CustomTypeDeclaration(name, fields) => {
                 let mut vars = HashMap::new();
                 for (name, rhs) in fields {
-                    let var = self.compute_expr(global_env, local_env, rhs)?.unwrap();
+                    let var = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
                     vars.insert(name.value.clone(), var.kind.clone());
                 }
                 let var = Var::new_struct(vars, expr.span);
 
-                local_env.add_var(name.clone(), var.clone());
+                fn_env.add_var(name.clone(), var.clone());
 
                 Some(var)
             }
             ExprKind::StructAccess(name, field) => {
-                let stru = local_env.get_var(&name.value);
+                let stru = fn_env.get_var(&name.value);
 
                 let fields = stru.fields().expect("type-checker bug: expected struct");
 
@@ -860,7 +910,7 @@ impl CircuitWriter {
 /// This include inputs and output of the function being processed,
 /// as well as local variables.
 #[derive(Default, Debug, Clone)]
-pub struct LocalEnv {
+pub struct FnEnv {
     /// The current nesting level.
     /// Starting at 0 (top level), and increasing as we go into a block.
     current_scope: usize,
@@ -872,8 +922,8 @@ pub struct LocalEnv {
     vars: HashMap<String, (usize, Var)>,
 }
 
-impl LocalEnv {
-    /// Creates a new LocalEnv
+impl FnEnv {
+    /// Creates a new FnEnv
     pub fn new() -> Self {
         Self::default()
     }

@@ -16,11 +16,16 @@ for i in 0..4 {
 }
 ```
 
+Scopes are only used for:
+
+* for loops
+* in the future: if/else statements
+
 ## Scope mechanisms
 
 Both the type checker and the circuit writer need to keep track of local variable.
 For the type checker (`type_checker.rs`), a `TypeEnv` structure keeps track of the association between all local variables names and their type information.
-For the circuit writer (`circuit_writer.rs`), a `LocalEnv` structure keeps track of the association between all local variable names and their circuit variable.
+For the circuit writer (`circuit_writer.rs`), a `FnEnv` structure keeps track of the association between all local variable names and their circuit variable.
 
 Both structure also keep track of how nested the current block is (the top level starting at level 0).
 For this reason, it is important to remember to increase the current scope when entering a new block (for loop, if statement, etc.) and to decrease it when exiting the block.

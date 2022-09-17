@@ -733,16 +733,16 @@ impl Expr {
 //~
 
 #[derive(Debug, Clone)]
-pub struct FunctionSig {
+pub struct FnSig {
     pub name: Ident,
 
     /// (pub, ident, type)
-    pub arguments: Vec<FuncArg>,
+    pub arguments: Vec<FnArg>,
 
     pub return_type: Option<Ty>,
 }
 
-impl FunctionSig {
+impl FnSig {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let name = Function::parse_name(ctx, tokens)?;
 
@@ -813,12 +813,12 @@ pub struct Attribute {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
     pub name: Ident,
 
     /// (pub, ident, type)
-    pub arguments: Vec<FuncArg>,
+    pub arguments: Vec<FnArg>,
 
     pub return_type: Option<Ty>,
 
@@ -828,14 +828,14 @@ pub struct Function {
 }
 
 #[derive(Debug, Clone)]
-pub struct FuncArg {
+pub struct FnArg {
     pub name: Ident,
     pub typ: Ty,
     pub attribute: Option<Attribute>,
     pub span: Span,
 }
 
-impl FuncArg {
+impl FnArg {
     pub fn is_public(&self) -> bool {
         matches!(
             self.attribute,
@@ -877,7 +877,7 @@ impl Function {
         })
     }
 
-    pub fn parse_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<FuncArg>> {
+    pub fn parse_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<FnArg>> {
         // (pub arg1: type1, arg2: type2)
         // ^
         tokens.bump_expected(ctx, TokenKind::LeftParen)?;
@@ -936,7 +936,7 @@ impl Function {
             )?;
 
             let span = token.span.merge_with(arg_typ.span);
-            let arg = FuncArg {
+            let arg = FnArg {
                 name: arg_name,
                 typ: arg_typ,
                 attribute: public,
@@ -1092,7 +1092,7 @@ pub fn is_valid_fn_type(name: &str) -> bool {
 //~ path ::= ident { "::" ident }
 //~
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Range {
     pub start: u32,
     pub end: u32,
@@ -1105,13 +1105,13 @@ impl Range {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StmtKind {
     Assign {
         mutable: bool,

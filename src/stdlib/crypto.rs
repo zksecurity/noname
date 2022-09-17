@@ -12,13 +12,13 @@ use crate::{
     circuit_writer::{CircuitWriter, GateKind},
     constants::{self, Field, Span},
     error::Result,
-    imports::FuncType,
+    imports::FnHandle,
     var::{ConstOrCell, Value, Var, VarKind},
 };
 
 const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
 
-pub const CRYPTO_FNS: [(&str, FuncType); 1] = [(POSEIDON_FN, poseidon)];
+pub const CRYPTO_FNS: [(&str, FnHandle); 1] = [(POSEIDON_FN, poseidon)];
 
 pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<Option<Var>> {
     //

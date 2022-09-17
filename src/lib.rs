@@ -15,6 +15,7 @@ pub mod lexer;
 pub mod parser;
 pub mod prover;
 pub mod stdlib;
+pub mod syntax;
 pub mod tokens;
 pub mod type_checker;
 pub mod var;
