@@ -11,5 +11,5 @@ fn main(pub one: Field) {
     assert_eq(four, 4);
 
     let eight = double(4);
-    assert_eq(eight, double(4));
+    assert_eq(eight, double(four));
 }

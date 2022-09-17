@@ -57,7 +57,7 @@ pub fn parse_std_import<'a>(
         "crypto" => {
             let crypto_functions = parse_fn_sigs(&CRYPTO_FNS);
             for func in crypto_functions {
-                res.functions.insert(func.sig.name.value.clone(), func);
+                res.functions.insert(func.sig().name.value.clone(), func);
             }
         }
         _ => {
@@ -83,8 +83,7 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> Vec<FnInfo> {
         let sig = FnSig::parse(ctx, &mut tokens).unwrap();
 
         functions.push(FnInfo {
-            sig,
-            kind: FnKind::BuiltIn(*fn_ptr),
+            kind: FnKind::BuiltIn(sig, *fn_ptr),
             span: Span::default(),
         });
     }
@@ -131,15 +130,17 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<O
         // a const and a var
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            // constrain the constant first
-            let cst_cvar = cst.constrain(Some("encoding the constant"), compiler);
-
-            // TODO: use permutation to check that
             compiler.add_gate(
-                "constrain cst - var = 0 to check equality",
+                "constrain var - cst = 0 to check equality",
                 GateKind::DoubleGeneric,
-                vec![Some(cst_cvar), Some(*cvar)],
-                vec![Field::one(), Field::one().neg()],
+                vec![Some(*cvar)],
+                vec![
+                    Field::one(),
+                    Field::zero(),
+                    Field::zero(),
+                    Field::zero(),
+                    cst.value.neg(),
+                ],
                 span,
             );
         }

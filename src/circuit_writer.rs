@@ -238,7 +238,7 @@ impl CircuitWriter {
 
                     // if there are no arguments, return an error
                     // TODO: should we check this in the type checker?
-                    if function.arguments.is_empty() {
+                    if function.sig.arguments.is_empty() {
                         return Err(Error {
                             kind: ErrorKind::NoArgsInMain,
                             span: function.span,
@@ -251,7 +251,7 @@ impl CircuitWriter {
                         name,
                         typ,
                         ..
-                    } in &function.arguments
+                    } in &function.sig.arguments
                     {
                         let len = match &typ.kind {
                             TyKind::Field => 1,
@@ -282,7 +282,7 @@ impl CircuitWriter {
                     }
 
                     // create public output
-                    if let Some(typ) = &function.return_type {
+                    if let Some(typ) = &function.sig.return_type {
                         if typ.kind != TyKind::Field {
                             unimplemented!();
                         }
@@ -292,7 +292,7 @@ impl CircuitWriter {
                     }
 
                     // compile function
-                    circuit_writer.compile_function(&global_env, &mut fn_env, function)?;
+                    circuit_writer.compile_main_function(&global_env, &mut fn_env, function)?;
                 }
 
                 // struct definition (already dealt with in type checker)
@@ -382,8 +382,8 @@ impl CircuitWriter {
                 // make sure it does not return any value.
                 assert!(var.is_none());
             }
-            StmtKind::Return(res) => {
-                let var = self.compute_expr(global_env, fn_env, res)?.ok_or(Error {
+            StmtKind::Return(expr) => {
+                let var = self.compute_expr(global_env, fn_env, expr)?.ok_or(Error {
                     kind: ErrorKind::CannotComputeExpression,
                     span: stmt.span,
                 })?;
@@ -407,6 +407,7 @@ impl CircuitWriter {
         fn_env.nest();
         for stmt in stmts {
             let res = self.compile_stmt(global_env, fn_env, stmt)?;
+            dbg!(&stmt, &res, &self.gates.len());
             if res.is_some() {
                 // we already checked for early returns in type checking
                 return Ok(res);
@@ -416,22 +417,43 @@ impl CircuitWriter {
         Ok(None)
     }
 
+    fn compile_native_function_call(
+        &mut self,
+        global_env: &GlobalEnv,
+        function: &Function,
+        args: Vec<Var>,
+        span: Span,
+    ) -> Result<Option<Var>> {
+        assert!(!function.is_main());
+
+        // create new fn_env
+        let fn_env = &mut FnEnv::new();
+
+        // set arguments
+        assert_eq!(function.sig.arguments.len(), args.len());
+
+        for (name, var) in function.sig.arguments.iter().zip(args) {
+            fn_env.add_var(name.name.value.clone(), var);
+        }
+
+        // compile it and potentially return a return value
+        self.compile_block(global_env, fn_env, &function.body)
+    }
+
     /// Compile a function. Used to compile `main()` only for now
-    fn compile_function(
+    fn compile_main_function(
         &mut self,
         global_env: &GlobalEnv,
         fn_env: &mut FnEnv,
         function: &Function,
     ) -> Result<()> {
-        if !function.is_main() {
-            unimplemented!();
-        }
+        assert!(function.is_main());
 
         // compile the block
         let returned = self.compile_block(global_env, fn_env, &function.body)?;
 
         // we're expecting something returned?
-        match (function.return_type.as_ref(), returned) {
+        match (function.sig.return_type.as_ref(), returned) {
             (None, None) => Ok(()),
             (Some(expected), None) => Err(Error {
                 kind: ErrorKind::MissingReturn,
@@ -501,10 +523,20 @@ impl CircuitWriter {
         fn_env: &mut FnEnv,
         expr: &Expr,
     ) -> Result<Option<Var>> {
-        let var: Option<Var> = match &expr.kind {
+        match &expr.kind {
             ExprKind::FnCall { name, args } => {
+                // compute the arguments
+                let mut vars = Vec::with_capacity(args.len());
+                for arg in args {
+                    let var = self.compute_expr(global_env, fn_env, arg)?.ok_or(Error {
+                        kind: ErrorKind::CannotComputeExpression,
+                        span: arg.span,
+                    })?;
+                    vars.push(var);
+                }
+
                 // retrieve the function in the env
-                let func: FnHandle = if name.len() == 1 {
+                if name.len() == 1 {
                     // functions present in the scope
                     let fn_name = &name.path[0].value;
                     let fn_info = global_env.typed.functions.get(fn_name).ok_or(Error {
@@ -513,8 +545,10 @@ impl CircuitWriter {
                     })?;
 
                     match &fn_info.kind {
-                        FnKind::BuiltIn(handle) => *handle,
-                        FnKind::Native(_) => todo!(),
+                        FnKind::BuiltIn(_, handle) => handle(self, &vars, expr.span),
+                        FnKind::Native(func) => {
+                            self.compile_native_function_call(global_env, func, vars, expr.span)
+                        }
                     }
                 } else if name.len() == 2 {
                     // check module present in the scope
@@ -529,29 +563,16 @@ impl CircuitWriter {
                         span: fn_name.span,
                     })?;
 
-                    match fn_info.kind {
-                        FnKind::BuiltIn(handle) => handle,
+                    match &fn_info.kind {
+                        FnKind::BuiltIn(_, handle) => handle(self, &vars, expr.span),
                         FnKind::Native(_) => todo!(),
                     }
                 } else {
-                    return Err(Error {
+                    Err(Error {
                         kind: ErrorKind::InvalidFnCall("sub-sub modules unsupported"),
                         span: name.span,
-                    });
-                };
-
-                // compute the arguments
-                let mut vars = Vec::with_capacity(args.len());
-                for arg in args {
-                    let var = self.compute_expr(global_env, fn_env, arg)?.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: arg.span,
-                    })?;
-                    vars.push(var);
+                    })
                 }
-
-                // run the function
-                func(self, &vars, expr.span)?
             }
             ExprKind::Assignment { lhs, rhs } => {
                 // figure out the local var name of lhs
@@ -567,14 +588,14 @@ impl CircuitWriter {
                 // replace the left with the right
                 fn_env.reassign_var(lhs_name, rhs);
 
-                None
+                Ok(None)
             }
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
                     let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
                     let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
-                    Some(field::add(self, lhs, rhs, expr.span))
+                    Ok(Some(field::add(self, lhs, rhs, expr.span)))
                 }
                 Op2::Subtraction => todo!(),
                 Op2::Multiplication => todo!(),
@@ -583,20 +604,20 @@ impl CircuitWriter {
                     let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
                     let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
-                    Some(field::equal(self, &lhs.kind, &rhs.kind, expr.span))
+                    Ok(Some(field::equal(self, &lhs.kind, &rhs.kind, expr.span)))
                 }
                 Op2::BoolAnd => {
                     let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
                     let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
-                    Some(boolean::and(self, lhs, rhs, expr.span))
+                    Ok(Some(boolean::and(self, lhs, rhs, expr.span)))
                 }
                 Op2::BoolOr => todo!(),
                 Op2::BoolNot => todo!(),
             },
             ExprKind::Negated(b) => {
                 let var = self.compute_expr(global_env, fn_env, b)?.unwrap();
-                Some(boolean::neg(self, var, expr.span))
+                Ok(Some(boolean::neg(self, var, expr.span)))
             }
             ExprKind::BigInt(b) => {
                 let biguint = BigUint::from_str_radix(b, 10).expect("failed to parse number.");
@@ -605,23 +626,23 @@ impl CircuitWriter {
                     span: expr.span,
                 })?;
 
-                Some(Var::new_constant(
+                Ok(Some(Var::new_constant(
                     Constant {
                         value: ff,
                         span: expr.span,
                     },
                     expr.span,
-                ))
+                )))
             }
             ExprKind::Bool(b) => {
                 let value = if *b { Field::one() } else { Field::zero() };
-                Some(Var::new_constant(
+                Ok(Some(Var::new_constant(
                     Constant {
                         value,
                         span: expr.span,
                     },
                     expr.span,
-                ))
+                )))
             }
             ExprKind::Identifier(name) => {
                 let var = if is_const(name) {
@@ -629,7 +650,7 @@ impl CircuitWriter {
                 } else {
                     fn_env.get_var(name).clone()
                 };
-                Some(var)
+                Ok(Some(var))
             }
             ExprKind::ArrayAccess(path, expr) => {
                 // retrieve the CircuitVar at the path
@@ -675,7 +696,7 @@ impl CircuitWriter {
                 })?;
 
                 //
-                Some(Var::new(res, expr.span))
+                Ok(Some(Var::new(res, expr.span)))
             }
             ExprKind::ArrayDeclaration(items) => {
                 // we only support arrays of Field elements at the moment.
@@ -696,7 +717,7 @@ impl CircuitWriter {
 
                 let var = Var::new_array(vars, expr.span);
 
-                Some(var)
+                Ok(Some(var))
             }
             ExprKind::CustomTypeDeclaration(name, fields) => {
                 let mut vars = HashMap::new();
@@ -708,7 +729,7 @@ impl CircuitWriter {
 
                 fn_env.add_var(name.clone(), var.clone());
 
-                Some(var)
+                Ok(Some(var))
             }
             ExprKind::StructAccess(name, field) => {
                 let stru = fn_env.get_var(&name.value);
@@ -720,11 +741,9 @@ impl CircuitWriter {
                     span: field.span,
                 })?;
 
-                Some(Var::new(var, expr.span))
+                Ok(Some(Var::new(var, expr.span)))
             }
-        };
-
-        Ok(var)
+        }
     }
 
     // TODO: dead code?
@@ -906,9 +925,9 @@ impl CircuitWriter {
 // Local Environment
 //
 
-/// Is used to help functions access their scoped variables.
-/// This include inputs and output of the function being processed,
-/// as well as local variables.
+/// Is used to store functions' scoped variables.
+/// This include inputs and output of the function,  as well as local variables.
+/// You can think of it as a function call stack.
 #[derive(Default, Debug, Clone)]
 pub struct FnEnv {
     /// The current nesting level.

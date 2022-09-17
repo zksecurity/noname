@@ -140,3 +140,11 @@ fn test_const() {
         expected_public_output,
     );
 }
+
+#[test]
+fn test_functions() {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"one": ["1"]}"#;
+
+    test_file("functions", public_inputs, private_inputs, vec![]);
+}

@@ -4,7 +4,7 @@ use crate::{
     circuit_writer::CircuitWriter,
     constants::Span,
     error::Result,
-    parser::{Function, Path},
+    parser::{FnSig, Function, Path},
     stdlib::{self, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
     type_checker::FnInfo,
     var::Var,
@@ -23,7 +23,7 @@ pub type FnHandle = fn(&mut CircuitWriter, &[Var], Span) -> Result<Option<Var>>;
 #[derive(Clone)]
 pub enum FnKind {
     /// a built-in is just a handle to a function written in Rust.
-    BuiltIn(FnHandle),
+    BuiltIn(FnSig, FnHandle),
 
     /// a native function is represented as an AST
     Native(Function),

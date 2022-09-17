@@ -73,9 +73,17 @@ pub struct TypedGlobalEnv {
 
 #[derive(Debug, Clone)]
 pub struct FnInfo {
-    pub sig: FnSig,
     pub kind: FnKind,
     pub span: Span,
+}
+
+impl FnInfo {
+    pub fn sig(&self) -> &FnSig {
+        match &self.kind {
+            FnKind::BuiltIn(sig, _) => sig,
+            FnKind::Native(func) => &func.sig,
+        }
+    }
 }
 
 impl TypedGlobalEnv {
@@ -84,7 +92,7 @@ impl TypedGlobalEnv {
         for fn_info in builtin_functions {
             if self
                 .functions
-                .insert(fn_info.sig.name.value.clone(), fn_info)
+                .insert(fn_info.sig().name.value.clone(), fn_info)
                 .is_some()
             {
                 panic!("global imports conflict (TODO: better error)");
@@ -505,16 +513,26 @@ impl TAST {
             match &root.kind {
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
+                    // create a new typed fn environment to type check the function
                     let mut typed_fn_env = TypedFnEnv::default();
 
                     // if this is main, witness it
                     if function.is_main() {
                         typed_global_env.has_main = true;
                         typed_global_env.main_args.1 = function.span;
+                    } else {
+                        // if it's a non-main function, save its AST in the global env
+                        let fn_info = FnInfo {
+                            kind: FnKind::Native(function.clone()),
+                            span: function.span,
+                        };
+                        typed_global_env
+                            .functions
+                            .insert(function.sig.name.value.clone(), fn_info);
                     }
 
                     // store variables and their types in the env
-                    for arg in &function.arguments {
+                    for arg in &function.sig.arguments {
                         // public_output is a reserved name,
                         // associated automatically to the public output of the main function
                         if arg.name.value == "public_output" {
@@ -549,7 +567,7 @@ impl TAST {
                             t => panic!("unimplemented type {:?}", t),
                         }
 
-                        // when we witness main, we do some stuff
+                        // if it's main, save its arguments
                         if function.is_main() {
                             typed_global_env
                                 .main_args
@@ -559,7 +577,7 @@ impl TAST {
                     }
 
                     // the output value returned by the main function is also a main_args with a special name (public_output)
-                    if let Some(typ) = &function.return_type {
+                    if let Some(typ) = &function.sig.return_type {
                         if !matches!(typ.kind, TyKind::Field) {
                             unimplemented!();
                         }
@@ -577,7 +595,7 @@ impl TAST {
                         &typed_global_env,
                         &mut typed_fn_env,
                         &function.body,
-                        function.return_type.as_ref(),
+                        function.sig.return_type.as_ref(),
                     )?;
                 }
 
@@ -730,7 +748,7 @@ pub fn typecheck_fn_call(
             kind: ErrorKind::UndefinedFunction(fn_name.clone()),
             span: name.span,
         })?;
-        fn_info.sig.clone()
+        fn_info.sig().clone()
     } else if path_len == 2 {
         // check module present in the scope
         let module = &name.path[0];
@@ -743,7 +761,7 @@ pub fn typecheck_fn_call(
             kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
             span: fn_name.span,
         })?;
-        fn_info.sig.clone()
+        fn_info.sig().clone()
     } else {
         return Err(Error {
             kind: ErrorKind::InvalidFnCall("sub-sub modules unsupported"),

@@ -815,12 +815,7 @@ pub struct Attribute {
 
 #[derive(Debug, Clone)]
 pub struct Function {
-    pub name: Ident,
-
-    /// (pub, ident, type)
-    pub arguments: Vec<FnArg>,
-
-    pub return_type: Option<Ty>,
+    pub sig: FnSig,
 
     pub body: Vec<Stmt>,
 
@@ -849,7 +844,7 @@ impl FnArg {
 
 impl Function {
     pub fn is_main(&self) -> bool {
-        self.name.value == "main"
+        self.sig.name.value == "main"
     }
 
     pub fn parse_name(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ident> {
@@ -1035,9 +1030,11 @@ impl Function {
         }
 
         let func = Self {
-            name,
-            arguments,
-            return_type,
+            sig: FnSig {
+                name,
+                arguments,
+                return_type,
+            },
             body,
             span,
         };
