@@ -31,7 +31,7 @@ $ cargo run -- --path examples/example.no --private-inputs '{"private_input": ["
 Which will print the assembly, as well as try to create and verify a proof to make sure everything works. The assembly should look like this:
 
 ```
-@ noname.0.3.0
+@ noname.0.4.0
 
 c0 = -7792942617772573725741879823703654500237496169155240735183726605099215774906
 // (truncated)

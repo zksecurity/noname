@@ -1,175 +1,234 @@
 <!DOCTYPE HTML>
 <html lang="en" class="sidebar-visible no-js light">
-    <head>
-        <!-- Book generated using mdBook -->
-        <meta charset="UTF-8">
-        <title>NonName</title>
-        <meta name="robots" content="noindex" />
+
+<head>
+    <!-- Book generated using mdBook -->
+    <meta charset="UTF-8">
+    <title>NonName</title>
+    <meta name="robots" content="noindex" />
 
 
-        <!-- Custom HTML head -->
-        
-        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
-        <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="theme-color" content="#ffffff" />
+    <!-- Custom HTML head -->
 
-        <link rel="icon" href="favicon.svg">
-        <link rel="shortcut icon" href="favicon.png">
-        <link rel="stylesheet" href="css/variables.css">
-        <link rel="stylesheet" href="css/general.css">
-        <link rel="stylesheet" href="css/chrome.css">
-        <link rel="stylesheet" href="css/print.css" media="print">
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff" />
 
-        <!-- Fonts -->
-        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="fonts/fonts.css">
+    <link rel="icon" href="favicon.svg">
+    <link rel="shortcut icon" href="favicon.png">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/general.css">
+    <link rel="stylesheet" href="css/chrome.css">
+    <link rel="stylesheet" href="css/print.css" media="print">
 
-        <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="highlight.css">
-        <link rel="stylesheet" href="tomorrow-night.css">
-        <link rel="stylesheet" href="ayu-highlight.css">
+    <!-- Fonts -->
+    <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+    <link rel="stylesheet" href="fonts/fonts.css">
 
-        <!-- Custom theme stylesheets -->
+    <!-- Highlight.js Stylesheets -->
+    <link rel="stylesheet" href="highlight.css">
+    <link rel="stylesheet" href="tomorrow-night.css">
+    <link rel="stylesheet" href="ayu-highlight.css">
 
-    </head>
-    <body>
-        <!-- Provide site root to javascript -->
-        <script type="text/javascript">
-            var path_to_root = "";
-            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
-        </script>
+    <!-- Custom theme stylesheets -->
 
-        <!-- Work around some values being stored in localStorage wrapped in quotes -->
-        <script type="text/javascript">
-            try {
-                var theme = localStorage.getItem('mdbook-theme');
-                var sidebar = localStorage.getItem('mdbook-sidebar');
+</head>
 
-                if (theme.startsWith('"') && theme.endsWith('"')) {
-                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
-                }
+<body>
+    <!-- Provide site root to javascript -->
+    <script type="text/javascript">
+        var path_to_root = "";
+        var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+    </script>
 
-                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
-                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
-                }
-            } catch (e) { }
-        </script>
+    <!-- Work around some values being stored in localStorage wrapped in quotes -->
+    <script type="text/javascript">
+        try {
+            var theme = localStorage.getItem('mdbook-theme');
+            var sidebar = localStorage.getItem('mdbook-sidebar');
 
-        <!-- Set the theme before any content is loaded, prevents flash -->
-        <script type="text/javascript">
-            var theme;
-            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
-            if (theme === null || theme === undefined) { theme = default_theme; }
-            var html = document.querySelector('html');
-            html.classList.remove('no-js')
-            html.classList.remove('light')
-            html.classList.add(theme);
-            html.classList.add('js');
-        </script>
-
-        <!-- Hide / unhide sidebar before it is displayed -->
-        <script type="text/javascript">
-            var html = document.querySelector('html');
-            var sidebar = 'hidden';
-            if (document.body.clientWidth >= 1080) {
-                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
-                sidebar = sidebar || 'visible';
+            if (theme.startsWith('"') && theme.endsWith('"')) {
+                localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
             }
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
-        </script>
 
-        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">2.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">3.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">4.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">5.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">6.</strong> Noname ASM</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">7.</strong> CellVar</a></li><li class="chapter-item expanded "><a href="circuitvar.html"><strong aria-hidden="true">8.</strong> CircuitVar</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">9.</strong> Constants</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">10.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">11.</strong> Witness Generation</a></li></ol>
+            if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+            }
+        } catch (e) { }
+    </script>
+
+    <!-- Set the theme before any content is loaded, prevents flash -->
+    <script type="text/javascript">
+        var theme;
+        try { theme = localStorage.getItem('mdbook-theme'); } catch (e) { }
+        if (theme === null || theme === undefined) { theme = default_theme; }
+        var html = document.querySelector('html');
+        html.classList.remove('no-js')
+        html.classList.remove('light')
+        html.classList.add(theme);
+        html.classList.add('js');
+    </script>
+
+    <!-- Hide / unhide sidebar before it is displayed -->
+    <script type="text/javascript">
+        var html = document.querySelector('html');
+        var sidebar = 'hidden';
+        if (document.body.clientWidth >= 1080) {
+            try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch (e) { }
+            sidebar = sidebar || 'visible';
+        }
+        html.classList.remove('sidebar-visible');
+        html.classList.add("sidebar-" + sidebar);
+    </script>
+
+    <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+        <div class="sidebar-scrollbox">
+            <ol class="chapter">
+                <li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong>
+                        Introduction</a></li>
+                <li class="chapter-item expanded affix ">
+                <li class="part-title">Compiler Internals</li>
+                <li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">2.</strong>
+                        Compilation</a></li>
+                <li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">3.</strong>
+                        Grammar</a></li>
+                <li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">4.</strong> Spans</a>
+                </li>
+                <li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">5.</strong>
+                        Type Checker</a></li>
+                <li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">6.</strong> Noname
+                        ASM</a></li>
+                <li class="chapter-item expanded affix ">
+                <li class="part-title">Circuit Generation</li>
+                <li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">7.</strong>
+                        CellVar</a></li>
+                <li class="chapter-item expanded "><a href="circuitvar.html"><strong aria-hidden="true">8.</strong>
+                        CircuitVar</a></li>
+                <li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">9.</strong>
+                        Constants</a></li>
+                <li class="chapter-item expanded affix ">
+                <li class="part-title">Proof Creation</li>
+                <li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">10.</strong>
+                        Public Outputs</a></li>
+                <li class="chapter-item expanded "><a href="witness-generation.html"><strong
+                            aria-hidden="true">11.</strong> Witness Generation</a></li>
+            </ol>
+        </div>
+        <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+    </nav>
+
+    <div id="page-wrapper" class="page-wrapper">
+
+        <div class="page">
+            <div id="menu-bar-hover-placeholder"></div>
+            <div id="menu-bar" class="menu-bar sticky bordered">
+                <div class="left-buttons">
+                    <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents"
+                        aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                        <i class="fa fa-bars"></i>
+                    </button>
+                    <button id="theme-toggle" class="icon-button" type="button" title="Change theme"
+                        aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                        <i class="fa fa-paint-brush"></i>
+                    </button>
+                    <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                        <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                        <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                        <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                        <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                        <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                    </ul>
+                    <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)"
+                        aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S"
+                        aria-controls="searchbar">
+                        <i class="fa fa-search"></i>
+                    </button>
+                </div>
+
+                <h1 class="menu-title">NonName</h1>
+
+                <div class="right-buttons">
+                    <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <i id="print-button" class="fa fa-print"></i>
+                    </a>
+
+                </div>
             </div>
-            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
-        </nav>
 
-        <div id="page-wrapper" class="page-wrapper">
-
-            <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
-                    <div class="left-buttons">
-                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
-                            <i class="fa fa-bars"></i>
-                        </button>
-                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
-                            <i class="fa fa-paint-brush"></i>
-                        </button>
-                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
-                        </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
-                            <i class="fa fa-search"></i>
-                        </button>
-                    </div>
-
-                    <h1 class="menu-title">NonName</h1>
-
-                    <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
-                            <i id="print-button" class="fa fa-print"></i>
-                        </a>
-
-                    </div>
+            <div id="search-wrapper" class="hidden">
+                <form id="searchbar-outer" class="searchbar-outer">
+                    <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..."
+                        aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                </form>
+                <div id="searchresults-outer" class="searchresults-outer hidden">
+                    <div id="searchresults-header" class="searchresults-header"></div>
+                    <ul id="searchresults">
+                    </ul>
                 </div>
+            </div>
 
-                <div id="search-wrapper" class="hidden">
-                    <form id="searchbar-outer" class="searchbar-outer">
-                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
-                    </form>
-                    <div id="searchresults-outer" class="searchresults-outer hidden">
-                        <div id="searchresults-header" class="searchresults-header"></div>
-                        <ul id="searchresults">
-                        </ul>
-                    </div>
-                </div>
+            <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+            <script type="text/javascript">
+                document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                Array.from(document.querySelectorAll('#sidebar a')).forEach(function (link) {
+                    link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                });
+            </script>
 
-                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
-                <script type="text/javascript">
-                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
-                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
-                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
-                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
-                    });
-                </script>
-
-                <div id="content" class="content">
-                    <main>
-                        <h1 id="noname"><a class="header" href="#noname">NoName</a></h1>
-<p>This is the book on NoName, a high-level language to write circuits using the <a href="">kimchi</a> zero-knowledge proof system.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="compilation"><a class="header" href="#compilation">Compilation</a></h1>
-<p>The compilation of noname programs goes through the following flow:</p>
-<ol>
-<li><strong>Lexer</strong>. A lexer (<code>lexer.rs</code>) is used to parse the source code into a list of tokens. This is pretty primitive, but will detect some minor syntax issues.</li>
-<li><strong>Parser</strong>. A parser (<code>parser.rs</code>) is used to parse meaning from the code. It will convert the tokens output by the lexer into an <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">abstract syntax tree (AST)</a> using strong types like <a href=""><code>Statement</code></a> and <a href=""><code>Expression</code></a> (TODO: link to rust doc). It will also error if some code does not make sense according to the grammar (see the <a href="grammar.html">Grammar chapter</a>).</li>
-<li><strong>AST</strong>. The compilation of the AST into a circuit happens for the most part in <code>ast.rs</code>.</li>
-</ol>
-<p>Next we describe the AST phase of the compilation:</p>
-<ol>
-<li><strong>Built-in functions</strong>. Functions like <code>assert_eq</code> are injected into the environment.</li>
-<li><strong>Custom imports</strong>. Modules imported via the <code>use</code> keyword are resolved and added to the environment. For now, these can only be built-in functions, and noname functions or libraries are not supported (of course it is essential to support them in the future). Note that at this moment this is done in the type checker (next section) but should be moved out.</li>
-<li><strong>Type checking</strong>. The type checker (<code>type_checker.rs</code>) verifies that the types of each variables and expressions in the AST make sense. It is a very simple type checker that can do some simple type inference. Temporary type information (type of an expression) is not stored, and is thrown away as soon as the type checker can afford it.</li>
-<li><strong>Gate construction</strong>. The AST is parsed one more time and converted into:
-<ul>
-<li><strong>compiled circuit</strong>: a series of gates and wires</li>
-<li><strong>prover instructions</strong>: instructions on how to run the function for the witness generation (used by the prover)</li>
-</ul>
-</li>
-</ol>
-<p>A simple ASM language is also used, and the circuit can be encoded in this language. See the <a href="asm.html">ASM chapter</a>.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="grammar"><a class="header" href="#grammar">Grammar</a></h1>
-<p>The syntax of the noname language is described through its grammar.</p>
-<p>We use a notation similar to the Backus-Naur Form (BNF)
-to describe the grammar:</p>
-<pre>
+            <div id="content" class="content">
+                <main>
+                    <h1 id="noname"><a class="header" href="#noname">NoName</a></h1>
+                    <p>This is the book on NoName, a high-level language to write circuits using the <a
+                            href="">kimchi</a> zero-knowledge proof system.</p>
+                    <div style="break-before: page; page-break-before: always;"></div>
+                    <h1 id="compilation"><a class="header" href="#compilation">Compilation</a></h1>
+                    <p>The compilation of noname programs goes through the following flow:</p>
+                    <ol>
+                        <li><strong>Lexer</strong>. A lexer (<code>lexer.rs</code>) is used to parse the source code
+                            into a list of tokens. This is pretty primitive, but will detect some minor syntax issues.
+                        </li>
+                        <li><strong>Parser</strong>. A parser (<code>parser.rs</code>) is used to parse meaning from the
+                            code. It will convert the tokens output by the lexer into an <a
+                                href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">abstract syntax tree (AST)</a>
+                            using strong types like <a href=""><code>Statement</code></a> and <a
+                                href=""><code>Expression</code></a> (TODO: link to rust doc). It will also error if some
+                            code does not make sense according to the grammar (see the <a href="grammar.html">Grammar
+                                chapter</a>).</li>
+                        <li><strong>AST</strong>. The compilation of the AST into a circuit happens for the most part in
+                            <code>ast.rs</code>.</li>
+                    </ol>
+                    <p>Next we describe the AST phase of the compilation:</p>
+                    <ol>
+                        <li><strong>Built-in functions</strong>. Functions like <code>assert_eq</code> are injected into
+                            the environment.</li>
+                        <li><strong>Custom imports</strong>. Modules imported via the <code>use</code> keyword are
+                            resolved and added to the environment. For now, these can only be built-in functions, and
+                            noname functions or libraries are not supported (of course it is essential to support them
+                            in the future). Note that at this moment this is done in the type checker (next section) but
+                            should be moved out.</li>
+                        <li><strong>Type checking</strong>. The type checker (<code>type_checker.rs</code>) verifies
+                            that the types of each variables and expressions in the AST make sense. It is a very simple
+                            type checker that can do some simple type inference. Temporary type information (type of an
+                            expression) is not stored, and is thrown away as soon as the type checker can afford it.
+                        </li>
+                        <li><strong>Gate construction</strong>. The AST is parsed one more time and converted into:
+                            <ul>
+                                <li><strong>compiled circuit</strong>: a series of gates and wires</li>
+                                <li><strong>prover instructions</strong>: instructions on how to run the function for
+                                    the witness generation (used by the prover)</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    <p>A simple ASM language is also used, and the circuit can be encoded in this language. See the <a
+                            href="asm.html">ASM chapter</a>.</p>
+                    <div style="break-before: page; page-break-before: always;"></div>
+                    <h1 id="grammar"><a class="header" href="#grammar">Grammar</a></h1>
+                    <p>The syntax of the noname language is described through its grammar.</p>
+                    <p>We use a notation similar to the Backus-Naur Form (BNF)
+                        to describe the grammar:</p>
+                    <pre>
 land := city "|"
  ^        ^   ^
  |        |  terminal: a token
@@ -185,36 +244,45 @@ sign := /a-zA-Z_/
         ^
         regex-style definition
 </pre>
-<p>There are some comments in the parser code (<code>parser.rs</code>) that attempt to define this grammar.</p>
-<p>Essentially, it is made to look like Rust, but with some differences of philosophies:</p>
-<ul>
-<li>expressions cannot be statements, unless they return no value (act using side effects).</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="spans"><a class="header" href="#spans">Spans</a></h1>
-<p>To be able to efficiently track errors, we have a span type:</p>
-<pre><pre class="playground"><code class="language-rust">
+                    <p>There are some comments in the parser code (<code>parser.rs</code>) that attempt to define this
+                        grammar.</p>
+                    <p>Essentially, it is made to look like Rust, but with some differences of philosophies:</p>
+                    <ul>
+                        <li>expressions cannot be statements, unless they return no value (act using side effects).</li>
+                    </ul>
+                    <div style="break-before: page; page-break-before: always;"></div>
+                    <h1 id="spans"><a class="header" href="#spans">Spans</a></h1>
+                    <p>To be able to efficiently track errors, we have a span type:</p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub type Span = (usize, usize);
 <span class="boring">}
-</span></code></pre></pre>
-<p>which represents a location in the original source code:</p>
-<ul>
-<li>the first number is the offset in the source code file</li>
-<li>the second numebr if the length of the span (e.g. 1 character)</li>
-</ul>
-<p>We start tracking spans in the lexer, and then pass them around to the parser, and then to the compiler. Even gates and wirings have spans associated with them so that we can easily debug those.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="type-checker"><a class="header" href="#type-checker">Type Checker</a></h1>
-<p>The compilation</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="noname-asm"><a class="header" href="#noname-asm">noname ASM</a></h1>
-<p>The circuit that noname compiles to can be serialized as a simple ASM language. For example the following noname program:</p>
-<pre><pre class="playground"><code class="language-rust">fn main(pub public_input: Field, private_input: Field) {
+</span></code></pre>
+                    </pre>
+                    <p>which represents a location in the original source code:</p>
+                    <ul>
+                        <li>the first number is the offset in the source code file</li>
+                        <li>the second numebr if the length of the span (e.g. 1 character)</li>
+                    </ul>
+                    <p>We start tracking spans in the lexer, and then pass them around to the parser, and then to the
+                        compiler. Even gates and wirings have spans associated with them so that we can easily debug
+                        those.</p>
+                    <div style="break-before: page; page-break-before: always;"></div>
+                    <h1 id="type-checker"><a class="header" href="#type-checker">Type Checker</a></h1>
+                    <p>The compilation</p>
+                    <div style="break-before: page; page-break-before: always;"></div>
+                    <h1 id="noname-asm"><a class="header" href="#noname-asm">noname ASM</a></h1>
+                    <p>The circuit that noname compiles to can be serialized as a simple ASM language. For example the
+                        following noname program:</p>
+                    <pre><pre class="playground"><code class="language-rust">fn main(pub public_input: Field, private_input: Field) {
     let x = private_input + public_input;
     assert_eq(x, 2);
 }
-</code></pre></pre>
-<p>will be compiled to the following noname asm:</p>
-<pre><code>@ noname.0.3.0
+</code></pre>
+                    </pre>
+                    <p>will be compiled to the following noname asm:</p>
+                    <pre><code>@ noname.0.4.0
 
 DoubleGeneric&lt;1&gt;
 DoubleGeneric&lt;1,1,-1&gt;
@@ -224,15 +292,21 @@ DoubleGeneric&lt;1,-1&gt;
 (1,2) -&gt; (3,1)
 (2,0) -&gt; (3,0)
 </code></pre>
-<p>which includes:</p>
-<ul>
-<li><strong>the version</strong> of noname used to compile this circuit. This is important as the prover needs to know what version of noname to use to prove executions of this circuit.</li>
-<li><strong>a list of gates</strong> and how they are tweaked (the values in the brackets).</li>
-<li><strong>a list of wires</strong> which is canonically ordered so that every compilation gives the same resulting noname asm.</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="cellvar"><a class="header" href="#cellvar">CellVar</a></h1>
-<p>A <code>CellVar</code> type (TODO: link to rust doc) is a type that represents an internal variable. Importantly, it is named after the fact that it relates to a specific cell, or even multiple cells (if wired), in the execution trace.</p>
-<pre><pre class="playground"><code class="language-rust">
+                    <p>which includes:</p>
+                    <ul>
+                        <li><strong>the version</strong> of noname used to compile this circuit. This is important as
+                            the prover needs to know what version of noname to use to prove executions of this circuit.
+                        </li>
+                        <li><strong>a list of gates</strong> and how they are tweaked (the values in the brackets).</li>
+                        <li><strong>a list of wires</strong> which is canonically ordered so that every compilation
+                            gives the same resulting noname asm.</li>
+                    </ul>
+                    <div style="break-before: page; page-break-before: always;"></div>
+                    <h1 id="cellvar"><a class="header" href="#cellvar">CellVar</a></h1>
+                    <p>A <code>CellVar</code> type (TODO: link to rust doc) is a type that represents an internal
+                        variable. Importantly, it is named after the fact that it relates to a specific cell, or even
+                        multiple cells (if wired), in the execution trace.</p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct CellVar {
@@ -240,10 +314,14 @@ DoubleGeneric&lt;1,-1&gt;
     span: Span,
 }
 <span class="boring">}
-</span></code></pre></pre>
-<p>It is tracked using a <code>usize</code>, which is just a counter that the compiler increments every time a new <code>CellVar</code> is created.</p>
-<p>A <code>CellVar</code> is created via the <code>new_internal_var</code> function which does two things: increments the variable counter, and stores some information on how to compute it (which will be useful during witness generation)</p>
-<pre><pre class="playground"><code class="language-rust">
+</span></code></pre>
+                    </pre>
+                    <p>It is tracked using a <code>usize</code>, which is just a counter that the compiler increments
+                        every time a new <code>CellVar</code> is created.</p>
+                    <p>A <code>CellVar</code> is created via the <code>new_internal_var</code> function which does two
+                        things: increments the variable counter, and stores some information on how to compute it (which
+                        will be useful during witness generation)</p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub fn new_internal_var(&amp;mut self, val: Value, span: Span) -&gt; CellVar {
@@ -257,9 +335,11 @@ DoubleGeneric&lt;1,-1&gt;
     var
 }
 <span class="boring">}
-</span></code></pre></pre>
-<p>a <code>Value</code> tells us how to compute the <code>CellVar</code> during witness generation:</p>
-<pre><pre class="playground"><code class="language-rust">
+</span></code></pre>
+                    </pre>
+                    <p>a <code>Value</code> tells us how to compute the <code>CellVar</code> during witness generation:
+                    </p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub enum Value {
@@ -281,24 +361,32 @@ DoubleGeneric&lt;1,-1&gt;
     PublicOutput(Option&lt;CellVar&gt;),
 }
 <span class="boring">}
-</span></code></pre></pre>
-<p>Note: a <code>CellVar</code> is potentially not directly added to the rows of the execution trace. 
-For example, a private input is converted directly to a (number of) <code>CellVar</code>(s), 
-but only added to the rows when it appears in a constraint for the first time.</p>
-<p>As the final step of the compilation, we double check that all <code>CellVar</code>s have appeared in the rows of the execution trace at some point. If they haven't, it can mean two things:</p>
-<ul>
-<li>A private or public input was never used in the circuit. In this case we return an error to the user.</li>
-<li>There is a bug in the compiler. In this case we panic.</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="circuitvar"><a class="header" href="#circuitvar">CircuitVar</a></h1>
-<p>We already have <a href="./cellvar.html"><code>CellVar</code></a>s, why have circuit vars? 
-The distinction is a matter of level: </p>
-<ul>
-<li><code>CellVar</code>s are low-level: they track actual cells of the execution trace.</li>
-<li><code>CircuitVar</code>s are a bit less low-level: they track variables that are made out of several field elements (and thus several <code>CellVar</code>s). For example, you can imagine that user could create types that take several field elements.</li>
-</ul>
-<p>In the code, we define a variable as either a constant or a <code>CellVar</code>:</p>
-<pre><pre class="playground"><code class="language-rust">
+</span></code></pre>
+                    </pre>
+                    <p>Note: a <code>CellVar</code> is potentially not directly added to the rows of the execution
+                        trace.
+                        For example, a private input is converted directly to a (number of) <code>CellVar</code>(s),
+                        but only added to the rows when it appears in a constraint for the first time.</p>
+                    <p>As the final step of the compilation, we double check that all <code>CellVar</code>s have
+                        appeared in the rows of the execution trace at some point. If they haven't, it can mean two
+                        things:</p>
+                    <ul>
+                        <li>A private or public input was never used in the circuit. In this case we return an error to
+                            the user.</li>
+                        <li>There is a bug in the compiler. In this case we panic.</li>
+                    </ul>
+                    <div style="break-before: page; page-break-before: always;"></div>
+                    <h1 id="circuitvar"><a class="header" href="#circuitvar">CircuitVar</a></h1>
+                    <p>We already have <a href="./cellvar.html"><code>CellVar</code></a>s, why have circuit vars?
+                        The distinction is a matter of level: </p>
+                    <ul>
+                        <li><code>CellVar</code>s are low-level: they track actual cells of the execution trace.</li>
+                        <li><code>CircuitVar</code>s are a bit less low-level: they track variables that are made out of
+                            several field elements (and thus several <code>CellVar</code>s). For example, you can
+                            imagine that user could create types that take several field elements.</li>
+                    </ul>
+                    <p>In the code, we define a variable as either a constant or a <code>CellVar</code>:</p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub enum Var {
@@ -308,24 +396,32 @@ The distinction is a matter of level: </p>
     CircuitVar(CellVars),
 }
 <span class="boring">}
-</span></code></pre></pre>
-<p>See the <a href="./constants.html">Constant chapter</a> to see why constants are treated differently.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="constants"><a class="header" href="#constants">Constants</a></h1>
-<p>Developers write constants in their code all the time. For example, the following code has two constants <code>2</code> and <code>4</code>:</p>
-<pre><pre class="playground"><code class="language-rust">
+</span></code></pre>
+                    </pre>
+                    <p>See the <a href="./constants.html">Constant chapter</a> to see why constants are treated
+                        differently.</p>
+                    <div style="break-before: page; page-break-before: always;"></div>
+                    <h1 id="constants"><a class="header" href="#constants">Constants</a></h1>
+                    <p>Developers write constants in their code all the time. For example, the following code has two
+                        constants <code>2</code> and <code>4</code>:</p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let x = 2 + y;
 assert_eq(x, 4);
 <span class="boring">}
-</span></code></pre></pre>
-<p>It is important that constants are tracked differently than <code>CellVar</code>s for several reasons:</p>
-<ul>
-<li>It is sometimes useless to constrain them directly. For example, in <code>let x = 3 + 7;</code> you can see that we should not constrain <code>3</code> and <code>7</code> separately, but rather the result <code>10</code>.</li>
-<li>They can be cached to avoid creating several constraints for the same constant.</li>
-</ul>
-<p>Currently a constant appears in the circuit via a simple generic gate, and is not cached:</p>
-<pre><pre class="playground"><code class="language-rust">
+</span></code></pre>
+                    </pre>
+                    <p>It is important that constants are tracked differently than <code>CellVar</code>s for several
+                        reasons:</p>
+                    <ul>
+                        <li>It is sometimes useless to constrain them directly. For example, in
+                            <code>let x = 3 + 7;</code> you can see that we should not constrain <code>3</code> and
+                            <code>7</code> separately, but rather the result <code>10</code>.</li>
+                        <li>They can be cached to avoid creating several constraints for the same constant.</li>
+                    </ul>
+                    <p>Currently a constant appears in the circuit via a simple generic gate, and is not cached:</p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub fn add_constant(&amp;mut self, value: Field, span: Span) -&gt; CellVar {
@@ -342,16 +438,21 @@ assert_eq(x, 4);
     var
 }
 <span class="boring">}
-</span></code></pre></pre>
-<p>Note that the <code>Value</code> keep track of the constant as well.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="public-outputs"><a class="header" href="#public-outputs">Public Outputs</a></h1>
-<p>Public outputs are usually part of the public inputs in Plonk.</p>
-<p>In noname, public ouputs are treated differently than the public inputs for one reason: unlike (real) public inputs they cannot be computed directly during witness generation (proving).</p>
-<p>This is because public inputs are listed first in the circuit. During witness generation, we go through each rows and evaluate the values of the cells to construct the execution trace. 
-When we reach the public output part of the public input, we do not yet have enough information to construct the values.
-Thus, we ignore them, and fill them later on.</p>
-<p>During the compilation, we create <code>CellVars</code> to keep track of the public output:</p>
-<pre><pre class="playground"><code class="language-rust">
+</span></code></pre>
+                    </pre>
+                    <p>Note that the <code>Value</code> keep track of the constant as well.</p>
+                    <div style="break-before: page; page-break-before: always;"></div>
+                    <h1 id="public-outputs"><a class="header" href="#public-outputs">Public Outputs</a></h1>
+                    <p>Public outputs are usually part of the public inputs in Plonk.</p>
+                    <p>In noname, public ouputs are treated differently than the public inputs for one reason: unlike
+                        (real) public inputs they cannot be computed directly during witness generation (proving).</p>
+                    <p>This is because public inputs are listed first in the circuit. During witness generation, we go
+                        through each rows and evaluate the values of the cells to construct the execution trace.
+                        When we reach the public output part of the public input, we do not yet have enough information
+                        to construct the values.
+                        Thus, we ignore them, and fill them later on.</p>
+                    <p>During the compilation, we create <code>CellVars</code> to keep track of the public output:</p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct Compiler {
@@ -368,9 +469,12 @@ Thus, we ignore them, and fill them later on.</p>
     pub public_output: Option&lt;CellVars&gt;,
 }
 <span class="boring">}
-</span></code></pre></pre>
-<p>During witness generation (see the <a href="./witness-generation.html">Witness Generation chapter</a>), we indeed defer computation the first time we go through the public output rows:</p>
-<pre><pre class="playground"><code class="language-rust">
+</span></code></pre>
+                    </pre>
+                    <p>During witness generation (see the <a href="./witness-generation.html">Witness Generation
+                            chapter</a>), we indeed defer computation the first time we go through the public output
+                        rows:</p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let val = if let Some(var) = var {
@@ -386,9 +490,10 @@ Thus, we ignore them, and fill them later on.</p>
 };
 witness_row[col] = val;
 <span class="boring">}
-</span></code></pre></pre>
-<p>and at the end we go back to them:</p>
-<pre><pre class="playground"><code class="language-rust">
+</span></code></pre>
+                    </pre>
+                    <p>and at the end we go back to them:</p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// compute public output at last
@@ -400,21 +505,28 @@ for (row, var) in public_outputs_vars {
     public_output.push(val);
 }
 <span class="boring">}
-</span></code></pre></pre>
-<p>and finally we return the public output to the prover so that they can send it to the verifier, as well as the &quot;full public input&quot; which is the concatenation of the public input and the public output (needed to finalized the proof):</p>
-<pre><pre class="playground"><code class="language-rust">
+</span></code></pre>
+                    </pre>
+                    <p>and finally we return the public output to the prover so that they can send it to the verifier,
+                        as well as the &quot;full public input&quot; which is the concatenation of the public input and
+                        the public output (needed to finalized the proof):</p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// return the public output separately as well
 Ok((Witness(witness), full_public_inputs, public_output))
 <span class="boring">}
-</span></code></pre></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="witness-generation"><a class="header" href="#witness-generation">Witness Generation</a></h1>
-<p>Witness generation is the process of creating the execution trace table during proving. 
-The execution trace table is then passed to the <a href="">kimchi</a> proof system which will create the final proof.</p>
-<p>The code creates a series of instructions during compilation for the witness generation to follow.
-These instructions are stored as two different fields:</p>
-<pre><pre class="playground"><code class="language-rust">
+</span></code></pre>
+                    </pre>
+                    <div style="break-before: page; page-break-before: always;"></div>
+                    <h1 id="witness-generation"><a class="header" href="#witness-generation">Witness Generation</a></h1>
+                    <p>Witness generation is the process of creating the execution trace table during proving.
+                        The execution trace table is then passed to the <a href="">kimchi</a> proof system which will
+                        create the final proof.</p>
+                    <p>The code creates a series of instructions during compilation for the witness generation to
+                        follow.
+                        These instructions are stored as two different fields:</p>
+                    <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct Compiler {
@@ -431,74 +543,82 @@ These instructions are stored as two different fields:</p>
     // ...
 }
 <span class="boring">}
-</span></code></pre></pre>
-<p><code>rows_of_vars</code> can essentially be seen as the execution trace table, containing variables instead of values.</p>
-<p>The witness generation goes as follows:</p>
-<ol>
-<li>Each rows in <code>rows_of_vars</code> is looked at one by one </li>
-<li>For each <code>CellVar</code> in the row:
-<ol>
-<li>If it is set, it is evaluated using the <code>Value</code> stored in <code>witness_vars</code>.</li>
-<li>If it set to <code>None</code>, it is simply evaluated as <code>0</code>.</li>
-</ol>
-</li>
-<li>Once the row is created, it is checked for correctness by checking what gate was used in the row. Note that this is only true for the generic gate, as we trust built-in gadgets to produce correct values. For example, <code>assert(x, 2)</code> will be checked because it is using the generic gate, but <code>let y = poseidon(x)</code> won't be because we trust the poseidon gate to be correct (and if there is a bug there, kimchi will still catch it).</li>
-</ol>
+</span></code></pre>
+                    </pre>
+                    <p><code>rows_of_vars</code> can essentially be seen as the execution trace table, containing
+                        variables instead of values.</p>
+                    <p>The witness generation goes as follows:</p>
+                    <ol>
+                        <li>Each rows in <code>rows_of_vars</code> is looked at one by one </li>
+                        <li>For each <code>CellVar</code> in the row:
+                            <ol>
+                                <li>If it is set, it is evaluated using the <code>Value</code> stored in
+                                    <code>witness_vars</code>.</li>
+                                <li>If it set to <code>None</code>, it is simply evaluated as <code>0</code>.</li>
+                            </ol>
+                        </li>
+                        <li>Once the row is created, it is checked for correctness by checking what gate was used in the
+                            row. Note that this is only true for the generic gate, as we trust built-in gadgets to
+                            produce correct values. For example, <code>assert(x, 2)</code> will be checked because it is
+                            using the generic gate, but <code>let y = poseidon(x)</code> won't be because we trust the
+                            poseidon gate to be correct (and if there is a bug there, kimchi will still catch it).</li>
+                    </ol>
 
-                    </main>
+                </main>
 
-                    <nav class="nav-wrapper" aria-label="Page navigation">
-                        <!-- Mobile navigation buttons -->
+                <nav class="nav-wrapper" aria-label="Page navigation">
+                    <!-- Mobile navigation buttons -->
 
 
-                        <div style="clear: both"></div>
-                    </nav>
-                </div>
+                    <div style="clear: both"></div>
+                </nav>
             </div>
-
-            <nav class="nav-wide-wrapper" aria-label="Page navigation">
-
-            </nav>
-
         </div>
 
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
+        <nav class="nav-wide-wrapper" aria-label="Page navigation">
 
-            window.onbeforeunload = function() {
+        </nav>
+
+    </div>
+
+    <!-- Livereload script (if served using the cli tool) -->
+    <script type="text/javascript">
+        var socket = new WebSocket("ws://localhost:3000/__livereload");
+        socket.onmessage = function (event) {
+            if (event.data === "reload") {
                 socket.close();
+                location.reload();
             }
-        </script>
+        };
+
+        window.onbeforeunload = function () {
+            socket.close();
+        }
+    </script>
 
 
 
-        <script type="text/javascript">
-            window.playground_copyable = true;
-        </script>
+    <script type="text/javascript">
+        window.playground_copyable = true;
+    </script>
 
 
-        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+    <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
 
-        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
-        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+    <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+    <script src="book.js" type="text/javascript" charset="utf-8"></script>
 
-        <!-- Custom JS scripts -->
+    <!-- Custom JS scripts -->
 
-        <script type="text/javascript">
-        window.addEventListener('load', function() {
+    <script type="text/javascript">
+        window.addEventListener('load', function () {
             window.setTimeout(window.print, 100);
         });
-        </script>
+    </script>
 
-    </body>
+</body>
+
 </html>

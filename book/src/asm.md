@@ -12,7 +12,7 @@ fn main(pub public_input: Field, private_input: Field) {
 will be compiled to the following noname asm:
 
 ```
-@ noname.0.3.0
+@ noname.0.4.0
 
 DoubleGeneric<1>
 DoubleGeneric<1,1,-1>
