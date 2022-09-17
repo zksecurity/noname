@@ -148,7 +148,23 @@ TODO
 
 ## Functions
 
-TODO
+```rust
+fn add(x: Field, y: Field) -> Field {
+    return x + y;
+}
+
+fn double(x: Field) -> Field {
+    return x + x;
+}
+
+fn main(pub one: Field) {
+    let four = add(one, 3);
+    assert_eq(four, 4);
+
+    let eight = double(4);
+    assert_eq(eight, double(four));
+}
+```
 
 ## Early returns
 
