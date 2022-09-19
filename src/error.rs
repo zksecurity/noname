@@ -156,8 +156,8 @@ pub enum ErrorKind {
     #[error("attribute not recognized: `{0:?}`")]
     InvalidAttribute(AttributeKind),
 
-    #[error("expressions that return a value are forbidden as statements")]
-    ExpectedUnitExpr,
+    #[error("A return value is not used")]
+    UnusedReturnValue,
 
     #[error("array accessed at index {0} is out of bounds (max {1})")]
     ArrayIndexOutOfBounds(usize, usize),

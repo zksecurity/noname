@@ -1,12 +1,17 @@
-struct House {
-    doors: Field
+struct Thing {
+    x: Field,
+    y: Field,
 }
 
-fn House.verify(self, x: Field) {
-    assert_eq(x, self.doors);
+fn Thing.check(self) -> Field {
+    assert_eq(self.x, 1);
+    assert_eq(self.y, 2);
+
+    return self.x + self.y;
 }
 
-fn main(pub doors: Field) {
-    let house = House { doors: doors };
-    house.verify(3);
+fn main(pub x: Field) {
+    let thing = Thing { x: x, y: x + 1 };
+    let res = thing.check();
+    assert_eq(res, 3);
 }

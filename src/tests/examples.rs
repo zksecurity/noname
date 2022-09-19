@@ -156,3 +156,11 @@ fn test_functions() {
 
     test_file("functions", public_inputs, private_inputs, vec![]);
 }
+
+#[test]
+fn test_methods() {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"x": ["1"]}"#;
+
+    test_file("methods", public_inputs, private_inputs, vec![]);
+}

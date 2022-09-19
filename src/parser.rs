@@ -209,28 +209,30 @@ pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ve
     tokens.bump(ctx); // (
 
     let mut args = vec![];
-    let mut end_span = Span::default();
     loop {
-        let arg = Expr::parse(ctx, tokens)?;
-
-        args.push(arg);
-
         let pp = tokens.peek();
 
         match pp {
-            Some(x) => {
-                end_span = x.span;
-                match x.kind {
-                    TokenKind::Comma => {
-                        tokens.bump(ctx);
-                    }
-                    TokenKind::RightParen => {
-                        tokens.bump(ctx);
-                        break;
-                    }
-                    _ => (),
+            Some(x) => match x.kind {
+                // ,
+                TokenKind::Comma => {
+                    tokens.bump(ctx);
                 }
-            }
+
+                // )
+                TokenKind::RightParen => {
+                    tokens.bump(ctx);
+                    break;
+                }
+
+                // an argument (as expression)
+                _ => {
+                    let arg = Expr::parse(ctx, tokens)?;
+
+                    args.push(arg);
+                }
+            },
+
             None => {
                 return Err(Error {
                     kind: ErrorKind::InvalidFnCall("unexpected end of function call"),

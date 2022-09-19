@@ -867,7 +867,7 @@ impl TAST {
                 let typ = expr.compute_type(typed_global_env, typed_fn_env)?;
                 if typ.is_some() {
                     return Err(Error {
-                        kind: ErrorKind::ExpectedUnitExpr,
+                        kind: ErrorKind::UnusedReturnValue,
                         span: expr.span,
                     });
                 }

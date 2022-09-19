@@ -31,10 +31,12 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
     let var_info = &vars[0];
 
     // an array of length 2
-    assert_eq!(
-        var_info.typ,
-        Some(TyKind::Array(Box::new(TyKind::Field), 2))
-    );
+    match &var_info.typ {
+        Some(TyKind::Array(el_typ, 2)) => {
+            assert!(matches!(&**el_typ, TyKind::Field | TyKind::BigInt));
+        }
+        _ => panic!("wrong type for input to poseidon"),
+    };
 
     // extract the values
     let input = var_info
