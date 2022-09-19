@@ -1086,6 +1086,19 @@
 <span id="1086">1086</span>
 <span id="1087">1087</span>
 <span id="1088">1088</span>
+<span id="1089">1089</span>
+<span id="1090">1090</span>
+<span id="1091">1091</span>
+<span id="1092">1092</span>
+<span id="1093">1093</span>
+<span id="1094">1094</span>
+<span id="1095">1095</span>
+<span id="1096">1096</span>
+<span id="1097">1097</span>
+<span id="1098">1098</span>
+<span id="1099">1099</span>
+<span id="1100">1100</span>
+<span id="1101">1101</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1107,6 +1120,7 @@
         AttributeKind, Expr, ExprKind, FnArg, FnSig, Function, Op2, RootKind, Stmt, StmtKind,
         TyKind,
     },
+    syntax::is_type,
     type_checker::{TypedGlobalEnv, TAST},
     var::{CellVar, ConstOrCell, Value, Var, VarKind},
     witness::CompiledCircuit,
@@ -1632,10 +1646,14 @@
                 </span><span class="kw">if </span>name.module.is_none() {
                     <span class="comment">// functions present in the scope
                     </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.name;
-                    <span class="kw">let </span>fn_info = global_env.typed.functions.get(fn_name).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.clone()),
-                        span: name.span,
-                    })<span class="question-mark">?</span>;
+                    <span class="kw">let </span>fn_info = global_env
+                        .typed
+                        .functions
+                        .get(<span class="kw-2">&amp;</span>fn_name.value)
+                        .ok_or(Error {
+                            kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                            span: name.span,
+                        })<span class="question-mark">?</span>;
 
                     <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
                         FnKind::BuiltIn(sig, handle) =&gt; handle(<span class="self">self</span>, <span class="kw-2">&amp;</span>vars, expr.span),
@@ -1649,9 +1667,9 @@
                     }
                 } <span class="kw">else if let </span><span class="prelude-val">Some</span>(module) = <span class="kw-2">&amp;</span>name.module {
                     <span class="comment">// check module present in the scope
-                    </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.name;
-                    <span class="kw">let </span>module = global_env.typed.modules.get(module).ok_or(Error {
-                        kind: ErrorKind::UndefinedModule(module.clone()),
+                    </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.name.value;
+                    <span class="kw">let </span>module = global_env.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedModule(module.value.clone()),
                         span: name.span, <span class="comment">// TODO: should be module.span
                     </span>})<span class="question-mark">?</span>;
                     <span class="kw">let </span>fn_info = module.functions.get(fn_name).ok_or(Error {
@@ -1688,7 +1706,7 @@
                 </span><span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
                 <span class="comment">// replace the left with the right
-                </span>fn_env.reassign_var(<span class="kw-2">&amp;</span>lhs_name.name, rhs);
+                </span>fn_env.reassign_var(<span class="kw-2">&amp;</span>lhs_name.name.value, rhs);
 
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
             }
@@ -1735,7 +1753,7 @@
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_constant(value, expr.span)))
             }
             ExprKind::Identifier(name) =&gt; {
-                <span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>name.name).clone();
+                <span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>name.name.value).clone();
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var_info.var))
             }
             ExprKind::ArrayAccess { name, idx } =&gt; {
@@ -1745,7 +1763,7 @@
                     </span><span class="macro">unimplemented!</span>()
                 } <span class="kw">else </span>{
                     <span class="comment">// var present in the scope
-                    </span><span class="kw">let </span>name = <span class="kw-2">&amp;</span>name.name;
+                    </span><span class="kw">let </span>name = <span class="kw-2">&amp;</span>name.name.value;
                     <span class="kw">let </span>var_info = fn_env.get_var(global_env, name).clone();
                     var_info.var
                 };
@@ -1802,6 +1820,7 @@
                     vars.insert(name.value.clone(), var.kind.clone());
                 }
                 <span class="kw">let </span>var = Var::new_struct(vars, expr.span);
+                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>name.value;
                 <span class="kw">let </span>var_info = VarInfo::new(var.clone(), <span class="prelude-val">Some</span>(TyKind::Custom(name.clone())));
                 fn_env.add_var(global_env, name.clone(), var_info);
 
@@ -1844,10 +1863,16 @@
                 }
 
                 <span class="comment">// get type of the self variable
-                </span><span class="kw">let </span>self_var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>self_name.name);
-                <span class="kw">let </span>self_struct = <span class="kw">match </span><span class="kw-2">&amp;</span>self_var_info.typ {
-                    <span class="prelude-val">Some</span>(TyKind::Custom(s)) =&gt; s,
-                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;could not figure out struct implementing that method call&quot;</span>),
+                </span><span class="kw">let </span>(self_struct, self_var_info) = <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>self_name.name.value) {
+                    (self_name.name.value.clone(), <span class="prelude-val">None</span>)
+                } <span class="kw">else </span>{
+                    <span class="kw">let </span>self_var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>self_name.name.value);
+                    <span class="kw">let </span>self_struct = <span class="kw">match </span><span class="kw-2">&amp;</span>self_var_info.typ {
+                        <span class="prelude-val">Some</span>(TyKind::Custom(s)) =&gt; s,
+                        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;could not figure out struct implementing that method call&quot;</span>),
+                    };
+
+                    (self_struct.clone(), <span class="prelude-val">Some</span>(self_var_info))
                 };
 
                 <span class="comment">// get method
@@ -1864,6 +1889,7 @@
                 <span class="comment">// if method has a `self` argument, manually add it to the list of argument
                 </span><span class="kw">if let </span><span class="prelude-val">Some</span>(first_arg) = func.sig.arguments.first() {
                     <span class="kw">if </span>first_arg.name.value == <span class="string">&quot;self&quot; </span>{
+                        <span class="kw">let </span>self_var_info = self_var_info.unwrap();
                         vars.insert(<span class="number">0</span>, self_var_info.clone());
                     }
                 }

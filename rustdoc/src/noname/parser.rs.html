@@ -1757,8 +1757,6 @@
 <span id="1757">1757</span>
 <span id="1758">1758</span>
 <span id="1759">1759</span>
-<span id="1760">1760</span>
-<span id="1761">1761</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -1842,10 +1840,10 @@
 </span><span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>Path {
     <span class="doccomment">/// A module, if this is an foreign import.
-    </span><span class="kw">pub </span>module: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    </span><span class="kw">pub </span>module: <span class="prelude-ty">Option</span>&lt;Ident&gt;,
 
     <span class="doccomment">/// The name of the type, function, method, or constant.
-    </span><span class="kw">pub </span>name: String,
+    </span><span class="kw">pub </span>name: Ident,
 
     <span class="doccomment">/// Its span.
     </span><span class="kw">pub </span>span: Span,
@@ -1856,7 +1854,7 @@
     </span><span class="kw">fn </span>parse(
         ctx: <span class="kw-2">&amp;mut </span>ParserCtx,
         tokens: <span class="kw-2">&amp;mut </span>Tokens,
-        maybe_module: String,
+        maybe_module: Ident,
         span: Span,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>peeked = <span class="kw">match </span>tokens.peek() {
@@ -1879,12 +1877,12 @@
             </span>tokens.bump(ctx);
 
             <span class="comment">// next ident
-            </span><span class="kw">let </span>ident = Ident::parse(ctx, tokens)<span class="question-mark">?</span>;
+            </span><span class="kw">let </span>name = Ident::parse(ctx, tokens)<span class="question-mark">?</span>;
 
-            <span class="kw">let </span>span = span.merge_with(ident.span);
+            <span class="kw">let </span>span = span.merge_with(name.span);
             <span class="prelude-val">Ok</span>(Path {
                 module: <span class="prelude-val">Some</span>(maybe_module),
-                name: ident.value,
+                name,
                 span,
             })
         } <span class="kw">else </span>{
@@ -1902,7 +1900,7 @@
     tokens: <span class="kw-2">&amp;mut </span>Tokens,
     path: Path,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Expr&gt; {
-    <span class="kw">if </span>!is_type(<span class="kw-2">&amp;</span>path.name) {
+    <span class="kw">if </span>!is_type(<span class="kw-2">&amp;</span>path.name.value) {
         <span class="macro">panic!</span>(<span class="string">&quot;this looks like a type declaration but not on a type (types start with an uppercase) (TODO: better error)&quot;</span>);
     }
 
@@ -2090,13 +2088,7 @@
                 <span class="comment">// struct access
                 </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(Expr::new(
                     ctx,
-                    ExprKind::StructAccess(
-                        Ident {
-                            value: path.name.clone(),
-                            span: Span::default(),
-                        },
-                        field,
-                    ),
+                    ExprKind::StructAccess(path.name.clone(), field),
                     span,
                 )),
             }
@@ -2304,7 +2296,7 @@
         idx: Box&lt;Expr&gt;,
     },
     ArrayDeclaration(Vec&lt;Expr&gt;),
-    CustomTypeDeclaration(String, Vec&lt;(Ident, Expr)&gt;),
+    CustomTypeDeclaration(Ident, Vec&lt;(Ident, Expr)&gt;),
     StructAccess(Ident, Ident),
     Bool(bool),
 }
@@ -2356,8 +2348,12 @@
             </span>TokenKind::BigInt(b) =&gt; Expr::new(ctx, ExprKind::BigInt(b), span),
 
             <span class="comment">// identifier
-            </span>TokenKind::Identifier(ident) =&gt; {
-                <span class="kw">let </span>path = Path::parse(ctx, tokens, ident, span)<span class="question-mark">?</span>;
+            </span>TokenKind::Identifier(maybe_module) =&gt; {
+                <span class="kw">let </span>maybe_module = Ident {
+                    value: maybe_module,
+                    span,
+                };
+                <span class="kw">let </span>path = Path::parse(ctx, tokens, maybe_module, span)<span class="question-mark">?</span>;
 
                 parse_complicated(ctx, tokens, path)<span class="question-mark">?
             </span>}

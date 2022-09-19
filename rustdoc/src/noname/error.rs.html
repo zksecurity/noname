@@ -222,6 +222,9 @@
 <span id="222">222</span>
 <span id="223">223</span>
 <span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
 </pre><pre class="rust"><code><span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
@@ -246,6 +249,9 @@
 
 <span class="attribute">#[derive(Error, Diagnostic, Debug, Clone)]
 </span><span class="kw">pub enum </span>ErrorKind {
+    <span class="attribute">#[error(<span class="string">&quot;{0} arguments are passed when {1} were expected&quot;</span>)]
+    </span>MismatchFunctionArguments(usize, usize),
+
     <span class="attribute">#[error(<span class="string">&quot;the `pub` keyword is reserved for arguments of the main function&quot;</span>)]
     </span>PubArgumentOutsideMain,
 
