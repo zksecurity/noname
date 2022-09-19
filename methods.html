@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Constants - noname</title>
+        <title>Methods - noname</title>
 
 
         <!-- Custom HTML head -->
@@ -82,7 +82,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">6.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">7.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">8.</strong> Structs</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">9.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">10.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html" class="active"><strong aria-hidden="true">11.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">12.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">13.</strong> Scope</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">14.</strong> Methods</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">15.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">16.</strong> Witness Generation</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">6.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">7.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">8.</strong> Structs</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">9.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">10.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">11.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">12.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">13.</strong> Scope</a></li><li class="chapter-item expanded "><a href="methods.html" class="active"><strong aria-hidden="true">14.</strong> Methods</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">15.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">16.</strong> Witness Generation</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -146,52 +146,82 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="constants"><a class="header" href="#constants">Constants</a></h1>
-<p>Developers write constants in their code all the time. For example, the following code has two constants <code>2</code> and <code>4</code>:</p>
+                        <h1 id="methods"><a class="header" href="#methods">Methods</a></h1>
+<h2 id="a-method-on-what"><a class="header" href="#a-method-on-what">A method on what?</a></h2>
+<p>There’s one problem when handling methods in the circuit-writer: how do you know where the code of that method is? For example:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let x = 2 + y;
-assert_eq(x, 4);
+</span>let thing = Thing { x: 1, y: 2 };
+let z = thing.valid(3);
 <span class="boring">}
 </span></code></pre></pre>
-<p>It is important that constants are tracked differently than <code>CellVar</code>s for several reasons:</p>
-<ul>
-<li>It is sometimes useless to constrain them directly. For example, in <code>let x = 3 + 7;</code> you can see that we should not constrain <code>3</code> and <code>7</code> separately, but rather the result <code>10</code>.</li>
-<li>It is sometimes useless to constrain them at all. For example, boolean constants are never constrained because you never need to.</li>
-<li>They can be cached to avoid creating several constraints for the same constant.</li>
-</ul>
-<p>Currently a constant appears in the circuit only when <code>CircuitWriter::add_constant</code> is called.
-It uses the generic gate to constrain the value, and is not cached (so calling it several times with the same constant will create multiple constraints):</p>
+<p>at this point the circuit-writer knows that <code>Thing</code> has a method called <code>valid</code>, but will still wonder what the type of <code>thing</code> is.</p>
+<p>due to this, the circuit-writer needs to store the type of local variables in scope. And this is why <code>FnEnv</code> also keeps track of the type of local variables:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub fn add_constant(&amp;mut self, value: Field, span: Span) -&gt; CellVar {
-    let var = self.new_internal_var(Value::Constant(value), span);
+</span>/// Is used to store functions' scoped variables.
+/// This include inputs and output of the function,  as well as local variables.
+/// You can think of it as a function call stack.
+pub struct FnEnv {
+    /// The current nesting level.
+    /// Starting at 0 (top level), and increasing as we go into a block.
+    current_scope: usize,
 
-    let zero = Field::zero();
-    self.add_gate(
-        GateKind::DoubleGeneric,
-        vec![Some(var)],
-        vec![Field::one(), zero, zero, zero, value.neg()],
-        span,
-    );
+    /// Used by the private and public inputs,
+    /// and any other external variables created in the circuit
+    /// This needs to be garbage collected when we exit a scope.
+    /// Note: The `usize` is the scope in which the variable was created.
+    vars: HashMap&lt;String, (usize, VarInfo)&gt;,
+}
 
-    var
+/// Information about a variable.
+#[derive(Debug, Clone)]
+pub struct VarInfo {
+    /// The variable.
+    pub var: Var,
+
+    /// We keep track of the type of variables, eventhough we're not in the typechecker anymore,
+    /// because we need to know the type for method calls.
+    pub typ: TyKind,
 }
 <span class="boring">}
 </span></code></pre></pre>
-<p>Note that the <code>Value</code> keep track of the constant as well.</p>
-<p>Warning: gadgets must all handle constants gracefuly.
-That is, they must constrain constants themselves (by calling <code>CircuitWriter::add_constant</code>).</p>
+<p>This still doesn’t fix our problem. In the line:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let thing = Thing { x: 1, y: 2 };
+<span class="boring">}
+</span></code></pre></pre>
+<p>the local variable <code>thing</code> is stored, but the right hand side is computed via the <code>compute_expr()</code> function which will go through the AST and potentially create different anonymous variables until it can compute a value.</p>
+<p>There’s three ways to solve this:</p>
+<ol>
+<li>Either the type checker stores type information about each expression it parses. This is what the Rust compiler does I believe: each <code>Expr</code> AST node has a unique node identifier that can be used to search type information in a map.</li>
+<li>Or, more simply, the circuit-writer’s <code>compute_expr()</code> function that returns an <code>Option&lt;Var&gt;</code> could be modified to return <code>Option&lt;VarInfo&gt;</code>. This is a bit annoying as we’re recomputing things we’ve done in the type checker.</li>
+<li>A variant of the previous option is to change <code>Var</code> so that it also contain a type (might as well).</li>
+</ol>
+<p>So we implement option 1: the type checker now stores the type information of each <code>Expr</code> node in the AST under a hashmap that is later passed to the circuit-writer:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// The environment we use to type check a noname program.
+pub struct TypedGlobalEnv {
+    // ...
+
+    /// Mapping from node id to TyKind.
+    /// This can be used by the circuit-writer when it needs type information.
+    node_types: HashMap&lt;usize, TyKind&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="var.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="scope.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="functions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="public-outputs.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -201,11 +231,11 @@ That is, they must constrain constants themselves (by calling <code>CircuitWrite
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="var.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="scope.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="functions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="public-outputs.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -179,17 +179,32 @@
 <span id="179">179</span>
 <span id="180">180</span>
 <span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Neg <span class="kw">as _</span>};
 
 <span class="kw">use </span>ark_ff::{One <span class="kw">as _</span>, Zero};
 
 <span class="kw">use crate</span>::{
-    circuit_writer::{CircuitWriter, GateKind},
+    circuit_writer::{CircuitWriter, GateKind, VarInfo},
     constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     imports::{FnHandle, FnKind},
     lexer::Token,
-    parser::{FnSig, Ident, ParserCtx, Path},
+    parser::{FnSig, ParserCtx, TyKind},
     type_checker::FnInfo,
     var::{ConstOrCell, Var},
 };
@@ -277,14 +292,23 @@
 <span class="kw">pub const </span>BUILTIN_FNS: [(<span class="kw-2">&amp;</span>str, FnHandle); <span class="number">2</span>] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
 
 <span class="doccomment">/// Asserts that two vars are equal.
-</span><span class="kw">fn </span>assert_eq(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, vars: <span class="kw-2">&amp;</span>[Var], span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
-    <span class="comment">// double check (on top of type checker)
+</span><span class="kw">fn </span>assert_eq(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, vars: <span class="kw-2">&amp;</span>[VarInfo], span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
+    <span class="comment">// we get two vars
     </span><span class="macro">assert_eq!</span>(vars.len(), <span class="number">2</span>);
+    <span class="kw">let </span>lhs_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
+    <span class="kw">let </span>rhs_info = <span class="kw-2">&amp;</span>vars[<span class="number">1</span>];
 
-    <span class="kw">let </span>lhs = vars[<span class="number">0</span>]
+    <span class="comment">// they are both of type field
+    </span><span class="macro">assert!</span>(<span class="macro">matches!</span>(lhs_info.typ, <span class="prelude-val">Some</span>(TyKind::Field | TyKind::BigInt)));
+    <span class="macro">assert!</span>(<span class="macro">matches!</span>(rhs_info.typ, <span class="prelude-val">Some</span>(TyKind::Field | TyKind::BigInt)));
+
+    <span class="comment">// retrieve the values
+    </span><span class="kw">let </span>lhs = lhs_info
+        .var
         .const_or_cell()
         .expect(<span class="string">&quot;assert_eq: lhs is not a constant or cell&quot;</span>);
-    <span class="kw">let </span>rhs = vars[<span class="number">1</span>]
+    <span class="kw">let </span>rhs = rhs_info
+        .var
         .const_or_cell()
         .expect(<span class="string">&quot;assert_eq: rhs is not a constant or cell&quot;</span>);
 
@@ -332,10 +356,16 @@
 }
 
 <span class="doccomment">/// Asserts that a condition is true.
-</span><span class="kw">fn </span>assert(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, vars: <span class="kw-2">&amp;</span>[Var], span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
-    <span class="comment">// double check (on top of type checker)
+</span><span class="kw">fn </span>assert(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, vars: <span class="kw-2">&amp;</span>[VarInfo], span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
+    <span class="comment">// we get a single var
     </span><span class="macro">assert_eq!</span>(vars.len(), <span class="number">1</span>);
-    <span class="kw">let </span>cond = vars[<span class="number">0</span>]
+
+    <span class="comment">// of type bool
+    </span><span class="kw">let </span>var_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
+    <span class="macro">assert!</span>(<span class="macro">matches!</span>(var_info.typ, <span class="prelude-val">Some</span>(TyKind::Bool)));
+
+    <span class="kw">let </span>cond = var_info
+        .var
         .const_or_cell()
         .expect(<span class="string">&quot;assert: condition is not a constant or cell&quot;</span>);
 
@@ -361,4 +391,4 @@
     <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (95a992a68 2022-09-16)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

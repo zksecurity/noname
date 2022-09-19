@@ -178,6 +178,17 @@
 <span id="178">178</span>
 <span id="179">179</span>
 <span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
 </pre><pre class="rust"><code><span class="kw">use </span>ark_ff::Zero;
 <span class="kw">use </span>kimchi::{
     circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW},
@@ -189,10 +200,11 @@
 };
 
 <span class="kw">use crate</span>::{
-    circuit_writer::{CircuitWriter, GateKind},
+    circuit_writer::{CircuitWriter, GateKind, VarInfo},
     constants::{<span class="self">self</span>, Field, Span},
     error::Result,
     imports::FnHandle,
+    parser::TyKind,
     var::{ConstOrCell, Value, Var, VarKind},
 };
 
@@ -200,19 +212,29 @@
 
 <span class="kw">pub const </span>CRYPTO_FNS: [(<span class="kw-2">&amp;</span>str, FnHandle); <span class="number">1</span>] = [(POSEIDON_FN, poseidon)];
 
-<span class="kw">pub fn </span>poseidon(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, vars: <span class="kw-2">&amp;</span>[Var], span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
+<span class="kw">pub fn </span>poseidon(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, vars: <span class="kw-2">&amp;</span>[VarInfo], span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
     <span class="comment">//
     // sanity checks
     //
 
-    // only one [Var] is passed: an array
+    // only one [Var] is passed
     </span><span class="macro">assert_eq!</span>(vars.len(), <span class="number">1</span>);
-    <span class="kw">let </span>input = vars[<span class="number">0</span>]
-        .array_or_tuple()
-        .expect(<span class="string">&quot;bug in compiler: poseidon input must be an array&quot;</span>);
+    <span class="kw">let </span>var_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
 
-    <span class="comment">// that array is of length 2 (size of poseidon input)
-    </span><span class="macro">assert_eq!</span>(input.len(), <span class="number">2</span>);
+    <span class="comment">// an array of length 2
+    </span><span class="kw">match </span><span class="kw-2">&amp;</span>var_info.typ {
+        <span class="prelude-val">Some</span>(TyKind::Array(el_typ, <span class="number">2</span>)) =&gt; {
+            <span class="macro">assert!</span>(<span class="macro">matches!</span>(<span class="kw-2">&amp;**</span>el_typ, TyKind::Field | TyKind::BigInt));
+        }
+        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;wrong type for input to poseidon&quot;</span>),
+    };
+
+    <span class="comment">// extract the values
+    </span><span class="kw">let </span>input = var_info
+        .var
+        .array_or_tuple()
+        .expect(<span class="string">&quot;poseidon: input must be an array&quot;</span>);
+    <span class="macro">assert_eq!</span>(input.len(), <span class="number">2</span>);
 
     <span class="comment">// each element of the array is a VarCell/const
     </span><span class="kw">let </span>input: Vec&lt;<span class="kw">_</span>&gt; = input
@@ -359,4 +381,4 @@
     <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_array(vars, span)))
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (95a992a68 2022-09-16)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

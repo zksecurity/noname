@@ -1743,6 +1743,22 @@
 <span id="1743">1743</span>
 <span id="1744">1744</span>
 <span id="1745">1745</span>
+<span id="1746">1746</span>
+<span id="1747">1747</span>
+<span id="1748">1748</span>
+<span id="1749">1749</span>
+<span id="1750">1750</span>
+<span id="1751">1751</span>
+<span id="1752">1752</span>
+<span id="1753">1753</span>
+<span id="1754">1754</span>
+<span id="1755">1755</span>
+<span id="1756">1756</span>
+<span id="1757">1757</span>
+<span id="1758">1758</span>
+<span id="1759">1759</span>
+<span id="1760">1760</span>
+<span id="1761">1761</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -1785,8 +1801,12 @@
 // Context
 //
 
+</span><span class="doccomment">/// A context for the parser.
 </span><span class="attribute">#[derive(Debug, Default)]
 </span><span class="kw">pub struct </span>ParserCtx {
+    <span class="doccomment">/// A counter used to uniquely identify different nodes in the AST.
+    </span><span class="kw">pub </span>node_id: usize,
+
     <span class="doccomment">/// Used mainly for error reporting,
     /// when we don&#39;t have a token to read
     </span><span class="comment">// TODO: replace with `(usize::MAX, usize::MAX)`?
@@ -1794,6 +1814,12 @@
 }
 
 <span class="kw">impl </span>ParserCtx {
+    <span class="doccomment">/// Returns a new unique node id.
+    </span><span class="kw">pub fn </span>next_node_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.node_id += <span class="number">1</span>;
+        <span class="self">self</span>.node_id
+    }
+
     <span class="comment">// TODO: I think I don&#39;t need this, I should always be able to use the last token I read if I don&#39;t see anything, otherwise maybe just write -1 to say &quot;EOF&quot;
     </span><span class="kw">pub fn </span>last_span(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Span {
         <span class="kw">let </span>span = <span class="self">self
@@ -1933,38 +1959,41 @@
         };
     }
 
-    <span class="prelude-val">Ok</span>(Expr {
-        kind: ExprKind::CustomTypeDeclaration(path.name, fields),
-        span: path.span.merge_with(ctx.last_span()),
-    })
+    <span class="prelude-val">Ok</span>(Expr::new(
+        ctx,
+        ExprKind::CustomTypeDeclaration(path.name, fields),
+        path.span.merge_with(ctx.last_span()),
+    ))
 }
 
 <span class="kw">pub fn </span>parse_fn_call_args(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Expr&gt;&gt; {
     tokens.bump(ctx); <span class="comment">// (
 
     </span><span class="kw">let </span><span class="kw-2">mut </span>args = <span class="macro">vec!</span>[];
-    <span class="kw">let </span><span class="kw-2">mut </span>end_span = Span::default();
     <span class="kw">loop </span>{
-        <span class="kw">let </span>arg = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
-
-        args.push(arg);
-
         <span class="kw">let </span>pp = tokens.peek();
 
         <span class="kw">match </span>pp {
-            <span class="prelude-val">Some</span>(x) =&gt; {
-                end_span = x.span;
-                <span class="kw">match </span>x.kind {
-                    TokenKind::Comma =&gt; {
-                        tokens.bump(ctx);
-                    }
-                    TokenKind::RightParen =&gt; {
-                        tokens.bump(ctx);
-                        <span class="kw">break</span>;
-                    }
-                    <span class="kw">_ </span>=&gt; (),
+            <span class="prelude-val">Some</span>(x) =&gt; <span class="kw">match </span>x.kind {
+                <span class="comment">// ,
+                </span>TokenKind::Comma =&gt; {
+                    tokens.bump(ctx);
                 }
-            }
+
+                <span class="comment">// )
+                </span>TokenKind::RightParen =&gt; {
+                    tokens.bump(ctx);
+                    <span class="kw">break</span>;
+                }
+
+                <span class="comment">// an argument (as expression)
+                </span><span class="kw">_ </span>=&gt; {
+                    <span class="kw">let </span>arg = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+
+                    args.push(arg);
+                }
+            },
+
             <span class="prelude-val">None </span>=&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
                     kind: ErrorKind::InvalidFnCall(<span class="string">&quot;unexpected end of function call&quot;</span>),
@@ -1998,13 +2027,14 @@
 
             <span class="kw">let </span>span = path.span.merge_with(expr.span);
 
-            <span class="prelude-val">Ok</span>(Expr {
-                kind: ExprKind::ArrayAccess {
+            <span class="prelude-val">Ok</span>(Expr::new(
+                ctx,
+                ExprKind::ArrayAccess {
                     name: path,
                     idx: Box::new(expr),
                 },
                 span,
-            })
+            ))
         }
 
         <span class="comment">// fn call
@@ -2020,11 +2050,7 @@
                 path.span
             };
 
-            <span class="prelude-val">Ok</span>(Expr {
-                kind: ExprKind::FnCall { name: path, args },
-
-                span,
-            })
+            <span class="prelude-val">Ok</span>(Expr::new(ctx, ExprKind::FnCall { name: path, args }, span))
         }
 
         <span class="comment">// a struct access or method call
@@ -2050,19 +2076,21 @@
                         <span class="macro">panic!</span>(<span class="string">&quot;method call on a non-ident (TODO: better error)&quot;</span>);
                     }
 
-                    <span class="prelude-val">Ok</span>(Expr {
-                        kind: ExprKind::MethodCall {
+                    <span class="prelude-val">Ok</span>(Expr::new(
+                        ctx,
+                        ExprKind::MethodCall {
                             self_name: path,
-                            name: field.value,
+                            method_name: field.value,
                             args,
                         },
                         span,
-                    })
+                    ))
                 }
 
                 <span class="comment">// struct access
-                </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(Expr {
-                    kind: ExprKind::StructAccess(
+                </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(Expr::new(
+                    ctx,
+                    ExprKind::StructAccess(
                         Ident {
                             value: path.name.clone(),
                             span: Span::default(),
@@ -2070,15 +2098,16 @@
                         field,
                     ),
                     span,
-                }),
+                )),
             }
         }
 
         <span class="comment">// easy case, it&#39;s just an identifier
-        </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(Expr {
-            kind: ExprKind::Identifier(path.clone()),
-            span: path.span,
-        }),
+        </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(Expr::new(
+            ctx,
+            ExprKind::Identifier(path.clone()),
+            path.span,
+        )),
     }
 }
 
@@ -2235,8 +2264,20 @@
 
 </span><span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>Expr {
+    <span class="kw">pub </span>node_id: usize,
     <span class="kw">pub </span>kind: ExprKind,
     <span class="kw">pub </span>span: Span,
+}
+
+<span class="kw">impl </span>Expr {
+    <span class="kw">pub fn </span>new(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, kind: ExprKind, span: Span) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>node_id = ctx.next_node_id();
+        <span class="self">Self </span>{
+            node_id,
+            kind,
+            span,
+        }
+    }
 }
 
 <span class="attribute">#[derive(Debug, Clone)]
@@ -2247,7 +2288,7 @@
     },
     MethodCall {
         self_name: Path,
-        name: String,
+        method_name: String,
         args: Vec&lt;Expr&gt;,
     },
     Assignment {
@@ -2312,10 +2353,7 @@
 
         <span class="kw">let </span>lhs = <span class="kw">match </span>token.kind {
             <span class="comment">// numeric
-            </span>TokenKind::BigInt(b) =&gt; Expr {
-                kind: ExprKind::BigInt(b),
-                span,
-            },
+            </span>TokenKind::BigInt(b) =&gt; Expr::new(ctx, ExprKind::BigInt(b), span),
 
             <span class="comment">// identifier
             </span>TokenKind::Identifier(ident) =&gt; {
@@ -2328,10 +2366,7 @@
             </span>TokenKind::Minus =&gt; {
                 <span class="kw">let </span>expr = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
 
-                Expr {
-                    kind: ExprKind::Negated(Box::new(expr)),
-                    span,
-                }
+                Expr::new(ctx, ExprKind::Negated(Box::new(expr)), span)
             }
 
             <span class="comment">// parenthesis
@@ -2345,20 +2380,14 @@
             </span>TokenKind::Keyword(Keyword::True) | TokenKind::Keyword(Keyword::False) =&gt; {
                 <span class="kw">let </span>is_true = <span class="macro">matches!</span>(token.kind, TokenKind::Keyword(Keyword::True));
 
-                Expr {
-                    kind: ExprKind::Bool(is_true),
-                    span,
-                }
+                Expr::new(ctx, ExprKind::Bool(is_true), span)
             }
 
             <span class="comment">// negation (logical NOT)
             </span>TokenKind::Exclamation =&gt; {
                 <span class="kw">let </span>expr = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
 
-                Expr {
-                    kind: ExprKind::Negated(Box::new(expr)),
-                    span,
-                }
+                Expr::new(ctx, ExprKind::Negated(Box::new(expr)), span)
             }
 
             <span class="comment">// array declaration
@@ -2410,10 +2439,11 @@
                     <span class="macro">panic!</span>(<span class="string">&quot;empty array declaration (TODO: better error)&quot;</span>);
                 }
 
-                Expr {
-                    kind: ExprKind::ArrayDeclaration(items),
-                    span: span.merge_with(last_span),
-                }
+                Expr::new(
+                    ctx,
+                    ExprKind::ArrayDeclaration(items),
+                    span.merge_with(last_span),
+                )
             }
 
             <span class="comment">// unrecognized pattern
@@ -2446,22 +2476,24 @@
 
             <span class="kw">let </span>rhs = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
 
-            <span class="prelude-val">Ok</span>(Expr {
-                kind: ExprKind::Assignment {
+            <span class="prelude-val">Ok</span>(Expr::new(
+                ctx,
+                ExprKind::Assignment {
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
                 },
                 span,
-            })
+            ))
         }
         <span class="comment">// or it&#39;s a binary operation
         </span><span class="kw">else if let </span><span class="prelude-val">Some</span>(op) = Op2::parse_maybe(ctx, tokens) {
             <span class="kw">let </span>rhs = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
             <span class="kw">let </span>span = span.merge_with(rhs.span);
-            <span class="prelude-val">Ok</span>(Expr {
-                kind: ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
+            <span class="prelude-val">Ok</span>(Expr::new(
+                ctx,
+                ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
                 span,
-            })
+            ))
         }
         <span class="comment">// or there&#39;s no rhs
         </span><span class="kw">else </span>{
@@ -3489,4 +3521,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (95a992a68 2022-09-16)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>
