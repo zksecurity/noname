@@ -19,6 +19,7 @@ use crate::{
         AttributeKind, Expr, ExprKind, FnArg, FnSig, Function, Op2, RootKind, Stmt, StmtKind,
         TyKind,
     },
+    syntax::is_type,
     type_checker::{TypedGlobalEnv, TAST},
     var::{CellVar, ConstOrCell, Value, Var, VarKind},
     witness::CompiledCircuit,
@@ -544,10 +545,14 @@ impl CircuitWriter {
                 if name.module.is_none() {
                     // functions present in the scope
                     let fn_name = &name.name;
-                    let fn_info = global_env.typed.functions.get(fn_name).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.clone()),
-                        span: name.span,
-                    })?;
+                    let fn_info = global_env
+                        .typed
+                        .functions
+                        .get(&fn_name.value)
+                        .ok_or(Error {
+                            kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                            span: name.span,
+                        })?;
 
                     match &fn_info.kind {
                         FnKind::BuiltIn(sig, handle) => handle(self, &vars, expr.span),
@@ -561,9 +566,9 @@ impl CircuitWriter {
                     }
                 } else if let Some(module) = &name.module {
                     // check module present in the scope
-                    let fn_name = &name.name;
-                    let module = global_env.typed.modules.get(module).ok_or(Error {
-                        kind: ErrorKind::UndefinedModule(module.clone()),
+                    let fn_name = &name.name.value;
+                    let module = global_env.typed.modules.get(&module.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedModule(module.value.clone()),
                         span: name.span, // TODO: should be module.span
                     })?;
                     let fn_info = module.functions.get(fn_name).ok_or(Error {
@@ -600,7 +605,7 @@ impl CircuitWriter {
                 let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
                 // replace the left with the right
-                fn_env.reassign_var(&lhs_name.name, rhs);
+                fn_env.reassign_var(&lhs_name.name.value, rhs);
 
                 Ok(None)
             }
@@ -647,7 +652,7 @@ impl CircuitWriter {
                 Ok(Some(Var::new_constant(value, expr.span)))
             }
             ExprKind::Identifier(name) => {
-                let var_info = fn_env.get_var(global_env, &name.name).clone();
+                let var_info = fn_env.get_var(global_env, &name.name.value).clone();
                 Ok(Some(var_info.var))
             }
             ExprKind::ArrayAccess { name, idx } => {
@@ -657,7 +662,7 @@ impl CircuitWriter {
                     unimplemented!()
                 } else {
                     // var present in the scope
-                    let name = &name.name;
+                    let name = &name.name.value;
                     let var_info = fn_env.get_var(global_env, name).clone();
                     var_info.var
                 };
@@ -714,6 +719,7 @@ impl CircuitWriter {
                     vars.insert(name.value.clone(), var.kind.clone());
                 }
                 let var = Var::new_struct(vars, expr.span);
+                let name = &name.value;
                 let var_info = VarInfo::new(var.clone(), Some(TyKind::Custom(name.clone())));
                 fn_env.add_var(global_env, name.clone(), var_info);
 
@@ -756,10 +762,16 @@ impl CircuitWriter {
                 }
 
                 // get type of the self variable
-                let self_var_info = fn_env.get_var(global_env, &self_name.name);
-                let self_struct = match &self_var_info.typ {
-                    Some(TyKind::Custom(s)) => s,
-                    _ => panic!("could not figure out struct implementing that method call"),
+                let (self_struct, self_var_info) = if is_type(&self_name.name.value) {
+                    (self_name.name.value.clone(), None)
+                } else {
+                    let self_var_info = fn_env.get_var(global_env, &self_name.name.value);
+                    let self_struct = match &self_var_info.typ {
+                        Some(TyKind::Custom(s)) => s,
+                        _ => panic!("could not figure out struct implementing that method call"),
+                    };
+
+                    (self_struct.clone(), Some(self_var_info))
                 };
 
                 // get method
@@ -776,6 +788,7 @@ impl CircuitWriter {
                 // if method has a `self` argument, manually add it to the list of argument
                 if let Some(first_arg) = func.sig.arguments.first() {
                     if first_arg.name.value == "self" {
+                        let self_var_info = self_var_info.unwrap();
                         vars.insert(0, self_var_info.clone());
                     }
                 }

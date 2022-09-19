@@ -95,25 +95,6 @@ let y = 1;
 y = x + y; // BAD
 ```
 
-## Custom types
-
-```rust
-struct Thing {
-    x: Field,
-    y: Field,
-}
-
-fn main(pub x: Field, pub y: Field) {
-    let thing = Thing {
-        x: 1,
-        y: 2,
-    };
-    
-    assert_eq(thing.x, x);
-    assert_eq(thing.y, y);
-}
-```
-
 ## For loops
 
 ```rust
@@ -168,6 +149,70 @@ fn main(pub one: Field) {
     let eight = double(4);
     assert_eq(eight, double(four));
 }
+```
+
+## Custom types
+
+```rust
+struct Thing {
+    x: Field,
+    y: Field,
+}
+
+fn main(pub x: Field, pub y: Field) {
+    let thing = Thing {
+        x: 1,
+        y: 2,
+    };
+    
+    assert_eq(thing.x, x);
+    assert_eq(thing.y, y);
+}
+```
+
+## Methods on custom types
+
+```rust
+struct Thing {
+    x: Field,
+    y: Field,
+}
+
+fn Thing.new(x: Field, y: Field) -> Thing {
+    return Thing {
+        x: x,
+        y: y,
+    };
+}
+
+fn Thing.verify(self, v: Field) {
+    assert_eq(self.x, v);
+    assert_eq(self.y, v + 1);
+}
+
+fn Thing.update_and_verify(self) {
+    let new_thing = Thing {
+        x: self.x + 1,
+        y: self.y + 1,
+    };
+
+    new_thing.verify(2);
+}
+
+fn main(pub x: Field) {
+    let thing = Thing.new(x, x + x);
+    thing.update_and_verify();
+}
+```
+
+technically you can even call static methods from a variable of that type:
+
+```rust
+let y = thing.new(3, 4);
+```
+
+```admonish
+It's not necessarily pleasant to read, and we could prevent it by storing some meta information (`static_method: bool`) in the type checker, but it's not a big deal.
 ```
 
 ## Early returns

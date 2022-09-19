@@ -9,6 +9,7 @@ use crate::{
         UsePath, AST,
     },
     stdlib::ImportedModule,
+    syntax::is_type,
 };
 
 //
@@ -261,7 +262,7 @@ impl Expr {
 
                 // check that the var exists locally
                 let lhs_info = typed_fn_env
-                    .get_type_info(&name.name)
+                    .get_type_info(&name.name.value)
                     .expect("variable not found (TODO: replace with error")
                     .clone();
 
@@ -324,11 +325,11 @@ impl Expr {
                     unimplemented!();
                 }
 
-                let typ = if let Some(typ) = typed_global_env.constants.get(&path.name) {
+                let typ = if let Some(typ) = typed_global_env.constants.get(&path.name.value) {
                     typ.kind.clone()
                 } else {
                     typed_fn_env
-                        .get_type(&path.name)
+                        .get_type(&path.name.value)
                         .ok_or(Error {
                             kind: ErrorKind::UndefinedVariable,
                             span: self.span,
@@ -345,7 +346,7 @@ impl Expr {
                 }
 
                 // figure out if variable is in scope
-                let name = &name.name;
+                let name = &name.name.value;
                 let typ = typed_fn_env
                     .get_type(name)
                     .ok_or(Error {
@@ -403,8 +404,9 @@ impl Expr {
                 Some(TyKind::Array(Box::new(tykind), len))
             }
             ExprKind::CustomTypeDeclaration(name, fields) => {
+                let name = &name.value;
                 let struct_info = typed_global_env.structs.get(name).ok_or(Error {
-                    kind: ErrorKind::UndefinedStruct(name.to_string()),
+                    kind: ErrorKind::UndefinedStruct(name.clone()),
                     span: self.span,
                 })?;
 
@@ -412,7 +414,7 @@ impl Expr {
 
                 if defined_fields.len() != fields.len() {
                     return Err(Error {
-                        kind: ErrorKind::MismatchStructFields(name.to_string()),
+                        kind: ErrorKind::MismatchStructFields(name.clone()),
                         span: self.span,
                     });
                 }
@@ -449,7 +451,7 @@ impl Expr {
                     }
                 }
 
-                Some(TyKind::Custom(name.to_string()))
+                Some(TyKind::Custom(name.clone()))
             }
 
             ExprKind::StructAccess(name, field) => {
@@ -489,14 +491,18 @@ impl Expr {
                 }
 
                 // get type of self_name
-                let self_typ = typed_fn_env.get_type(&self_name.name).ok_or(Error {
-                    kind: ErrorKind::UndefinedVariable,
-                    span: self.span,
-                })?;
+                let self_name = if is_type(&self_name.name.value) {
+                    &self_name.name.value
+                } else {
+                    let self_typ = typed_fn_env.get_type(&self_name.name.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedVariable,
+                        span: self_name.name.span,
+                    })?;
 
-                let self_name = match self_typ {
-                    TyKind::Custom(self_typ) => self_typ,
-                    _ => panic!("method call on a non-type? what?"),
+                    match self_typ {
+                        TyKind::Custom(self_typ) => self_typ,
+                        _ => panic!("method call on a non-type? what?"),
+                    }
                 };
 
                 // get type methods from global typed env
@@ -520,7 +526,18 @@ impl Expr {
                     .filter(|arg| arg.name.value != "self")
                     .collect();
 
-                assert_eq!(args.len(), expected.len());
+                if args.len() != expected.len() {
+                    let span = args
+                        .first()
+                        .zip(args.last())
+                        .map(|(first, last)| first.span.merge_with(last.span))
+                        .unwrap_or(self.span);
+
+                    return Err(Error {
+                        kind: ErrorKind::MismatchFunctionArguments(args.len(), expected.len()),
+                        span,
+                    });
+                }
 
                 for (expected, observed) in expected.into_iter().zip(args) {
                     let observed_typ = observed
@@ -742,16 +759,16 @@ impl TAST {
 
                     // the output value returned by the main function is also a main_args with a special name (public_output)
                     if let Some(typ) = &function.sig.return_type {
-                        if !matches!(typ.kind, TyKind::Field) {
-                            unimplemented!();
+                        if is_main {
+                            if !matches!(typ.kind, TyKind::Field) {
+                                unimplemented!();
+                            }
+
+                            typed_fn_env.store_type(
+                                "public_output".to_string(),
+                                TypeInfo::new_mut(typ.kind.clone(), typ.span),
+                            )?;
                         }
-
-                        let name = "public_output";
-
-                        typed_fn_env.store_type(
-                            name.to_string(),
-                            TypeInfo::new_mut(typ.kind.clone(), typ.span),
-                        )?;
                     }
 
                     // type system pass
@@ -875,18 +892,6 @@ impl TAST {
             StmtKind::Return(res) => {
                 let typ = res.compute_type(typed_global_env, typed_fn_env)?.unwrap();
 
-                let expected = match typed_fn_env.get_type("public_output") {
-                    Some(t) => t,
-                    None => panic!("return statement when function signature doesn't have a return value (TODO: replace by error)"),
-                };
-
-                if expected != &typ {
-                    return Err(Error {
-                        kind: ErrorKind::ReturnTypeMismatch(expected.clone(), typ),
-                        span: stmt.span,
-                    });
-                }
-
                 return Ok(Some(typ));
             }
             StmtKind::Comment(_) => (),
@@ -906,7 +911,8 @@ pub fn typecheck_fn_call(
     // retrieve the function sig in the env
     let sig: FnSig = if let Some(module) = &name.module {
         // check module present in the scope
-        let fn_name = &name.name;
+        let fn_name = &name.name.value;
+        let module = &module.value;
         let module = typed_global_env.modules.get(module).ok_or(Error {
             kind: ErrorKind::UndefinedModule(module.clone()),
             span: name.span, // TODO: should be module span
@@ -918,7 +924,7 @@ pub fn typecheck_fn_call(
         fn_info.sig().clone()
     } else {
         // functions present in the scope
-        let fn_name = &name.name;
+        let fn_name = &name.name.value;
         let fn_info = typed_global_env.functions.get(fn_name).ok_or(Error {
             kind: ErrorKind::UndefinedFunction(fn_name.clone()),
             span: name.span,

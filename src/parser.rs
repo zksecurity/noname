@@ -81,10 +81,10 @@ impl ParserCtx {
 #[derive(Debug, Clone)]
 pub struct Path {
     /// A module, if this is an foreign import.
-    pub module: Option<String>,
+    pub module: Option<Ident>,
 
     /// The name of the type, function, method, or constant.
-    pub name: String,
+    pub name: Ident,
 
     /// Its span.
     pub span: Span,
@@ -95,7 +95,7 @@ impl Path {
     fn parse(
         ctx: &mut ParserCtx,
         tokens: &mut Tokens,
-        maybe_module: String,
+        maybe_module: Ident,
         span: Span,
     ) -> Result<Self> {
         let peeked = match tokens.peek() {
@@ -118,12 +118,12 @@ impl Path {
             tokens.bump(ctx);
 
             // next ident
-            let ident = Ident::parse(ctx, tokens)?;
+            let name = Ident::parse(ctx, tokens)?;
 
-            let span = span.merge_with(ident.span);
+            let span = span.merge_with(name.span);
             Ok(Path {
                 module: Some(maybe_module),
-                name: ident.value,
+                name,
                 span,
             })
         } else {
@@ -141,7 +141,7 @@ pub fn parse_type_declaration(
     tokens: &mut Tokens,
     path: Path,
 ) -> Result<Expr> {
-    if !is_type(&path.name) {
+    if !is_type(&path.name.value) {
         panic!("this looks like a type declaration but not on a type (types start with an uppercase) (TODO: better error)");
     }
 
@@ -329,13 +329,7 @@ pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -
                 // struct access
                 _ => Ok(Expr::new(
                     ctx,
-                    ExprKind::StructAccess(
-                        Ident {
-                            value: path.name.clone(),
-                            span: Span::default(),
-                        },
-                        field,
-                    ),
+                    ExprKind::StructAccess(path.name.clone(), field),
                     span,
                 )),
             }
@@ -543,7 +537,7 @@ pub enum ExprKind {
         idx: Box<Expr>,
     },
     ArrayDeclaration(Vec<Expr>),
-    CustomTypeDeclaration(String, Vec<(Ident, Expr)>),
+    CustomTypeDeclaration(Ident, Vec<(Ident, Expr)>),
     StructAccess(Ident, Ident),
     Bool(bool),
 }
@@ -595,8 +589,12 @@ impl Expr {
             TokenKind::BigInt(b) => Expr::new(ctx, ExprKind::BigInt(b), span),
 
             // identifier
-            TokenKind::Identifier(ident) => {
-                let path = Path::parse(ctx, tokens, ident, span)?;
+            TokenKind::Identifier(maybe_module) => {
+                let maybe_module = Ident {
+                    value: maybe_module,
+                    span,
+                };
+                let path = Path::parse(ctx, tokens, maybe_module, span)?;
 
                 parse_complicated(ctx, tokens, path)?
             }

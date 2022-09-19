@@ -22,6 +22,9 @@ pub struct Error {
 
 #[derive(Error, Diagnostic, Debug, Clone)]
 pub enum ErrorKind {
+    #[error("{0} arguments are passed when {1} were expected")]
+    MismatchFunctionArguments(usize, usize),
+
     #[error("the `pub` keyword is reserved for arguments of the main function")]
     PubArgumentOutsideMain,
 
