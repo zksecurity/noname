@@ -40,8 +40,12 @@ use crate::{
 // Context
 //
 
+/// A context for the parser.
 #[derive(Debug, Default)]
 pub struct ParserCtx {
+    /// A counter used to uniquely identify different nodes in the AST.
+    pub node_id: usize,
+
     /// Used mainly for error reporting,
     /// when we don't have a token to read
     // TODO: replace with `(usize::MAX, usize::MAX)`?
@@ -49,6 +53,12 @@ pub struct ParserCtx {
 }
 
 impl ParserCtx {
+    /// Returns a new unique node id.
+    pub fn next_node_id(&mut self) -> usize {
+        self.node_id += 1;
+        self.node_id
+    }
+
     // TODO: I think I don't need this, I should always be able to use the last token I read if I don't see anything, otherwise maybe just write -1 to say "EOF"
     pub fn last_span(&self) -> Span {
         let span = self
@@ -188,10 +198,11 @@ pub fn parse_type_declaration(
         };
     }
 
-    Ok(Expr {
-        kind: ExprKind::CustomTypeDeclaration(path.name, fields),
-        span: path.span.merge_with(ctx.last_span()),
-    })
+    Ok(Expr::new(
+        ctx,
+        ExprKind::CustomTypeDeclaration(path.name, fields),
+        path.span.merge_with(ctx.last_span()),
+    ))
 }
 
 pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<Expr>> {
@@ -253,13 +264,14 @@ pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -
 
             let span = path.span.merge_with(expr.span);
 
-            Ok(Expr {
-                kind: ExprKind::ArrayAccess {
+            Ok(Expr::new(
+                ctx,
+                ExprKind::ArrayAccess {
                     name: path,
                     idx: Box::new(expr),
                 },
                 span,
-            })
+            ))
         }
 
         // fn call
@@ -275,11 +287,7 @@ pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -
                 path.span
             };
 
-            Ok(Expr {
-                kind: ExprKind::FnCall { name: path, args },
-
-                span,
-            })
+            Ok(Expr::new(ctx, ExprKind::FnCall { name: path, args }, span))
         }
 
         // a struct access or method call
@@ -305,19 +313,21 @@ pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -
                         panic!("method call on a non-ident (TODO: better error)");
                     }
 
-                    Ok(Expr {
-                        kind: ExprKind::MethodCall {
+                    Ok(Expr::new(
+                        ctx,
+                        ExprKind::MethodCall {
                             self_name: path,
-                            name: field.value,
+                            method_name: field.value,
                             args,
                         },
                         span,
-                    })
+                    ))
                 }
 
                 // struct access
-                _ => Ok(Expr {
-                    kind: ExprKind::StructAccess(
+                _ => Ok(Expr::new(
+                    ctx,
+                    ExprKind::StructAccess(
                         Ident {
                             value: path.name.clone(),
                             span: Span::default(),
@@ -325,15 +335,16 @@ pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -
                         field,
                     ),
                     span,
-                }),
+                )),
             }
         }
 
         // easy case, it's just an identifier
-        _ => Ok(Expr {
-            kind: ExprKind::Identifier(path.clone()),
-            span: path.span,
-        }),
+        _ => Ok(Expr::new(
+            ctx,
+            ExprKind::Identifier(path.clone()),
+            path.span,
+        )),
     }
 }
 
@@ -490,8 +501,20 @@ impl Ty {
 
 #[derive(Debug, Clone)]
 pub struct Expr {
+    pub node_id: usize,
     pub kind: ExprKind,
     pub span: Span,
+}
+
+impl Expr {
+    pub fn new(ctx: &mut ParserCtx, kind: ExprKind, span: Span) -> Self {
+        let node_id = ctx.next_node_id();
+        Self {
+            node_id,
+            kind,
+            span,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -502,7 +525,7 @@ pub enum ExprKind {
     },
     MethodCall {
         self_name: Path,
-        name: String,
+        method_name: String,
         args: Vec<Expr>,
     },
     Assignment {
@@ -567,10 +590,7 @@ impl Expr {
 
         let lhs = match token.kind {
             // numeric
-            TokenKind::BigInt(b) => Expr {
-                kind: ExprKind::BigInt(b),
-                span,
-            },
+            TokenKind::BigInt(b) => Expr::new(ctx, ExprKind::BigInt(b), span),
 
             // identifier
             TokenKind::Identifier(ident) => {
@@ -583,10 +603,7 @@ impl Expr {
             TokenKind::Minus => {
                 let expr = Expr::parse(ctx, tokens)?;
 
-                Expr {
-                    kind: ExprKind::Negated(Box::new(expr)),
-                    span,
-                }
+                Expr::new(ctx, ExprKind::Negated(Box::new(expr)), span)
             }
 
             // parenthesis
@@ -600,20 +617,14 @@ impl Expr {
             TokenKind::Keyword(Keyword::True) | TokenKind::Keyword(Keyword::False) => {
                 let is_true = matches!(token.kind, TokenKind::Keyword(Keyword::True));
 
-                Expr {
-                    kind: ExprKind::Bool(is_true),
-                    span,
-                }
+                Expr::new(ctx, ExprKind::Bool(is_true), span)
             }
 
             // negation (logical NOT)
             TokenKind::Exclamation => {
                 let expr = Expr::parse(ctx, tokens)?;
 
-                Expr {
-                    kind: ExprKind::Negated(Box::new(expr)),
-                    span,
-                }
+                Expr::new(ctx, ExprKind::Negated(Box::new(expr)), span)
             }
 
             // array declaration
@@ -665,10 +676,11 @@ impl Expr {
                     panic!("empty array declaration (TODO: better error)");
                 }
 
-                Expr {
-                    kind: ExprKind::ArrayDeclaration(items),
-                    span: span.merge_with(last_span),
-                }
+                Expr::new(
+                    ctx,
+                    ExprKind::ArrayDeclaration(items),
+                    span.merge_with(last_span),
+                )
             }
 
             // unrecognized pattern
@@ -701,22 +713,24 @@ impl Expr {
 
             let rhs = Expr::parse(ctx, tokens)?;
 
-            Ok(Expr {
-                kind: ExprKind::Assignment {
+            Ok(Expr::new(
+                ctx,
+                ExprKind::Assignment {
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
                 },
                 span,
-            })
+            ))
         }
         // or it's a binary operation
         else if let Some(op) = Op2::parse_maybe(ctx, tokens) {
             let rhs = Expr::parse(ctx, tokens)?;
             let span = span.merge_with(rhs.span);
-            Ok(Expr {
-                kind: ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
+            Ok(Expr::new(
+                ctx,
+                ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
                 span,
-            })
+            ))
         }
         // or there's no rhs
         else {

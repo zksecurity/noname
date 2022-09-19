@@ -9,10 +9,11 @@ use kimchi::{
 };
 
 use crate::{
-    circuit_writer::{CircuitWriter, GateKind},
+    circuit_writer::{CircuitWriter, GateKind, VarInfo},
     constants::{self, Field, Span},
     error::Result,
     imports::FnHandle,
+    parser::TyKind,
     var::{ConstOrCell, Value, Var, VarKind},
 };
 
@@ -20,18 +21,26 @@ const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
 
 pub const CRYPTO_FNS: [(&str, FnHandle); 1] = [(POSEIDON_FN, poseidon)];
 
-pub fn poseidon(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<Option<Var>> {
+pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {
     //
     // sanity checks
     //
 
-    // only one [Var] is passed: an array
+    // only one [Var] is passed
     assert_eq!(vars.len(), 1);
-    let input = vars[0]
-        .array_or_tuple()
-        .expect("bug in compiler: poseidon input must be an array");
+    let var_info = &vars[0];
 
-    // that array is of length 2 (size of poseidon input)
+    // an array of length 2
+    assert_eq!(
+        var_info.typ,
+        Some(TyKind::Array(Box::new(TyKind::Field), 2))
+    );
+
+    // extract the values
+    let input = var_info
+        .var
+        .array_or_tuple()
+        .expect("poseidon: input must be an array");
     assert_eq!(input.len(), 2);
 
     // each element of the array is a VarCell/const

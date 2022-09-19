@@ -3,12 +3,12 @@ use std::{collections::HashMap, ops::Neg as _};
 use ark_ff::{One as _, Zero};
 
 use crate::{
-    circuit_writer::{CircuitWriter, GateKind},
+    circuit_writer::{CircuitWriter, GateKind, VarInfo},
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     imports::{FnHandle, FnKind},
     lexer::Token,
-    parser::{FnSig, Ident, ParserCtx, Path},
+    parser::{FnSig, ParserCtx, TyKind},
     type_checker::FnInfo,
     var::{ConstOrCell, Var},
 };
@@ -96,14 +96,23 @@ const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
 pub const BUILTIN_FNS: [(&str, FnHandle); 2] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
 
 /// Asserts that two vars are equal.
-fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<Option<Var>> {
-    // double check (on top of type checker)
+fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {
+    // we get two vars
     assert_eq!(vars.len(), 2);
+    let lhs_info = &vars[0];
+    let rhs_info = &vars[1];
 
-    let lhs = vars[0]
+    // they are both of type field
+    assert!(matches!(lhs_info.typ, Some(TyKind::Field)));
+    assert!(matches!(rhs_info.typ, Some(TyKind::Field)));
+
+    // retrieve the values
+    let lhs = lhs_info
+        .var
         .const_or_cell()
         .expect("assert_eq: lhs is not a constant or cell");
-    let rhs = vars[1]
+    let rhs = rhs_info
+        .var
         .const_or_cell()
         .expect("assert_eq: rhs is not a constant or cell");
 
@@ -151,10 +160,16 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<O
 }
 
 /// Asserts that a condition is true.
-fn assert(compiler: &mut CircuitWriter, vars: &[Var], span: Span) -> Result<Option<Var>> {
-    // double check (on top of type checker)
+fn assert(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {
+    // we get a single var
     assert_eq!(vars.len(), 1);
-    let cond = vars[0]
+
+    // of type bool
+    let var_info = &vars[0];
+    assert!(matches!(var_info.typ, Some(TyKind::Bool)));
+
+    let cond = var_info
+        .var
         .const_or_cell()
         .expect("assert: condition is not a constant or cell");
 

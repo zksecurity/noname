@@ -22,6 +22,7 @@
 - [Constants](./constants.md)
 - [Functions](./functions.md)
 - [Scope](./scope.md)
+- [Methods](./methods.md)
 
 # Proof Creation
 

@@ -5,8 +5,8 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::{resolve_builtin_functions, resolve_imports, FnKind},
     parser::{
-        Expr, ExprKind, FnSig, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind, UsePath,
-        AST,
+        Expr, ExprKind, FnSig, Function, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind,
+        UsePath, AST,
     },
     stdlib::ImportedModule,
 };
@@ -56,6 +56,13 @@ impl TypeInfo {
     }
 }
 
+#[derive(Default, Debug)]
+pub struct StructInfo {
+    name: String,
+    fields: Vec<(String, TyKind)>,
+    pub methods: HashMap<String, Function>,
+}
+
 /// The environment we use to type check a noname program.
 #[derive(Default, Debug)]
 pub struct TypedGlobalEnv {
@@ -70,10 +77,29 @@ pub struct TypedGlobalEnv {
     /// (in other words, it's not a library)
     pub has_main: bool,
 
-    /// Custom structs
-    structs: HashMap<String, Vec<(String, TyKind)>>,
+    /// Custom structs type information and ASTs for methods.
+    structs: HashMap<String, StructInfo>,
 
+    /// Constants declared in this module.
     constants: HashMap<String, Ty>,
+
+    /// Mapping from node id to TyKind.
+    /// This can be used by the circuit-writer when it needs type information.
+    node_types: HashMap<usize, TyKind>,
+}
+
+impl TypedGlobalEnv {
+    pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
+        self.node_types.get(&expr.node_id)
+    }
+
+    pub fn node_type(&self, node_id: usize) -> Option<&TyKind> {
+        self.node_types.get(&node_id)
+    }
+
+    pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
+        self.structs.get(name)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -213,12 +239,12 @@ impl TypedFnEnv {
 impl Expr {
     pub fn compute_type(
         &self,
-        typed_global_env: &TypedGlobalEnv,
+        typed_global_env: &mut TypedGlobalEnv,
         typed_fn_env: &mut TypedFnEnv,
     ) -> Result<Option<TyKind>> {
-        match &self.kind {
+        let typ = match &self.kind {
             ExprKind::FnCall { name, args } => {
-                typecheck_fn_call(typed_global_env, typed_fn_env, name, args, self.span)
+                typecheck_fn_call(typed_global_env, typed_fn_env, name, args, self.span)?
             }
             ExprKind::Assignment { lhs, rhs } => {
                 // lhs can be a local variable or a path to an array
@@ -250,7 +276,7 @@ impl Expr {
                     panic!("lhs type doesn't match rhs type (TODO: replace with error)");
                 }
 
-                Ok(None)
+                None
             }
             ExprKind::Op(op, lhs, rhs) => {
                 let lhs_typ = lhs.compute_type(typed_global_env, typed_fn_env)?.unwrap();
@@ -270,14 +296,14 @@ impl Expr {
                 }
 
                 match op {
-                    Op2::Equality => Ok(Some(TyKind::Bool)),
+                    Op2::Equality => Some(TyKind::Bool),
                     Op2::Addition
                     | Op2::Subtraction
                     | Op2::Multiplication
                     | Op2::Division
                     | Op2::BoolAnd
                     | Op2::BoolOr
-                    | Op2::BoolNot => Ok(Some(lhs_typ)),
+                    | Op2::BoolNot => Some(lhs_typ),
                 }
             }
             ExprKind::Negated(inner) => {
@@ -289,10 +315,10 @@ impl Expr {
                     });
                 }
 
-                Ok(Some(TyKind::Bool))
+                Some(TyKind::Bool)
             }
-            ExprKind::BigInt(_) => Ok(Some(TyKind::BigInt)),
-            ExprKind::Bool(_) => Ok(Some(TyKind::Bool)),
+            ExprKind::BigInt(_) => Some(TyKind::BigInt),
+            ExprKind::Bool(_) => Some(TyKind::Bool),
             ExprKind::Identifier(path) => {
                 if path.module.is_some() {
                     unimplemented!();
@@ -310,7 +336,7 @@ impl Expr {
                         .clone()
                 };
 
-                Ok(Some(typ))
+                Some(typ)
             }
             ExprKind::ArrayAccess { name, idx } => {
                 // only support scoped variable for now
@@ -341,7 +367,7 @@ impl Expr {
 
                 //
                 match typ {
-                    TyKind::Array(typkind, _) => Ok(Some(*typkind)),
+                    TyKind::Array(typkind, _) => Some(*typkind),
                     _ => panic!("not an array"),
                 }
             }
@@ -374,13 +400,15 @@ impl Expr {
                     _ => panic!("arrays can only be of field or bigint"),
                 };
 
-                Ok(Some(TyKind::Array(Box::new(tykind), len)))
+                Some(TyKind::Array(Box::new(tykind), len))
             }
             ExprKind::CustomTypeDeclaration(name, fields) => {
-                let defined_fields = typed_global_env.structs.get(name).cloned().ok_or(Error {
+                let struct_info = typed_global_env.structs.get(name).ok_or(Error {
                     kind: ErrorKind::UndefinedStruct(name.to_string()),
                     span: self.span,
                 })?;
+
+                let defined_fields = &struct_info.fields.clone();
 
                 if defined_fields.len() != fields.len() {
                     return Err(Error {
@@ -389,7 +417,7 @@ impl Expr {
                     });
                 }
 
-                for (defined, observed) in defined_fields.iter().zip(fields) {
+                for (defined, observed) in defined_fields.into_iter().zip(fields) {
                     if defined.0 != observed.0.value {
                         return Err(Error {
                             kind: ErrorKind::InvalidStructField(
@@ -421,12 +449,13 @@ impl Expr {
                     }
                 }
 
-                Ok(Some(TyKind::Custom(name.to_string())))
+                Some(TyKind::Custom(name.to_string()))
             }
+
             ExprKind::StructAccess(name, field) => {
                 let struct_name = typed_fn_env
                     .get_type(&name.value)
-                    .expect("could not find variable in scope (TODO: better error)");
+                    .expect("could not find variable {} in scope (TODO: better error)");
 
                 let struct_name = match struct_name {
                     TyKind::Custom(name) => name,
@@ -435,10 +464,12 @@ impl Expr {
                     ),
                 };
 
-                let struct_type = typed_global_env
+                let struct_info = typed_global_env
                     .structs
                     .get(struct_name)
                     .expect("could not find struct in scope (TODO: better error)");
+
+                let struct_type = &struct_info.fields;
 
                 let field_type = struct_type
                     .iter()
@@ -446,14 +477,86 @@ impl Expr {
                     .map(|(_, typ)| typ)
                     .expect("could not find given field in custom struct (TODO: better error");
 
-                Ok(Some(field_type.clone()))
+                Some(field_type.clone())
             }
             ExprKind::MethodCall {
                 self_name,
-                name,
+                method_name: name,
                 args,
-            } => todo!(),
+            } => {
+                if self_name.module.is_some() {
+                    unimplemented!();
+                }
+
+                // get type of self_name
+                let self_typ = typed_fn_env.get_type(&self_name.name).ok_or(Error {
+                    kind: ErrorKind::UndefinedVariable,
+                    span: self.span,
+                })?;
+
+                let self_name = match self_typ {
+                    TyKind::Custom(self_typ) => self_typ,
+                    _ => panic!("method call on a non-type? what?"),
+                };
+
+                // get type methods from global typed env
+                // TODO: I actually don't save that information!
+                let struct_info = typed_global_env
+                    .structs
+                    .get(self_name)
+                    .expect("couldn't find struct info");
+
+                // check args WITHOUT the potential `self` argument
+                let method_info = struct_info
+                    .methods
+                    .get(name)
+                    .expect("method not found")
+                    .clone();
+
+                let expected: Vec<_> = method_info
+                    .sig
+                    .arguments
+                    .iter()
+                    .filter(|arg| arg.name.value != "self")
+                    .collect();
+
+                assert_eq!(args.len(), expected.len());
+
+                for (expected, observed) in expected.into_iter().zip(args) {
+                    let observed_typ = observed
+                        .compute_type(typed_global_env, typed_fn_env)?
+                        .expect("expected a value (TODO: better error)");
+
+                    if expected.typ.kind != observed_typ {
+                        if !matches!(
+                            (&expected.typ.kind, &observed_typ),
+                            (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field)
+                        ) {
+                            panic!("type mismatch");
+                        }
+                    }
+                }
+
+                // return value type
+                let return_typ = method_info
+                    .sig
+                    .return_type
+                    .as_ref()
+                    .map(|typ| typ.kind.clone());
+
+                return_typ
+            }
+        };
+
+        // save the type of that expression in our typed global env
+        if let Some(typ) = &typ {
+            typed_global_env
+                .node_types
+                .insert(self.node_id, typ.clone());
         }
+
+        // return the type to the caller
+        Ok(typ)
     }
 }
 
@@ -507,14 +610,23 @@ impl TAST {
                 RootKind::Struct(struct_) => {
                     let Struct { name, fields, .. } = struct_;
 
-                    let fields = fields
+                    let fields: Vec<_> = fields
                         .iter()
                         .map(|field| {
                             let (name, typ) = field;
                             (name.value.clone(), typ.kind.clone())
                         })
                         .collect();
-                    typed_global_env.structs.insert(name.value.clone(), fields);
+
+                    let struct_info = StructInfo {
+                        name: name.value.clone(),
+                        fields,
+                        methods: HashMap::new(),
+                    };
+
+                    typed_global_env
+                        .structs
+                        .insert(name.value.clone(), struct_info);
                 }
 
                 RootKind::Const(cst) => {
@@ -560,11 +672,23 @@ impl TAST {
                         kind: fn_kind,
                         span: function.span,
                     };
-                    typed_global_env
-                        .functions
-                        .insert(function.sig.name.name.value.clone(), fn_info);
 
-                    // store variables and their types in the env
+                    if let Some(self_name) = &function.sig.name.self_name {
+                        let struct_info = typed_global_env
+                            .structs
+                            .get_mut(&self_name.value)
+                            .expect("couldn't find the struct for storing the method");
+
+                        struct_info
+                            .methods
+                            .insert(function.sig.name.name.value.clone(), function.clone());
+                    } else {
+                        typed_global_env
+                            .functions
+                            .insert(function.sig.name.name.value.clone(), fn_info);
+                    }
+
+                    // store variables and their types in the fn_env
                     for arg in &function.sig.arguments {
                         // public_output is a reserved name,
                         // associated automatically to the public output of the main function
@@ -605,6 +729,13 @@ impl TAST {
                                 )?;
                             }
 
+                            TyKind::Custom(custom) => {
+                                typed_fn_env.store_type(
+                                    "self".to_string(),
+                                    TypeInfo::new(TyKind::Custom(custom.clone()), arg.span),
+                                )?;
+                            }
+
                             t => panic!("unimplemented type {:?}", t),
                         }
                     }
@@ -625,7 +756,7 @@ impl TAST {
 
                     // type system pass
                     Self::check_block(
-                        &typed_global_env,
+                        &mut typed_global_env,
                         &mut typed_fn_env,
                         &function.body,
                         function.sig.return_type.as_ref(),
@@ -646,7 +777,7 @@ impl TAST {
     }
 
     pub fn check_block(
-        typed_global_env: &TypedGlobalEnv,
+        typed_global_env: &mut TypedGlobalEnv,
         typed_fn_env: &mut TypedFnEnv,
         stmts: &[Stmt],
         expected_return: Option<&Ty>,
@@ -690,7 +821,7 @@ impl TAST {
     }
 
     pub fn check_stmt(
-        typed_global_env: &TypedGlobalEnv,
+        typed_global_env: &mut TypedGlobalEnv,
         typed_fn_env: &mut TypedFnEnv,
         stmt: &Stmt,
     ) -> Result<Option<TyKind>> {
@@ -766,7 +897,7 @@ impl TAST {
 }
 
 pub fn typecheck_fn_call(
-    typed_global_env: &TypedGlobalEnv,
+    typed_global_env: &mut TypedGlobalEnv,
     typed_fn_env: &mut TypedFnEnv,
     name: &Path,
     args: &[Expr],

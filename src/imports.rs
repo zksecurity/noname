@@ -1,10 +1,10 @@
 use std::fmt;
 
 use crate::{
-    circuit_writer::CircuitWriter,
+    circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
     error::Result,
-    parser::{FnSig, Function, Path, UsePath},
+    parser::{FnSig, Function, UsePath},
     stdlib::{self, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
     type_checker::FnInfo,
     var::Var,
@@ -17,7 +17,7 @@ use crate::{
 /// * `&[Var]`: take an unbounded list of variables, this is because built-ins can take any number of arguments, and different built-ins might take different types of arguments
 /// * `Span`: take a span to return user-friendly errors
 /// * `-> Result<Option<Var>>`: return a `Result` with an `Option` of a `Var`. This is because built-ins can return a variable, or they can return nothing. If they return nothing, then the `Option` will be `None`. If they return a variable, then the `Option` will be `Some(Var)`.
-pub type FnHandle = fn(&mut CircuitWriter, &[Var], Span) -> Result<Option<Var>>;
+pub type FnHandle = fn(&mut CircuitWriter, &[VarInfo], Span) -> Result<Option<Var>>;
 
 /// The different types of a noname function.
 #[derive(Clone)]
