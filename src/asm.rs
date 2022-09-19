@@ -1,7 +1,7 @@
 //! ASM-like language:
 //!
 //! ```ignore
-//! @ noname.0.4.0
+//! @ noname.0.5.0
 //!
 //! # vars
 //!
@@ -42,7 +42,7 @@ pub fn generate_asm(
     let mut res = "".to_string();
 
     // version
-    res.push_str("@ noname.0.4.0\n\n");
+    res.push_str("@ noname.0.5.0\n\n");
 
     // vars
     let mut vars = OrderedHashSet::default();

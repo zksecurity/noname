@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2022-09-18
+
+- methods on types
+- static methods as well
+- structs can be passed as arguments to functions
+- better errors
+
 ## [0.4.0] - 2022-09-16
 
 - user-defined functions
