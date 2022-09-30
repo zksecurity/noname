@@ -1135,6 +1135,7 @@
 <span id="1135">1135</span>
 <span id="1136">1136</span>
 <span id="1137">1137</span>
+<span id="1138">1138</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1158,7 +1159,7 @@
     },
     syntax::is_type,
     type_checker::{TypedGlobalEnv, TAST},
-    var::{CellVar, ConstOrCell, Value, Var, VarKind},
+    var::{CellVar, ConstOrCell, Value, Var},
     witness::CompiledCircuit,
 };
 
@@ -1605,7 +1606,7 @@
             (<span class="prelude-val">Some</span>(_expected), <span class="prelude-val">Some</span>(returned)) =&gt; {
                 <span class="comment">// make sure there are no constants in the returned value
                 </span><span class="kw">let </span><span class="kw-2">mut </span>returned_cells = <span class="macro">vec!</span>[];
-                <span class="kw">for </span>r <span class="kw">in </span>returned.into_const_or_cells() {
+                <span class="kw">for </span>r <span class="kw">in </span><span class="kw-2">&amp;</span>returned.cvars {
                     <span class="kw">match </span>r {
                         ConstOrCell::Cell(c) =&gt; returned_cells.push(c),
                         ConstOrCell::Const(<span class="kw">_</span>) =&gt; {
@@ -1623,11 +1624,7 @@
                     .as_ref()
                     .expect(<span class="string">&quot;bug in the compiler: missing public output&quot;</span>);
 
-                <span class="kw">for </span>(pub_var, ret_var) <span class="kw">in </span>public_output
-                    .into_const_or_cells()
-                    .into_iter()
-                    .zip(returned_cells)
-                {
+                <span class="kw">for </span>(pub_var, ret_var) <span class="kw">in </span>public_output.cvars.iter().zip(returned_cells) {
                     <span class="comment">// replace the computation of the public output vars with the actual variables being returned here
                     </span><span class="kw">let </span>var_idx = pub_var.idx().unwrap();
                     <span class="kw">let </span>prev = <span class="self">self
@@ -1813,7 +1810,7 @@
                     <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.unwrap();
                     <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(field::add(<span class="self">self</span>, lhs, rhs, expr.span)))
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(field::add(<span class="self">self</span>, <span class="kw-2">&amp;</span>lhs[<span class="number">0</span>], <span class="kw-2">&amp;</span>rhs[<span class="number">0</span>], expr.span)))
                 }
                 Op2::Subtraction =&gt; <span class="macro">todo!</span>(),
                 Op2::Multiplication =&gt; <span class="macro">todo!</span>(),
@@ -1822,13 +1819,13 @@
                     <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.unwrap();
                     <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(field::equal(<span class="self">self</span>, <span class="kw-2">&amp;</span>lhs.kind, <span class="kw-2">&amp;</span>rhs.kind, expr.span)))
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(field::equal(<span class="self">self</span>, <span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, expr.span)))
                 }
                 Op2::BoolAnd =&gt; {
                     <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.unwrap();
                     <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(boolean::and(<span class="self">self</span>, lhs, rhs, expr.span)))
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(boolean::and(<span class="self">self</span>, <span class="kw-2">&amp;</span>lhs[<span class="number">0</span>], <span class="kw-2">&amp;</span>rhs[<span class="number">0</span>], expr.span)))
                 }
                 Op2::BoolOr =&gt; <span class="macro">todo!</span>(),
                 Op2::BoolNot =&gt; <span class="macro">todo!</span>(),
@@ -1836,7 +1833,7 @@
 
             ExprKind::Negated(b) =&gt; {
                 <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, b)<span class="question-mark">?</span>.unwrap();
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(boolean::neg(<span class="self">self</span>, var, expr.span)))
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(boolean::neg(<span class="self">self</span>, <span class="kw-2">&amp;</span>var[<span class="number">0</span>], expr.span)))
             }
 
             ExprKind::BigInt(b) =&gt; {
@@ -1862,26 +1859,46 @@
                 <span class="kw">if </span>path.name.len() &gt; <span class="number">2 </span>{
                     <span class="macro">panic!</span>(<span class="string">&quot;accessing nested variables not supported yet&quot;</span>);
                 } <span class="kw">else if </span>path.name.len() == <span class="number">2 </span>{
-                    <span class="kw">let </span>struct_name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
+                    <span class="comment">// extract data
+                    </span><span class="kw">let </span>struct_var = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
                     <span class="kw">let </span>field_name = <span class="kw-2">&amp;</span>path.name[<span class="number">1</span>];
-                    <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>struct_name.value, <span class="kw-2">&amp;</span>field_name.value);
 
-                    <span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>struct_name.value);
-                    <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>var_info);
-                    <span class="kw">let </span>var = var_info.var;
+                    <span class="comment">// get info the struct var from the env
+                    </span><span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>struct_var.value);
 
-                    <span class="comment">// TODO: I don&#39;t think I need this fields() function anymore since I can get that information from global_env.typed.structs (and parse the list of fields dynamically)
-                    </span><span class="kw">let </span>fields = var.fields().expect(<span class="string">&quot;type-checker bug: expected struct&quot;</span>);
+                    <span class="comment">// get the struct name
+                    </span><span class="kw">let </span>struct_name = <span class="kw">match </span><span class="kw-2">&amp;</span>var_info.typ {
+                        <span class="prelude-val">Some</span>(TyKind::Custom(s)) =&gt; s,
+                        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;type checker error: variable is not a custom struct&quot;</span>),
+                    };
 
-                    <span class="kw">let </span>var = fields.get(<span class="kw-2">&amp;</span>field_name.value).cloned().ok_or(Error {
-                        kind: ErrorKind::UndefinedField(
-                            field_name.value.clone(),
-                            field_name.value.clone(),
-                        ),
-                        span: field_name.span,
-                    })<span class="question-mark">?</span>;
+                    <span class="comment">// retrieve struct info
+                    </span><span class="kw">let </span>struct_info = global_env
+                        .typed
+                        .struct_info(struct_name)
+                        .expect(<span class="string">&quot;couldn&#39;t find struct info&quot;</span>);
 
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(var, expr.span)))
+                    <span class="comment">// retrieve range from struct info
+                    </span><span class="kw">let </span>range = {
+                        <span class="kw">let </span><span class="kw-2">mut </span>start = <span class="number">0</span>;
+                        <span class="kw">let </span><span class="kw-2">mut </span>end = <span class="number">0</span>;
+
+                        <span class="kw">for </span>(name, typ) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
+                            <span class="kw">if </span>name == <span class="kw-2">&amp;</span>field_name.value {
+                                end = start + global_env.typed.size_of(typ);
+                                <span class="kw">break</span>;
+                            }
+
+                            start += global_env.typed.size_of(typ);
+                        }
+
+                        start..end
+                    };
+
+                    <span class="comment">// retrieve the correct vars
+                    </span><span class="kw">let </span>cvars = var_info.var.cvars[range].to_vec();
+
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(cvars, expr.span)))
                 } <span class="kw">else if </span>path.name.len() == <span class="number">1 </span>{
                     <span class="kw">let </span>var_name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
 
@@ -1893,20 +1910,17 @@
             }
 
             ExprKind::ArrayAccess { path, idx } =&gt; {
-                <span class="comment">// retrieve the CircuitVar at the path
-                </span><span class="kw">let </span>array: Var = <span class="kw">if let </span><span class="prelude-val">Some</span>(_module) = <span class="kw-2">&amp;</span>path.module {
+                <span class="comment">// retrieve the var at the path
+                </span><span class="kw">let </span>var_info = <span class="kw">if let </span><span class="prelude-val">Some</span>(_module) = <span class="kw-2">&amp;</span>path.module {
                     <span class="comment">// check module present in the scope
                     </span><span class="macro">unimplemented!</span>()
+                } <span class="kw">else if </span>path.name.len() != <span class="number">1 </span>{
+                    <span class="macro">unimplemented!</span>();
                 } <span class="kw">else </span>{
-                    <span class="kw">if </span>path.name.len() != <span class="number">1 </span>{
-                        <span class="macro">unimplemented!</span>();
-                    }
-
                     <span class="kw">let </span>array_var = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
 
-                    <span class="comment">// var present in the scope
-                    </span><span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>array_var.value).clone();
-                    var_info.var
+                    <span class="comment">// var info present in the scope
+                    </span>fn_env.get_var(global_env, <span class="kw-2">&amp;</span>array_var.value).clone()
                 };
 
                 <span class="comment">// compute the index
@@ -1914,60 +1928,62 @@
                     kind: ErrorKind::CannotComputeExpression,
                     span: expr.span,
                 })<span class="question-mark">?</span>;
-
-                <span class="comment">// the index must be a constant!!
-                </span><span class="kw">let </span>idx = idx_var.constant().ok_or(Error {
+                <span class="kw">let </span>idx = idx_var.constant().ok_or(Error {
                     kind: ErrorKind::ExpectedConstant,
                     span: expr.span,
                 })<span class="question-mark">?</span>;
-
                 <span class="kw">let </span>idx: BigUint = idx.into();
                 <span class="kw">let </span>idx: usize = idx.try_into().unwrap();
 
+                <span class="comment">// compute the size of each element in the array
+                </span><span class="kw">let </span>element_size = global_env
+                    .typed
+                    .size_of(<span class="kw-2">&amp;</span>var_info.typ.expect(<span class="string">&quot;no type info for the array&quot;</span>));
+
+                <span class="comment">// compute the real index
+                </span><span class="kw">let </span>real_idx = element_size * idx;
+
                 <span class="comment">// index into the CircuitVar (and prevent out of bounds)
-                </span><span class="kw">let </span>res = array.get(idx).cloned().ok_or(Error {
-                    kind: ErrorKind::ArrayIndexOutOfBounds(idx, array.len()),
+                </span><span class="kw">let </span>var = <span class="kw-2">&amp;</span>var_info.var;
+                <span class="kw">let </span>res = var.get(idx).cloned().ok_or(Error {
+                    kind: ErrorKind::ArrayIndexOutOfBounds(idx, var.len()),
                     span: expr.span,
                 })<span class="question-mark">?</span>;
 
                 <span class="comment">//
-                </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(res, expr.span)))
+                </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_cvar(res, expr.span)))
             }
 
             ExprKind::ArrayDeclaration(items) =&gt; {
-                <span class="comment">// we only support arrays of Field elements at the moment.
-                // not sure yet how we can support any other type of arrays...
-                // perhaps we could abstract an array as an list of cellvars (each item contains one cellvars)
-                </span><span class="kw">let </span><span class="kw-2">mut </span>vars = Vec::with_capacity(items.len());
+                <span class="kw">let </span><span class="kw-2">mut </span>cvars = <span class="macro">vec!</span>[];
 
                 <span class="kw">for </span>item <span class="kw">in </span>items {
                     <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, item)<span class="question-mark">?</span>.unwrap();
-                    vars.push(var.kind.clone());
-                    <span class="comment">/*
-                    to support other types:
-                     in the loop: vars.push(var);
-                     after: vars.flatten() (or smthg like that)
-                     and save the information in
-                     */
-                </span>}
+                    cvars.extend(var.cvars.clone());
+                }
 
-                <span class="kw">let </span>var = Var::new_array(vars, expr.span);
+                <span class="kw">let </span>var = Var::new(cvars, expr.span);
 
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
             }
 
             ExprKind::CustomTypeDeclaration(name, fields) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>vars = HashMap::new();
-                <span class="kw">for </span>(name, rhs) <span class="kw">in </span>fields {
+                <span class="comment">// create the struct by just concatenating all of its cvars
+                </span><span class="kw">let </span><span class="kw-2">mut </span>cvars = <span class="macro">vec!</span>[];
+                <span class="kw">for </span>(field, rhs) <span class="kw">in </span>fields {
                     <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
-                    vars.insert(name.value.clone(), var.kind.clone());
+                    cvars.extend(var.cvars.clone());
                 }
-                <span class="kw">let </span>var = Var::new_struct(vars, expr.span);
-                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>name.value;
-                <span class="kw">let </span>var_info = VarInfo::new(var.clone(), <span class="prelude-val">Some</span>(TyKind::Custom(name.clone())));
-                fn_env.add_var(global_env, name.clone(), var_info);
+                <span class="kw">let </span>var = Var::new(cvars, expr.span);
 
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
+                <span class="comment">// add struct info to the env
+                </span><span class="kw">let </span>name = name.value.clone();
+                <span class="kw">let </span>var_info = VarInfo::new(var.clone(), <span class="prelude-val">Some</span>(TyKind::Custom(name.clone())));
+
+                fn_env.add_var(global_env, name, var_info);
+
+                <span class="comment">//
+                </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
             }
         }
     }
@@ -2071,12 +2087,12 @@
     }
 
     <span class="kw">pub fn </span>add_public_inputs(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, num: usize, span: Span) -&gt; Var {
-        <span class="kw">let </span><span class="kw-2">mut </span>vars = Vec::with_capacity(num);
+        <span class="kw">let </span><span class="kw-2">mut </span>cvars = Vec::with_capacity(num);
 
         <span class="kw">for </span>idx <span class="kw">in </span><span class="number">0</span>..num {
             <span class="comment">// create the var
             </span><span class="kw">let </span>cvar = <span class="self">self</span>.new_internal_var(Value::External(name.clone(), idx), span);
-            vars.push(VarKind::new_cell(cvar));
+            cvars.push(ConstOrCell::Cell(cvar));
 
             <span class="comment">// create the associated generic gate
             </span><span class="self">self</span>.add_gate(
@@ -2090,22 +2106,17 @@
 
         <span class="self">self</span>.public_input_size += num;
 
-        <span class="comment">// TODO: support more than arrays and fields
-        </span><span class="kw">if </span>num == <span class="number">1 </span>{
-            Var::new(vars[<span class="number">0</span>].clone(), span)
-        } <span class="kw">else </span>{
-            Var::new_array(vars, span)
-        }
+        Var::new(cvars, span)
     }
 
     <span class="kw">pub fn </span>add_public_outputs(<span class="kw-2">&amp;mut </span><span class="self">self</span>, num: usize, span: Span) {
         <span class="macro">assert!</span>(<span class="self">self</span>.public_output.is_none());
 
-        <span class="kw">let </span><span class="kw-2">mut </span>vars = Vec::with_capacity(num);
+        <span class="kw">let </span><span class="kw-2">mut </span>cvars = Vec::with_capacity(num);
         <span class="kw">for _ in </span><span class="number">0</span>..num {
             <span class="comment">// create the var
             </span><span class="kw">let </span>cvar = <span class="self">self</span>.new_internal_var(Value::PublicOutput(<span class="prelude-val">None</span>), span);
-            vars.push(VarKind::new_cell(cvar));
+            cvars.push(ConstOrCell::Cell(cvar));
 
             <span class="comment">// create the associated generic gate
             </span><span class="self">self</span>.add_gate(
@@ -2119,31 +2130,21 @@
         <span class="self">self</span>.public_input_size += num;
 
         <span class="comment">// store it
-        // TODO: support more than arrays and fields
-        </span><span class="kw">let </span>res = <span class="kw">if </span>num == <span class="number">1 </span>{
-            Var::new(vars[<span class="number">0</span>].clone(), span)
-        } <span class="kw">else </span>{
-            Var::new_array(vars, span)
-        };
+        </span><span class="kw">let </span>res = Var::new(cvars, span);
         <span class="self">self</span>.public_output = <span class="prelude-val">Some</span>(res);
     }
 
     <span class="kw">pub fn </span>add_private_inputs(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, num: usize, span: Span) -&gt; Var {
-        <span class="kw">let </span><span class="kw-2">mut </span>vars = Vec::with_capacity(num);
+        <span class="kw">let </span><span class="kw-2">mut </span>cvars = Vec::with_capacity(num);
 
         <span class="kw">for </span>idx <span class="kw">in </span><span class="number">0</span>..num {
             <span class="comment">// create the var
             </span><span class="kw">let </span>cvar = <span class="self">self</span>.new_internal_var(Value::External(name.clone(), idx), span);
-            vars.push(VarKind::new_cell(cvar));
+            cvars.push(ConstOrCell::Cell(cvar));
             <span class="self">self</span>.private_input_indices.push(cvar.index);
         }
 
-        <span class="comment">// TODO: support more than arrays and fields
-        </span><span class="kw">if </span>num == <span class="number">1 </span>{
-            Var::new(vars[<span class="number">0</span>].clone(), span)
-        } <span class="kw">else </span>{
-            Var::new_array(vars, span)
-        }
+        Var::new(cvars, span)
     }
 }
 
@@ -2175,6 +2176,7 @@
 
     <span class="doccomment">/// We keep track of the type of variables, eventhough we&#39;re not in the typechecker anymore,
     /// because we need to know the type for method calls.
+    </span><span class="comment">// TODO: why is this an option?
     </span><span class="kw">pub </span>typ: <span class="prelude-ty">Option</span>&lt;TyKind&gt;,
 }
 

@@ -300,50 +300,11 @@
 <span id="300">300</span>
 <span id="301">301</span>
 <span id="302">302</span>
-<span id="303">303</span>
-<span id="304">304</span>
-<span id="305">305</span>
-<span id="306">306</span>
-<span id="307">307</span>
-<span id="308">308</span>
-<span id="309">309</span>
-<span id="310">310</span>
-<span id="311">311</span>
-<span id="312">312</span>
-<span id="313">313</span>
-<span id="314">314</span>
-<span id="315">315</span>
-<span id="316">316</span>
-<span id="317">317</span>
-<span id="318">318</span>
-<span id="319">319</span>
-<span id="320">320</span>
-<span id="321">321</span>
-<span id="322">322</span>
-<span id="323">323</span>
-<span id="324">324</span>
-<span id="325">325</span>
-<span id="326">326</span>
-<span id="327">327</span>
-<span id="328">328</span>
-<span id="329">329</span>
-<span id="330">330</span>
-<span id="331">331</span>
-<span id="332">332</span>
-<span id="333">333</span>
-<span id="334">334</span>
-<span id="335">335</span>
-<span id="336">336</span>
-<span id="337">337</span>
-<span id="338">338</span>
-<span id="339">339</span>
-<span id="340">340</span>
-<span id="341">341</span>
 </pre><pre class="rust"><code><span class="kw">use crate</span>::{
     boolean,
     circuit_writer::{CircuitWriter, GateKind},
     constants::{Field, Span},
-    var::{ConstOrCell, Value, Var, VarKind},
+    var::{ConstOrCell, Value, Var},
 };
 
 <span class="kw">use </span>ark_ff::{One, Zero};
@@ -351,18 +312,11 @@
 <span class="kw">use </span>std::ops::Neg;
 
 <span class="doccomment">/// Adds two field elements
-</span><span class="kw">pub fn </span>add(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, lhs: Var, rhs: Var, span: Span) -&gt; Var {
+</span><span class="kw">pub fn </span>add(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, lhs: <span class="kw-2">&amp;</span>ConstOrCell, rhs: <span class="kw-2">&amp;</span>ConstOrCell, span: Span) -&gt; Var {
     <span class="kw">let </span>zero = Field::zero();
     <span class="kw">let </span>one = Field::one();
 
-    <span class="kw">let </span>lhs_v = lhs
-        .const_or_cell()
-        .expect(<span class="string">&quot;add&#39;s lhs is not a constant or a cell&quot;</span>);
-    <span class="kw">let </span>rhs_v = rhs
-        .const_or_cell()
-        .expect(<span class="string">&quot;add&#39;s lhs is not a constant or a cell&quot;</span>);
-
-    <span class="kw">match </span>(lhs_v, rhs_v) {
+    <span class="kw">match </span>(lhs, rhs) {
         <span class="comment">// 2 constants
         </span>(ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) =&gt; Var::new_constant(<span class="kw-2">*</span>lhs + <span class="kw-2">*</span>rhs, span),
 
@@ -416,18 +370,11 @@
 }
 
 <span class="doccomment">/// Subtracts two variables, we only support variables that are of length 1.
-</span><span class="kw">pub fn </span>sub(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, lhs: Var, rhs: Var, span: Span) -&gt; Var {
+</span><span class="kw">pub fn </span>sub(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, lhs: <span class="kw-2">&amp;</span>ConstOrCell, rhs: <span class="kw-2">&amp;</span>ConstOrCell, span: Span) -&gt; Var {
     <span class="kw">let </span>zero = Field::zero();
     <span class="kw">let </span>one = Field::one();
 
-    <span class="kw">let </span>lhs_v = lhs
-        .const_or_cell()
-        .expect(<span class="string">&quot;add&#39;s lhs is not a constant or a cell&quot;</span>);
-    <span class="kw">let </span>rhs_v = rhs
-        .const_or_cell()
-        .expect(<span class="string">&quot;add&#39;s lhs is not a constant or a cell&quot;</span>);
-
-    <span class="kw">match </span>(lhs_v, rhs_v) {
+    <span class="kw">match </span>(lhs, rhs) {
         <span class="comment">// const1 - const2
         </span>(ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) =&gt; Var::new_constant(<span class="kw-2">*</span>lhs - <span class="kw-2">*</span>rhs, span),
 
@@ -505,7 +452,7 @@
 
 <span class="doccomment">/// This takes variables that can be anything, and returns a boolean
 </span><span class="comment">// TODO: so perhaps it&#39;s not really relevant in this file?
-</span><span class="kw">pub fn </span>equal(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, lhs: <span class="kw-2">&amp;</span>VarKind, rhs: <span class="kw-2">&amp;</span>VarKind, span: Span) -&gt; Var {
+</span><span class="kw">pub fn </span>equal(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, lhs: <span class="kw-2">&amp;</span>Var, rhs: <span class="kw-2">&amp;</span>Var, span: Span) -&gt; Var {
     <span class="comment">// sanity check
     </span><span class="macro">assert_eq!</span>(lhs.len(), rhs.len());
 
@@ -519,34 +466,9 @@
     );
     <span class="kw">let </span><span class="kw-2">mut </span>acc = Var::new_var(acc, span);
 
-    <span class="kw">match </span>(lhs, rhs) {
-        <span class="comment">// if we just have cells or consts we can do the equality check
-        </span>(VarKind::ConstOrCell(lhs), VarKind::ConstOrCell(rhs)) =&gt; {
-            <span class="kw">let </span>res = equal_cells(compiler, lhs, rhs, span);
-            acc = boolean::and(compiler, res, acc, span);
-        }
-
-        <span class="comment">// array/tuple: recurse
-        </span>(VarKind::ArrayOrTuple(l), VarKind::ArrayOrTuple(r)) =&gt; {
-            <span class="macro">assert_eq!</span>(l.len(), r.len());
-
-            <span class="kw">for </span>(l, r) <span class="kw">in </span>l.iter().zip(r) {
-                <span class="kw">let </span>res = equal(compiler, l, r, span);
-                acc = boolean::and(compiler, res, acc, span);
-            }
-        }
-
-        <span class="comment">// structs: recurse
-        </span>(VarKind::Struct(l), VarKind::Struct(r)) =&gt; {
-            <span class="macro">assert_eq!</span>(l.len(), r.len());
-
-            <span class="kw">for </span>(l, r) <span class="kw">in </span>l.values().zip(r.values()) {
-                <span class="kw">let </span>res = equal(compiler, l, r, span);
-                acc = boolean::and(compiler, res, acc, span);
-            }
-        }
-
-        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;bug in compiler: lhs and rhs of equals are of different types&quot;</span>),
+    <span class="kw">for </span>(l, r) <span class="kw">in </span>lhs.cvars.iter().zip(<span class="kw-2">&amp;</span>rhs.cvars) {
+        <span class="kw">let </span>res = equal_cells(compiler, l, r, span);
+        acc = boolean::and(compiler, <span class="kw-2">&amp;</span>res[<span class="number">0</span>], <span class="kw-2">&amp;</span>acc[<span class="number">0</span>], span);
     }
 
     acc

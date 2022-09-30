@@ -1024,6 +1024,27 @@
 <span id="1024">1024</span>
 <span id="1025">1025</span>
 <span id="1026">1026</span>
+<span id="1027">1027</span>
+<span id="1028">1028</span>
+<span id="1029">1029</span>
+<span id="1030">1030</span>
+<span id="1031">1031</span>
+<span id="1032">1032</span>
+<span id="1033">1033</span>
+<span id="1034">1034</span>
+<span id="1035">1035</span>
+<span id="1036">1036</span>
+<span id="1037">1037</span>
+<span id="1038">1038</span>
+<span id="1039">1039</span>
+<span id="1040">1040</span>
+<span id="1041">1041</span>
+<span id="1042">1042</span>
+<span id="1043">1043</span>
+<span id="1044">1044</span>
+<span id="1045">1045</span>
+<span id="1046">1046</span>
+<span id="1047">1047</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -1085,8 +1106,8 @@
 
 <span class="attribute">#[derive(Default, Debug)]
 </span><span class="kw">pub struct </span>StructInfo {
-    name: String,
-    fields: Vec&lt;(String, TyKind)&gt;,
+    <span class="kw">pub </span>name: String,
+    <span class="kw">pub </span>fields: Vec&lt;(String, TyKind)&gt;,
     <span class="kw">pub </span>methods: HashMap&lt;String, Function&gt;,
 }
 
@@ -1126,6 +1147,27 @@
 
     <span class="kw">pub fn </span>struct_info(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>StructInfo&gt; {
         <span class="self">self</span>.structs.get(name)
+    }
+
+    <span class="doccomment">/// Returns the number of field elements contained in the given type.
+    </span><span class="comment">// TODO: might want to memoize that at some point
+    </span><span class="kw">pub fn </span>size_of(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>TyKind) -&gt; usize {
+        <span class="kw">match </span>typ {
+            TyKind::Field =&gt; <span class="number">1</span>,
+            TyKind::Custom(c) =&gt; {
+                <span class="kw">let </span>struct_info = <span class="self">self
+                    </span>.struct_info(c)
+                    .expect(<span class="string">&quot;couldn&#39;t find struct info of {c}&quot;</span>);
+                struct_info
+                    .fields
+                    .iter()
+                    .map(|(<span class="kw">_</span>, t)| <span class="self">self</span>.size_of(t))
+                    .sum()
+            }
+            TyKind::BigInt =&gt; <span class="number">1</span>,
+            TyKind::Array(typ, len) =&gt; (<span class="kw-2">*</span>len <span class="kw">as </span>usize) * <span class="self">self</span>.size_of(typ),
+            TyKind::Bool =&gt; <span class="number">1</span>,
+        }
     }
 }
 

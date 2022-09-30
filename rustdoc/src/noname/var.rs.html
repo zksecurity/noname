@@ -195,150 +195,7 @@
 <span id="195">195</span>
 <span id="196">196</span>
 <span id="197">197</span>
-<span id="198">198</span>
-<span id="199">199</span>
-<span id="200">200</span>
-<span id="201">201</span>
-<span id="202">202</span>
-<span id="203">203</span>
-<span id="204">204</span>
-<span id="205">205</span>
-<span id="206">206</span>
-<span id="207">207</span>
-<span id="208">208</span>
-<span id="209">209</span>
-<span id="210">210</span>
-<span id="211">211</span>
-<span id="212">212</span>
-<span id="213">213</span>
-<span id="214">214</span>
-<span id="215">215</span>
-<span id="216">216</span>
-<span id="217">217</span>
-<span id="218">218</span>
-<span id="219">219</span>
-<span id="220">220</span>
-<span id="221">221</span>
-<span id="222">222</span>
-<span id="223">223</span>
-<span id="224">224</span>
-<span id="225">225</span>
-<span id="226">226</span>
-<span id="227">227</span>
-<span id="228">228</span>
-<span id="229">229</span>
-<span id="230">230</span>
-<span id="231">231</span>
-<span id="232">232</span>
-<span id="233">233</span>
-<span id="234">234</span>
-<span id="235">235</span>
-<span id="236">236</span>
-<span id="237">237</span>
-<span id="238">238</span>
-<span id="239">239</span>
-<span id="240">240</span>
-<span id="241">241</span>
-<span id="242">242</span>
-<span id="243">243</span>
-<span id="244">244</span>
-<span id="245">245</span>
-<span id="246">246</span>
-<span id="247">247</span>
-<span id="248">248</span>
-<span id="249">249</span>
-<span id="250">250</span>
-<span id="251">251</span>
-<span id="252">252</span>
-<span id="253">253</span>
-<span id="254">254</span>
-<span id="255">255</span>
-<span id="256">256</span>
-<span id="257">257</span>
-<span id="258">258</span>
-<span id="259">259</span>
-<span id="260">260</span>
-<span id="261">261</span>
-<span id="262">262</span>
-<span id="263">263</span>
-<span id="264">264</span>
-<span id="265">265</span>
-<span id="266">266</span>
-<span id="267">267</span>
-<span id="268">268</span>
-<span id="269">269</span>
-<span id="270">270</span>
-<span id="271">271</span>
-<span id="272">272</span>
-<span id="273">273</span>
-<span id="274">274</span>
-<span id="275">275</span>
-<span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
-<span id="282">282</span>
-<span id="283">283</span>
-<span id="284">284</span>
-<span id="285">285</span>
-<span id="286">286</span>
-<span id="287">287</span>
-<span id="288">288</span>
-<span id="289">289</span>
-<span id="290">290</span>
-<span id="291">291</span>
-<span id="292">292</span>
-<span id="293">293</span>
-<span id="294">294</span>
-<span id="295">295</span>
-<span id="296">296</span>
-<span id="297">297</span>
-<span id="298">298</span>
-<span id="299">299</span>
-<span id="300">300</span>
-<span id="301">301</span>
-<span id="302">302</span>
-<span id="303">303</span>
-<span id="304">304</span>
-<span id="305">305</span>
-<span id="306">306</span>
-<span id="307">307</span>
-<span id="308">308</span>
-<span id="309">309</span>
-<span id="310">310</span>
-<span id="311">311</span>
-<span id="312">312</span>
-<span id="313">313</span>
-<span id="314">314</span>
-<span id="315">315</span>
-<span id="316">316</span>
-<span id="317">317</span>
-<span id="318">318</span>
-<span id="319">319</span>
-<span id="320">320</span>
-<span id="321">321</span>
-<span id="322">322</span>
-<span id="323">323</span>
-<span id="324">324</span>
-<span id="325">325</span>
-<span id="326">326</span>
-<span id="327">327</span>
-<span id="328">328</span>
-<span id="329">329</span>
-<span id="330">330</span>
-<span id="331">331</span>
-<span id="332">332</span>
-<span id="333">333</span>
-<span id="334">334</span>
-<span id="335">335</span>
-<span id="336">336</span>
-<span id="337">337</span>
-<span id="338">338</span>
-<span id="339">339</span>
-<span id="340">340</span>
-</pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, vec};
+</pre><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use crate</span>::{
     constants::{Field, Span},
@@ -454,216 +311,73 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone)]
-</span><span class="doccomment">/// A variable in a program can have different shapes.
-</span><span class="kw">pub enum </span>VarKind {
-    <span class="doccomment">/// We pack [Constant] and [CellVar] in the same enum because we often branch on these.
-    </span>ConstOrCell(ConstOrCell),
-
-    <span class="doccomment">/// A struct is represented as a mapping between field names and other [VarKind]s.
-    </span>Struct(HashMap&lt;String, VarKind&gt;),
-
-    <span class="doccomment">/// An array or a tuple is represetend as a list of other [VarKind]s.
-    </span>ArrayOrTuple(Vec&lt;VarKind&gt;),
-}
-
-<span class="kw">impl </span>VarKind {
-    <span class="kw">pub fn </span>new_cell(cell: CellVar) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::ConstOrCell(ConstOrCell::Cell(cell))
-    }
-
-    <span class="kw">pub fn </span>new_constant(cst: Field) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::ConstOrCell(ConstOrCell::Const(cst))
-    }
-
-    <span class="doccomment">/// Recursively search if there&#39;s a constant value somewhere in this var.
-    </span><span class="kw">pub fn </span>has_constants(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="kw">match </span><span class="self">self </span>{
-            VarKind::ConstOrCell(c) =&gt; <span class="kw">match </span>c {
-                ConstOrCell::Const(<span class="kw">_</span>) =&gt; <span class="kw">return </span><span class="bool-val">true</span>,
-                ConstOrCell::Cell(<span class="kw">_</span>) =&gt; <span class="kw">return </span><span class="bool-val">false</span>,
-            },
-            VarKind::Struct(stru) =&gt; {
-                <span class="kw">for </span>var <span class="kw">in </span>stru.values() {
-                    <span class="kw">if </span>var.has_constants() {
-                        <span class="kw">return </span><span class="bool-val">true</span>;
-                    }
-                }
-            }
-            VarKind::ArrayOrTuple(array) =&gt; {
-                <span class="kw">for </span>var <span class="kw">in </span>array {
-                    <span class="kw">if </span>var.has_constants() {
-                        <span class="kw">return </span><span class="bool-val">true</span>;
-                    }
-                }
-            }
-        }
-
-        <span class="bool-val">false
-    </span>}
-
-    <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="kw">match </span><span class="self">self </span>{
-            VarKind::ConstOrCell(<span class="kw">_</span>) =&gt; <span class="number">1</span>,
-            VarKind::Struct(s) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>sum = <span class="number">0</span>;
-                <span class="kw">for </span>v <span class="kw">in </span>s.values() {
-                    sum += v.len();
-                }
-                sum
-            }
-            VarKind::ArrayOrTuple(a) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>sum = <span class="number">0</span>;
-                <span class="kw">for </span>v <span class="kw">in </span>a {
-                    sum += v.len();
-                }
-                sum
-            }
-        }
-    }
-
-    <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.len() == <span class="number">0
-    </span>}
-
-    <span class="kw">pub fn </span>const_or_cell(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ConstOrCell&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            VarKind::ConstOrCell(c) =&gt; <span class="prelude-val">Some</span>(c),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        }
-    }
-
-    <span class="kw">pub fn </span>into_const_or_cells(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>ConstOrCell&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            VarKind::ConstOrCell(t) =&gt; <span class="macro">vec!</span>[t],
-            VarKind::Struct(stru) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[];
-                <span class="kw">for </span>var <span class="kw">in </span>stru.values() {
-                    res.extend(var.into_const_or_cells());
-                }
-                res
-            }
-            VarKind::ArrayOrTuple(array) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[];
-                <span class="kw">for </span>var <span class="kw">in </span>array {
-                    res.extend(var.into_const_or_cells());
-                }
-                res
-            }
-        }
-    }
-}
-
 <span class="doccomment">/// Represents a variable in the noname language, or an anonymous variable during computation of expressions.
 </span><span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>Var {
     <span class="doccomment">/// The type of variable.
-    </span><span class="kw">pub </span>kind: VarKind,
+    </span><span class="kw">pub </span>cvars: Vec&lt;ConstOrCell&gt;,
 
     <span class="doccomment">/// The span that created the variable.
     </span><span class="kw">pub </span>span: Span,
 }
 
 <span class="kw">impl </span>Var {
-    <span class="kw">pub fn </span>new(kind: VarKind, span: Span) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ kind, span }
+    <span class="kw">pub fn </span>new(cvars: Vec&lt;ConstOrCell&gt;, span: Span) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ cvars, span }
     }
 
-    <span class="kw">pub fn </span>new_var(var: CellVar, span: Span) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new_cvar(cvar: ConstOrCell, span: Span) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            kind: VarKind::ConstOrCell(ConstOrCell::Cell(var)),
+            cvars: <span class="macro">vec!</span>[cvar],
+            span,
+        }
+    }
+
+    <span class="kw">pub fn </span>new_var(cvar: CellVar, span: Span) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            cvars: <span class="macro">vec!</span>[ConstOrCell::Cell(cvar)],
             span,
         }
     }
 
     <span class="kw">pub fn </span>new_constant(cst: Field, span: Span) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            kind: VarKind::ConstOrCell(ConstOrCell::Const(cst)),
+            cvars: <span class="macro">vec!</span>[ConstOrCell::Const(cst)],
             span,
-        }
-    }
-
-    <span class="kw">pub fn </span>new_struct(vars: HashMap&lt;String, VarKind&gt;, span: Span) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            kind: VarKind::Struct(vars),
-            span,
-        }
-    }
-
-    <span class="kw">pub fn </span>new_array(vars: Vec&lt;VarKind&gt;, span: Span) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            kind: VarKind::ArrayOrTuple(vars),
-            span,
-        }
-    }
-
-    <span class="kw">pub fn </span>array_or_tuple(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>[VarKind]&gt; {
-        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
-            VarKind::ArrayOrTuple(array) =&gt; <span class="prelude-val">Some</span>(array),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 
     <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="self">self</span>.kind.len()
+        <span class="self">self</span>.cvars.len()
     }
 
     <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.kind.is_empty()
+        <span class="self">self</span>.cvars.is_empty()
     }
 
-    <span class="kw">pub fn </span>has_constants(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.kind.has_constants()
-    }
-
-    <span class="kw">pub fn </span>const_or_cell(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ConstOrCell&gt; {
-        <span class="self">self</span>.kind.const_or_cell()
+    <span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, idx: usize) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ConstOrCell&gt; {
+        <span class="kw">if </span>idx &lt; <span class="self">self</span>.cvars.len() {
+            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.cvars[idx])
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>}
     }
 
     <span class="kw">pub fn </span>constant(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Field&gt; {
-        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
-            VarKind::ConstOrCell(ConstOrCell::Const(cst)) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>cst),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        }
-    }
-
-    <span class="kw">pub fn </span>fields(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashMap&lt;String, VarKind&gt;&gt; {
-        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
-            VarKind::Struct(stru) =&gt; <span class="prelude-val">Some</span>(stru),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        }
-    }
-
-    <span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, idx: usize) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>VarKind&gt; {
-        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
-            VarKind::ConstOrCell(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">&quot;cannot index into a const or cell&quot;</span>),
-            VarKind::Struct(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">&quot;cannot index into a struct&quot;</span>),
-            VarKind::ArrayOrTuple(array) =&gt; {
-                <span class="kw">if </span>idx &lt; array.len() {
-                    <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>array[idx])
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>}
-            }
-        }
-    }
-
-    <span class="kw">pub fn </span>into_const_or_cells(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>ConstOrCell&gt; {
-        <span class="self">self</span>.kind.into_const_or_cells()
+        <span class="kw">if </span><span class="self">self</span>.cvars.len() == <span class="number">1 </span>{
+            <span class="self">self</span>.cvars[<span class="number">0</span>].cst()
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>}
     }
 }
 
 <span class="comment">// implement indexing into Var
 </span><span class="kw">impl </span>std::ops::Index&lt;usize&gt; <span class="kw">for </span>Var {
-    <span class="kw">type </span>Output = VarKind;
+    <span class="kw">type </span>Output = ConstOrCell;
 
     <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
-            VarKind::ConstOrCell(<span class="kw">_</span>) | VarKind::Struct(..) =&gt; {
-                <span class="macro">panic!</span>(<span class="string">&quot;bug in the compiler: indexing into a cell/const/struct&quot;</span>)
-            }
-            VarKind::ArrayOrTuple(a) =&gt; <span class="kw-2">&amp;</span>a[index],
-        }
+        <span class="kw-2">&amp;</span><span class="self">self</span>.cvars[index]
     }
 }
 
