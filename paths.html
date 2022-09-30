@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Grammar - noname</title>
+        <title>Paths - noname</title>
 
 
         <!-- Custom HTML head -->
@@ -82,7 +82,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html" class="active"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">11.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">12.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">13.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">14.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">15.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">16.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">17.</strong> Witness Generation</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html" class="active"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">11.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">12.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">13.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">14.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">15.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">16.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">17.</strong> Witness Generation</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -146,41 +146,81 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="grammar"><a class="header" href="#grammar">Grammar</a></h1>
-<p>The syntax of the noname language is described through its grammar.</p>
-<p>We use a notation similar to the Backus-Naur Form (BNF)
-to describe the grammar:</p>
-<pre>
-land := city "|"
- ^        ^   ^
- |        |  terminal: a token
- |        |
- |      another non-terminal
- |
- non-terminal: definition of a piece of code
-city := [ sign ] "," { house }
-        ^            ^
-        optional     |
-                    0r or more houses
-sign := /a-zA-Z_/
-        ^
-        regex-style definition
-</pre>
-<p>There are some comments in the parser code (<code>parser.rs</code>) that attempt to define this grammar.</p>
-<p>Essentially, it is made to look like Rust, but with some differences of philosophies:</p>
-<ul>
-<li>expressions cannot be statements, unless they return no value (act using side effects).</li>
-</ul>
+                        <h1 id="paths"><a class="header" href="#paths">Paths</a></h1>
+<p>Paths are structures identifying snippets of code that look like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>some_module::some_ident.stuff.z
+<span class="boring">}
+</span></code></pre></pre>
+<p>The identifier <code>some_module</code>, appearing before the <code>::</code>, is an optional module, pointing to code that exists in another library. It is always lowercase.</p>
+<p>The identifier <code>some_ident</code> is mandatory. It can represent a type (if it starts with a capital letter), a function name, a variable name, a constant name, etc.</p>
+<p>More identifiers can be concatenated together to form a longer path (using <code>.</code>).
+A path is represent like this internally:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// A path represents a path to a type, a function, a method, or a constant.
+/// It follows the syntax: `module::X` where `X` can be a type, a function, a method, or a constant.
+/// In the case it is a method `a` on some type `A` then it would read:
+/// `module::A.a`.
+#[derive(Debug, Clone)]
+pub struct Path {
+    /// A module, if this is an foreign import.
+    pub module: Option&lt;Ident&gt;,
+
+    /// The name of the type, function, method, or constant.
+    /// It's a vector because it can also be a struct access.
+    pub name: Vec&lt;Ident&gt;,
+
+    /// Its span.
+    pub span: Span,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="expressions-using-path"><a class="header" href="#expressions-using-path">Expressions using Path</a></h2>
+<p>A path does not represent an expression by itself. The following expressions make use of <code>path</code>:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum ExprKind {
+    /// `module::some_fn()`
+    FnCall {
+        name: Path,
+        args: Vec&lt;Expr&gt;,
+    },
+
+    /// `module::SomeType.some_method()`
+    MethodCall {
+        self_name: Path,
+        method_name: Ident,
+        args: Vec&lt;Expr&gt;,
+    },
+
+    /// `module::some_var` or
+    /// `module::SomeType.some_field.some_other_field`
+    Variable(Path),
+
+    /// `module::SomeType.some_field[some_expr]` or
+    /// `module::some_const[some_expr]`
+    ArrayAccess {
+        name: Path,
+        idx: Box&lt;Expr&gt;,
+    },
+
+    /// `module::SomeType { field1: expr1; field2: expr2 }`
+    CustomTypeDeclaration(Path, Vec&lt;(Ident, Expr)&gt;),
+}
+<span class="boring">}
+</span></code></pre></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="compilation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="spans.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="spans.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="type-checker.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -190,11 +230,11 @@ sign := /a-zA-Z_/
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="compilation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="spans.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="spans.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="type-checker.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

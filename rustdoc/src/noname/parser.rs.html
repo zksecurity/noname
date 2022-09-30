@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>parser.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../noname/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>parser.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../noname/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -1746,17 +1746,6 @@
 <span id="1746">1746</span>
 <span id="1747">1747</span>
 <span id="1748">1748</span>
-<span id="1749">1749</span>
-<span id="1750">1750</span>
-<span id="1751">1751</span>
-<span id="1752">1752</span>
-<span id="1753">1753</span>
-<span id="1754">1754</span>
-<span id="1755">1755</span>
-<span id="1756">1756</span>
-<span id="1757">1757</span>
-<span id="1758">1758</span>
-<span id="1759">1759</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -1843,7 +1832,8 @@
     </span><span class="kw">pub </span>module: <span class="prelude-ty">Option</span>&lt;Ident&gt;,
 
     <span class="doccomment">/// The name of the type, function, method, or constant.
-    </span><span class="kw">pub </span>name: Ident,
+    /// It&#39;s a vector because it can also be a struct access.
+    </span><span class="kw">pub </span>name: Vec&lt;Ident&gt;,
 
     <span class="doccomment">/// Its span.
     </span><span class="kw">pub </span>span: Span,
@@ -1863,32 +1853,29 @@
             </span><span class="prelude-val">None </span>=&gt; {
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(Path {
                     module: <span class="prelude-val">None</span>,
-                    name: maybe_module,
+                    name: <span class="macro">vec!</span>[maybe_module],
                     span,
                 });
             }
             <span class="prelude-val">Some</span>(peeked) =&gt; peeked,
         };
 
-        <span class="kw">let </span>is_module = <span class="macro">matches!</span>(peeked.kind, TokenKind::DoubleColon);
+        <span class="kw">if </span><span class="macro">matches!</span>(peeked.kind, TokenKind::DoubleColon) {
+            tokens.bump(ctx); <span class="comment">// ::
 
-        <span class="kw">if </span>is_module {
-            <span class="comment">// if it&#39;s a module, bump and parse the next thing
-            </span>tokens.bump(ctx);
-
-            <span class="comment">// next ident
+            // next ident
             </span><span class="kw">let </span>name = Ident::parse(ctx, tokens)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>span = span.merge_with(name.span);
             <span class="prelude-val">Ok</span>(Path {
                 module: <span class="prelude-val">Some</span>(maybe_module),
-                name,
+                name: <span class="macro">vec!</span>[name],
                 span,
             })
         } <span class="kw">else </span>{
             <span class="prelude-val">Ok</span>(Path {
                 module: <span class="prelude-val">None</span>,
-                name: maybe_module,
+                name: <span class="macro">vec!</span>[maybe_module],
                 span,
             })
         }
@@ -1900,7 +1887,12 @@
     tokens: <span class="kw-2">&amp;mut </span>Tokens,
     path: Path,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Expr&gt; {
-    <span class="kw">if </span>!is_type(<span class="kw-2">&amp;</span>path.name.value) {
+    <span class="comment">// validate path
+    </span><span class="kw">if </span>path.module.is_some() || path.name.len() != <span class="number">1 </span>{
+        <span class="macro">panic!</span>(<span class="string">&quot;A type declaration must not be on a qualified type, only on local types! For example, `let x = module::X {{ ... }}` is not allowed&quot;</span>);
+    }
+
+    <span class="kw">if </span>!is_type(<span class="kw-2">&amp;</span>path.name[<span class="number">0</span>].value) {
         <span class="macro">panic!</span>(<span class="string">&quot;this looks like a type declaration but not on a type (types start with an uppercase) (TODO: better error)&quot;</span>);
     }
 
@@ -1959,7 +1951,7 @@
 
     <span class="prelude-val">Ok</span>(Expr::new(
         ctx,
-        ExprKind::CustomTypeDeclaration(path.name, fields),
+        ExprKind::CustomTypeDeclaration(path.name[<span class="number">0</span>].clone(), fields),
         path.span.merge_with(ctx.last_span()),
     ))
 }
@@ -2005,7 +1997,7 @@
 }
 
 <span class="doccomment">/// after a path, there can be a method call, an array access, a const, a var, a function call, etc.
-</span><span class="kw">pub fn </span>parse_complicated(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens, path: Path) -&gt; <span class="prelude-ty">Result</span>&lt;Expr&gt; {
+</span><span class="kw">pub fn </span>parse_complicated(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens, <span class="kw-2">mut </span>path: Path) -&gt; <span class="prelude-ty">Result</span>&lt;Expr&gt; {
     <span class="kw">match </span>tokens.peek() {
         <span class="comment">// type declaration
         </span><span class="prelude-val">Some</span>(Token {
@@ -2028,7 +2020,7 @@
             <span class="prelude-val">Ok</span>(Expr::new(
                 ctx,
                 ExprKind::ArrayAccess {
-                    name: path,
+                    path,
                     idx: Box::new(expr),
                 },
                 span,
@@ -2048,58 +2040,32 @@
                 path.span
             };
 
-            <span class="prelude-val">Ok</span>(Expr::new(ctx, ExprKind::FnCall { name: path, args }, span))
+            <span class="prelude-val">Ok</span>(Expr::new(ctx, ExprKind::FnCall { path, args }, span))
         }
 
-        <span class="comment">// a struct access or method call
+        <span class="comment">// continue the path:
+        // thing.thing2
+        //      ^
         </span><span class="prelude-val">Some</span>(Token {
             kind: TokenKind::Dot,
             ..
         }) =&gt; {
             tokens.bump(ctx); <span class="comment">// .
 
-            </span><span class="kw">let </span>field = Ident::parse(ctx, tokens)<span class="question-mark">?</span>;
+            // thing.thing2
+            //       ^^^^^^
+            </span><span class="kw">let </span>ident = Ident::parse(ctx, tokens)<span class="question-mark">?</span>;
 
-            <span class="kw">let </span>span = path.span.merge_with(field.span);
+            path.span = path.span.merge_with(ident.span);
+            path.name.push(ident);
 
-            <span class="kw">match </span>tokens.peek() {
-                <span class="comment">// method call
-                </span><span class="prelude-val">Some</span>(Token {
-                    kind: TokenKind::LeftParen,
-                    ..
-                }) =&gt; {
-                    <span class="kw">let </span>args = parse_fn_call_args(ctx, tokens)<span class="question-mark">?</span>;
-
-                    <span class="kw">if </span>!is_identifier(<span class="kw-2">&amp;</span>field.value) {
-                        <span class="macro">panic!</span>(<span class="string">&quot;method call on a non-ident (TODO: better error)&quot;</span>);
-                    }
-
-                    <span class="prelude-val">Ok</span>(Expr::new(
-                        ctx,
-                        ExprKind::MethodCall {
-                            self_name: path,
-                            method_name: field.value,
-                            args,
-                        },
-                        span,
-                    ))
-                }
-
-                <span class="comment">// struct access
-                </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(Expr::new(
-                    ctx,
-                    ExprKind::StructAccess(path.name.clone(), field),
-                    span,
-                )),
-            }
+            <span class="comment">// thing.thing2
+            //             ^^^^
+            </span>parse_complicated(ctx, tokens, path)
         }
 
         <span class="comment">// easy case, it&#39;s just an identifier
-        </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(Expr::new(
-            ctx,
-            ExprKind::Identifier(path.clone()),
-            path.span,
-        )),
+        </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(Expr::new(ctx, ExprKind::Variable(path.clone()), path.span)),
     }
 }
 
@@ -2275,12 +2241,7 @@
 <span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub enum </span>ExprKind {
     FnCall {
-        name: Path,
-        args: Vec&lt;Expr&gt;,
-    },
-    MethodCall {
-        self_name: Path,
-        method_name: String,
+        path: Path,
         args: Vec&lt;Expr&gt;,
     },
     Assignment {
@@ -2290,14 +2251,20 @@
     Op(Op2, Box&lt;Expr&gt;, Box&lt;Expr&gt;),
     Negated(Box&lt;Expr&gt;),
     BigInt(String),
-    Identifier(Path),
-    ArrayAccess {
-        name: Path,
+
+    <span class="doccomment">/// This is a qualified identifier that can represent a constant, or a variable.
+    /// For example, `module::A`, `b.x`, `y`, etc.
+    </span>Variable(Path),
+
+    <span class="doccomment">/// An array access, for example:
+    /// `module::path.x[1 + 2]`
+    </span>ArrayAccess {
+        path: Path,
         idx: Box&lt;Expr&gt;,
     },
+
     ArrayDeclaration(Vec&lt;Expr&gt;),
     CustomTypeDeclaration(Ident, Vec&lt;(Ident, Expr)&gt;),
-    StructAccess(Ident, Ident),
     Bool(bool),
 }
 
@@ -2353,9 +2320,12 @@
                     value: maybe_module,
                     span,
                 };
-                <span class="kw">let </span>path = Path::parse(ctx, tokens, maybe_module, span)<span class="question-mark">?</span>;
 
-                parse_complicated(ctx, tokens, path)<span class="question-mark">?
+                <span class="comment">// module::path
+                </span><span class="kw">let </span>path = Path::parse(ctx, tokens, maybe_module, span)<span class="question-mark">?</span>;
+
+                <span class="comment">// module::path
+                </span>parse_complicated(ctx, tokens, path)<span class="question-mark">?
             </span>}
 
             <span class="comment">// negated expr
@@ -2461,7 +2431,7 @@
         ) {
             <span class="kw">if </span>!<span class="macro">matches!</span>(
                 <span class="kw-2">&amp;</span>lhs.kind,
-                ExprKind::Identifier(..) | ExprKind::ArrayAccess { .. },
+                ExprKind::Variable(..) | ExprKind::ArrayAccess { .. },
             ) {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
                     kind: ErrorKind::InvalidAssignmentExpression,
@@ -2534,7 +2504,8 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Default, Clone)]
+<span class="doccomment">/// Any kind of text that can represent a type, a variable, a function name, etc.
+</span><span class="attribute">#[derive(Debug, Default, Clone)]
 </span><span class="kw">pub struct </span>Ident {
     <span class="kw">pub </span>value: String,
     <span class="kw">pub </span>span: Span,
@@ -3121,8 +3092,15 @@
                 span,
             }) =&gt; {
                 tokens.bump(ctx);
-                <span class="kw">let </span>expr = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
-                tokens.bump_expected(ctx, TokenKind::SemiColon)<span class="question-mark">?</span>;
+
+                <span class="comment">// return xx;
+                //        ^^
+                </span><span class="kw">let </span>expr = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+
+                <span class="comment">// return xx;
+                //          ^
+                </span>tokens.bump_expected(ctx, TokenKind::SemiColon)<span class="question-mark">?</span>;
+
                 <span class="prelude-val">Ok</span>(Stmt {
                     kind: StmtKind::Return(Box::new(expr)),
                     span,
@@ -3517,4 +3495,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>

@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">6.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">7.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">8.</strong> Structs</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">9.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">10.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">11.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">12.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">13.</strong> Scope</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">14.</strong> Methods</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">15.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">16.</strong> Witness Generation</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">11.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">12.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">13.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">14.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">15.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">16.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">17.</strong> Witness Generation</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -414,6 +414,71 @@ sign := /a-zA-Z_/
 <li>the second numebr if the length of the span (e.g. 1 character)</li>
 </ul>
 <p>We start tracking spans in the lexer, and then pass them around to the parser, and then to the compiler. Even gates and wirings have spans associated with them so that we can easily debug those.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="paths"><a class="header" href="#paths">Paths</a></h1>
+<p>Paths are structures identifying snippets of code that look like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>some_module::some_ident.stuff.z
+<span class="boring">}
+</span></code></pre></pre>
+<p>The identifier <code>some_module</code>, appearing before the <code>::</code>, is an optional module, pointing to code that exists in another library. It is always lowercase.</p>
+<p>The identifier <code>some_ident</code> is mandatory. It can represent a type (if it starts with a capital letter), a function name, a variable name, a constant name, etc.</p>
+<p>More identifiers can be concatenated together to form a longer path (using <code>.</code>).
+A path is represent like this internally:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// A path represents a path to a type, a function, a method, or a constant.
+/// It follows the syntax: `module::X` where `X` can be a type, a function, a method, or a constant.
+/// In the case it is a method `a` on some type `A` then it would read:
+/// `module::A.a`.
+#[derive(Debug, Clone)]
+pub struct Path {
+    /// A module, if this is an foreign import.
+    pub module: Option&lt;Ident&gt;,
+
+    /// The name of the type, function, method, or constant.
+    /// It's a vector because it can also be a struct access.
+    pub name: Vec&lt;Ident&gt;,
+
+    /// Its span.
+    pub span: Span,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="expressions-using-path"><a class="header" href="#expressions-using-path">Expressions using Path</a></h2>
+<p>A path does not represent an expression by itself. The following expressions make use of <code>path</code>:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum ExprKind {
+    /// `module::some_fn()`
+    FnCall {
+        name: Path,
+        args: Vec&lt;Expr&gt;,
+    },
+
+    /// `module::SomeType.some_method()`
+    MethodCall {
+        self_name: Path,
+        method_name: Ident,
+        args: Vec&lt;Expr&gt;,
+    },
+
+    /// `module::some_var` or
+    /// `module::SomeType.some_field.some_other_field`
+    Variable(Path),
+
+    /// `module::SomeType.some_field[some_expr]` or
+    /// `module::some_const[some_expr]`
+    ArrayAccess {
+        name: Path,
+        idx: Box&lt;Expr&gt;,
+    },
+
+    /// `module::SomeType { field1: expr1; field2: expr2 }`
+    CustomTypeDeclaration(Path, Vec&lt;(Ident, Expr)&gt;),
+}
+<span class="boring">}
+</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="type-checker"><a class="header" href="#type-checker">Type Checker</a></h1>
 <p>Noname uses a simple type checker to ensure that all types are consistent in the program.</p>
 <p>For example, in code like:</p>
@@ -526,6 +591,72 @@ let z = thing.x + thing.y;
 <span class="boring">}
 </span></code></pre></pre>
 <p>Internally, a struct is represented within the <a href="https://mimoo.github.io/noname/rustdoc/var/struct.Var.html"><code>Var</code></a> type.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="methods"><a class="header" href="#methods">Methods</a></h1>
+<h2 id="a-method-on-what"><a class="header" href="#a-method-on-what">A method on what?</a></h2>
+<p>There’s one problem when handling methods in the circuit-writer: how do you know where the code of that method is? For example:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let thing = Thing { x: 1, y: 2 };
+let z = thing.valid(3);
+<span class="boring">}
+</span></code></pre></pre>
+<p>at this point the circuit-writer knows that <code>Thing</code> has a method called <code>valid</code>, but will still wonder what the type of <code>thing</code> is.</p>
+<p>due to this, the circuit-writer needs to store the type of local variables in scope. And this is why <code>FnEnv</code> also keeps track of the type of local variables:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// Is used to store functions' scoped variables.
+/// This include inputs and output of the function,  as well as local variables.
+/// You can think of it as a function call stack.
+pub struct FnEnv {
+    /// The current nesting level.
+    /// Starting at 0 (top level), and increasing as we go into a block.
+    current_scope: usize,
+
+    /// Used by the private and public inputs,
+    /// and any other external variables created in the circuit
+    /// This needs to be garbage collected when we exit a scope.
+    /// Note: The `usize` is the scope in which the variable was created.
+    vars: HashMap&lt;String, (usize, VarInfo)&gt;,
+}
+
+/// Information about a variable.
+#[derive(Debug, Clone)]
+pub struct VarInfo {
+    /// The variable.
+    pub var: Var,
+
+    /// We keep track of the type of variables, eventhough we're not in the typechecker anymore,
+    /// because we need to know the type for method calls.
+    pub typ: TyKind,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>This still doesn’t fix our problem. In the line:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let thing = Thing { x: 1, y: 2 };
+<span class="boring">}
+</span></code></pre></pre>
+<p>the local variable <code>thing</code> is stored, but the right hand side is computed via the <code>compute_expr()</code> function which will go through the AST and potentially create different anonymous variables until it can compute a value.</p>
+<p>There’s three ways to solve this:</p>
+<ol>
+<li>Either the type checker stores type information about each expression it parses. This is what the Rust compiler does I believe: each <code>Expr</code> AST node has a unique node identifier that can be used to search type information in a map.</li>
+<li>Or, more simply, the circuit-writer’s <code>compute_expr()</code> function that returns an <code>Option&lt;Var&gt;</code> could be modified to return <code>Option&lt;VarInfo&gt;</code>. This is a bit annoying as we’re recomputing things we’ve done in the type checker.</li>
+<li>A variant of the previous option is to change <code>Var</code> so that it also contain a type (might as well).</li>
+</ol>
+<p>So we implement option 1: the type checker now stores the type information of each <code>Expr</code> node in the AST under a hashmap that is later passed to the circuit-writer:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// The environment we use to type check a noname program.
+pub struct TypedGlobalEnv {
+    // ...
+
+    /// Mapping from node id to TyKind.
+    /// This can be used by the circuit-writer when it needs type information.
+    node_types: HashMap&lt;usize, TyKind&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="cellvar"><a class="header" href="#cellvar">CellVar</a></h1>
 <p>A <a href="https://mimoo.github.io/noname/rustdoc/var/struct.CellVar.html"><code>CellVar</code></a> type is a type that represents an internal variable. Importantly, it is named after the fact that it relates to a specific cell, or even multiple cells if they will have the same value (using some wiring), in the execution trace.</p>
 <p>A <code>CellVar</code> looks like this:</p>
@@ -925,72 +1056,6 @@ In addition, all variables from a scope must be disabled (but not deleted, in or
             None
         }
     }
-}
-<span class="boring">}
-</span></code></pre></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="methods"><a class="header" href="#methods">Methods</a></h1>
-<h2 id="a-method-on-what"><a class="header" href="#a-method-on-what">A method on what?</a></h2>
-<p>There’s one problem when handling methods in the circuit-writer: how do you know where the code of that method is? For example:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let thing = Thing { x: 1, y: 2 };
-let z = thing.valid(3);
-<span class="boring">}
-</span></code></pre></pre>
-<p>at this point the circuit-writer knows that <code>Thing</code> has a method called <code>valid</code>, but will still wonder what the type of <code>thing</code> is.</p>
-<p>due to this, the circuit-writer needs to store the type of local variables in scope. And this is why <code>FnEnv</code> also keeps track of the type of local variables:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>/// Is used to store functions' scoped variables.
-/// This include inputs and output of the function,  as well as local variables.
-/// You can think of it as a function call stack.
-pub struct FnEnv {
-    /// The current nesting level.
-    /// Starting at 0 (top level), and increasing as we go into a block.
-    current_scope: usize,
-
-    /// Used by the private and public inputs,
-    /// and any other external variables created in the circuit
-    /// This needs to be garbage collected when we exit a scope.
-    /// Note: The `usize` is the scope in which the variable was created.
-    vars: HashMap&lt;String, (usize, VarInfo)&gt;,
-}
-
-/// Information about a variable.
-#[derive(Debug, Clone)]
-pub struct VarInfo {
-    /// The variable.
-    pub var: Var,
-
-    /// We keep track of the type of variables, eventhough we're not in the typechecker anymore,
-    /// because we need to know the type for method calls.
-    pub typ: TyKind,
-}
-<span class="boring">}
-</span></code></pre></pre>
-<p>This still doesn’t fix our problem. In the line:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let thing = Thing { x: 1, y: 2 };
-<span class="boring">}
-</span></code></pre></pre>
-<p>the local variable <code>thing</code> is stored, but the right hand side is computed via the <code>compute_expr()</code> function which will go through the AST and potentially create different anonymous variables until it can compute a value.</p>
-<p>There’s three ways to solve this:</p>
-<ol>
-<li>Either the type checker stores type information about each expression it parses. This is what the Rust compiler does I believe: each <code>Expr</code> AST node has a unique node identifier that can be used to search type information in a map.</li>
-<li>Or, more simply, the circuit-writer’s <code>compute_expr()</code> function that returns an <code>Option&lt;Var&gt;</code> could be modified to return <code>Option&lt;VarInfo&gt;</code>. This is a bit annoying as we’re recomputing things we’ve done in the type checker.</li>
-<li>A variant of the previous option is to change <code>Var</code> so that it also contain a type (might as well).</li>
-</ol>
-<p>So we implement option 1: the type checker now stores the type information of each <code>Expr</code> node in the AST under a hashmap that is later passed to the circuit-writer:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>/// The environment we use to type check a noname program.
-pub struct TypedGlobalEnv {
-    // ...
-
-    /// Mapping from node id to TyKind.
-    /// This can be used by the circuit-writer when it needs type information.
-    node_types: HashMap&lt;usize, TyKind&gt;,
 }
 <span class="boring">}
 </span></code></pre></pre>

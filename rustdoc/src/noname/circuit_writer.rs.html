@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>circuit_writer.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../noname/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>circuit_writer.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../noname/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -1099,6 +1099,42 @@
 <span id="1099">1099</span>
 <span id="1100">1100</span>
 <span id="1101">1101</span>
+<span id="1102">1102</span>
+<span id="1103">1103</span>
+<span id="1104">1104</span>
+<span id="1105">1105</span>
+<span id="1106">1106</span>
+<span id="1107">1107</span>
+<span id="1108">1108</span>
+<span id="1109">1109</span>
+<span id="1110">1110</span>
+<span id="1111">1111</span>
+<span id="1112">1112</span>
+<span id="1113">1113</span>
+<span id="1114">1114</span>
+<span id="1115">1115</span>
+<span id="1116">1116</span>
+<span id="1117">1117</span>
+<span id="1118">1118</span>
+<span id="1119">1119</span>
+<span id="1120">1120</span>
+<span id="1121">1121</span>
+<span id="1122">1122</span>
+<span id="1123">1123</span>
+<span id="1124">1124</span>
+<span id="1125">1125</span>
+<span id="1126">1126</span>
+<span id="1127">1127</span>
+<span id="1128">1128</span>
+<span id="1129">1129</span>
+<span id="1130">1130</span>
+<span id="1131">1131</span>
+<span id="1132">1132</span>
+<span id="1133">1133</span>
+<span id="1134">1134</span>
+<span id="1135">1135</span>
+<span id="1136">1136</span>
+<span id="1137">1137</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1627,10 +1663,11 @@
         expr: <span class="kw-2">&amp;</span>Expr,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span>expr.kind {
-            ExprKind::FnCall { name, args } =&gt; {
+            ExprKind::FnCall { path, args } =&gt; {
                 <span class="comment">// compute the arguments
                 </span><span class="kw">let </span><span class="kw-2">mut </span>vars = Vec::with_capacity(args.len());
                 <span class="kw">for </span>arg <span class="kw">in </span>args {
+                    <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>arg);
                     <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, arg)<span class="question-mark">?</span>.ok_or(Error {
                         kind: ErrorKind::CannotComputeExpression,
                         span: arg.span,
@@ -1642,17 +1679,89 @@
                     vars.push(var_info);
                 }
 
+                <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>vars);
+
                 <span class="comment">// retrieve the function in the env
-                </span><span class="kw">if </span>name.module.is_none() {
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(module) = <span class="kw-2">&amp;</span>path.module {
+                    <span class="kw">if </span>path.name.len() != <span class="number">1 </span>{
+                        <span class="macro">panic!</span>(<span class="string">&quot;method calls on modules not supported&quot;</span>);
+                    }
+
+                    <span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
+
+                    <span class="comment">// check module present in the scope
+                    </span><span class="kw">let </span>module = global_env.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedModule(module.value.clone()),
+                        span: module.span,
+                    })<span class="question-mark">?</span>;
+                    <span class="kw">let </span>fn_info = module.functions.get(<span class="kw-2">&amp;</span>fn_name.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                        span: fn_name.span,
+                    })<span class="question-mark">?</span>;
+
+                    <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
+                        FnKind::BuiltIn(<span class="kw">_</span>, handle) =&gt; handle(<span class="self">self</span>, <span class="kw-2">&amp;</span>vars, expr.span),
+                        FnKind::Native(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
+                        FnKind::Main(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error {
+                            kind: ErrorKind::RecursiveMain,
+                            span: expr.span,
+                        }),
+                    }
+                } <span class="kw">else if </span>path.name.len() &gt; <span class="number">1 </span>{
+                    <span class="comment">// we&#39;re in a method call
+                    </span><span class="kw">if </span>path.name.len() != <span class="number">2 </span>{
+                        <span class="macro">panic!</span>(<span class="string">&quot;method calls on nested structs not supported yet&quot;</span>);
+                    }
+
+                    <span class="kw">let </span>self_name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
+                    <span class="kw">let </span>method_name = <span class="kw-2">&amp;</span>path.name[<span class="number">1</span>];
+
+                    <span class="comment">// get type of the self variable
+                    </span><span class="kw">let </span>(self_struct, self_var_info) = <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>self_name.value) {
+                        (self_name.value.clone(), <span class="prelude-val">None</span>)
+                    } <span class="kw">else </span>{
+                        <span class="kw">let </span>self_var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>self_name.value);
+                        <span class="kw">let </span>self_struct = <span class="kw">match </span><span class="kw-2">&amp;</span>self_var_info.typ {
+                            <span class="prelude-val">Some</span>(TyKind::Custom(s)) =&gt; s,
+                            <span class="kw">_ </span>=&gt; {
+                                <span class="macro">panic!</span>(<span class="string">&quot;could not figure out struct implementing that method call&quot;</span>)
+                            }
+                        };
+
+                        (self_struct.clone(), <span class="prelude-val">Some</span>(self_var_info))
+                    };
+
+                    <span class="comment">// get method
+                    </span><span class="kw">let </span>struct_info = global_env
+                        .typed
+                        .struct_info(<span class="kw-2">&amp;</span>self_struct)
+                        .expect(<span class="string">&quot;could not find struct info&quot;</span>);
+
+                    <span class="kw">let </span>func = struct_info
+                        .methods
+                        .get(<span class="kw-2">&amp;</span>method_name.value)
+                        .expect(<span class="string">&quot;could not find method&quot;</span>);
+
+                    <span class="comment">// if method has a `self` argument, manually add it to the list of argument
+                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(first_arg) = func.sig.arguments.first() {
+                        <span class="kw">if </span>first_arg.name.value == <span class="string">&quot;self&quot; </span>{
+                            <span class="kw">let </span>self_var_info = self_var_info.unwrap();
+                            vars.insert(<span class="number">0</span>, self_var_info.clone());
+                        }
+                    }
+
+                    <span class="comment">// execute method
+                    </span><span class="self">self</span>.compile_native_function_call(global_env, func, vars)
+                } <span class="kw">else if </span>path.name.len() == <span class="number">1 </span>{
                     <span class="comment">// functions present in the scope
-                    </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.name;
+                    </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
                     <span class="kw">let </span>fn_info = global_env
                         .typed
                         .functions
                         .get(<span class="kw-2">&amp;</span>fn_name.value)
                         .ok_or(Error {
                             kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                            span: name.span,
+                            span: fn_name.span,
                         })<span class="question-mark">?</span>;
 
                     <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
@@ -1665,51 +1774,40 @@
                             span: expr.span,
                         }),
                     }
-                } <span class="kw">else if let </span><span class="prelude-val">Some</span>(module) = <span class="kw-2">&amp;</span>name.module {
-                    <span class="comment">// check module present in the scope
-                    </span><span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>name.name.value;
-                    <span class="kw">let </span>module = global_env.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedModule(module.value.clone()),
-                        span: name.span, <span class="comment">// TODO: should be module.span
-                    </span>})<span class="question-mark">?</span>;
-                    <span class="kw">let </span>fn_info = module.functions.get(fn_name).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.clone()),
-                        span: name.span, <span class="comment">// TODO: should be fn_name span
-                    </span>})<span class="question-mark">?</span>;
-
-                    <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
-                        FnKind::BuiltIn(<span class="kw">_</span>, handle) =&gt; handle(<span class="self">self</span>, <span class="kw-2">&amp;</span>vars, expr.span),
-                        FnKind::Native(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
-                        FnKind::Main(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::RecursiveMain,
-                            span: expr.span,
-                        }),
-                    }
                 } <span class="kw">else </span>{
-                    <span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::InvalidFnCall(<span class="string">&quot;sub-sub modules unsupported&quot;</span>),
-                        span: name.span,
-                    })
+                    <span class="macro">panic!</span>(<span class="string">&quot;empty path detected&quot;</span>);
                 }
             }
+
             ExprKind::Assignment { lhs, rhs } =&gt; {
                 <span class="comment">// figure out the local var name of lhs
-                </span><span class="kw">let </span>lhs_name = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs.kind {
-                    ExprKind::Identifier(n) =&gt; n,
+                </span><span class="kw">let </span>lhs = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs.kind {
+                    ExprKind::Variable(n) =&gt; n,
                     ExprKind::ArrayAccess { .. } =&gt; <span class="macro">todo!</span>(),
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;type checker error&quot;</span>),
                 };
 
-                <span class="macro">assert!</span>(lhs_name.module.is_none());
+                <span class="comment">// can&#39;t be a module
+                </span><span class="kw">if </span>lhs.module.is_some() {
+                    <span class="macro">panic!</span>(<span class="string">&quot;lhs of assignment cannot be in a module&quot;</span>);
+                }
+
+                <span class="comment">// don&#39;t support structs atm
+                </span><span class="kw">if </span>lhs.name.len() != <span class="number">1 </span>{
+                    <span class="macro">unimplemented!</span>();
+                }
+
+                <span class="kw">let </span>lhs_name = <span class="kw-2">&amp;</span>lhs.name[<span class="number">0</span>];
 
                 <span class="comment">// figure out the var of what&#39;s on the right
                 </span><span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
                 <span class="comment">// replace the left with the right
-                </span>fn_env.reassign_var(<span class="kw-2">&amp;</span>lhs_name.name.value, rhs);
+                </span>fn_env.reassign_var(<span class="kw-2">&amp;</span>lhs_name.value, rhs);
 
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
             }
+
             ExprKind::Op(op, lhs, rhs) =&gt; <span class="kw">match </span>op {
                 Op2::Addition =&gt; {
                     <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.unwrap();
@@ -1735,10 +1833,12 @@
                 Op2::BoolOr =&gt; <span class="macro">todo!</span>(),
                 Op2::BoolNot =&gt; <span class="macro">todo!</span>(),
             },
+
             ExprKind::Negated(b) =&gt; {
                 <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, b)<span class="question-mark">?</span>.unwrap();
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(boolean::neg(<span class="self">self</span>, var, expr.span)))
             }
+
             ExprKind::BigInt(b) =&gt; {
                 <span class="kw">let </span>biguint = BigUint::from_str_radix(b, <span class="number">10</span>).expect(<span class="string">&quot;failed to parse number.&quot;</span>);
                 <span class="kw">let </span>ff = Field::try_from(biguint).map_err(|<span class="kw">_</span>| Error {
@@ -1748,23 +1848,64 @@
 
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_constant(ff, expr.span)))
             }
+
             ExprKind::Bool(b) =&gt; {
                 <span class="kw">let </span>value = <span class="kw">if </span><span class="kw-2">*</span>b { Field::one() } <span class="kw">else </span>{ Field::zero() };
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_constant(value, expr.span)))
             }
-            ExprKind::Identifier(name) =&gt; {
-                <span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>name.name.value).clone();
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var_info.var))
+
+            ExprKind::Variable(path) =&gt; {
+                <span class="kw">if </span>path.module.is_some() {
+                    <span class="macro">panic!</span>(<span class="string">&quot;accessing module variables not supported yet&quot;</span>);
+                }
+
+                <span class="kw">if </span>path.name.len() &gt; <span class="number">2 </span>{
+                    <span class="macro">panic!</span>(<span class="string">&quot;accessing nested variables not supported yet&quot;</span>);
+                } <span class="kw">else if </span>path.name.len() == <span class="number">2 </span>{
+                    <span class="kw">let </span>struct_name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
+                    <span class="kw">let </span>field_name = <span class="kw-2">&amp;</span>path.name[<span class="number">1</span>];
+                    <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>struct_name.value, <span class="kw-2">&amp;</span>field_name.value);
+
+                    <span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>struct_name.value);
+                    <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>var_info);
+                    <span class="kw">let </span>var = var_info.var;
+
+                    <span class="comment">// TODO: I don&#39;t think I need this fields() function anymore since I can get that information from global_env.typed.structs (and parse the list of fields dynamically)
+                    </span><span class="kw">let </span>fields = var.fields().expect(<span class="string">&quot;type-checker bug: expected struct&quot;</span>);
+
+                    <span class="kw">let </span>var = fields.get(<span class="kw-2">&amp;</span>field_name.value).cloned().ok_or(Error {
+                        kind: ErrorKind::UndefinedField(
+                            field_name.value.clone(),
+                            field_name.value.clone(),
+                        ),
+                        span: field_name.span,
+                    })<span class="question-mark">?</span>;
+
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(var, expr.span)))
+                } <span class="kw">else if </span>path.name.len() == <span class="number">1 </span>{
+                    <span class="kw">let </span>var_name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
+
+                    <span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>var_name.value).clone();
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var_info.var))
+                } <span class="kw">else </span>{
+                    <span class="macro">panic!</span>(<span class="string">&quot;empty path detected&quot;</span>);
+                }
             }
-            ExprKind::ArrayAccess { name, idx } =&gt; {
+
+            ExprKind::ArrayAccess { path, idx } =&gt; {
                 <span class="comment">// retrieve the CircuitVar at the path
-                </span><span class="kw">let </span>array: Var = <span class="kw">if let </span><span class="prelude-val">Some</span>(_module) = <span class="kw-2">&amp;</span>name.module {
+                </span><span class="kw">let </span>array: Var = <span class="kw">if let </span><span class="prelude-val">Some</span>(_module) = <span class="kw-2">&amp;</span>path.module {
                     <span class="comment">// check module present in the scope
                     </span><span class="macro">unimplemented!</span>()
                 } <span class="kw">else </span>{
+                    <span class="kw">if </span>path.name.len() != <span class="number">1 </span>{
+                        <span class="macro">unimplemented!</span>();
+                    }
+
+                    <span class="kw">let </span>array_var = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
+
                     <span class="comment">// var present in the scope
-                    </span><span class="kw">let </span>name = <span class="kw-2">&amp;</span>name.name.value;
-                    <span class="kw">let </span>var_info = fn_env.get_var(global_env, name).clone();
+                    </span><span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>array_var.value).clone();
                     var_info.var
                 };
 
@@ -1792,6 +1933,7 @@
                 <span class="comment">//
                 </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(res, expr.span)))
             }
+
             ExprKind::ArrayDeclaration(items) =&gt; {
                 <span class="comment">// we only support arrays of Field elements at the moment.
                 // not sure yet how we can support any other type of arrays...
@@ -1813,6 +1955,7 @@
 
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
             }
+
             ExprKind::CustomTypeDeclaration(name, fields) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>vars = HashMap::new();
                 <span class="kw">for </span>(name, rhs) <span class="kw">in </span>fields {
@@ -1825,77 +1968,6 @@
                 fn_env.add_var(global_env, name.clone(), var_info);
 
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
-            }
-            ExprKind::StructAccess(name, field) =&gt; {
-                <span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>name.value);
-                <span class="kw">let </span>var = var_info.var;
-
-                <span class="comment">// TODO: I don&#39;t think I need this fields() function anymore since I can get that information from global_env.typed.structs (and parse the list of fields dynamically)
-                </span><span class="kw">let </span>fields = var.fields().expect(<span class="string">&quot;type-checker bug: expected struct&quot;</span>);
-
-                <span class="kw">let </span>var = fields.get(<span class="kw-2">&amp;</span>field.value).cloned().ok_or(Error {
-                    kind: ErrorKind::UndefinedField(name.value.clone(), field.value.clone()),
-                    span: field.span,
-                })<span class="question-mark">?</span>;
-
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(var, expr.span)))
-            }
-            ExprKind::MethodCall {
-                self_name,
-                method_name,
-                args,
-            } =&gt; {
-                <span class="comment">// compute the arguments
-                </span><span class="kw">let </span><span class="kw-2">mut </span>vars = Vec::with_capacity(args.len());
-                <span class="kw">for </span>arg <span class="kw">in </span>args {
-                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, arg)<span class="question-mark">?</span>.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: arg.span,
-                    })<span class="question-mark">?</span>;
-
-                    <span class="kw">let </span>typ = global_env.typed.expr_type(arg).cloned();
-                    <span class="kw">let </span>var_info = VarInfo::new(var, typ);
-                    vars.push(var_info);
-                }
-
-                <span class="kw">if </span>self_name.module.is_some() {
-                    <span class="macro">panic!</span>(<span class="string">&quot;modules not supported yet&quot;</span>);
-                }
-
-                <span class="comment">// get type of the self variable
-                </span><span class="kw">let </span>(self_struct, self_var_info) = <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>self_name.name.value) {
-                    (self_name.name.value.clone(), <span class="prelude-val">None</span>)
-                } <span class="kw">else </span>{
-                    <span class="kw">let </span>self_var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>self_name.name.value);
-                    <span class="kw">let </span>self_struct = <span class="kw">match </span><span class="kw-2">&amp;</span>self_var_info.typ {
-                        <span class="prelude-val">Some</span>(TyKind::Custom(s)) =&gt; s,
-                        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;could not figure out struct implementing that method call&quot;</span>),
-                    };
-
-                    (self_struct.clone(), <span class="prelude-val">Some</span>(self_var_info))
-                };
-
-                <span class="comment">// get method
-                </span><span class="kw">let </span>struct_info = global_env
-                    .typed
-                    .struct_info(<span class="kw-2">&amp;</span>self_struct)
-                    .expect(<span class="string">&quot;could not find struct info&quot;</span>);
-
-                <span class="kw">let </span>func = struct_info
-                    .methods
-                    .get(method_name)
-                    .expect(<span class="string">&quot;could not find method&quot;</span>);
-
-                <span class="comment">// if method has a `self` argument, manually add it to the list of argument
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(first_arg) = func.sig.arguments.first() {
-                    <span class="kw">if </span>first_arg.name.value == <span class="string">&quot;self&quot; </span>{
-                        <span class="kw">let </span>self_var_info = self_var_info.unwrap();
-                        vars.insert(<span class="number">0</span>, self_var_info.clone());
-                    }
-                }
-
-                <span class="comment">// execute method
-                </span><span class="self">self</span>.compile_native_function_call(global_env, func, vars)
             }
         }
     }
@@ -2201,4 +2273,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>
