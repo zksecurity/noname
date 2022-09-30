@@ -21,7 +21,7 @@ use crate::{
     },
     syntax::is_type,
     type_checker::{TypedGlobalEnv, TAST},
-    var::{CellVar, ConstOrCell, Value, Var, VarKind},
+    var::{CellVar, ConstOrCell, Value, Var},
     witness::CompiledCircuit,
 };
 
@@ -468,7 +468,7 @@ impl CircuitWriter {
             (Some(_expected), Some(returned)) => {
                 // make sure there are no constants in the returned value
                 let mut returned_cells = vec![];
-                for r in returned.into_const_or_cells() {
+                for r in &returned.cvars {
                     match r {
                         ConstOrCell::Cell(c) => returned_cells.push(c),
                         ConstOrCell::Const(_) => {
@@ -486,11 +486,7 @@ impl CircuitWriter {
                     .as_ref()
                     .expect("bug in the compiler: missing public output");
 
-                for (pub_var, ret_var) in public_output
-                    .into_const_or_cells()
-                    .into_iter()
-                    .zip(returned_cells)
-                {
+                for (pub_var, ret_var) in public_output.cvars.iter().zip(returned_cells) {
                     // replace the computation of the public output vars with the actual variables being returned here
                     let var_idx = pub_var.idx().unwrap();
                     let prev = self
@@ -676,7 +672,7 @@ impl CircuitWriter {
                     let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
                     let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
-                    Ok(Some(field::add(self, lhs, rhs, expr.span)))
+                    Ok(Some(field::add(self, &lhs[0], &rhs[0], expr.span)))
                 }
                 Op2::Subtraction => todo!(),
                 Op2::Multiplication => todo!(),
@@ -685,13 +681,13 @@ impl CircuitWriter {
                     let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
                     let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
-                    Ok(Some(field::equal(self, &lhs.kind, &rhs.kind, expr.span)))
+                    Ok(Some(field::equal(self, &lhs, &rhs, expr.span)))
                 }
                 Op2::BoolAnd => {
                     let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
                     let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
-                    Ok(Some(boolean::and(self, lhs, rhs, expr.span)))
+                    Ok(Some(boolean::and(self, &lhs[0], &rhs[0], expr.span)))
                 }
                 Op2::BoolOr => todo!(),
                 Op2::BoolNot => todo!(),
@@ -699,7 +695,7 @@ impl CircuitWriter {
 
             ExprKind::Negated(b) => {
                 let var = self.compute_expr(global_env, fn_env, b)?.unwrap();
-                Ok(Some(boolean::neg(self, var, expr.span)))
+                Ok(Some(boolean::neg(self, &var[0], expr.span)))
             }
 
             ExprKind::BigInt(b) => {
@@ -725,26 +721,46 @@ impl CircuitWriter {
                 if path.name.len() > 2 {
                     panic!("accessing nested variables not supported yet");
                 } else if path.name.len() == 2 {
-                    let struct_name = &path.name[0];
+                    // extract data
+                    let struct_var = &path.name[0];
                     let field_name = &path.name[1];
-                    dbg!(&struct_name.value, &field_name.value);
 
-                    let var_info = fn_env.get_var(global_env, &struct_name.value);
-                    dbg!(&var_info);
-                    let var = var_info.var;
+                    // get info the struct var from the env
+                    let var_info = fn_env.get_var(global_env, &struct_var.value);
 
-                    // TODO: I don't think I need this fields() function anymore since I can get that information from global_env.typed.structs (and parse the list of fields dynamically)
-                    let fields = var.fields().expect("type-checker bug: expected struct");
+                    // get the struct name
+                    let struct_name = match &var_info.typ {
+                        Some(TyKind::Custom(s)) => s,
+                        _ => panic!("type checker error: variable is not a custom struct"),
+                    };
 
-                    let var = fields.get(&field_name.value).cloned().ok_or(Error {
-                        kind: ErrorKind::UndefinedField(
-                            field_name.value.clone(),
-                            field_name.value.clone(),
-                        ),
-                        span: field_name.span,
-                    })?;
+                    // retrieve struct info
+                    let struct_info = global_env
+                        .typed
+                        .struct_info(struct_name)
+                        .expect("couldn't find struct info");
 
-                    Ok(Some(Var::new(var, expr.span)))
+                    // retrieve range from struct info
+                    let range = {
+                        let mut start = 0;
+                        let mut end = 0;
+
+                        for (name, typ) in &struct_info.fields {
+                            if name == &field_name.value {
+                                end = start + global_env.typed.size_of(typ);
+                                break;
+                            }
+
+                            start += global_env.typed.size_of(typ);
+                        }
+
+                        start..end
+                    };
+
+                    // retrieve the correct vars
+                    let cvars = var_info.var.cvars[range].to_vec();
+
+                    Ok(Some(Var::new(cvars, expr.span)))
                 } else if path.name.len() == 1 {
                     let var_name = &path.name[0];
 
@@ -756,20 +772,17 @@ impl CircuitWriter {
             }
 
             ExprKind::ArrayAccess { path, idx } => {
-                // retrieve the CircuitVar at the path
-                let array: Var = if let Some(_module) = &path.module {
+                // retrieve the var at the path
+                let var_info = if let Some(_module) = &path.module {
                     // check module present in the scope
                     unimplemented!()
+                } else if path.name.len() != 1 {
+                    unimplemented!();
                 } else {
-                    if path.name.len() != 1 {
-                        unimplemented!();
-                    }
-
                     let array_var = &path.name[0];
 
-                    // var present in the scope
-                    let var_info = fn_env.get_var(global_env, &array_var.value).clone();
-                    var_info.var
+                    // var info present in the scope
+                    fn_env.get_var(global_env, &array_var.value).clone()
                 };
 
                 // compute the index
@@ -777,59 +790,61 @@ impl CircuitWriter {
                     kind: ErrorKind::CannotComputeExpression,
                     span: expr.span,
                 })?;
-
-                // the index must be a constant!!
                 let idx = idx_var.constant().ok_or(Error {
                     kind: ErrorKind::ExpectedConstant,
                     span: expr.span,
                 })?;
-
                 let idx: BigUint = idx.into();
                 let idx: usize = idx.try_into().unwrap();
 
+                // compute the size of each element in the array
+                let element_size = global_env
+                    .typed
+                    .size_of(&var_info.typ.expect("no type info for the array"));
+
+                // compute the real index
+                let real_idx = element_size * idx;
+
                 // index into the CircuitVar (and prevent out of bounds)
-                let res = array.get(idx).cloned().ok_or(Error {
-                    kind: ErrorKind::ArrayIndexOutOfBounds(idx, array.len()),
+                let var = &var_info.var;
+                let res = var.get(idx).cloned().ok_or(Error {
+                    kind: ErrorKind::ArrayIndexOutOfBounds(idx, var.len()),
                     span: expr.span,
                 })?;
 
                 //
-                Ok(Some(Var::new(res, expr.span)))
+                Ok(Some(Var::new_cvar(res, expr.span)))
             }
 
             ExprKind::ArrayDeclaration(items) => {
-                // we only support arrays of Field elements at the moment.
-                // not sure yet how we can support any other type of arrays...
-                // perhaps we could abstract an array as an list of cellvars (each item contains one cellvars)
-                let mut vars = Vec::with_capacity(items.len());
+                let mut cvars = vec![];
 
                 for item in items {
                     let var = self.compute_expr(global_env, fn_env, item)?.unwrap();
-                    vars.push(var.kind.clone());
-                    /*
-                    to support other types:
-                     in the loop: vars.push(var);
-                     after: vars.flatten() (or smthg like that)
-                     and save the information in
-                     */
+                    cvars.extend(var.cvars.clone());
                 }
 
-                let var = Var::new_array(vars, expr.span);
+                let var = Var::new(cvars, expr.span);
 
                 Ok(Some(var))
             }
 
             ExprKind::CustomTypeDeclaration(name, fields) => {
-                let mut vars = HashMap::new();
-                for (name, rhs) in fields {
+                // create the struct by just concatenating all of its cvars
+                let mut cvars = vec![];
+                for (field, rhs) in fields {
                     let var = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
-                    vars.insert(name.value.clone(), var.kind.clone());
+                    cvars.extend(var.cvars.clone());
                 }
-                let var = Var::new_struct(vars, expr.span);
-                let name = &name.value;
-                let var_info = VarInfo::new(var.clone(), Some(TyKind::Custom(name.clone())));
-                fn_env.add_var(global_env, name.clone(), var_info);
+                let var = Var::new(cvars, expr.span);
 
+                // add struct info to the env
+                let name = name.value.clone();
+                let var_info = VarInfo::new(var.clone(), Some(TyKind::Custom(name.clone())));
+
+                fn_env.add_var(global_env, name, var_info);
+
+                //
                 Ok(Some(var))
             }
         }
@@ -934,12 +949,12 @@ impl CircuitWriter {
     }
 
     pub fn add_public_inputs(&mut self, name: String, num: usize, span: Span) -> Var {
-        let mut vars = Vec::with_capacity(num);
+        let mut cvars = Vec::with_capacity(num);
 
         for idx in 0..num {
             // create the var
             let cvar = self.new_internal_var(Value::External(name.clone(), idx), span);
-            vars.push(VarKind::new_cell(cvar));
+            cvars.push(ConstOrCell::Cell(cvar));
 
             // create the associated generic gate
             self.add_gate(
@@ -953,22 +968,17 @@ impl CircuitWriter {
 
         self.public_input_size += num;
 
-        // TODO: support more than arrays and fields
-        if num == 1 {
-            Var::new(vars[0].clone(), span)
-        } else {
-            Var::new_array(vars, span)
-        }
+        Var::new(cvars, span)
     }
 
     pub fn add_public_outputs(&mut self, num: usize, span: Span) {
         assert!(self.public_output.is_none());
 
-        let mut vars = Vec::with_capacity(num);
+        let mut cvars = Vec::with_capacity(num);
         for _ in 0..num {
             // create the var
             let cvar = self.new_internal_var(Value::PublicOutput(None), span);
-            vars.push(VarKind::new_cell(cvar));
+            cvars.push(ConstOrCell::Cell(cvar));
 
             // create the associated generic gate
             self.add_gate(
@@ -982,31 +992,21 @@ impl CircuitWriter {
         self.public_input_size += num;
 
         // store it
-        // TODO: support more than arrays and fields
-        let res = if num == 1 {
-            Var::new(vars[0].clone(), span)
-        } else {
-            Var::new_array(vars, span)
-        };
+        let res = Var::new(cvars, span);
         self.public_output = Some(res);
     }
 
     pub fn add_private_inputs(&mut self, name: String, num: usize, span: Span) -> Var {
-        let mut vars = Vec::with_capacity(num);
+        let mut cvars = Vec::with_capacity(num);
 
         for idx in 0..num {
             // create the var
             let cvar = self.new_internal_var(Value::External(name.clone(), idx), span);
-            vars.push(VarKind::new_cell(cvar));
+            cvars.push(ConstOrCell::Cell(cvar));
             self.private_input_indices.push(cvar.index);
         }
 
-        // TODO: support more than arrays and fields
-        if num == 1 {
-            Var::new(vars[0].clone(), span)
-        } else {
-            Var::new_array(vars, span)
-        }
+        Var::new(cvars, span)
     }
 }
 
@@ -1038,6 +1038,7 @@ pub struct VarInfo {
 
     /// We keep track of the type of variables, eventhough we're not in the typechecker anymore,
     /// because we need to know the type for method calls.
+    // TODO: why is this an option?
     pub typ: Option<TyKind>,
 }
 

@@ -2,7 +2,7 @@ use crate::{
     boolean,
     circuit_writer::{CircuitWriter, GateKind},
     constants::{Field, Span},
-    var::{ConstOrCell, Value, Var, VarKind},
+    var::{ConstOrCell, Value, Var},
 };
 
 use ark_ff::{One, Zero};
@@ -10,18 +10,11 @@ use ark_ff::{One, Zero};
 use std::ops::Neg;
 
 /// Adds two field elements
-pub fn add(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var {
+pub fn add(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, span: Span) -> Var {
     let zero = Field::zero();
     let one = Field::one();
 
-    let lhs_v = lhs
-        .const_or_cell()
-        .expect("add's lhs is not a constant or a cell");
-    let rhs_v = rhs
-        .const_or_cell()
-        .expect("add's lhs is not a constant or a cell");
-
-    match (lhs_v, rhs_v) {
+    match (lhs, rhs) {
         // 2 constants
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs + *rhs, span),
 
@@ -75,18 +68,11 @@ pub fn add(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
 }
 
 /// Subtracts two variables, we only support variables that are of length 1.
-pub fn sub(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var {
+pub fn sub(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, span: Span) -> Var {
     let zero = Field::zero();
     let one = Field::one();
 
-    let lhs_v = lhs
-        .const_or_cell()
-        .expect("add's lhs is not a constant or a cell");
-    let rhs_v = rhs
-        .const_or_cell()
-        .expect("add's lhs is not a constant or a cell");
-
-    match (lhs_v, rhs_v) {
+    match (lhs, rhs) {
         // const1 - const2
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs - *rhs, span),
 
@@ -164,7 +150,7 @@ pub fn sub(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
 
 /// This takes variables that can be anything, and returns a boolean
 // TODO: so perhaps it's not really relevant in this file?
-pub fn equal(compiler: &mut CircuitWriter, lhs: &VarKind, rhs: &VarKind, span: Span) -> Var {
+pub fn equal(compiler: &mut CircuitWriter, lhs: &Var, rhs: &Var, span: Span) -> Var {
     // sanity check
     assert_eq!(lhs.len(), rhs.len());
 
@@ -178,34 +164,9 @@ pub fn equal(compiler: &mut CircuitWriter, lhs: &VarKind, rhs: &VarKind, span: S
     );
     let mut acc = Var::new_var(acc, span);
 
-    match (lhs, rhs) {
-        // if we just have cells or consts we can do the equality check
-        (VarKind::ConstOrCell(lhs), VarKind::ConstOrCell(rhs)) => {
-            let res = equal_cells(compiler, lhs, rhs, span);
-            acc = boolean::and(compiler, res, acc, span);
-        }
-
-        // array/tuple: recurse
-        (VarKind::ArrayOrTuple(l), VarKind::ArrayOrTuple(r)) => {
-            assert_eq!(l.len(), r.len());
-
-            for (l, r) in l.iter().zip(r) {
-                let res = equal(compiler, l, r, span);
-                acc = boolean::and(compiler, res, acc, span);
-            }
-        }
-
-        // structs: recurse
-        (VarKind::Struct(l), VarKind::Struct(r)) => {
-            assert_eq!(l.len(), r.len());
-
-            for (l, r) in l.values().zip(r.values()) {
-                let res = equal(compiler, l, r, span);
-                acc = boolean::and(compiler, res, acc, span);
-            }
-        }
-
-        _ => panic!("bug in compiler: lhs and rhs of equals are of different types"),
+    for (l, r) in lhs.cvars.iter().zip(&rhs.cvars) {
+        let res = equal_cells(compiler, l, r, span);
+        acc = boolean::and(compiler, &res[0], &acc[0], span);
     }
 
     acc

@@ -59,8 +59,8 @@ impl TypeInfo {
 
 #[derive(Default, Debug)]
 pub struct StructInfo {
-    name: String,
-    fields: Vec<(String, TyKind)>,
+    pub name: String,
+    pub fields: Vec<(String, TyKind)>,
     pub methods: HashMap<String, Function>,
 }
 
@@ -100,6 +100,27 @@ impl TypedGlobalEnv {
 
     pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
         self.structs.get(name)
+    }
+
+    /// Returns the number of field elements contained in the given type.
+    // TODO: might want to memoize that at some point
+    pub fn size_of(&self, typ: &TyKind) -> usize {
+        match typ {
+            TyKind::Field => 1,
+            TyKind::Custom(c) => {
+                let struct_info = self
+                    .struct_info(c)
+                    .expect("couldn't find struct info of {c}");
+                struct_info
+                    .fields
+                    .iter()
+                    .map(|(_, t)| self.size_of(t))
+                    .sum()
+            }
+            TyKind::BigInt => 1,
+            TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
+            TyKind::Bool => 1,
+        }
     }
 }
 

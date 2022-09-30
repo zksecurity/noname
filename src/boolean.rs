@@ -14,14 +14,7 @@ pub fn is_valid(f: Field) -> bool {
     f.is_one() || f.is_zero()
 }
 
-pub fn and(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var {
-    let lhs = lhs
-        .const_or_cell()
-        .expect("bool.and: lhs is not a constant or cell");
-    let rhs = rhs
-        .const_or_cell()
-        .expect("bool.and: rhs is not a constant or cell");
-
+pub fn and(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, span: Span) -> Var {
     match (lhs, rhs) {
         // two constants
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs * *rhs, span),
@@ -58,11 +51,7 @@ pub fn and(compiler: &mut CircuitWriter, lhs: Var, rhs: Var, span: Span) -> Var 
     }
 }
 
-pub fn neg(compiler: &mut CircuitWriter, var: Var, span: Span) -> Var {
-    let var = var
-        .const_or_cell()
-        .expect("bool.neg: var is not a constant or cell");
-
+pub fn neg(compiler: &mut CircuitWriter, var: &ConstOrCell, span: Span) -> Var {
     match var {
         ConstOrCell::Const(cst) => {
             let value = if cst.is_one() {

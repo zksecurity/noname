@@ -14,7 +14,7 @@ use crate::{
     error::Result,
     imports::FnHandle,
     parser::TyKind,
-    var::{ConstOrCell, Value, Var, VarKind},
+    var::{ConstOrCell, Value, Var},
 };
 
 const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
@@ -39,24 +39,8 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
     };
 
     // extract the values
-    let input = var_info
-        .var
-        .array_or_tuple()
-        .expect("poseidon: input must be an array");
+    let input = &var_info.var;
     assert_eq!(input.len(), 2);
-
-    // each element of the array is a VarCell/const
-    let input: Vec<_> = input
-        .iter()
-        .map(|v| {
-            v.const_or_cell()
-                .expect("bug in compiler: poseidon input must be an array of 2 cells")
-        })
-        .collect();
-
-    //
-    //
-    //
 
     // hashing a full-constant input is not a good idea
     if input[0].is_const() && input[1].is_const() {
@@ -65,7 +49,7 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
 
     // IMPORTANT: time to constrain any constants
     let mut cells = vec![];
-    for const_or_cell in input {
+    for const_or_cell in &input.cvars {
         match const_or_cell {
             ConstOrCell::Const(cst) => {
                 let cell =
@@ -184,8 +168,8 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
         .iter()
         .flatten()
         .cloned()
-        .map(|c| VarKind::ConstOrCell(ConstOrCell::Cell(c)))
+        .map(|c| ConstOrCell::Cell(c))
         .collect();
 
-    Ok(Some(Var::new_array(vars, span)))
+    Ok(Some(Var::new(vars, span)))
 }

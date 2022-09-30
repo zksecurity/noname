@@ -118,16 +118,15 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
     }
 
     // retrieve the values
-    let lhs = lhs_info
-        .var
-        .const_or_cell()
-        .expect("assert_eq: lhs is not a constant or cell");
-    let rhs = rhs_info
-        .var
-        .const_or_cell()
-        .expect("assert_eq: rhs is not a constant or cell");
+    let lhs_var = &lhs_info.var;
+    assert_eq!(lhs_var.len(), 1);
+    let lhs_cvar = &lhs_var[0];
 
-    match (lhs, rhs) {
+    let rhs_var = &rhs_info.var;
+    assert_eq!(rhs_var.len(), 1);
+    let rhs_cvar = &rhs_var[0];
+
+    match (lhs_cvar, rhs_cvar) {
         // two constants
         (ConstOrCell::Const(a), ConstOrCell::Const(b)) => {
             if a != b {
@@ -179,10 +178,10 @@ fn assert(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<
     let var_info = &vars[0];
     assert!(matches!(var_info.typ, Some(TyKind::Bool)));
 
-    let cond = var_info
-        .var
-        .const_or_cell()
-        .expect("assert: condition is not a constant or cell");
+    // of only one field element
+    let var = &var_info.var;
+    assert_eq!(var.len(), 1);
+    let cond = &var[0];
 
     match cond {
         ConstOrCell::Const(cst) => {

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, vec};
+use std::vec;
 
 use crate::{
     constants::{Field, Span},
@@ -114,216 +114,73 @@ impl ConstOrCell {
     }
 }
 
-#[derive(Debug, Clone)]
-/// A variable in a program can have different shapes.
-pub enum VarKind {
-    /// We pack [Constant] and [CellVar] in the same enum because we often branch on these.
-    ConstOrCell(ConstOrCell),
-
-    /// A struct is represented as a mapping between field names and other [VarKind]s.
-    Struct(HashMap<String, VarKind>),
-
-    /// An array or a tuple is represetend as a list of other [VarKind]s.
-    ArrayOrTuple(Vec<VarKind>),
-}
-
-impl VarKind {
-    pub fn new_cell(cell: CellVar) -> Self {
-        Self::ConstOrCell(ConstOrCell::Cell(cell))
-    }
-
-    pub fn new_constant(cst: Field) -> Self {
-        Self::ConstOrCell(ConstOrCell::Const(cst))
-    }
-
-    /// Recursively search if there's a constant value somewhere in this var.
-    pub fn has_constants(&self) -> bool {
-        match self {
-            VarKind::ConstOrCell(c) => match c {
-                ConstOrCell::Const(_) => return true,
-                ConstOrCell::Cell(_) => return false,
-            },
-            VarKind::Struct(stru) => {
-                for var in stru.values() {
-                    if var.has_constants() {
-                        return true;
-                    }
-                }
-            }
-            VarKind::ArrayOrTuple(array) => {
-                for var in array {
-                    if var.has_constants() {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        false
-    }
-
-    pub fn len(&self) -> usize {
-        match self {
-            VarKind::ConstOrCell(_) => 1,
-            VarKind::Struct(s) => {
-                let mut sum = 0;
-                for v in s.values() {
-                    sum += v.len();
-                }
-                sum
-            }
-            VarKind::ArrayOrTuple(a) => {
-                let mut sum = 0;
-                for v in a {
-                    sum += v.len();
-                }
-                sum
-            }
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn const_or_cell(&self) -> Option<&ConstOrCell> {
-        match self {
-            VarKind::ConstOrCell(c) => Some(c),
-            _ => None,
-        }
-    }
-
-    pub fn into_const_or_cells(&self) -> Vec<&ConstOrCell> {
-        match self {
-            VarKind::ConstOrCell(t) => vec![t],
-            VarKind::Struct(stru) => {
-                let mut res = vec![];
-                for var in stru.values() {
-                    res.extend(var.into_const_or_cells());
-                }
-                res
-            }
-            VarKind::ArrayOrTuple(array) => {
-                let mut res = vec![];
-                for var in array {
-                    res.extend(var.into_const_or_cells());
-                }
-                res
-            }
-        }
-    }
-}
-
 /// Represents a variable in the noname language, or an anonymous variable during computation of expressions.
 #[derive(Debug, Clone)]
 pub struct Var {
     /// The type of variable.
-    pub kind: VarKind,
+    pub cvars: Vec<ConstOrCell>,
 
     /// The span that created the variable.
     pub span: Span,
 }
 
 impl Var {
-    pub fn new(kind: VarKind, span: Span) -> Self {
-        Self { kind, span }
+    pub fn new(cvars: Vec<ConstOrCell>, span: Span) -> Self {
+        Self { cvars, span }
     }
 
-    pub fn new_var(var: CellVar, span: Span) -> Self {
+    pub fn new_cvar(cvar: ConstOrCell, span: Span) -> Self {
         Self {
-            kind: VarKind::ConstOrCell(ConstOrCell::Cell(var)),
+            cvars: vec![cvar],
+            span,
+        }
+    }
+
+    pub fn new_var(cvar: CellVar, span: Span) -> Self {
+        Self {
+            cvars: vec![ConstOrCell::Cell(cvar)],
             span,
         }
     }
 
     pub fn new_constant(cst: Field, span: Span) -> Self {
         Self {
-            kind: VarKind::ConstOrCell(ConstOrCell::Const(cst)),
+            cvars: vec![ConstOrCell::Const(cst)],
             span,
-        }
-    }
-
-    pub fn new_struct(vars: HashMap<String, VarKind>, span: Span) -> Self {
-        Self {
-            kind: VarKind::Struct(vars),
-            span,
-        }
-    }
-
-    pub fn new_array(vars: Vec<VarKind>, span: Span) -> Self {
-        Self {
-            kind: VarKind::ArrayOrTuple(vars),
-            span,
-        }
-    }
-
-    pub fn array_or_tuple(&self) -> Option<&[VarKind]> {
-        match &self.kind {
-            VarKind::ArrayOrTuple(array) => Some(array),
-            _ => None,
         }
     }
 
     pub fn len(&self) -> usize {
-        self.kind.len()
+        self.cvars.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.kind.is_empty()
+        self.cvars.is_empty()
     }
 
-    pub fn has_constants(&self) -> bool {
-        self.kind.has_constants()
-    }
-
-    pub fn const_or_cell(&self) -> Option<&ConstOrCell> {
-        self.kind.const_or_cell()
+    pub fn get(&self, idx: usize) -> Option<&ConstOrCell> {
+        if idx < self.cvars.len() {
+            Some(&self.cvars[idx])
+        } else {
+            None
+        }
     }
 
     pub fn constant(&self) -> Option<Field> {
-        match &self.kind {
-            VarKind::ConstOrCell(ConstOrCell::Const(cst)) => Some(*cst),
-            _ => None,
+        if self.cvars.len() == 1 {
+            self.cvars[0].cst()
+        } else {
+            None
         }
-    }
-
-    pub fn fields(&self) -> Option<&HashMap<String, VarKind>> {
-        match &self.kind {
-            VarKind::Struct(stru) => Some(stru),
-            _ => None,
-        }
-    }
-
-    pub fn get(&self, idx: usize) -> Option<&VarKind> {
-        match &self.kind {
-            VarKind::ConstOrCell(_) => panic!("cannot index into a const or cell"),
-            VarKind::Struct(_) => panic!("cannot index into a struct"),
-            VarKind::ArrayOrTuple(array) => {
-                if idx < array.len() {
-                    Some(&array[idx])
-                } else {
-                    None
-                }
-            }
-        }
-    }
-
-    pub fn into_const_or_cells(&self) -> Vec<&ConstOrCell> {
-        self.kind.into_const_or_cells()
     }
 }
 
 // implement indexing into Var
 impl std::ops::Index<usize> for Var {
-    type Output = VarKind;
+    type Output = ConstOrCell;
 
     fn index(&self, index: usize) -> &Self::Output {
-        match &self.kind {
-            VarKind::ConstOrCell(_) | VarKind::Struct(..) => {
-                panic!("bug in the compiler: indexing into a cell/const/struct")
-            }
-            VarKind::ArrayOrTuple(a) => &a[index],
-        }
+        &self.cvars[index]
     }
 }
 
