@@ -1,10 +1,11 @@
-const EMPTY = 0;
-const PLAYER_ONE = 1;
-const PLAYER_TWO = 2;
+const empty = 0;
+const player1 = 1;
+const player2 = 2;
+const sudoku_size = 81; // 9 * 9
 
 struct Sudoku {
-    inner: [Field; 9 * 9]
-};
+    inner: [Field; 81], // TODO: replace by sudoku_size
+}
 
 fn Sudoku.cell(self, row: T, col: T) {
     return self.inner[row * 9 + col];
@@ -16,8 +17,8 @@ fn Sudoku.merge(self, grid2: Sudoku) -> Sudoku {
     let merged = Sudoku([0; 9 * 9]);
     for row in 0..9 {
         for col in 0..9 {
-            let grid1_empty = self.cell(row, col) == EMPTY;
-            let grid2_empty = grid2.cell(row, col) == EMPTY;
+            let grid1_empty = self.cell(row, col) == empty;
+            let grid2_empty = grid2.cell(row, col) == empty;
             let valid = grid1_empty || grid2_empty;
             assert(valid);
 

@@ -11,9 +11,11 @@
 - [Compilation](./compilation.md)
 - [Grammar](./grammar.md)
 - [Spans](./spans.md)
+- [Paths](./paths.md)
 - [Type Checker](./type-checker.md)
 - [Noname ASM](./asm.md)
 - [Structs](./structs.md)
+- [Methods](./methods.md)
 
 # Circuit Generation
 
@@ -22,7 +24,6 @@
 - [Constants](./constants.md)
 - [Functions](./functions.md)
 - [Scope](./scope.md)
-- [Methods](./methods.md)
 
 # Proof Creation
 

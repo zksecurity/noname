@@ -298,7 +298,13 @@ impl Token {
                         // TODO: why can't I call chars.as_str().to_string()
                         let comment = chars.collect::<String>();
                         let len = comment.len();
-                        tokens.push(TokenKind::Comment(comment).new_token(ctx, 2 + len));
+                        let comment_token = TokenKind::Comment(comment).new_token(ctx, 2 + len);
+
+                        // by default, we don't push the comment token to the AST because it makes parsing when there's inlined comments a pain
+                        if let Ok(_) = std::env::var("NONAME_COMMENTS_IN_AST") {
+                            tokens.push(comment_token);
+                        }
+
                         break;
                     } else {
                         tokens.push(TokenKind::Slash.new_token(ctx, 1));

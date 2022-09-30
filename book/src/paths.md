@@ -53,7 +53,7 @@ pub enum ExprKind {
 
     /// `module::some_var` or
     /// `module::SomeType.some_field.some_other_field`
-    Identifier(Path),
+    Variable(Path),
 
     /// `module::SomeType.some_field[some_expr]` or
     /// `module::some_const[some_expr]`

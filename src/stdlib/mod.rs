@@ -103,8 +103,19 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
     let rhs_info = &vars[1];
 
     // they are both of type field
-    assert!(matches!(lhs_info.typ, Some(TyKind::Field | TyKind::BigInt)));
-    assert!(matches!(rhs_info.typ, Some(TyKind::Field | TyKind::BigInt)));
+    if !matches!(lhs_info.typ, Some(TyKind::Field | TyKind::BigInt)) {
+        panic!(
+            "the lhs of assert_eq must be of type Field or BigInt. It was of type {:?}",
+            lhs_info.typ
+        );
+    }
+
+    if !matches!(rhs_info.typ, Some(TyKind::Field | TyKind::BigInt)) {
+        panic!(
+            "the rhs of assert_eq must be of type Field or BigInt. It was of type {:?}",
+            rhs_info.typ
+        );
+    }
 
     // retrieve the values
     let lhs = lhs_info

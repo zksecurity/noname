@@ -526,10 +526,11 @@ impl CircuitWriter {
         expr: &Expr,
     ) -> Result<Option<Var>> {
         match &expr.kind {
-            ExprKind::FnCall { name, args } => {
+            ExprKind::FnCall { path, args } => {
                 // compute the arguments
                 let mut vars = Vec::with_capacity(args.len());
                 for arg in args {
+                    dbg!(&arg);
                     let var = self.compute_expr(global_env, fn_env, arg)?.ok_or(Error {
                         kind: ErrorKind::CannotComputeExpression,
                         span: arg.span,
@@ -541,17 +542,89 @@ impl CircuitWriter {
                     vars.push(var_info);
                 }
 
+                dbg!(&vars);
+
                 // retrieve the function in the env
-                if name.module.is_none() {
+                if let Some(module) = &path.module {
+                    if path.name.len() != 1 {
+                        panic!("method calls on modules not supported");
+                    }
+
+                    let fn_name = &path.name[0];
+
+                    // check module present in the scope
+                    let module = global_env.typed.modules.get(&module.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedModule(module.value.clone()),
+                        span: module.span,
+                    })?;
+                    let fn_info = module.functions.get(&fn_name.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                        span: fn_name.span,
+                    })?;
+
+                    match &fn_info.kind {
+                        FnKind::BuiltIn(_, handle) => handle(self, &vars, expr.span),
+                        FnKind::Native(_) => todo!(),
+                        FnKind::Main(_) => Err(Error {
+                            kind: ErrorKind::RecursiveMain,
+                            span: expr.span,
+                        }),
+                    }
+                } else if path.name.len() > 1 {
+                    // we're in a method call
+                    if path.name.len() != 2 {
+                        panic!("method calls on nested structs not supported yet");
+                    }
+
+                    let self_name = &path.name[0];
+                    let method_name = &path.name[1];
+
+                    // get type of the self variable
+                    let (self_struct, self_var_info) = if is_type(&self_name.value) {
+                        (self_name.value.clone(), None)
+                    } else {
+                        let self_var_info = fn_env.get_var(global_env, &self_name.value);
+                        let self_struct = match &self_var_info.typ {
+                            Some(TyKind::Custom(s)) => s,
+                            _ => {
+                                panic!("could not figure out struct implementing that method call")
+                            }
+                        };
+
+                        (self_struct.clone(), Some(self_var_info))
+                    };
+
+                    // get method
+                    let struct_info = global_env
+                        .typed
+                        .struct_info(&self_struct)
+                        .expect("could not find struct info");
+
+                    let func = struct_info
+                        .methods
+                        .get(&method_name.value)
+                        .expect("could not find method");
+
+                    // if method has a `self` argument, manually add it to the list of argument
+                    if let Some(first_arg) = func.sig.arguments.first() {
+                        if first_arg.name.value == "self" {
+                            let self_var_info = self_var_info.unwrap();
+                            vars.insert(0, self_var_info.clone());
+                        }
+                    }
+
+                    // execute method
+                    self.compile_native_function_call(global_env, func, vars)
+                } else if path.name.len() == 1 {
                     // functions present in the scope
-                    let fn_name = &name.name;
+                    let fn_name = &path.name[0];
                     let fn_info = global_env
                         .typed
                         .functions
                         .get(&fn_name.value)
                         .ok_or(Error {
                             kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                            span: name.span,
+                            span: fn_name.span,
                         })?;
 
                     match &fn_info.kind {
@@ -564,51 +637,40 @@ impl CircuitWriter {
                             span: expr.span,
                         }),
                     }
-                } else if let Some(module) = &name.module {
-                    // check module present in the scope
-                    let fn_name = &name.name.value;
-                    let module = global_env.typed.modules.get(&module.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedModule(module.value.clone()),
-                        span: name.span, // TODO: should be module.span
-                    })?;
-                    let fn_info = module.functions.get(fn_name).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.clone()),
-                        span: name.span, // TODO: should be fn_name span
-                    })?;
-
-                    match &fn_info.kind {
-                        FnKind::BuiltIn(_, handle) => handle(self, &vars, expr.span),
-                        FnKind::Native(_) => todo!(),
-                        FnKind::Main(_) => Err(Error {
-                            kind: ErrorKind::RecursiveMain,
-                            span: expr.span,
-                        }),
-                    }
                 } else {
-                    Err(Error {
-                        kind: ErrorKind::InvalidFnCall("sub-sub modules unsupported"),
-                        span: name.span,
-                    })
+                    panic!("empty path detected");
                 }
             }
+
             ExprKind::Assignment { lhs, rhs } => {
                 // figure out the local var name of lhs
-                let lhs_name = match &lhs.kind {
-                    ExprKind::Identifier(n) => n,
+                let lhs = match &lhs.kind {
+                    ExprKind::Variable(n) => n,
                     ExprKind::ArrayAccess { .. } => todo!(),
                     _ => panic!("type checker error"),
                 };
 
-                assert!(lhs_name.module.is_none());
+                // can't be a module
+                if lhs.module.is_some() {
+                    panic!("lhs of assignment cannot be in a module");
+                }
+
+                // don't support structs atm
+                if lhs.name.len() != 1 {
+                    unimplemented!();
+                }
+
+                let lhs_name = &lhs.name[0];
 
                 // figure out the var of what's on the right
                 let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
                 // replace the left with the right
-                fn_env.reassign_var(&lhs_name.name.value, rhs);
+                fn_env.reassign_var(&lhs_name.value, rhs);
 
                 Ok(None)
             }
+
             ExprKind::Op(op, lhs, rhs) => match op {
                 Op2::Addition => {
                     let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
@@ -634,10 +696,12 @@ impl CircuitWriter {
                 Op2::BoolOr => todo!(),
                 Op2::BoolNot => todo!(),
             },
+
             ExprKind::Negated(b) => {
                 let var = self.compute_expr(global_env, fn_env, b)?.unwrap();
                 Ok(Some(boolean::neg(self, var, expr.span)))
             }
+
             ExprKind::BigInt(b) => {
                 let biguint = BigUint::from_str_radix(b, 10).expect("failed to parse number.");
                 let ff = Field::try_from(biguint).map_err(|_| Error {
@@ -647,23 +711,64 @@ impl CircuitWriter {
 
                 Ok(Some(Var::new_constant(ff, expr.span)))
             }
+
             ExprKind::Bool(b) => {
                 let value = if *b { Field::one() } else { Field::zero() };
                 Ok(Some(Var::new_constant(value, expr.span)))
             }
-            ExprKind::Identifier(name) => {
-                let var_info = fn_env.get_var(global_env, &name.name.value).clone();
-                Ok(Some(var_info.var))
+
+            ExprKind::Variable(path) => {
+                if path.module.is_some() {
+                    panic!("accessing module variables not supported yet");
+                }
+
+                if path.name.len() > 2 {
+                    panic!("accessing nested variables not supported yet");
+                } else if path.name.len() == 2 {
+                    let struct_name = &path.name[0];
+                    let field_name = &path.name[1];
+                    dbg!(&struct_name.value, &field_name.value);
+
+                    let var_info = fn_env.get_var(global_env, &struct_name.value);
+                    dbg!(&var_info);
+                    let var = var_info.var;
+
+                    // TODO: I don't think I need this fields() function anymore since I can get that information from global_env.typed.structs (and parse the list of fields dynamically)
+                    let fields = var.fields().expect("type-checker bug: expected struct");
+
+                    let var = fields.get(&field_name.value).cloned().ok_or(Error {
+                        kind: ErrorKind::UndefinedField(
+                            field_name.value.clone(),
+                            field_name.value.clone(),
+                        ),
+                        span: field_name.span,
+                    })?;
+
+                    Ok(Some(Var::new(var, expr.span)))
+                } else if path.name.len() == 1 {
+                    let var_name = &path.name[0];
+
+                    let var_info = fn_env.get_var(global_env, &var_name.value).clone();
+                    Ok(Some(var_info.var))
+                } else {
+                    panic!("empty path detected");
+                }
             }
-            ExprKind::ArrayAccess { name, idx } => {
+
+            ExprKind::ArrayAccess { path, idx } => {
                 // retrieve the CircuitVar at the path
-                let array: Var = if let Some(_module) = &name.module {
+                let array: Var = if let Some(_module) = &path.module {
                     // check module present in the scope
                     unimplemented!()
                 } else {
+                    if path.name.len() != 1 {
+                        unimplemented!();
+                    }
+
+                    let array_var = &path.name[0];
+
                     // var present in the scope
-                    let name = &name.name.value;
-                    let var_info = fn_env.get_var(global_env, name).clone();
+                    let var_info = fn_env.get_var(global_env, &array_var.value).clone();
                     var_info.var
                 };
 
@@ -691,6 +796,7 @@ impl CircuitWriter {
                 //
                 Ok(Some(Var::new(res, expr.span)))
             }
+
             ExprKind::ArrayDeclaration(items) => {
                 // we only support arrays of Field elements at the moment.
                 // not sure yet how we can support any other type of arrays...
@@ -712,6 +818,7 @@ impl CircuitWriter {
 
                 Ok(Some(var))
             }
+
             ExprKind::CustomTypeDeclaration(name, fields) => {
                 let mut vars = HashMap::new();
                 for (name, rhs) in fields {
@@ -724,77 +831,6 @@ impl CircuitWriter {
                 fn_env.add_var(global_env, name.clone(), var_info);
 
                 Ok(Some(var))
-            }
-            ExprKind::StructAccess(name, field) => {
-                let var_info = fn_env.get_var(global_env, &name.value);
-                let var = var_info.var;
-
-                // TODO: I don't think I need this fields() function anymore since I can get that information from global_env.typed.structs (and parse the list of fields dynamically)
-                let fields = var.fields().expect("type-checker bug: expected struct");
-
-                let var = fields.get(&field.value).cloned().ok_or(Error {
-                    kind: ErrorKind::UndefinedField(name.value.clone(), field.value.clone()),
-                    span: field.span,
-                })?;
-
-                Ok(Some(Var::new(var, expr.span)))
-            }
-            ExprKind::MethodCall {
-                self_name,
-                method_name,
-                args,
-            } => {
-                // compute the arguments
-                let mut vars = Vec::with_capacity(args.len());
-                for arg in args {
-                    let var = self.compute_expr(global_env, fn_env, arg)?.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: arg.span,
-                    })?;
-
-                    let typ = global_env.typed.expr_type(arg).cloned();
-                    let var_info = VarInfo::new(var, typ);
-                    vars.push(var_info);
-                }
-
-                if self_name.module.is_some() {
-                    panic!("modules not supported yet");
-                }
-
-                // get type of the self variable
-                let (self_struct, self_var_info) = if is_type(&self_name.name.value) {
-                    (self_name.name.value.clone(), None)
-                } else {
-                    let self_var_info = fn_env.get_var(global_env, &self_name.name.value);
-                    let self_struct = match &self_var_info.typ {
-                        Some(TyKind::Custom(s)) => s,
-                        _ => panic!("could not figure out struct implementing that method call"),
-                    };
-
-                    (self_struct.clone(), Some(self_var_info))
-                };
-
-                // get method
-                let struct_info = global_env
-                    .typed
-                    .struct_info(&self_struct)
-                    .expect("could not find struct info");
-
-                let func = struct_info
-                    .methods
-                    .get(method_name)
-                    .expect("could not find method");
-
-                // if method has a `self` argument, manually add it to the list of argument
-                if let Some(first_arg) = func.sig.arguments.first() {
-                    if first_arg.name.value == "self" {
-                        let self_var_info = self_var_info.unwrap();
-                        vars.insert(0, self_var_info.clone());
-                    }
-                }
-
-                // execute method
-                self.compile_native_function_call(global_env, func, vars)
             }
         }
     }

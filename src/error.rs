@@ -94,12 +94,6 @@ pub enum ErrorKind {
     #[error("imports via `use` keyword must appear before anything else")]
     UseAfterFn,
 
-    #[error("function expected {expected_args} arguments but was passed {observed_args}")]
-    WrongNumberOfArguments {
-        expected_args: usize,
-        observed_args: usize,
-    },
-
     #[error("argument `{arg_name}` of function {fn_name} was passed a type {observed_ty} when it expected a {expected_ty}")]
     WrongArgumentType {
         fn_name: String,

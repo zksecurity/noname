@@ -84,7 +84,8 @@ pub struct Path {
     pub module: Option<Ident>,
 
     /// The name of the type, function, method, or constant.
-    pub name: Ident,
+    /// It's a vector because it can also be a struct access.
+    pub name: Vec<Ident>,
 
     /// Its span.
     pub span: Span,
@@ -104,18 +105,15 @@ impl Path {
             None => {
                 return Ok(Path {
                     module: None,
-                    name: maybe_module,
+                    name: vec![maybe_module],
                     span,
                 });
             }
             Some(peeked) => peeked,
         };
 
-        let is_module = matches!(peeked.kind, TokenKind::DoubleColon);
-
-        if is_module {
-            // if it's a module, bump and parse the next thing
-            tokens.bump(ctx);
+        if matches!(peeked.kind, TokenKind::DoubleColon) {
+            tokens.bump(ctx); // ::
 
             // next ident
             let name = Ident::parse(ctx, tokens)?;
@@ -123,13 +121,13 @@ impl Path {
             let span = span.merge_with(name.span);
             Ok(Path {
                 module: Some(maybe_module),
-                name,
+                name: vec![name],
                 span,
             })
         } else {
             Ok(Path {
                 module: None,
-                name: maybe_module,
+                name: vec![maybe_module],
                 span,
             })
         }
@@ -141,7 +139,12 @@ pub fn parse_type_declaration(
     tokens: &mut Tokens,
     path: Path,
 ) -> Result<Expr> {
-    if !is_type(&path.name.value) {
+    // validate path
+    if path.module.is_some() || path.name.len() != 1 {
+        panic!("A type declaration must not be on a qualified type, only on local types! For example, `let x = module::X {{ ... }}` is not allowed");
+    }
+
+    if !is_type(&path.name[0].value) {
         panic!("this looks like a type declaration but not on a type (types start with an uppercase) (TODO: better error)");
     }
 
@@ -200,7 +203,7 @@ pub fn parse_type_declaration(
 
     Ok(Expr::new(
         ctx,
-        ExprKind::CustomTypeDeclaration(path.name, fields),
+        ExprKind::CustomTypeDeclaration(path.name[0].clone(), fields),
         path.span.merge_with(ctx.last_span()),
     ))
 }
@@ -246,7 +249,7 @@ pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ve
 }
 
 /// after a path, there can be a method call, an array access, a const, a var, a function call, etc.
-pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -> Result<Expr> {
+pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, mut path: Path) -> Result<Expr> {
     match tokens.peek() {
         // type declaration
         Some(Token {
@@ -269,7 +272,7 @@ pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -
             Ok(Expr::new(
                 ctx,
                 ExprKind::ArrayAccess {
-                    name: path,
+                    path,
                     idx: Box::new(expr),
                 },
                 span,
@@ -289,58 +292,32 @@ pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, path: Path) -
                 path.span
             };
 
-            Ok(Expr::new(ctx, ExprKind::FnCall { name: path, args }, span))
+            Ok(Expr::new(ctx, ExprKind::FnCall { path, args }, span))
         }
 
-        // a struct access or method call
+        // continue the path:
+        // thing.thing2
+        //      ^
         Some(Token {
             kind: TokenKind::Dot,
             ..
         }) => {
             tokens.bump(ctx); // .
 
-            let field = Ident::parse(ctx, tokens)?;
+            // thing.thing2
+            //       ^^^^^^
+            let ident = Ident::parse(ctx, tokens)?;
 
-            let span = path.span.merge_with(field.span);
+            path.span = path.span.merge_with(ident.span);
+            path.name.push(ident);
 
-            match tokens.peek() {
-                // method call
-                Some(Token {
-                    kind: TokenKind::LeftParen,
-                    ..
-                }) => {
-                    let args = parse_fn_call_args(ctx, tokens)?;
-
-                    if !is_identifier(&field.value) {
-                        panic!("method call on a non-ident (TODO: better error)");
-                    }
-
-                    Ok(Expr::new(
-                        ctx,
-                        ExprKind::MethodCall {
-                            self_name: path,
-                            method_name: field.value,
-                            args,
-                        },
-                        span,
-                    ))
-                }
-
-                // struct access
-                _ => Ok(Expr::new(
-                    ctx,
-                    ExprKind::StructAccess(path.name.clone(), field),
-                    span,
-                )),
-            }
+            // thing.thing2
+            //             ^^^^
+            parse_complicated(ctx, tokens, path)
         }
 
         // easy case, it's just an identifier
-        _ => Ok(Expr::new(
-            ctx,
-            ExprKind::Identifier(path.clone()),
-            path.span,
-        )),
+        _ => Ok(Expr::new(ctx, ExprKind::Variable(path.clone()), path.span)),
     }
 }
 
@@ -516,12 +493,7 @@ impl Expr {
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     FnCall {
-        name: Path,
-        args: Vec<Expr>,
-    },
-    MethodCall {
-        self_name: Path,
-        method_name: String,
+        path: Path,
         args: Vec<Expr>,
     },
     Assignment {
@@ -531,14 +503,20 @@ pub enum ExprKind {
     Op(Op2, Box<Expr>, Box<Expr>),
     Negated(Box<Expr>),
     BigInt(String),
-    Identifier(Path),
+
+    /// This is a qualified identifier that can represent a constant, or a variable.
+    /// For example, `module::A`, `b.x`, `y`, etc.
+    Variable(Path),
+
+    /// An array access, for example:
+    /// `module::path.x[1 + 2]`
     ArrayAccess {
-        name: Path,
+        path: Path,
         idx: Box<Expr>,
     },
+
     ArrayDeclaration(Vec<Expr>),
     CustomTypeDeclaration(Ident, Vec<(Ident, Expr)>),
-    StructAccess(Ident, Ident),
     Bool(bool),
 }
 
@@ -594,8 +572,11 @@ impl Expr {
                     value: maybe_module,
                     span,
                 };
+
+                // module::path
                 let path = Path::parse(ctx, tokens, maybe_module, span)?;
 
+                // module::path
                 parse_complicated(ctx, tokens, path)?
             }
 
@@ -702,7 +683,7 @@ impl Expr {
         ) {
             if !matches!(
                 &lhs.kind,
-                ExprKind::Identifier(..) | ExprKind::ArrayAccess { .. },
+                ExprKind::Variable(..) | ExprKind::ArrayAccess { .. },
             ) {
                 return Err(Error {
                     kind: ErrorKind::InvalidAssignmentExpression,
@@ -775,6 +756,7 @@ impl FnSig {
     }
 }
 
+/// Any kind of text that can represent a type, a variable, a function name, etc.
 #[derive(Debug, Default, Clone)]
 pub struct Ident {
     pub value: String,
@@ -1362,8 +1344,15 @@ impl Stmt {
                 span,
             }) => {
                 tokens.bump(ctx);
+
+                // return xx;
+                //        ^^
                 let expr = Expr::parse(ctx, tokens)?;
+
+                // return xx;
+                //          ^
                 tokens.bump_expected(ctx, TokenKind::SemiColon)?;
+
                 Ok(Stmt {
                     kind: StmtKind::Return(Box::new(expr)),
                     span,
