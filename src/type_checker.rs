@@ -531,11 +531,6 @@ impl Expr {
 
                 let tykind = tykind.expect("empty array declaration?");
 
-                match tykind {
-                    TyKind::Field | TyKind::BigInt => (),
-                    _ => panic!("arrays can only be of field or bigint"),
-                };
-
                 Some(TyKind::Array(Box::new(tykind), len))
             }
 

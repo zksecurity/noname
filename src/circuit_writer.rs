@@ -952,7 +952,6 @@ impl CircuitWriter {
                 // out-of-bound checks
                 let var = &var_info.var;
                 if start >= var.len() || start + len > var.len() {
-                    dbg!(&start, &idx, &len, &var, var.len());
                     return Err(Error {
                         kind: ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
                         span: expr.span,

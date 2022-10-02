@@ -1309,10 +1309,7 @@ impl Stmt {
 
                 // let mut x = 5;
                 //              ^
-                dbg!("this one?");
-                dbg!(&rhs);
                 tokens.bump_expected(ctx, TokenKind::SemiColon)?;
-                dbg!("no");
 
                 //
                 Ok(Stmt {

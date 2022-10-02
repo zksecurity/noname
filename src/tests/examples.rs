@@ -164,3 +164,11 @@ fn test_methods() {
 
     test_file("methods", public_inputs, private_inputs, vec![]);
 }
+
+#[test]
+fn test_types_array() {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"x": ["1"], "y": ["4"]}"#;
+
+    test_file("types_array", public_inputs, private_inputs, vec![]);
+}
