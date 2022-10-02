@@ -1746,6 +1746,102 @@
 <span id="1746">1746</span>
 <span id="1747">1747</span>
 <span id="1748">1748</span>
+<span id="1749">1749</span>
+<span id="1750">1750</span>
+<span id="1751">1751</span>
+<span id="1752">1752</span>
+<span id="1753">1753</span>
+<span id="1754">1754</span>
+<span id="1755">1755</span>
+<span id="1756">1756</span>
+<span id="1757">1757</span>
+<span id="1758">1758</span>
+<span id="1759">1759</span>
+<span id="1760">1760</span>
+<span id="1761">1761</span>
+<span id="1762">1762</span>
+<span id="1763">1763</span>
+<span id="1764">1764</span>
+<span id="1765">1765</span>
+<span id="1766">1766</span>
+<span id="1767">1767</span>
+<span id="1768">1768</span>
+<span id="1769">1769</span>
+<span id="1770">1770</span>
+<span id="1771">1771</span>
+<span id="1772">1772</span>
+<span id="1773">1773</span>
+<span id="1774">1774</span>
+<span id="1775">1775</span>
+<span id="1776">1776</span>
+<span id="1777">1777</span>
+<span id="1778">1778</span>
+<span id="1779">1779</span>
+<span id="1780">1780</span>
+<span id="1781">1781</span>
+<span id="1782">1782</span>
+<span id="1783">1783</span>
+<span id="1784">1784</span>
+<span id="1785">1785</span>
+<span id="1786">1786</span>
+<span id="1787">1787</span>
+<span id="1788">1788</span>
+<span id="1789">1789</span>
+<span id="1790">1790</span>
+<span id="1791">1791</span>
+<span id="1792">1792</span>
+<span id="1793">1793</span>
+<span id="1794">1794</span>
+<span id="1795">1795</span>
+<span id="1796">1796</span>
+<span id="1797">1797</span>
+<span id="1798">1798</span>
+<span id="1799">1799</span>
+<span id="1800">1800</span>
+<span id="1801">1801</span>
+<span id="1802">1802</span>
+<span id="1803">1803</span>
+<span id="1804">1804</span>
+<span id="1805">1805</span>
+<span id="1806">1806</span>
+<span id="1807">1807</span>
+<span id="1808">1808</span>
+<span id="1809">1809</span>
+<span id="1810">1810</span>
+<span id="1811">1811</span>
+<span id="1812">1812</span>
+<span id="1813">1813</span>
+<span id="1814">1814</span>
+<span id="1815">1815</span>
+<span id="1816">1816</span>
+<span id="1817">1817</span>
+<span id="1818">1818</span>
+<span id="1819">1819</span>
+<span id="1820">1820</span>
+<span id="1821">1821</span>
+<span id="1822">1822</span>
+<span id="1823">1823</span>
+<span id="1824">1824</span>
+<span id="1825">1825</span>
+<span id="1826">1826</span>
+<span id="1827">1827</span>
+<span id="1828">1828</span>
+<span id="1829">1829</span>
+<span id="1830">1830</span>
+<span id="1831">1831</span>
+<span id="1832">1832</span>
+<span id="1833">1833</span>
+<span id="1834">1834</span>
+<span id="1835">1835</span>
+<span id="1836">1836</span>
+<span id="1837">1837</span>
+<span id="1838">1838</span>
+<span id="1839">1839</span>
+<span id="1840">1840</span>
+<span id="1841">1841</span>
+<span id="1842">1842</span>
+<span id="1843">1843</span>
+<span id="1844">1844</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -1818,81 +1914,12 @@
     }
 }
 
-<span class="comment">//
-// Path
-//
-
-</span><span class="doccomment">/// A path represents a path to a type, a function, a method, or a constant.
-/// It follows the syntax: `module::X` where `X` can be a type, a function, a method, or a constant.
-/// In the case it is a method `a` on some type `A` then it would read:
-/// `module::A.a`.
-</span><span class="attribute">#[derive(Debug, Clone)]
-</span><span class="kw">pub struct </span>Path {
-    <span class="doccomment">/// A module, if this is an foreign import.
-    </span><span class="kw">pub </span>module: <span class="prelude-ty">Option</span>&lt;Ident&gt;,
-
-    <span class="doccomment">/// The name of the type, function, method, or constant.
-    /// It&#39;s a vector because it can also be a struct access.
-    </span><span class="kw">pub </span>name: Vec&lt;Ident&gt;,
-
-    <span class="doccomment">/// Its span.
-    </span><span class="kw">pub </span>span: Span,
-}
-
-<span class="kw">impl </span>Path {
-    <span class="doccomment">/// Parsing a path is hard...
-    </span><span class="kw">fn </span>parse(
-        ctx: <span class="kw-2">&amp;mut </span>ParserCtx,
-        tokens: <span class="kw-2">&amp;mut </span>Tokens,
-        maybe_module: Ident,
-        span: Span,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">let </span>peeked = <span class="kw">match </span>tokens.peek() {
-            <span class="comment">// it&#39;s highly likely that this will be an error,
-            // but we&#39;ll let the parent decide
-            </span><span class="prelude-val">None </span>=&gt; {
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(Path {
-                    module: <span class="prelude-val">None</span>,
-                    name: <span class="macro">vec!</span>[maybe_module],
-                    span,
-                });
-            }
-            <span class="prelude-val">Some</span>(peeked) =&gt; peeked,
-        };
-
-        <span class="kw">if </span><span class="macro">matches!</span>(peeked.kind, TokenKind::DoubleColon) {
-            tokens.bump(ctx); <span class="comment">// ::
-
-            // next ident
-            </span><span class="kw">let </span>name = Ident::parse(ctx, tokens)<span class="question-mark">?</span>;
-
-            <span class="kw">let </span>span = span.merge_with(name.span);
-            <span class="prelude-val">Ok</span>(Path {
-                module: <span class="prelude-val">Some</span>(maybe_module),
-                name: <span class="macro">vec!</span>[name],
-                span,
-            })
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(Path {
-                module: <span class="prelude-val">None</span>,
-                name: <span class="macro">vec!</span>[maybe_module],
-                span,
-            })
-        }
-    }
-}
-
 <span class="kw">pub fn </span>parse_type_declaration(
     ctx: <span class="kw-2">&amp;mut </span>ParserCtx,
     tokens: <span class="kw-2">&amp;mut </span>Tokens,
-    path: Path,
+    ident: Ident,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Expr&gt; {
-    <span class="comment">// validate path
-    </span><span class="kw">if </span>path.module.is_some() || path.name.len() != <span class="number">1 </span>{
-        <span class="macro">panic!</span>(<span class="string">&quot;A type declaration must not be on a qualified type, only on local types! For example, `let x = module::X {{ ... }}` is not allowed&quot;</span>);
-    }
-
-    <span class="kw">if </span>!is_type(<span class="kw-2">&amp;</span>path.name[<span class="number">0</span>].value) {
+    <span class="kw">if </span>!is_type(<span class="kw-2">&amp;</span>ident.value) {
         <span class="macro">panic!</span>(<span class="string">&quot;this looks like a type declaration but not on a type (types start with an uppercase) (TODO: better error)&quot;</span>);
     }
 
@@ -1949,10 +1976,15 @@
         };
     }
 
+    <span class="kw">let </span>span = ident.span.merge_with(ctx.last_span());
+
     <span class="prelude-val">Ok</span>(Expr::new(
         ctx,
-        ExprKind::CustomTypeDeclaration(path.name[<span class="number">0</span>].clone(), fields),
-        path.span.merge_with(ctx.last_span()),
+        ExprKind::CustomTypeDeclaration {
+            struct_name: ident,
+            fields,
+        },
+        span,
     ))
 }
 
@@ -1994,79 +2026,6 @@
     }
 
     <span class="prelude-val">Ok</span>(args)
-}
-
-<span class="doccomment">/// after a path, there can be a method call, an array access, a const, a var, a function call, etc.
-</span><span class="kw">pub fn </span>parse_complicated(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens, <span class="kw-2">mut </span>path: Path) -&gt; <span class="prelude-ty">Result</span>&lt;Expr&gt; {
-    <span class="kw">match </span>tokens.peek() {
-        <span class="comment">// type declaration
-        </span><span class="prelude-val">Some</span>(Token {
-            kind: TokenKind::LeftCurlyBracket,
-            ..
-        }) =&gt; parse_type_declaration(ctx, tokens, path),
-
-        <span class="comment">// array access
-        </span><span class="prelude-val">Some</span>(Token {
-            kind: TokenKind::LeftBracket,
-            ..
-        }) =&gt; {
-            tokens.bump(ctx); <span class="comment">// [
-
-            </span><span class="kw">let </span>expr = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
-            tokens.bump_expected(ctx, TokenKind::RightBracket)<span class="question-mark">?</span>;
-
-            <span class="kw">let </span>span = path.span.merge_with(expr.span);
-
-            <span class="prelude-val">Ok</span>(Expr::new(
-                ctx,
-                ExprKind::ArrayAccess {
-                    path,
-                    idx: Box::new(expr),
-                },
-                span,
-            ))
-        }
-
-        <span class="comment">// fn call
-        </span><span class="prelude-val">Some</span>(Token {
-            kind: TokenKind::LeftParen,
-            span,
-        }) =&gt; {
-            <span class="kw">let </span>args = parse_fn_call_args(ctx, tokens)<span class="question-mark">?</span>;
-
-            <span class="kw">let </span>span = <span class="kw">if let </span><span class="prelude-val">Some</span>(arg) = args.last() {
-                path.span.merge_with(arg.span)
-            } <span class="kw">else </span>{
-                path.span
-            };
-
-            <span class="prelude-val">Ok</span>(Expr::new(ctx, ExprKind::FnCall { path, args }, span))
-        }
-
-        <span class="comment">// continue the path:
-        // thing.thing2
-        //      ^
-        </span><span class="prelude-val">Some</span>(Token {
-            kind: TokenKind::Dot,
-            ..
-        }) =&gt; {
-            tokens.bump(ctx); <span class="comment">// .
-
-            // thing.thing2
-            //       ^^^^^^
-            </span><span class="kw">let </span>ident = Ident::parse(ctx, tokens)<span class="question-mark">?</span>;
-
-            path.span = path.span.merge_with(ident.span);
-            path.name.push(ident);
-
-            <span class="comment">// thing.thing2
-            //             ^^^^
-            </span>parse_complicated(ctx, tokens, path)
-        }
-
-        <span class="comment">// easy case, it&#39;s just an identifier
-        </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(Expr::new(ctx, ExprKind::Variable(path.clone()), path.span)),
-    }
 }
 
 <span class="comment">//~
@@ -2240,32 +2199,62 @@
 
 <span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub enum </span>ExprKind {
-    FnCall {
-        path: Path,
+    <span class="doccomment">/// `lhs(args)`
+    </span>FnCall {
+        module: <span class="prelude-ty">Option</span>&lt;Ident&gt;,
+        fn_name: Ident,
         args: Vec&lt;Expr&gt;,
     },
-    Assignment {
+
+    <span class="doccomment">/// `lhs.method_name(args)`
+    </span>MethodCall {
+        lhs: Box&lt;Expr&gt;,
+        method_name: Ident,
+        args: Vec&lt;Expr&gt;,
+    },
+
+    <span class="doccomment">/// `let lhs = rhs`
+    </span>Assignment { lhs: Box&lt;Expr&gt;, rhs: Box&lt;Expr&gt; },
+
+    <span class="doccomment">/// `lhs.rhs`
+    </span>FieldAccess { lhs: Box&lt;Expr&gt;, rhs: Ident },
+
+    <span class="doccomment">/// `lhs &lt;op&gt; rhs`
+    </span>Op {
+        op: Op2,
         lhs: Box&lt;Expr&gt;,
         rhs: Box&lt;Expr&gt;,
     },
-    Op(Op2, Box&lt;Expr&gt;, Box&lt;Expr&gt;),
-    Negated(Box&lt;Expr&gt;),
-    BigInt(String),
 
-    <span class="doccomment">/// This is a qualified identifier that can represent a constant, or a variable.
-    /// For example, `module::A`, `b.x`, `y`, etc.
-    </span>Variable(Path),
+    <span class="doccomment">/// `!expr`
+    </span>Negated(Box&lt;Expr&gt;),
+
+    <span class="doccomment">/// any numbers
+    </span>BigInt(String),
+
+    <span class="doccomment">/// a variable. For example, `mod::A`, `x`, `y`, etc.
+    </span><span class="comment">// TODO: change to `identifier` or `path`?
+    </span>Variable { module: <span class="prelude-ty">Option</span>&lt;Ident&gt;, name: Ident },
 
     <span class="doccomment">/// An array access, for example:
-    /// `module::path.x[1 + 2]`
+    /// `lhs[idx]`
     </span>ArrayAccess {
-        path: Path,
+        module: <span class="prelude-ty">Option</span>&lt;Ident&gt;,
+        name: Ident,
         idx: Box&lt;Expr&gt;,
     },
 
-    ArrayDeclaration(Vec&lt;Expr&gt;),
-    CustomTypeDeclaration(Ident, Vec&lt;(Ident, Expr)&gt;),
-    Bool(bool),
+    <span class="doccomment">/// `[ ... ]`
+    </span>ArrayDeclaration(Vec&lt;Expr&gt;),
+
+    <span class="doccomment">/// `name { fields }`
+    </span>CustomTypeDeclaration {
+        struct_name: Ident,
+        fields: Vec&lt;(Ident, Expr)&gt;,
+    },
+
+    <span class="doccomment">/// `true` or `false`
+    </span>Bool(bool),
 }
 
 <span class="attribute">#[derive(Debug, Clone)]
@@ -2280,30 +2269,6 @@
     BoolNot,
 }
 
-<span class="kw">impl </span>Op2 {
-    <span class="kw">pub fn </span>parse_maybe(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">let </span>token = tokens.peek()<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>token = <span class="kw">match </span>token.kind {
-            TokenKind::Plus =&gt; <span class="prelude-val">Some</span>(Op2::Addition),
-            TokenKind::Minus =&gt; <span class="prelude-val">Some</span>(Op2::Subtraction),
-            TokenKind::Star =&gt; <span class="prelude-val">Some</span>(Op2::Multiplication),
-            TokenKind::Slash =&gt; <span class="prelude-val">Some</span>(Op2::Division),
-            TokenKind::DoubleEqual =&gt; <span class="prelude-val">Some</span>(Op2::Equality),
-            TokenKind::Ampersand =&gt; <span class="prelude-val">Some</span>(Op2::BoolAnd),
-            TokenKind::Pipe =&gt; <span class="prelude-val">Some</span>(Op2::BoolOr),
-            TokenKind::Exclamation =&gt; <span class="prelude-val">Some</span>(Op2::BoolNot),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        };
-
-        <span class="kw">if </span>token.is_some() {
-            tokens.bump(ctx);
-        }
-
-        token
-    }
-}
-
 <span class="kw">impl </span>Expr {
     <span class="doccomment">/// Parses until it finds something it doesn&#39;t know, then returns without consuming the token it doesn&#39;t know (the caller will have to make sense of it)
     </span><span class="kw">pub fn </span>parse(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
@@ -2315,18 +2280,50 @@
             </span>TokenKind::BigInt(b) =&gt; Expr::new(ctx, ExprKind::BigInt(b), span),
 
             <span class="comment">// identifier
-            </span>TokenKind::Identifier(maybe_module) =&gt; {
-                <span class="kw">let </span>maybe_module = Ident {
-                    value: maybe_module,
-                    span,
-                };
+            </span>TokenKind::Identifier(value) =&gt; {
+                <span class="kw">let </span>maybe_module = Ident { value, span };
 
-                <span class="comment">// module::path
-                </span><span class="kw">let </span>path = Path::parse(ctx, tokens, maybe_module, span)<span class="question-mark">?</span>;
+                <span class="comment">// is it a qualified identifier?
+                // name::other_name
+                //     ^^
+                </span><span class="kw">match </span>tokens.peek() {
+                    <span class="prelude-val">Some</span>(Token {
+                        kind: TokenKind::DoubleColon,
+                        ..
+                    }) =&gt; {
+                        tokens.bump(ctx); <span class="comment">// ::
 
-                <span class="comment">// module::path
-                </span>parse_complicated(ctx, tokens, path)<span class="question-mark">?
-            </span>}
+                        // mod::expr
+                        //      ^^^^
+                        </span><span class="kw">let </span>name = <span class="kw">match </span>tokens.bump(ctx) {
+                            <span class="prelude-val">Some</span>(Token {
+                                kind: TokenKind::Identifier(value),
+                                span,
+                            }) =&gt; Ident { value, span },
+                            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;cannot qualify a non-identifier&quot;</span>),
+                        };
+
+                        Expr::new(
+                            ctx,
+                            ExprKind::Variable {
+                                module: <span class="prelude-val">Some</span>(maybe_module),
+                                name,
+                            },
+                            span,
+                        )
+                    }
+
+                    <span class="comment">// just an identifier
+                    </span><span class="kw">_ </span>=&gt; Expr::new(
+                        ctx,
+                        ExprKind::Variable {
+                            module: <span class="prelude-val">None</span>,
+                            name: maybe_module,
+                        },
+                        span,
+                    ),
+                }
+            }
 
             <span class="comment">// negated expr
             </span>TokenKind::Minus =&gt; {
@@ -2421,50 +2418,242 @@
             }
         };
 
-        <span class="comment">// detect if this is an assignment expression
-        </span><span class="kw">if </span><span class="macro">matches!</span>(
-            tokens.peek(),
-            <span class="prelude-val">Some</span>(Token {
+        <span class="comment">// continue parsing. Potentially there&#39;s more
+        </span>lhs.parse_rhs(ctx, tokens)
+    }
+
+    <span class="doccomment">/// an expression is sometimes unfinished when we parse it with [Self::parse],
+    /// we use this function to see if the expression we just parsed (`self`) is actually part of a bigger expression
+    </span><span class="kw">fn </span>parse_rhs(<span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;Expr&gt; {
+        <span class="comment">// we peek into what&#39;s next to see if there&#39;s an expression that uses
+        // the expression `self` we just parsed.
+        // warning: ALL of the rules here should make use of `self`.
+        </span><span class="kw">let </span>lhs = <span class="kw">match </span>tokens.peek() {
+            <span class="comment">// assignment
+            </span><span class="prelude-val">Some</span>(Token {
                 kind: TokenKind::Equal,
-                span: <span class="kw">_
-            </span>})
-        ) {
-            <span class="kw">if </span>!<span class="macro">matches!</span>(
-                <span class="kw-2">&amp;</span>lhs.kind,
-                ExprKind::Variable(..) | ExprKind::ArrayAccess { .. },
-            ) {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                    kind: ErrorKind::InvalidAssignmentExpression,
-                    span: lhs.span.merge_with(span),
-                });
+                span,
+            }) =&gt; {
+                tokens.bump(ctx); <span class="comment">// =
+
+                // sanitize
+                </span><span class="kw">if </span>!<span class="macro">matches!</span>(
+                    <span class="kw-2">&amp;</span><span class="self">self</span>.kind,
+                    ExprKind::Variable { .. } | ExprKind::ArrayAccess { .. },
+                ) {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
+                        kind: ErrorKind::InvalidAssignmentExpression,
+                        span: <span class="self">self</span>.span.merge_with(span),
+                    });
+                }
+
+                <span class="kw">let </span>rhs = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+                <span class="kw">let </span>span = <span class="self">self</span>.span.merge_with(rhs.span);
+
+                Expr::new(
+                    ctx,
+                    ExprKind::Assignment {
+                        lhs: Box::new(<span class="self">self</span>),
+                        rhs: Box::new(rhs),
+                    },
+                    span,
+                )
             }
-            tokens.bump(ctx).unwrap();
 
-            <span class="kw">let </span>rhs = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+            <span class="comment">// binary operation
+            </span><span class="prelude-val">Some</span>(Token {
+                kind:
+                    TokenKind::Plus
+                    | TokenKind::Minus
+                    | TokenKind::Star
+                    | TokenKind::Slash
+                    | TokenKind::DoubleEqual
+                    | TokenKind::Ampersand
+                    | TokenKind::Pipe
+                    | TokenKind::Exclamation,
+                span,
+            }) =&gt; {
+                <span class="comment">// lhs + rhs
+                //     ^
+                </span><span class="kw">let </span>op = <span class="kw">match </span>tokens.bump(ctx).unwrap().kind {
+                    TokenKind::Plus =&gt; Op2::Addition,
+                    TokenKind::Minus =&gt; Op2::Subtraction,
+                    TokenKind::Star =&gt; Op2::Multiplication,
+                    TokenKind::Slash =&gt; Op2::Division,
+                    TokenKind::DoubleEqual =&gt; Op2::Equality,
+                    TokenKind::Ampersand =&gt; Op2::BoolAnd,
+                    TokenKind::Pipe =&gt; Op2::BoolOr,
+                    TokenKind::Exclamation =&gt; Op2::BoolNot,
+                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+                };
 
-            <span class="prelude-val">Ok</span>(Expr::new(
-                ctx,
-                ExprKind::Assignment {
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
-                },
+                <span class="comment">// lhs + rhs
+                //       ^^^
+                </span><span class="kw">let </span>rhs = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>span = span.merge_with(rhs.span);
+                Expr::new(
+                    ctx,
+                    ExprKind::Op {
+                        op,
+                        lhs: Box::new(<span class="self">self</span>),
+                        rhs: Box::new(rhs),
+                    },
+                    span,
+                )
+            }
+
+            <span class="comment">// type declaration
+            </span><span class="prelude-val">Some</span>(Token {
+                kind: TokenKind::LeftCurlyBracket,
+                ..
+            }) =&gt; {
+                <span class="kw">let </span>ident = <span class="kw">match </span><span class="self">self</span>.kind {
+                    ExprKind::Variable { module, name } =&gt; {
+                        <span class="kw">if </span>module.is_some() {
+                            <span class="macro">panic!</span>(<span class="string">&quot;a type declaration cannot be qualified&quot;</span>);
+                        }
+
+                        name
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;bad type declaration&quot;</span>),
+                };
+                parse_type_declaration(ctx, tokens, ident)<span class="question-mark">?
+            </span>}
+
+            <span class="comment">// array access
+            </span><span class="prelude-val">Some</span>(Token {
+                kind: TokenKind::LeftBracket,
+                ..
+            }) =&gt; {
+                tokens.bump(ctx); <span class="comment">// [
+
+                // sanitize array
+                </span><span class="kw">let </span>(module, name) = <span class="kw">match </span><span class="self">self</span>.kind {
+                    ExprKind::Variable { module, name } =&gt; (module, name),
+                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;array access on a non-variable&quot;</span>),
+                };
+
+                <span class="comment">// array[idx]
+                //       ^^^
+                </span><span class="kw">let </span>idx = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+
+                <span class="comment">// array[idx]
+                //          ^
+                </span>tokens.bump_expected(ctx, TokenKind::RightBracket)<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>span = <span class="self">self</span>.span.merge_with(idx.span);
+
+                Expr::new(
+                    ctx,
+                    ExprKind::ArrayAccess {
+                        module,
+                        name,
+                        idx: Box::new(idx),
+                    },
+                    span,
+                )
+            }
+
+            <span class="comment">// fn call
+            </span><span class="prelude-val">Some</span>(Token {
+                kind: TokenKind::LeftParen,
                 span,
-            ))
-        }
-        <span class="comment">// or it&#39;s a binary operation
-        </span><span class="kw">else if let </span><span class="prelude-val">Some</span>(op) = Op2::parse_maybe(ctx, tokens) {
-            <span class="kw">let </span>rhs = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
-            <span class="kw">let </span>span = span.merge_with(rhs.span);
-            <span class="prelude-val">Ok</span>(Expr::new(
-                ctx,
-                ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
-                span,
-            ))
-        }
-        <span class="comment">// or there&#39;s no rhs
-        </span><span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(lhs)
-        }
+            }) =&gt; {
+                <span class="comment">// sanitize
+                </span><span class="kw">let </span>(module, fn_name) = <span class="kw">match </span><span class="self">self</span>.kind {
+                    ExprKind::Variable { module, name } =&gt; (module, name),
+                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;invalid fn name&quot;</span>),
+                };
+
+                <span class="comment">// parse the arguments
+                </span><span class="kw">let </span>args = parse_fn_call_args(ctx, tokens)<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>span = <span class="kw">if let </span><span class="prelude-val">Some</span>(arg) = args.last() {
+                    <span class="self">self</span>.span.merge_with(arg.span)
+                } <span class="kw">else </span>{
+                    <span class="self">self</span>.span
+                };
+
+                Expr::new(
+                    ctx,
+                    ExprKind::FnCall {
+                        module,
+                        fn_name,
+                        args,
+                    },
+                    span,
+                )
+            }
+
+            <span class="comment">// field access or method call
+            // thing.thing2
+            //      ^
+            </span><span class="prelude-val">Some</span>(Token {
+                kind: TokenKind::Dot,
+                ..
+            }) =&gt; {
+                tokens.bump(ctx); <span class="comment">// .
+
+                // sanitize
+                </span><span class="kw">if </span>!<span class="macro">matches!</span>(
+                    <span class="kw-2">&amp;</span><span class="self">self</span>.kind,
+                    ExprKind::FieldAccess { .. }
+                        | ExprKind::Variable { .. }
+                        | ExprKind::ArrayAccess { .. }
+                ) {
+                    <span class="macro">panic!</span>(<span class="string">&quot;field or method calls can only follow a field of another struct, a struct, or an array access (TODO: better error)&quot;</span>);
+                }
+
+                <span class="comment">// lhs.field
+                //     ^^^^^
+                </span><span class="kw">let </span>rhs = Ident::parse(ctx, tokens)<span class="question-mark">?</span>;
+                <span class="kw">let </span>span = <span class="self">self</span>.span.merge_with(rhs.span);
+
+                <span class="comment">// lhs.field or lhs.method_name()
+                //     ^^^^^        ^^^^^^^^^^^^^
+                </span><span class="kw">match </span>tokens.peek() {
+                    <span class="comment">// method call:
+                    // lhs.method_name(...)
+                    //     ^^^^^^^^^^^^^^^^
+                    </span><span class="prelude-val">Some</span>(Token {
+                        kind: TokenKind::LeftParen,
+                        ..
+                    }) =&gt; {
+                        <span class="comment">// lhs.method_name(args)
+                        //                 ^^^^
+                        </span><span class="kw">let </span>args = parse_fn_call_args(ctx, tokens)<span class="question-mark">?</span>;
+
+                        Expr::new(
+                            ctx,
+                            ExprKind::MethodCall {
+                                lhs: Box::new(<span class="self">self</span>),
+                                method_name: rhs,
+                                args,
+                            },
+                            span,
+                        )
+                    }
+
+                    <span class="comment">// field access
+                    // lhs.field
+                    //     ^^^^^
+                    </span><span class="kw">_ </span>=&gt; Expr::new(
+                        ctx,
+                        ExprKind::FieldAccess {
+                            lhs: Box::new(<span class="self">self</span>),
+                            rhs,
+                        },
+                        span,
+                    ),
+                }
+            }
+
+            <span class="comment">// it looks like the lhs is a valid expression in itself
+            </span><span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="self">self</span>),
+        };
+
+        lhs.parse_rhs(ctx, tokens)
     }
 }
 
@@ -2964,7 +3153,10 @@
 
                 <span class="comment">// let mut x = 5;
                 //              ^
-                </span>tokens.bump_expected(ctx, TokenKind::SemiColon)<span class="question-mark">?</span>;
+                </span><span class="macro">dbg!</span>(<span class="string">&quot;this one?&quot;</span>);
+                <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>rhs);
+                tokens.bump_expected(ctx, TokenKind::SemiColon)<span class="question-mark">?</span>;
+                <span class="macro">dbg!</span>(<span class="string">&quot;no&quot;</span>);
 
                 <span class="comment">//
                 </span><span class="prelude-val">Ok</span>(Stmt {
@@ -3495,4 +3687,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (57f097ea2 2022-10-01)" ></div></body></html>

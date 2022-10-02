@@ -994,57 +994,6 @@
 <span id="994">994</span>
 <span id="995">995</span>
 <span id="996">996</span>
-<span id="997">997</span>
-<span id="998">998</span>
-<span id="999">999</span>
-<span id="1000">1000</span>
-<span id="1001">1001</span>
-<span id="1002">1002</span>
-<span id="1003">1003</span>
-<span id="1004">1004</span>
-<span id="1005">1005</span>
-<span id="1006">1006</span>
-<span id="1007">1007</span>
-<span id="1008">1008</span>
-<span id="1009">1009</span>
-<span id="1010">1010</span>
-<span id="1011">1011</span>
-<span id="1012">1012</span>
-<span id="1013">1013</span>
-<span id="1014">1014</span>
-<span id="1015">1015</span>
-<span id="1016">1016</span>
-<span id="1017">1017</span>
-<span id="1018">1018</span>
-<span id="1019">1019</span>
-<span id="1020">1020</span>
-<span id="1021">1021</span>
-<span id="1022">1022</span>
-<span id="1023">1023</span>
-<span id="1024">1024</span>
-<span id="1025">1025</span>
-<span id="1026">1026</span>
-<span id="1027">1027</span>
-<span id="1028">1028</span>
-<span id="1029">1029</span>
-<span id="1030">1030</span>
-<span id="1031">1031</span>
-<span id="1032">1032</span>
-<span id="1033">1033</span>
-<span id="1034">1034</span>
-<span id="1035">1035</span>
-<span id="1036">1036</span>
-<span id="1037">1037</span>
-<span id="1038">1038</span>
-<span id="1039">1039</span>
-<span id="1040">1040</span>
-<span id="1041">1041</span>
-<span id="1042">1042</span>
-<span id="1043">1043</span>
-<span id="1044">1044</span>
-<span id="1045">1045</span>
-<span id="1046">1046</span>
-<span id="1047">1047</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -1052,7 +1001,7 @@
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     imports::{resolve_builtin_functions, resolve_imports, FnKind},
     parser::{
-        Expr, ExprKind, FnSig, Function, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind,
+        Expr, ExprKind, FnSig, Function, Ident, Op2, RootKind, Stmt, StmtKind, Struct, Ty, TyKind,
         UsePath, AST,
     },
     stdlib::ImportedModule,
@@ -1305,140 +1254,136 @@
 // Expr
 //
 
-</span><span class="doccomment">/// Type checks a structure access. For example:
-/// `some_struct.some_field.some_other_field`
-</span><span class="kw">fn </span>check_struct_access(
-    typed_global_env: <span class="kw-2">&amp;mut </span>TypedGlobalEnv,
-    typed_fn_env: <span class="kw-2">&amp;mut </span>TypedFnEnv,
-    path: <span class="kw-2">&amp;</span>Path,
-) -&gt; <span class="prelude-ty">Result</span>&lt;TyKind&gt; {
-    <span class="comment">// first element in the path is a struct
-    </span><span class="kw">let </span><span class="kw-2">mut </span>items = path.name.iter();
-    <span class="kw">let </span>struct_var = items.next().expect(<span class="string">&quot;path should have at least one element&quot;</span>);
-
-    <span class="comment">// get the type of the struct the item refers to
-    </span><span class="kw">let </span><span class="kw-2">mut </span>struct_typ = typed_fn_env
-        .get_type(<span class="kw-2">&amp;</span>struct_var.value)
-        .expect(<span class="string">&quot;couldn&#39;t find the type of the struct (TODO: better error)&quot;</span>);
-
-    <span class="comment">// go through the path
-    </span><span class="kw">for </span>item <span class="kw">in </span>items {
-        <span class="comment">// get the name of that custom type
-        </span><span class="kw">let </span>struct_name = <span class="kw">match </span>struct_typ {
-            TyKind::Custom(name) =&gt; name,
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;cannot access a field on a non-struct variable (TODO: better error)&quot;</span>),
-        };
-
-        <span class="comment">// get type information on that custom type
-        </span><span class="kw">let </span>struct_info = typed_global_env
-            .structs
-            .get(struct_name)
-            .expect(<span class="string">&quot;could not find struct in scope (TODO: better error)&quot;</span>);
-
-        <span class="comment">// look for the field in the struct
-        </span><span class="kw">let </span>struct_fields = <span class="kw-2">&amp;</span>struct_info.fields;
-
-        <span class="kw">let </span>field_type = struct_fields
-            .iter()
-            .find(|(name, <span class="kw">_</span>)| name == <span class="kw-2">&amp;</span>item.value)
-            .expect(<span class="string">&quot;couldn&#39;t find the field in the struct (TODO: better error)&quot;</span>);
-
-        struct_typ = <span class="kw-2">&amp;</span>field_type.<span class="number">1</span>;
-    }
-
-    <span class="prelude-val">Ok</span>(struct_typ.clone())
-}
-
-<span class="doccomment">/// Same as check_path, except that the last element is known to be a method call.
-</span><span class="kw">fn </span>check_path_to_method(
-    typed_global_env: <span class="kw-2">&amp;mut </span>TypedGlobalEnv,
-    typed_fn_env: <span class="kw-2">&amp;mut </span>TypedFnEnv,
-    path: <span class="kw-2">&amp;</span>Path,
-) -&gt; <span class="prelude-ty">Result</span>&lt;FnSig&gt; {
-    <span class="comment">// at the very least our path should look like this:
-    // `struct_var.method_name`
-    </span><span class="macro">assert!</span>(path.name.len() &gt; <span class="number">1</span>);
-
-    <span class="comment">// first element in the path is a struct
-    </span><span class="kw">let </span><span class="kw-2">mut </span>items = path.name.iter();
-    <span class="kw">let </span>struct_var = items.next().expect(<span class="string">&quot;expected struct var&quot;</span>);
-
-    <span class="comment">// get the type of the struct the item refers to
-    </span><span class="kw">let </span><span class="kw-2">mut </span>struct_typ = typed_fn_env.get_type(<span class="kw-2">&amp;</span>struct_var.value);
-
-    <span class="comment">// go through the path
-    </span><span class="kw">let </span>last_item = items.len() - <span class="number">1</span>;
-    <span class="kw">for </span>(idx, item) <span class="kw">in </span>items.enumerate() {
-        <span class="comment">// get the name of that custom type
-        </span><span class="kw">let </span>struct_name = <span class="kw">match </span>struct_typ {
-            <span class="prelude-val">Some</span>(TyKind::Custom(name)) =&gt; name,
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;cannot access a field on a non-struct variable (TODO: better error)&quot;</span>),
-        };
-
-        <span class="comment">// get type information on that custom type
-        </span><span class="kw">let </span>struct_info = typed_global_env
-            .structs
-            .get(struct_name)
-            .expect(<span class="string">&quot;could not find struct in scope (TODO: better error)&quot;</span>);
-
-        <span class="comment">// if it&#39;s the last item, we&#39;re looking for a method
-        </span><span class="kw">if </span>idx == last_item {
-            <span class="kw">let </span>method_type = struct_info
-                .methods
-                .get(<span class="kw-2">&amp;</span>item.value)
-                .expect(<span class="string">&quot;method not found (TODO: better error)&quot;</span>);
-
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(method_type.sig.clone());
-        } <span class="kw">else </span>{
-            <span class="comment">// look for the field in the struct
-            </span><span class="kw">let </span>struct_fields = <span class="kw-2">&amp;</span>struct_info.fields;
-
-            <span class="kw">let </span>field_type = struct_fields
-                .iter()
-                .find(|(name, <span class="kw">_</span>)| name == <span class="kw-2">&amp;</span>item.value)
-                .map(|(<span class="kw">_</span>, typ)| typ);
-
-            struct_typ = field_type;
-        }
-    }
-
-    <span class="macro">unreachable!</span>();
-}
-
-<span class="kw">impl </span>Expr {
+</span><span class="kw">impl </span>Expr {
     <span class="kw">pub fn </span>compute_type(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         typed_global_env: <span class="kw-2">&amp;mut </span>TypedGlobalEnv,
         typed_fn_env: <span class="kw-2">&amp;mut </span>TypedFnEnv,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TyKind&gt;&gt; {
         <span class="kw">let </span>typ = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
-            ExprKind::FnCall { path, args } =&gt; {
-                check_fn_call(typed_global_env, typed_fn_env, path, args, <span class="self">self</span>.span)<span class="question-mark">?
+            ExprKind::FieldAccess { lhs, rhs } =&gt; {
+                <span class="comment">// compute type of left-hand side
+                </span><span class="kw">let </span>lhs_type = lhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>;
+
+                <span class="comment">// obtain the type of the field
+                </span><span class="kw">let </span>struct_name = <span class="kw">match </span>lhs_type {
+                    <span class="prelude-val">Some</span>(TyKind::Custom(name)) =&gt; name,
+                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;field access must be done on a custom struct&quot;</span>),
+                };
+
+                <span class="comment">// get struct info
+                </span><span class="kw">let </span>struct_info = typed_global_env
+                    .struct_info(<span class="kw-2">&amp;</span>struct_name)
+                    .expect(<span class="string">&quot;this struct is not defined&quot;</span>);
+
+                <span class="comment">// find field type
+                </span><span class="kw">let </span>res = struct_info
+                    .fields
+                    .iter()
+                    .find(|(name, <span class="kw">_</span>)| name == <span class="kw-2">&amp;</span>rhs.value)
+                    .map(|(<span class="kw">_</span>, typ)| typ.clone())
+                    .expect(<span class="string">&quot;could not find field&quot;</span>);
+
+                <span class="prelude-val">Some</span>(res)
+            }
+
+            <span class="comment">// `module::fn_name(args)`
+            </span>ExprKind::FnCall {
+                module,
+                fn_name,
+                args,
+            } =&gt; {
+                <span class="comment">// retrieve the function signature
+                </span><span class="kw">let </span>fn_sig: FnSig = <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                    <span class="comment">// check module present in the scope
+                    </span><span class="kw">let </span>module_val = <span class="kw-2">&amp;</span>module.value;
+                    <span class="kw">let </span>imported_module =
+                        typed_global_env.modules.get(module_val).ok_or(Error {
+                            kind: ErrorKind::UndefinedModule(module_val.clone()),
+                            span: module.span,
+                        })<span class="question-mark">?</span>;
+                    <span class="kw">let </span>fn_info = imported_module.functions.get(<span class="kw-2">&amp;</span>fn_name.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                        span: fn_name.span,
+                    })<span class="question-mark">?</span>;
+                    fn_info.sig().clone()
+                } <span class="kw">else </span>{
+                    <span class="comment">// functions present in the scope
+                    </span><span class="kw">let </span>fn_info = typed_global_env
+                        .functions
+                        .get(<span class="kw-2">&amp;</span>fn_name.value)
+                        .ok_or(Error {
+                            kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                            span: fn_name.span,
+                        })<span class="question-mark">?</span>;
+                    fn_info.sig().clone()
+                };
+
+                <span class="comment">// type check the function call
+                </span><span class="kw">let </span>method_call = <span class="bool-val">false</span>;
+                check_fn_call(
+                    typed_global_env,
+                    typed_fn_env,
+                    method_call,
+                    fn_sig,
+                    args,
+                    <span class="self">self</span>.span,
+                )<span class="question-mark">?
+            </span>}
+
+            <span class="comment">// `lhs.method_name(args)`
+            </span>ExprKind::MethodCall {
+                lhs,
+                method_name,
+                args,
+            } =&gt; {
+                <span class="comment">// retrieve struct name on the lhs
+                </span><span class="kw">let </span>lhs_type = lhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>;
+                <span class="kw">let </span>struct_name = <span class="kw">match </span>lhs_type {
+                    <span class="prelude-val">Some</span>(TyKind::Custom(name)) =&gt; name,
+                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;method call can only be applied on custom structs&quot;</span>),
+                };
+
+                <span class="comment">// get struct info
+                </span><span class="kw">let </span>struct_info = typed_global_env
+                    .structs
+                    .get(<span class="kw-2">&amp;</span>struct_name)
+                    .expect(<span class="string">&quot;could not find struct in scope (TODO: better error)&quot;</span>);
+
+                <span class="comment">// get method info
+                </span><span class="kw">let </span>method_type = struct_info
+                    .methods
+                    .get(<span class="kw-2">&amp;</span>method_name.value)
+                    .expect(<span class="string">&quot;method not found on custom struct (TODO: better error)&quot;</span>);
+
+                <span class="comment">// type check the method call
+                </span><span class="kw">let </span>method_call = <span class="bool-val">true</span>;
+                check_fn_call(
+                    typed_global_env,
+                    typed_fn_env,
+                    method_call,
+                    method_type.sig.clone(),
+                    args,
+                    <span class="self">self</span>.span,
+                )<span class="question-mark">?
             </span>}
 
             ExprKind::Assignment { lhs, rhs } =&gt; {
                 <span class="comment">// lhs can be a local variable or a path to an array
-                </span><span class="kw">let </span>path = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs.kind {
-                    ExprKind::Variable(var) =&gt; var,
+                </span><span class="kw">let </span>lhs_name = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs.kind {
+                    ExprKind::Variable { module, name } =&gt; {
+                        <span class="kw">if </span>module.is_some() {
+                            <span class="macro">panic!</span>(<span class="string">&quot;cannot assign to an external variable&quot;</span>);
+                        }
+                        name
+                    }
                     ExprKind::ArrayAccess { .. } =&gt; <span class="macro">todo!</span>(),
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;bad expression assignment (TODO: replace with error)&quot;</span>),
                 };
 
-                <span class="comment">// we don&#39;t support path for now
-                </span><span class="kw">if </span>path.name.len() &gt; <span class="number">1 </span>{
-                    <span class="macro">unimplemented!</span>();
-                }
-
-                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
-
-                <span class="comment">// but not an external variable or something
-                </span><span class="kw">if </span>path.module.is_some() {
-                    <span class="macro">panic!</span>(<span class="string">&quot;can&#39;t assign to an external variable (TODO: replace with error)&quot;</span>);
-                }
-
                 <span class="comment">// check that the var exists locally
                 </span><span class="kw">let </span>lhs_info = typed_fn_env
-                    .get_type_info(<span class="kw-2">&amp;</span>name.value)
+                    .get_type_info(<span class="kw-2">&amp;</span>lhs_name.value)
                     .expect(<span class="string">&quot;variable not found (TODO: replace with error&quot;</span>)
                     .clone();
 
@@ -1456,7 +1401,7 @@
                 <span class="prelude-val">None
             </span>}
 
-            ExprKind::Op(op, lhs, rhs) =&gt; {
+            ExprKind::Op { op, lhs, rhs } =&gt; {
                 <span class="kw">let </span>lhs_typ = lhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
                 <span class="kw">let </span>rhs_typ = rhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
 
@@ -1502,51 +1447,34 @@
             ExprKind::Bool(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(TyKind::Bool),
 
             <span class="comment">// mod::path.of.var
-            </span>ExprKind::Variable(path) =&gt; {
-                <span class="comment">// we don&#39;t support module variables for now
-                </span><span class="kw">if </span>path.module.is_some() {
-                    <span class="macro">unimplemented!</span>();
+            </span>ExprKind::Variable { module, name } =&gt; {
+                <span class="comment">// sanitize
+                </span><span class="kw">if </span>module.is_some() {
+                    <span class="macro">panic!</span>(<span class="string">&quot;we don&#39;t support module variables for now&quot;</span>);
                 }
 
-                <span class="comment">// a path means we&#39;re accessing the field of a struct
-                </span><span class="kw">if </span>path.name.len() &gt; <span class="number">1 </span>{
-                    <span class="kw">let </span>last_item_typ = check_struct_access(typed_global_env, typed_fn_env, path)<span class="question-mark">?</span>;
-
-                    <span class="prelude-val">Some</span>(last_item_typ)
-                } <span class="kw">else if </span>path.name.len() == <span class="number">1 </span>{
-                    <span class="kw">let </span>name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
-
-                    <span class="comment">// check if it&#39;s a constant first
-                    </span><span class="kw">let </span>typ = <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typed_global_env.constants.get(<span class="kw-2">&amp;</span>name.value) {
-                        typ.kind.clone()
-                    } <span class="kw">else </span>{
-                        <span class="comment">// otherwise it&#39;s a local variable
-                        </span>typed_fn_env
-                            .get_type(<span class="kw-2">&amp;</span>name.value)
-                            .ok_or(Error {
-                                kind: ErrorKind::UndefinedVariable,
-                                span: name.span,
-                            })<span class="question-mark">?
-                            </span>.clone()
-                    };
-
-                    <span class="prelude-val">Some</span>(typ)
+                <span class="comment">// check if it&#39;s a constant first
+                </span><span class="kw">let </span>typ = <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typed_global_env.constants.get(<span class="kw-2">&amp;</span>name.value) {
+                    typ.kind.clone()
                 } <span class="kw">else </span>{
-                    <span class="macro">panic!</span>(<span class="string">&quot;empty path detected&quot;</span>);
-                }
+                    <span class="comment">// otherwise it&#39;s a local variable
+                    </span>typed_fn_env
+                        .get_type(<span class="kw-2">&amp;</span>name.value)
+                        .ok_or(Error {
+                            kind: ErrorKind::UndefinedVariable,
+                            span: name.span,
+                        })<span class="question-mark">?
+                        </span>.clone()
+                };
+
+                <span class="prelude-val">Some</span>(typ)
             }
 
-            ExprKind::ArrayAccess { path, idx } =&gt; {
-                <span class="comment">// only support scoped variable for now
-                </span><span class="kw">if </span>path.module.is_some() {
-                    <span class="macro">unimplemented!</span>();
+            ExprKind::ArrayAccess { module, name, idx } =&gt; {
+                <span class="comment">// sanitize
+                </span><span class="kw">if </span>module.is_some() {
+                    <span class="macro">panic!</span>(<span class="string">&quot;we don&#39;t support module arrays for now&quot;</span>);
                 }
-
-                <span class="comment">// we don&#39;t support paths for now
-                </span><span class="kw">if </span>path.name.len() &gt; <span class="number">1 </span>{
-                    <span class="macro">unimplemented!</span>();
-                }
-                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>];
 
                 <span class="comment">// figure out if variable is in scope
                 </span><span class="kw">let </span>typ = typed_fn_env
@@ -1607,7 +1535,10 @@
                 <span class="prelude-val">Some</span>(TyKind::Array(Box::new(tykind), len))
             }
 
-            ExprKind::CustomTypeDeclaration(name, fields) =&gt; {
+            ExprKind::CustomTypeDeclaration {
+                struct_name: name,
+                fields,
+            } =&gt; {
                 <span class="kw">let </span>name = <span class="kw-2">&amp;</span>name.value;
                 <span class="kw">let </span>struct_info = typed_global_env.structs.get(name).ok_or(Error {
                     kind: ErrorKind::UndefinedStruct(name.clone()),
@@ -1996,58 +1927,24 @@
 }
 
 <span class="doccomment">/// type checks a function call.
-/// Note that this can be a method call as well.
-/// (A method is defined on a custom type.)
+/// Note that this can also be a method call.
 </span><span class="kw">pub fn </span>check_fn_call(
     typed_global_env: <span class="kw-2">&amp;mut </span>TypedGlobalEnv,
     typed_fn_env: <span class="kw-2">&amp;mut </span>TypedFnEnv,
-    path: <span class="kw-2">&amp;</span>Path,
+    method_call: bool, <span class="comment">// indicates if it&#39;s a fn call or a method call
+    </span>fn_sig: FnSig,
     args: <span class="kw-2">&amp;</span>[Expr],
     span: Span,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TyKind&gt;&gt; {
-    <span class="comment">// retrieve the function sig in the env
-    </span><span class="kw">let </span>sig: FnSig = <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = <span class="kw-2">&amp;</span>path.module {
-        <span class="comment">// get name of function
-        </span><span class="macro">assert_eq!</span>(path.name.len(), <span class="number">1</span>);
-        <span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>].value;
-        <span class="kw">let </span>fn_name_span = path.name[<span class="number">0</span>].span;
-
-        <span class="comment">// check module present in the scope
-        </span><span class="kw">let </span>module_val = <span class="kw-2">&amp;</span>module.value;
-        <span class="kw">let </span>imported_module = typed_global_env.modules.get(module_val).ok_or(Error {
-            kind: ErrorKind::UndefinedModule(module_val.clone()),
-            span: module.span,
-        })<span class="question-mark">?</span>;
-        <span class="kw">let </span>fn_info = imported_module.functions.get(fn_name).ok_or(Error {
-            kind: ErrorKind::UndefinedFunction(fn_name.clone()),
-            span: fn_name_span,
-        })<span class="question-mark">?</span>;
-        fn_info.sig().clone()
-    } <span class="kw">else if </span>path.name.len() &gt; <span class="number">1 </span>{
-        <span class="comment">// method call detected
-        </span>check_path_to_method(typed_global_env, typed_fn_env, path)<span class="question-mark">?
-    </span>} <span class="kw">else </span>{
-        <span class="comment">// get name of function
-        </span><span class="macro">assert_eq!</span>(path.name.len(), <span class="number">1</span>);
-        <span class="kw">let </span>fn_name = <span class="kw-2">&amp;</span>path.name[<span class="number">0</span>].value;
-        <span class="kw">let </span>fn_name_span = path.name[<span class="number">0</span>].span;
-
-        <span class="comment">// functions present in the scope
-        </span><span class="kw">let </span>fn_info = typed_global_env.functions.get(fn_name).ok_or(Error {
-            kind: ErrorKind::UndefinedFunction(fn_name.clone()),
-            span: fn_name_span,
-        })<span class="question-mark">?</span>;
-        fn_info.sig().clone()
-    };
-
     <span class="comment">// canonicalize the arguments depending on method call or not
-    </span><span class="kw">let </span>expected: Vec&lt;<span class="kw">_</span>&gt; = <span class="kw">if </span>path.name.len() &gt; <span class="number">1 </span>{
-        sig.arguments
+    </span><span class="kw">let </span>expected: Vec&lt;<span class="kw">_</span>&gt; = <span class="kw">if </span>method_call {
+        fn_sig
+            .arguments
             .iter()
             .filter(|arg| arg.name.value != <span class="string">&quot;self&quot;</span>)
             .collect()
     } <span class="kw">else </span>{
-        sig.arguments.iter().collect()
+        fn_sig.arguments.iter().collect()
     };
 
     <span class="comment">// compute the observed arguments types
@@ -2090,7 +1987,8 @@
         }
     }
 
-    <span class="prelude-val">Ok</span>(sig.return_type.as_ref().map(|ty| ty.kind.clone()))
+    <span class="comment">// return the return type of the function
+    </span><span class="prelude-val">Ok</span>(fn_sig.return_type.as_ref().map(|ty| ty.kind.clone()))
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (57f097ea2 2022-10-01)" ></div></body></html>

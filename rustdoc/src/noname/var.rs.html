@@ -195,6 +195,10 @@
 <span id="195">195</span>
 <span id="196">196</span>
 <span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use crate</span>::{
@@ -275,7 +279,7 @@
 }
 
 <span class="doccomment">/// Represents a cell in the execution trace.
-</span><span class="attribute">#[derive(Debug, Clone)]
+</span><span class="attribute">#[derive(Debug, Clone, Copy)]
 </span><span class="kw">pub enum </span>ConstOrCell {
     <span class="doccomment">/// A constant value.
     </span>Const(Field),
@@ -370,6 +374,10 @@
             <span class="prelude-val">None
         </span>}
     }
+
+    <span class="kw">pub fn </span>range(<span class="kw-2">&amp;</span><span class="self">self</span>, start: usize, len: usize) -&gt; <span class="kw-2">&amp;</span>[ConstOrCell] {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.cvars[start..(start + len)]
+    }
 }
 
 <span class="comment">// implement indexing into Var
@@ -393,4 +401,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (57f097ea2 2022-10-01)" ></div></body></html>
