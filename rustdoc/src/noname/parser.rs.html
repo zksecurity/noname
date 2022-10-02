@@ -1839,9 +1839,6 @@
 <span id="1839">1839</span>
 <span id="1840">1840</span>
 <span id="1841">1841</span>
-<span id="1842">1842</span>
-<span id="1843">1843</span>
-<span id="1844">1844</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -3153,10 +3150,7 @@
 
                 <span class="comment">// let mut x = 5;
                 //              ^
-                </span><span class="macro">dbg!</span>(<span class="string">&quot;this one?&quot;</span>);
-                <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>rhs);
-                tokens.bump_expected(ctx, TokenKind::SemiColon)<span class="question-mark">?</span>;
-                <span class="macro">dbg!</span>(<span class="string">&quot;no&quot;</span>);
+                </span>tokens.bump_expected(ctx, TokenKind::SemiColon)<span class="question-mark">?</span>;
 
                 <span class="comment">//
                 </span><span class="prelude-val">Ok</span>(Stmt {

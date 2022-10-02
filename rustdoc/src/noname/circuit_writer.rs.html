@@ -1338,7 +1338,6 @@
 <span id="1338">1338</span>
 <span id="1339">1339</span>
 <span id="1340">1340</span>
-<span id="1341">1341</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -2293,7 +2292,6 @@
                 <span class="comment">// out-of-bound checks
                 </span><span class="kw">let </span>var = <span class="kw-2">&amp;</span>var_info.var;
                 <span class="kw">if </span>start &gt;= var.len() || start + len &gt; var.len() {
-                    <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>start, <span class="kw-2">&amp;</span>idx, <span class="kw-2">&amp;</span>len, <span class="kw-2">&amp;</span>var, var.len());
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
                         kind: ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
                         span: expr.span,
