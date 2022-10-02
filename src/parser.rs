@@ -70,81 +70,12 @@ impl ParserCtx {
     }
 }
 
-//
-// Path
-//
-
-/// A path represents a path to a type, a function, a method, or a constant.
-/// It follows the syntax: `module::X` where `X` can be a type, a function, a method, or a constant.
-/// In the case it is a method `a` on some type `A` then it would read:
-/// `module::A.a`.
-#[derive(Debug, Clone)]
-pub struct Path {
-    /// A module, if this is an foreign import.
-    pub module: Option<Ident>,
-
-    /// The name of the type, function, method, or constant.
-    /// It's a vector because it can also be a struct access.
-    pub name: Vec<Ident>,
-
-    /// Its span.
-    pub span: Span,
-}
-
-impl Path {
-    /// Parsing a path is hard...
-    fn parse(
-        ctx: &mut ParserCtx,
-        tokens: &mut Tokens,
-        maybe_module: Ident,
-        span: Span,
-    ) -> Result<Self> {
-        let peeked = match tokens.peek() {
-            // it's highly likely that this will be an error,
-            // but we'll let the parent decide
-            None => {
-                return Ok(Path {
-                    module: None,
-                    name: vec![maybe_module],
-                    span,
-                });
-            }
-            Some(peeked) => peeked,
-        };
-
-        if matches!(peeked.kind, TokenKind::DoubleColon) {
-            tokens.bump(ctx); // ::
-
-            // next ident
-            let name = Ident::parse(ctx, tokens)?;
-
-            let span = span.merge_with(name.span);
-            Ok(Path {
-                module: Some(maybe_module),
-                name: vec![name],
-                span,
-            })
-        } else {
-            Ok(Path {
-                module: None,
-                name: vec![maybe_module],
-                span,
-            })
-        }
-    }
-}
-
 pub fn parse_type_declaration(
     ctx: &mut ParserCtx,
     tokens: &mut Tokens,
-    path: Path,
+    ident: Ident,
 ) -> Result<Expr> {
-    // validate path
-    if path.module.is_some() || path.name.len() != 1 {
-        panic!("A type declaration must not be on a qualified type, only on local types! For example, `let x = module::X {{ ... }}` is not allowed");
-    }
-
-    if !is_type(&path.name[0].value) {
+    if !is_type(&ident.value) {
         panic!("this looks like a type declaration but not on a type (types start with an uppercase) (TODO: better error)");
     }
 
@@ -201,10 +132,15 @@ pub fn parse_type_declaration(
         };
     }
 
+    let span = ident.span.merge_with(ctx.last_span());
+
     Ok(Expr::new(
         ctx,
-        ExprKind::CustomTypeDeclaration(path.name[0].clone(), fields),
-        path.span.merge_with(ctx.last_span()),
+        ExprKind::CustomTypeDeclaration {
+            struct_name: ident,
+            fields,
+        },
+        span,
     ))
 }
 
@@ -246,79 +182,6 @@ pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ve
     }
 
     Ok(args)
-}
-
-/// after a path, there can be a method call, an array access, a const, a var, a function call, etc.
-pub fn parse_complicated(ctx: &mut ParserCtx, tokens: &mut Tokens, mut path: Path) -> Result<Expr> {
-    match tokens.peek() {
-        // type declaration
-        Some(Token {
-            kind: TokenKind::LeftCurlyBracket,
-            ..
-        }) => parse_type_declaration(ctx, tokens, path),
-
-        // array access
-        Some(Token {
-            kind: TokenKind::LeftBracket,
-            ..
-        }) => {
-            tokens.bump(ctx); // [
-
-            let expr = Expr::parse(ctx, tokens)?;
-            tokens.bump_expected(ctx, TokenKind::RightBracket)?;
-
-            let span = path.span.merge_with(expr.span);
-
-            Ok(Expr::new(
-                ctx,
-                ExprKind::ArrayAccess {
-                    path,
-                    idx: Box::new(expr),
-                },
-                span,
-            ))
-        }
-
-        // fn call
-        Some(Token {
-            kind: TokenKind::LeftParen,
-            span,
-        }) => {
-            let args = parse_fn_call_args(ctx, tokens)?;
-
-            let span = if let Some(arg) = args.last() {
-                path.span.merge_with(arg.span)
-            } else {
-                path.span
-            };
-
-            Ok(Expr::new(ctx, ExprKind::FnCall { path, args }, span))
-        }
-
-        // continue the path:
-        // thing.thing2
-        //      ^
-        Some(Token {
-            kind: TokenKind::Dot,
-            ..
-        }) => {
-            tokens.bump(ctx); // .
-
-            // thing.thing2
-            //       ^^^^^^
-            let ident = Ident::parse(ctx, tokens)?;
-
-            path.span = path.span.merge_with(ident.span);
-            path.name.push(ident);
-
-            // thing.thing2
-            //             ^^^^
-            parse_complicated(ctx, tokens, path)
-        }
-
-        // easy case, it's just an identifier
-        _ => Ok(Expr::new(ctx, ExprKind::Variable(path.clone()), path.span)),
-    }
 }
 
 //~
@@ -492,31 +355,61 @@ impl Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
+    /// `lhs(args)`
     FnCall {
-        path: Path,
+        module: Option<Ident>,
+        fn_name: Ident,
         args: Vec<Expr>,
     },
-    Assignment {
+
+    /// `lhs.method_name(args)`
+    MethodCall {
+        lhs: Box<Expr>,
+        method_name: Ident,
+        args: Vec<Expr>,
+    },
+
+    /// `let lhs = rhs`
+    Assignment { lhs: Box<Expr>, rhs: Box<Expr> },
+
+    /// `lhs.rhs`
+    FieldAccess { lhs: Box<Expr>, rhs: Ident },
+
+    /// `lhs <op> rhs`
+    Op {
+        op: Op2,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
-    Op(Op2, Box<Expr>, Box<Expr>),
+
+    /// `!expr`
     Negated(Box<Expr>),
+
+    /// any numbers
     BigInt(String),
 
-    /// This is a qualified identifier that can represent a constant, or a variable.
-    /// For example, `module::A`, `b.x`, `y`, etc.
-    Variable(Path),
+    /// a variable. For example, `mod::A`, `x`, `y`, etc.
+    // TODO: change to `identifier` or `path`?
+    Variable { module: Option<Ident>, name: Ident },
 
     /// An array access, for example:
-    /// `module::path.x[1 + 2]`
+    /// `lhs[idx]`
     ArrayAccess {
-        path: Path,
+        module: Option<Ident>,
+        name: Ident,
         idx: Box<Expr>,
     },
 
+    /// `[ ... ]`
     ArrayDeclaration(Vec<Expr>),
-    CustomTypeDeclaration(Ident, Vec<(Ident, Expr)>),
+
+    /// `name { fields }`
+    CustomTypeDeclaration {
+        struct_name: Ident,
+        fields: Vec<(Ident, Expr)>,
+    },
+
+    /// `true` or `false`
     Bool(bool),
 }
 
@@ -532,30 +425,6 @@ pub enum Op2 {
     BoolNot,
 }
 
-impl Op2 {
-    pub fn parse_maybe(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Option<Self> {
-        let token = tokens.peek()?;
-
-        let token = match token.kind {
-            TokenKind::Plus => Some(Op2::Addition),
-            TokenKind::Minus => Some(Op2::Subtraction),
-            TokenKind::Star => Some(Op2::Multiplication),
-            TokenKind::Slash => Some(Op2::Division),
-            TokenKind::DoubleEqual => Some(Op2::Equality),
-            TokenKind::Ampersand => Some(Op2::BoolAnd),
-            TokenKind::Pipe => Some(Op2::BoolOr),
-            TokenKind::Exclamation => Some(Op2::BoolNot),
-            _ => None,
-        };
-
-        if token.is_some() {
-            tokens.bump(ctx);
-        }
-
-        token
-    }
-}
-
 impl Expr {
     /// Parses until it finds something it doesn't know, then returns without consuming the token it doesn't know (the caller will have to make sense of it)
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
@@ -567,17 +436,49 @@ impl Expr {
             TokenKind::BigInt(b) => Expr::new(ctx, ExprKind::BigInt(b), span),
 
             // identifier
-            TokenKind::Identifier(maybe_module) => {
-                let maybe_module = Ident {
-                    value: maybe_module,
-                    span,
-                };
+            TokenKind::Identifier(value) => {
+                let maybe_module = Ident { value, span };
 
-                // module::path
-                let path = Path::parse(ctx, tokens, maybe_module, span)?;
+                // is it a qualified identifier?
+                // name::other_name
+                //     ^^
+                match tokens.peek() {
+                    Some(Token {
+                        kind: TokenKind::DoubleColon,
+                        ..
+                    }) => {
+                        tokens.bump(ctx); // ::
 
-                // module::path
-                parse_complicated(ctx, tokens, path)?
+                        // mod::expr
+                        //      ^^^^
+                        let name = match tokens.bump(ctx) {
+                            Some(Token {
+                                kind: TokenKind::Identifier(value),
+                                span,
+                            }) => Ident { value, span },
+                            _ => panic!("cannot qualify a non-identifier"),
+                        };
+
+                        Expr::new(
+                            ctx,
+                            ExprKind::Variable {
+                                module: Some(maybe_module),
+                                name,
+                            },
+                            span,
+                        )
+                    }
+
+                    // just an identifier
+                    _ => Expr::new(
+                        ctx,
+                        ExprKind::Variable {
+                            module: None,
+                            name: maybe_module,
+                        },
+                        span,
+                    ),
+                }
             }
 
             // negated expr
@@ -673,50 +574,242 @@ impl Expr {
             }
         };
 
-        // detect if this is an assignment expression
-        if matches!(
-            tokens.peek(),
+        // continue parsing. Potentially there's more
+        lhs.parse_rhs(ctx, tokens)
+    }
+
+    /// an expression is sometimes unfinished when we parse it with [Self::parse],
+    /// we use this function to see if the expression we just parsed (`self`) is actually part of a bigger expression
+    fn parse_rhs(self, ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Expr> {
+        // we peek into what's next to see if there's an expression that uses
+        // the expression `self` we just parsed.
+        // warning: ALL of the rules here should make use of `self`.
+        let lhs = match tokens.peek() {
+            // assignment
             Some(Token {
                 kind: TokenKind::Equal,
-                span: _
-            })
-        ) {
-            if !matches!(
-                &lhs.kind,
-                ExprKind::Variable(..) | ExprKind::ArrayAccess { .. },
-            ) {
-                return Err(Error {
-                    kind: ErrorKind::InvalidAssignmentExpression,
-                    span: lhs.span.merge_with(span),
-                });
+                span,
+            }) => {
+                tokens.bump(ctx); // =
+
+                // sanitize
+                if !matches!(
+                    &self.kind,
+                    ExprKind::Variable { .. } | ExprKind::ArrayAccess { .. },
+                ) {
+                    return Err(Error {
+                        kind: ErrorKind::InvalidAssignmentExpression,
+                        span: self.span.merge_with(span),
+                    });
+                }
+
+                let rhs = Expr::parse(ctx, tokens)?;
+                let span = self.span.merge_with(rhs.span);
+
+                Expr::new(
+                    ctx,
+                    ExprKind::Assignment {
+                        lhs: Box::new(self),
+                        rhs: Box::new(rhs),
+                    },
+                    span,
+                )
             }
-            tokens.bump(ctx).unwrap();
 
-            let rhs = Expr::parse(ctx, tokens)?;
+            // binary operation
+            Some(Token {
+                kind:
+                    TokenKind::Plus
+                    | TokenKind::Minus
+                    | TokenKind::Star
+                    | TokenKind::Slash
+                    | TokenKind::DoubleEqual
+                    | TokenKind::Ampersand
+                    | TokenKind::Pipe
+                    | TokenKind::Exclamation,
+                span,
+            }) => {
+                // lhs + rhs
+                //     ^
+                let op = match tokens.bump(ctx).unwrap().kind {
+                    TokenKind::Plus => Op2::Addition,
+                    TokenKind::Minus => Op2::Subtraction,
+                    TokenKind::Star => Op2::Multiplication,
+                    TokenKind::Slash => Op2::Division,
+                    TokenKind::DoubleEqual => Op2::Equality,
+                    TokenKind::Ampersand => Op2::BoolAnd,
+                    TokenKind::Pipe => Op2::BoolOr,
+                    TokenKind::Exclamation => Op2::BoolNot,
+                    _ => unreachable!(),
+                };
 
-            Ok(Expr::new(
-                ctx,
-                ExprKind::Assignment {
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
-                },
+                // lhs + rhs
+                //       ^^^
+                let rhs = Expr::parse(ctx, tokens)?;
+
+                let span = span.merge_with(rhs.span);
+                Expr::new(
+                    ctx,
+                    ExprKind::Op {
+                        op,
+                        lhs: Box::new(self),
+                        rhs: Box::new(rhs),
+                    },
+                    span,
+                )
+            }
+
+            // type declaration
+            Some(Token {
+                kind: TokenKind::LeftCurlyBracket,
+                ..
+            }) => {
+                let ident = match self.kind {
+                    ExprKind::Variable { module, name } => {
+                        if module.is_some() {
+                            panic!("a type declaration cannot be qualified");
+                        }
+
+                        name
+                    }
+                    _ => panic!("bad type declaration"),
+                };
+                parse_type_declaration(ctx, tokens, ident)?
+            }
+
+            // array access
+            Some(Token {
+                kind: TokenKind::LeftBracket,
+                ..
+            }) => {
+                tokens.bump(ctx); // [
+
+                // sanitize array
+                let (module, name) = match self.kind {
+                    ExprKind::Variable { module, name } => (module, name),
+                    _ => panic!("array access on a non-variable"),
+                };
+
+                // array[idx]
+                //       ^^^
+                let idx = Expr::parse(ctx, tokens)?;
+
+                // array[idx]
+                //          ^
+                tokens.bump_expected(ctx, TokenKind::RightBracket)?;
+
+                let span = self.span.merge_with(idx.span);
+
+                Expr::new(
+                    ctx,
+                    ExprKind::ArrayAccess {
+                        module,
+                        name,
+                        idx: Box::new(idx),
+                    },
+                    span,
+                )
+            }
+
+            // fn call
+            Some(Token {
+                kind: TokenKind::LeftParen,
                 span,
-            ))
-        }
-        // or it's a binary operation
-        else if let Some(op) = Op2::parse_maybe(ctx, tokens) {
-            let rhs = Expr::parse(ctx, tokens)?;
-            let span = span.merge_with(rhs.span);
-            Ok(Expr::new(
-                ctx,
-                ExprKind::Op(op, Box::new(lhs), Box::new(rhs)),
-                span,
-            ))
-        }
-        // or there's no rhs
-        else {
-            Ok(lhs)
-        }
+            }) => {
+                // sanitize
+                let (module, fn_name) = match self.kind {
+                    ExprKind::Variable { module, name } => (module, name),
+                    _ => panic!("invalid fn name"),
+                };
+
+                // parse the arguments
+                let args = parse_fn_call_args(ctx, tokens)?;
+
+                let span = if let Some(arg) = args.last() {
+                    self.span.merge_with(arg.span)
+                } else {
+                    self.span
+                };
+
+                Expr::new(
+                    ctx,
+                    ExprKind::FnCall {
+                        module,
+                        fn_name,
+                        args,
+                    },
+                    span,
+                )
+            }
+
+            // field access or method call
+            // thing.thing2
+            //      ^
+            Some(Token {
+                kind: TokenKind::Dot,
+                ..
+            }) => {
+                tokens.bump(ctx); // .
+
+                // sanitize
+                if !matches!(
+                    &self.kind,
+                    ExprKind::FieldAccess { .. }
+                        | ExprKind::Variable { .. }
+                        | ExprKind::ArrayAccess { .. }
+                ) {
+                    panic!("field or method calls can only follow a field of another struct, a struct, or an array access (TODO: better error)");
+                }
+
+                // lhs.field
+                //     ^^^^^
+                let rhs = Ident::parse(ctx, tokens)?;
+                let span = self.span.merge_with(rhs.span);
+
+                // lhs.field or lhs.method_name()
+                //     ^^^^^        ^^^^^^^^^^^^^
+                match tokens.peek() {
+                    // method call:
+                    // lhs.method_name(...)
+                    //     ^^^^^^^^^^^^^^^^
+                    Some(Token {
+                        kind: TokenKind::LeftParen,
+                        ..
+                    }) => {
+                        // lhs.method_name(args)
+                        //                 ^^^^
+                        let args = parse_fn_call_args(ctx, tokens)?;
+
+                        Expr::new(
+                            ctx,
+                            ExprKind::MethodCall {
+                                lhs: Box::new(self),
+                                method_name: rhs,
+                                args,
+                            },
+                            span,
+                        )
+                    }
+
+                    // field access
+                    // lhs.field
+                    //     ^^^^^
+                    _ => Expr::new(
+                        ctx,
+                        ExprKind::FieldAccess {
+                            lhs: Box::new(self),
+                            rhs,
+                        },
+                        span,
+                    ),
+                }
+            }
+
+            // it looks like the lhs is a valid expression in itself
+            _ => return Ok(self),
+        };
+
+        lhs.parse_rhs(ctx, tokens)
     }
 }
 
@@ -1216,7 +1309,10 @@ impl Stmt {
 
                 // let mut x = 5;
                 //              ^
+                dbg!("this one?");
+                dbg!(&rhs);
                 tokens.bump_expected(ctx, TokenKind::SemiColon)?;
+                dbg!("no");
 
                 //
                 Ok(Stmt {

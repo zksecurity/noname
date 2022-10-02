@@ -5,7 +5,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::{resolve_builtin_functions, resolve_imports, FnKind},
     parser::{
-        Expr, ExprKind, FnSig, Function, Op2, Path, RootKind, Stmt, StmtKind, Struct, Ty, TyKind,
+        Expr, ExprKind, FnSig, Function, Ident, Op2, RootKind, Stmt, StmtKind, Struct, Ty, TyKind,
         UsePath, AST,
     },
     stdlib::ImportedModule,
@@ -258,106 +258,6 @@ impl TypedFnEnv {
 // Expr
 //
 
-/// Type checks a structure access. For example:
-/// `some_struct.some_field.some_other_field`
-fn check_struct_access(
-    typed_global_env: &mut TypedGlobalEnv,
-    typed_fn_env: &mut TypedFnEnv,
-    path: &Path,
-) -> Result<TyKind> {
-    // first element in the path is a struct
-    let mut items = path.name.iter();
-    let struct_var = items.next().expect("path should have at least one element");
-
-    // get the type of the struct the item refers to
-    let mut struct_typ = typed_fn_env
-        .get_type(&struct_var.value)
-        .expect("couldn't find the type of the struct (TODO: better error)");
-
-    // go through the path
-    for item in items {
-        // get the name of that custom type
-        let struct_name = match struct_typ {
-            TyKind::Custom(name) => name,
-            _ => panic!("cannot access a field on a non-struct variable (TODO: better error)"),
-        };
-
-        // get type information on that custom type
-        let struct_info = typed_global_env
-            .structs
-            .get(struct_name)
-            .expect("could not find struct in scope (TODO: better error)");
-
-        // look for the field in the struct
-        let struct_fields = &struct_info.fields;
-
-        let field_type = struct_fields
-            .iter()
-            .find(|(name, _)| name == &item.value)
-            .expect("couldn't find the field in the struct (TODO: better error)");
-
-        struct_typ = &field_type.1;
-    }
-
-    Ok(struct_typ.clone())
-}
-
-/// Same as check_path, except that the last element is known to be a method call.
-fn check_path_to_method(
-    typed_global_env: &mut TypedGlobalEnv,
-    typed_fn_env: &mut TypedFnEnv,
-    path: &Path,
-) -> Result<FnSig> {
-    // at the very least our path should look like this:
-    // `struct_var.method_name`
-    assert!(path.name.len() > 1);
-
-    // first element in the path is a struct
-    let mut items = path.name.iter();
-    let struct_var = items.next().expect("expected struct var");
-
-    // get the type of the struct the item refers to
-    let mut struct_typ = typed_fn_env.get_type(&struct_var.value);
-
-    // go through the path
-    let last_item = items.len() - 1;
-    for (idx, item) in items.enumerate() {
-        // get the name of that custom type
-        let struct_name = match struct_typ {
-            Some(TyKind::Custom(name)) => name,
-            _ => panic!("cannot access a field on a non-struct variable (TODO: better error)"),
-        };
-
-        // get type information on that custom type
-        let struct_info = typed_global_env
-            .structs
-            .get(struct_name)
-            .expect("could not find struct in scope (TODO: better error)");
-
-        // if it's the last item, we're looking for a method
-        if idx == last_item {
-            let method_type = struct_info
-                .methods
-                .get(&item.value)
-                .expect("method not found (TODO: better error)");
-
-            return Ok(method_type.sig.clone());
-        } else {
-            // look for the field in the struct
-            let struct_fields = &struct_info.fields;
-
-            let field_type = struct_fields
-                .iter()
-                .find(|(name, _)| name == &item.value)
-                .map(|(_, typ)| typ);
-
-            struct_typ = field_type;
-        }
-    }
-
-    unreachable!();
-}
-
 impl Expr {
     pub fn compute_type(
         &self,
@@ -365,33 +265,129 @@ impl Expr {
         typed_fn_env: &mut TypedFnEnv,
     ) -> Result<Option<TyKind>> {
         let typ = match &self.kind {
-            ExprKind::FnCall { path, args } => {
-                check_fn_call(typed_global_env, typed_fn_env, path, args, self.span)?
+            ExprKind::FieldAccess { lhs, rhs } => {
+                // compute type of left-hand side
+                let lhs_type = lhs.compute_type(typed_global_env, typed_fn_env)?;
+
+                // obtain the type of the field
+                let struct_name = match lhs_type {
+                    Some(TyKind::Custom(name)) => name,
+                    _ => panic!("field access must be done on a custom struct"),
+                };
+
+                // get struct info
+                let struct_info = typed_global_env
+                    .struct_info(&struct_name)
+                    .expect("this struct is not defined");
+
+                // find field type
+                let res = struct_info
+                    .fields
+                    .iter()
+                    .find(|(name, _)| name == &rhs.value)
+                    .map(|(_, typ)| typ.clone())
+                    .expect("could not find field");
+
+                Some(res)
+            }
+
+            // `module::fn_name(args)`
+            ExprKind::FnCall {
+                module,
+                fn_name,
+                args,
+            } => {
+                // retrieve the function signature
+                let fn_sig: FnSig = if let Some(module) = module {
+                    // check module present in the scope
+                    let module_val = &module.value;
+                    let imported_module =
+                        typed_global_env.modules.get(module_val).ok_or(Error {
+                            kind: ErrorKind::UndefinedModule(module_val.clone()),
+                            span: module.span,
+                        })?;
+                    let fn_info = imported_module.functions.get(&fn_name.value).ok_or(Error {
+                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                        span: fn_name.span,
+                    })?;
+                    fn_info.sig().clone()
+                } else {
+                    // functions present in the scope
+                    let fn_info = typed_global_env
+                        .functions
+                        .get(&fn_name.value)
+                        .ok_or(Error {
+                            kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                            span: fn_name.span,
+                        })?;
+                    fn_info.sig().clone()
+                };
+
+                // type check the function call
+                let method_call = false;
+                check_fn_call(
+                    typed_global_env,
+                    typed_fn_env,
+                    method_call,
+                    fn_sig,
+                    args,
+                    self.span,
+                )?
+            }
+
+            // `lhs.method_name(args)`
+            ExprKind::MethodCall {
+                lhs,
+                method_name,
+                args,
+            } => {
+                // retrieve struct name on the lhs
+                let lhs_type = lhs.compute_type(typed_global_env, typed_fn_env)?;
+                let struct_name = match lhs_type {
+                    Some(TyKind::Custom(name)) => name,
+                    _ => panic!("method call can only be applied on custom structs"),
+                };
+
+                // get struct info
+                let struct_info = typed_global_env
+                    .structs
+                    .get(&struct_name)
+                    .expect("could not find struct in scope (TODO: better error)");
+
+                // get method info
+                let method_type = struct_info
+                    .methods
+                    .get(&method_name.value)
+                    .expect("method not found on custom struct (TODO: better error)");
+
+                // type check the method call
+                let method_call = true;
+                check_fn_call(
+                    typed_global_env,
+                    typed_fn_env,
+                    method_call,
+                    method_type.sig.clone(),
+                    args,
+                    self.span,
+                )?
             }
 
             ExprKind::Assignment { lhs, rhs } => {
                 // lhs can be a local variable or a path to an array
-                let path = match &lhs.kind {
-                    ExprKind::Variable(var) => var,
+                let lhs_name = match &lhs.kind {
+                    ExprKind::Variable { module, name } => {
+                        if module.is_some() {
+                            panic!("cannot assign to an external variable");
+                        }
+                        name
+                    }
                     ExprKind::ArrayAccess { .. } => todo!(),
                     _ => panic!("bad expression assignment (TODO: replace with error)"),
                 };
 
-                // we don't support path for now
-                if path.name.len() > 1 {
-                    unimplemented!();
-                }
-
-                let name = &path.name[0];
-
-                // but not an external variable or something
-                if path.module.is_some() {
-                    panic!("can't assign to an external variable (TODO: replace with error)");
-                }
-
                 // check that the var exists locally
                 let lhs_info = typed_fn_env
-                    .get_type_info(&name.value)
+                    .get_type_info(&lhs_name.value)
                     .expect("variable not found (TODO: replace with error")
                     .clone();
 
@@ -409,7 +405,7 @@ impl Expr {
                 None
             }
 
-            ExprKind::Op(op, lhs, rhs) => {
+            ExprKind::Op { op, lhs, rhs } => {
                 let lhs_typ = lhs.compute_type(typed_global_env, typed_fn_env)?.unwrap();
                 let rhs_typ = rhs.compute_type(typed_global_env, typed_fn_env)?.unwrap();
 
@@ -455,51 +451,34 @@ impl Expr {
             ExprKind::Bool(_) => Some(TyKind::Bool),
 
             // mod::path.of.var
-            ExprKind::Variable(path) => {
-                // we don't support module variables for now
-                if path.module.is_some() {
-                    unimplemented!();
+            ExprKind::Variable { module, name } => {
+                // sanitize
+                if module.is_some() {
+                    panic!("we don't support module variables for now");
                 }
 
-                // a path means we're accessing the field of a struct
-                if path.name.len() > 1 {
-                    let last_item_typ = check_struct_access(typed_global_env, typed_fn_env, path)?;
-
-                    Some(last_item_typ)
-                } else if path.name.len() == 1 {
-                    let name = &path.name[0];
-
-                    // check if it's a constant first
-                    let typ = if let Some(typ) = typed_global_env.constants.get(&name.value) {
-                        typ.kind.clone()
-                    } else {
-                        // otherwise it's a local variable
-                        typed_fn_env
-                            .get_type(&name.value)
-                            .ok_or(Error {
-                                kind: ErrorKind::UndefinedVariable,
-                                span: name.span,
-                            })?
-                            .clone()
-                    };
-
-                    Some(typ)
+                // check if it's a constant first
+                let typ = if let Some(typ) = typed_global_env.constants.get(&name.value) {
+                    typ.kind.clone()
                 } else {
-                    panic!("empty path detected");
-                }
+                    // otherwise it's a local variable
+                    typed_fn_env
+                        .get_type(&name.value)
+                        .ok_or(Error {
+                            kind: ErrorKind::UndefinedVariable,
+                            span: name.span,
+                        })?
+                        .clone()
+                };
+
+                Some(typ)
             }
 
-            ExprKind::ArrayAccess { path, idx } => {
-                // only support scoped variable for now
-                if path.module.is_some() {
-                    unimplemented!();
+            ExprKind::ArrayAccess { module, name, idx } => {
+                // sanitize
+                if module.is_some() {
+                    panic!("we don't support module arrays for now");
                 }
-
-                // we don't support paths for now
-                if path.name.len() > 1 {
-                    unimplemented!();
-                }
-                let name = &path.name[0];
 
                 // figure out if variable is in scope
                 let typ = typed_fn_env
@@ -560,7 +539,10 @@ impl Expr {
                 Some(TyKind::Array(Box::new(tykind), len))
             }
 
-            ExprKind::CustomTypeDeclaration(name, fields) => {
+            ExprKind::CustomTypeDeclaration {
+                struct_name: name,
+                fields,
+            } => {
                 let name = &name.value;
                 let struct_info = typed_global_env.structs.get(name).ok_or(Error {
                     kind: ErrorKind::UndefinedStruct(name.clone()),
@@ -949,58 +931,24 @@ impl TAST {
 }
 
 /// type checks a function call.
-/// Note that this can be a method call as well.
-/// (A method is defined on a custom type.)
+/// Note that this can also be a method call.
 pub fn check_fn_call(
     typed_global_env: &mut TypedGlobalEnv,
     typed_fn_env: &mut TypedFnEnv,
-    path: &Path,
+    method_call: bool, // indicates if it's a fn call or a method call
+    fn_sig: FnSig,
     args: &[Expr],
     span: Span,
 ) -> Result<Option<TyKind>> {
-    // retrieve the function sig in the env
-    let sig: FnSig = if let Some(module) = &path.module {
-        // get name of function
-        assert_eq!(path.name.len(), 1);
-        let fn_name = &path.name[0].value;
-        let fn_name_span = path.name[0].span;
-
-        // check module present in the scope
-        let module_val = &module.value;
-        let imported_module = typed_global_env.modules.get(module_val).ok_or(Error {
-            kind: ErrorKind::UndefinedModule(module_val.clone()),
-            span: module.span,
-        })?;
-        let fn_info = imported_module.functions.get(fn_name).ok_or(Error {
-            kind: ErrorKind::UndefinedFunction(fn_name.clone()),
-            span: fn_name_span,
-        })?;
-        fn_info.sig().clone()
-    } else if path.name.len() > 1 {
-        // method call detected
-        check_path_to_method(typed_global_env, typed_fn_env, path)?
-    } else {
-        // get name of function
-        assert_eq!(path.name.len(), 1);
-        let fn_name = &path.name[0].value;
-        let fn_name_span = path.name[0].span;
-
-        // functions present in the scope
-        let fn_info = typed_global_env.functions.get(fn_name).ok_or(Error {
-            kind: ErrorKind::UndefinedFunction(fn_name.clone()),
-            span: fn_name_span,
-        })?;
-        fn_info.sig().clone()
-    };
-
     // canonicalize the arguments depending on method call or not
-    let expected: Vec<_> = if path.name.len() > 1 {
-        sig.arguments
+    let expected: Vec<_> = if method_call {
+        fn_sig
+            .arguments
             .iter()
             .filter(|arg| arg.name.value != "self")
             .collect()
     } else {
-        sig.arguments.iter().collect()
+        fn_sig.arguments.iter().collect()
     };
 
     // compute the observed arguments types
@@ -1043,5 +991,6 @@ pub fn check_fn_call(
         }
     }
 
-    Ok(sig.return_type.as_ref().map(|ty| ty.kind.clone()))
+    // return the return type of the function
+    Ok(fn_sig.return_type.as_ref().map(|ty| ty.kind.clone()))
 }

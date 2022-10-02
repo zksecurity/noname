@@ -78,7 +78,7 @@ impl std::fmt::Debug for Value {
 }
 
 /// Represents a cell in the execution trace.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum ConstOrCell {
     /// A constant value.
     Const(Field),
@@ -172,6 +172,10 @@ impl Var {
         } else {
             None
         }
+    }
+
+    pub fn range(&self, start: usize, len: usize) -> &[ConstOrCell] {
+        &self.cvars[start..(start + len)]
     }
 }
 
