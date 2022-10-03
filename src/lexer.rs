@@ -301,7 +301,7 @@ impl Token {
                         let comment_token = TokenKind::Comment(comment).new_token(ctx, 2 + len);
 
                         // by default, we don't push the comment token to the AST because it makes parsing when there's inlined comments a pain
-                        if let Ok(_) = std::env::var("NONAME_COMMENTS_IN_AST") {
+                        if std::env::var("NONAME_COMMENTS_IN_AST").is_ok() {
                             tokens.push(comment_token);
                         }
 

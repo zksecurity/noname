@@ -38,7 +38,7 @@ impl std::fmt::Debug for ImportedModule {
 }
 
 /// Parses the rest of a `use std::` statement. Returns a list of functions to import in the scope.
-pub fn parse_std_import<'a>(submodule: &str, span: Span) -> Result<ImportedModule> {
+pub fn parse_std_import(submodule: &str, span: Span) -> Result<ImportedModule> {
     let mut res = ImportedModule {
         name: submodule.to_string(),
         functions: HashMap::new(),

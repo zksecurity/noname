@@ -285,10 +285,7 @@ impl CircuitWriter {
         } = tast;
 
         if !typed_global_env.has_main {
-            return Err(Error {
-                kind: ErrorKind::NoMainFunction,
-                span: Span::default(),
-            });
+            return Err(Error::new(ErrorKind::NoMainFunction, Span::default()));
         }
 
         let (main_sig, main_span) = {
@@ -333,10 +330,7 @@ impl CircuitWriter {
                     // if there are no arguments, return an error
                     // TODO: should we check this in the type checker?
                     if function.sig.arguments.is_empty() {
-                        return Err(Error {
-                            kind: ErrorKind::NoArgsInMain,
-                            span: function.span,
-                        });
+                        return Err(Error::new(ErrorKind::NoArgsInMain, function.span));
                     }
 
                     // create public and private inputs
@@ -361,10 +355,10 @@ impl CircuitWriter {
 
                         let var = if let Some(attr) = attribute {
                             if !matches!(attr.kind, AttributeKind::Pub) {
-                                return Err(Error {
-                                    kind: ErrorKind::InvalidAttribute(attr.kind),
-                                    span: attr.span,
-                                });
+                                return Err(Error::new(
+                                    ErrorKind::InvalidAttribute(attr.kind),
+                                    attr.span,
+                                ));
                             }
                             circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
                         } else {
@@ -411,10 +405,10 @@ impl CircuitWriter {
         for var in 0..circuit_writer.next_variable {
             if !written_vars.contains(&var) {
                 if circuit_writer.private_input_indices.contains(&var) {
-                    return Err(Error {
-                        kind: ErrorKind::PrivateInputNotUsed,
-                        span: circuit_writer.main.1,
-                    });
+                    return Err(Error::new(
+                        ErrorKind::PrivateInputNotUsed,
+                        circuit_writer.main.1,
+                    ));
                 } else {
                     panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
                 }
@@ -444,10 +438,9 @@ impl CircuitWriter {
         match &stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } => {
                 // compute the rhs
-                let rhs_var = self.compute_expr(global_env, fn_env, rhs)?.ok_or(Error {
-                    kind: ErrorKind::CannotComputeExpression,
-                    span: stmt.span,
-                })?;
+                let rhs_var = self
+                    .compute_expr(global_env, fn_env, rhs)?
+                    .ok_or(Error::new(ErrorKind::CannotComputeExpression, stmt.span))?;
 
                 // obtain the actual values
                 let rhs_var = rhs_var.value(fn_env, global_env);
@@ -481,10 +474,9 @@ impl CircuitWriter {
                 assert!(var.is_none());
             }
             StmtKind::Return(expr) => {
-                let var = self.compute_expr(global_env, fn_env, expr)?.ok_or(Error {
-                    kind: ErrorKind::CannotComputeExpression,
-                    span: stmt.span,
-                })?;
+                let var = self
+                    .compute_expr(global_env, fn_env, expr)?
+                    .ok_or(Error::new(ErrorKind::CannotComputeExpression, stmt.span))?;
 
                 // we already checked in type checking that this is not an early return
                 return Ok(Some(var));
@@ -554,14 +546,8 @@ impl CircuitWriter {
         // we're expecting something returned?
         match (function.sig.return_type.as_ref(), returned) {
             (None, None) => Ok(()),
-            (Some(expected), None) => Err(Error {
-                kind: ErrorKind::MissingReturn,
-                span: expected.span,
-            }),
-            (None, Some(returned)) => Err(Error {
-                kind: ErrorKind::UnexpectedReturn,
-                span: returned.span,
-            }),
+            (Some(expected), None) => Err(Error::new(ErrorKind::MissingReturn, expected.span)),
+            (None, Some(returned)) => Err(Error::new(ErrorKind::UnexpectedReturn, returned.span)),
             (Some(_expected), Some(returned)) => {
                 // make sure there are no constants in the returned value
                 let mut returned_cells = vec![];
@@ -569,10 +555,7 @@ impl CircuitWriter {
                     match r {
                         ConstOrCell::Cell(c) => returned_cells.push(c),
                         ConstOrCell::Const(_) => {
-                            return Err(Error {
-                                kind: ErrorKind::ConstantInOutput,
-                                span: returned.span,
-                            })
+                            return Err(Error::new(ErrorKind::ConstantInOutput, returned.span))
                         }
                     }
                 }
@@ -619,12 +602,15 @@ impl CircuitWriter {
         expr: &Expr,
     ) -> Result<Option<VarOrRef>> {
         match &expr.kind {
+            // `module::fn_name(args)`
             ExprKind::FnCall {
                 module,
                 fn_name,
                 args,
             } => {
                 // compute the arguments
+                // module::fn_name(args)
+                //                 ^^^^
                 let mut vars = Vec::with_capacity(args.len());
                 for arg in args {
                     // get the variable behind the expression
@@ -645,7 +631,8 @@ impl CircuitWriter {
 
                 // retrieve the function in the env
                 if let Some(module) = module {
-                    // check module present in the scope
+                    // module::fn_name(args)
+                    // ^^^^^^
                     let module = global_env.typed.modules.get(&module.value).ok_or(Error {
                         kind: ErrorKind::UndefinedModule(module.value.clone()),
                         span: module.span,
@@ -667,7 +654,8 @@ impl CircuitWriter {
                         }),
                     }
                 } else {
-                    // functions present in the scope
+                    // fn_name(args)
+                    // ^^^^^^^
                     let fn_info = global_env
                         .typed
                         .functions
@@ -678,7 +666,7 @@ impl CircuitWriter {
                         })?;
 
                     match &fn_info.kind {
-                        FnKind::BuiltIn(sig, handle) => {
+                        FnKind::BuiltIn(_sig, handle) => {
                             let res = handle(self, &vars, expr.span);
                             res.map(|r| r.map(VarOrRef::Var))
                         }
@@ -760,7 +748,7 @@ impl CircuitWriter {
                 // find method info
                 let struct_info = global_env
                     .typed
-                    .struct_info(&struct_name)
+                    .struct_info(struct_name)
                     .expect("could not find struct info");
 
                 let func = struct_info
@@ -772,7 +760,9 @@ impl CircuitWriter {
                 let mut vars = vec![];
                 if let Some(first_arg) = func.sig.arguments.first() {
                     if first_arg.name.value == "self" {
-                        let self_var = self_var.expect("that is not a static method");
+                        let self_var = self_var.ok_or_else(|| {
+                            Error::new(ErrorKind::NotAStaticMethod, method_name.span)
+                        })?;
 
                         // TODO: for now we pass `self` by value as well
                         let mutable = false;
@@ -781,14 +771,15 @@ impl CircuitWriter {
                         let self_var_info = VarInfo::new(self_var, mutable, Some(lhs_typ.clone()));
                         vars.insert(0, self_var_info);
                     }
+                } else {
+                    assert!(self_var.is_none());
                 }
 
                 // compute the arguments
                 for arg in args {
-                    let var = self.compute_expr(global_env, fn_env, arg)?.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: arg.span,
-                    })?;
+                    let var = self
+                        .compute_expr(global_env, fn_env, arg)?
+                        .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))?;
 
                     // TODO: for now we pass `self` by value as well
                     let mutable = false;
@@ -908,10 +899,16 @@ impl CircuitWriter {
                     panic!("accessing module variables not supported yet");
                 }
 
-                let var_info = fn_env.get_var(global_env, &name.value).clone();
+                if is_type(&name.value) {
+                    // if it's a type we return nothing
+                    // (most likely what follows is a static method call)
+                    Ok(None)
+                } else {
+                    let var_info = fn_env.get_var(global_env, &name.value);
 
-                let res = VarOrRef::from_var_info(name.value.clone(), var_info);
-                Ok(Some(res))
+                    let res = VarOrRef::from_var_info(name.value.clone(), var_info);
+                    Ok(Some(res))
+                }
             }
 
             ExprKind::ArrayAccess { module, name, idx } => {

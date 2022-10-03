@@ -163,12 +163,11 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
         span,
     );
 
-    //    states.borrow_mut().pop().unwrap();
     let vars = final_row
         .iter()
         .flatten()
         .cloned()
-        .map(|c| ConstOrCell::Cell(c))
+        .map(ConstOrCell::Cell)
         .collect();
 
     Ok(Some(Var::new(vars, span)))

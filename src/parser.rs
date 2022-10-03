@@ -4,7 +4,7 @@ use crate::{
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind},
-    syntax::{is_identifier, is_type},
+    syntax::is_type,
     tokens::Tokens,
 };
 
@@ -726,9 +726,9 @@ impl Expr {
                 let args = parse_fn_call_args(ctx, tokens)?;
 
                 let span = if let Some(arg) = args.last() {
-                    self.span.merge_with(arg.span)
+                    span.merge_with(arg.span)
                 } else {
-                    self.span
+                    span
                 };
 
                 Expr::new(
@@ -1039,7 +1039,7 @@ impl Function {
                     span: arg_name.span,
                 })?;
 
-                if args.len() != 0 {
+                if !args.is_empty() {
                     return Err(Error {
                         kind: ErrorKind::InvalidFunctionSignature(
                             "`self` must be the first argument",
@@ -1508,7 +1508,7 @@ impl UsePath {
         )?;
         let span = module.span;
 
-        let separator = tokens.bump_expected(ctx, TokenKind::DoubleColon)?;
+        tokens.bump_expected(ctx, TokenKind::DoubleColon)?; // ::
 
         let submodule = tokens.bump_ident(
             ctx,

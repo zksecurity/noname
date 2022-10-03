@@ -9,19 +9,32 @@ use crate::{
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// An error in noname.
 #[derive(Diagnostic, Debug, Error)]
-#[error("I'm so sorry, looks like something went wrong...")]
-#[diagnostic()]
+#[error("Looks like something went wrong...")]
 pub struct Error {
+    /// The type of error.
     #[help]
     pub kind: ErrorKind,
 
+    /// Indicate where the error occurred in the source code.
     #[label("here")]
     pub span: Span,
 }
 
+impl Error {
+    /// Creates a new [Error] from an [ErrorKind].
+    pub fn new(kind: ErrorKind, span: Span) -> Self {
+        Self { kind, span }
+    }
+}
+
+/// The type of error.
 #[derive(Error, Diagnostic, Debug, Clone)]
 pub enum ErrorKind {
+    #[error("the method called is not a static method")]
+    NotAStaticMethod,
+
     #[error("{0} arguments are passed when {1} were expected")]
     MismatchFunctionArguments(usize, usize),
 

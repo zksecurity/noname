@@ -5,7 +5,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::{resolve_builtin_functions, resolve_imports, FnKind},
     parser::{
-        Expr, ExprKind, FnSig, Function, Ident, Op2, RootKind, Stmt, StmtKind, Struct, Ty, TyKind,
+        Expr, ExprKind, FnSig, Function, Op2, RootKind, Stmt, StmtKind, Struct, Ty, TyKind,
         UsePath, AST,
     },
     stdlib::ImportedModule,
@@ -457,21 +457,29 @@ impl Expr {
                     panic!("we don't support module variables for now");
                 }
 
-                // check if it's a constant first
-                let typ = if let Some(typ) = typed_global_env.constants.get(&name.value) {
-                    typ.kind.clone()
-                } else {
-                    // otherwise it's a local variable
-                    typed_fn_env
-                        .get_type(&name.value)
-                        .ok_or(Error {
-                            kind: ErrorKind::UndefinedVariable,
-                            span: name.span,
-                        })?
-                        .clone()
-                };
+                if is_type(&name.value) {
+                    // if the variable is a type, make sure it exists
+                    let _struct_info = typed_global_env
+                        .struct_info(&name.value)
+                        .expect("custom type does not exist");
 
-                Some(typ)
+                    // and return its type
+                    Some(TyKind::Custom(name.value.clone()))
+                } else {
+                    // if it's a variable,
+                    // check if it's a constant first
+                    let typ = if let Some(typ) = typed_global_env.constants.get(&name.value) {
+                        typ.kind.clone()
+                    } else {
+                        // otherwise it's a local variable
+                        typed_fn_env
+                            .get_type(&name.value)
+                            .ok_or_else(|| Error::new(ErrorKind::UndefinedVariable, name.span))?
+                            .clone()
+                    };
+
+                    Some(typ)
+                }
             }
 
             ExprKind::ArrayAccess { module, name, idx } => {
@@ -553,7 +561,7 @@ impl Expr {
                     });
                 }
 
-                for (defined, observed) in defined_fields.into_iter().zip(fields) {
+                for (defined, observed) in defined_fields.iter().zip(fields) {
                     if defined.0 != observed.0.value {
                         return Err(Error {
                             kind: ErrorKind::InvalidStructField(
@@ -570,6 +578,7 @@ impl Expr {
                         .expect("expected a value (TODO: better error)");
 
                     if defined.1 != observed_typ {
+                        // TODO: replace with `if !matches!`
                         match (&defined.1, &observed_typ) {
                             (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field) => (),
                             _ => {
@@ -848,7 +857,12 @@ impl TAST {
                 Some(e) => e,
             };
 
-            if expected.kind != observed {
+            if expected.kind != observed
+                && !matches!(
+                    (&expected.kind, observed),
+                    (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field)
+                )
+            {
                 panic!(
                     "returned type is not the same as expected return type (TODO: return an error)"
                 );
