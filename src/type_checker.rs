@@ -402,6 +402,9 @@ impl Expr {
                         name
                     }
                     ExprKind::ArrayAccess { .. } => todo!(),
+                    ExprKind::FieldAccess { .. } => {
+                        todo!()
+                    }
                     _ => panic!("bad expression assignment (TODO: replace with error)"),
                 };
 
@@ -767,7 +770,7 @@ impl TAST {
                         if !is_main && arg.is_public() {
                             return Err(Error::new(
                                 ErrorKind::PubArgumentOutsideMain,
-                                arg.name.span,
+                                arg.attribute.as_ref().unwrap().span,
                             ));
                         }
 

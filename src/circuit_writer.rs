@@ -236,10 +236,6 @@ impl VarOrRef {
             VarOrRef::Ref { len, .. } => *len,
         }
     }
-
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
 }
 
 //

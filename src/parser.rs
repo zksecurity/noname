@@ -574,7 +574,9 @@ impl Expr {
                 // sanitize
                 if !matches!(
                     &self.kind,
-                    ExprKind::Variable { .. } | ExprKind::ArrayAccess { .. },
+                    ExprKind::Variable { .. }
+                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::FieldAccess { .. },
                 ) {
                     return Err(Error::new(
                         ErrorKind::InvalidAssignmentExpression,
