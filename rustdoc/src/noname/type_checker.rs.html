@@ -996,6 +996,94 @@
 <span id="996">996</span>
 <span id="997">997</span>
 <span id="998">998</span>
+<span id="999">999</span>
+<span id="1000">1000</span>
+<span id="1001">1001</span>
+<span id="1002">1002</span>
+<span id="1003">1003</span>
+<span id="1004">1004</span>
+<span id="1005">1005</span>
+<span id="1006">1006</span>
+<span id="1007">1007</span>
+<span id="1008">1008</span>
+<span id="1009">1009</span>
+<span id="1010">1010</span>
+<span id="1011">1011</span>
+<span id="1012">1012</span>
+<span id="1013">1013</span>
+<span id="1014">1014</span>
+<span id="1015">1015</span>
+<span id="1016">1016</span>
+<span id="1017">1017</span>
+<span id="1018">1018</span>
+<span id="1019">1019</span>
+<span id="1020">1020</span>
+<span id="1021">1021</span>
+<span id="1022">1022</span>
+<span id="1023">1023</span>
+<span id="1024">1024</span>
+<span id="1025">1025</span>
+<span id="1026">1026</span>
+<span id="1027">1027</span>
+<span id="1028">1028</span>
+<span id="1029">1029</span>
+<span id="1030">1030</span>
+<span id="1031">1031</span>
+<span id="1032">1032</span>
+<span id="1033">1033</span>
+<span id="1034">1034</span>
+<span id="1035">1035</span>
+<span id="1036">1036</span>
+<span id="1037">1037</span>
+<span id="1038">1038</span>
+<span id="1039">1039</span>
+<span id="1040">1040</span>
+<span id="1041">1041</span>
+<span id="1042">1042</span>
+<span id="1043">1043</span>
+<span id="1044">1044</span>
+<span id="1045">1045</span>
+<span id="1046">1046</span>
+<span id="1047">1047</span>
+<span id="1048">1048</span>
+<span id="1049">1049</span>
+<span id="1050">1050</span>
+<span id="1051">1051</span>
+<span id="1052">1052</span>
+<span id="1053">1053</span>
+<span id="1054">1054</span>
+<span id="1055">1055</span>
+<span id="1056">1056</span>
+<span id="1057">1057</span>
+<span id="1058">1058</span>
+<span id="1059">1059</span>
+<span id="1060">1060</span>
+<span id="1061">1061</span>
+<span id="1062">1062</span>
+<span id="1063">1063</span>
+<span id="1064">1064</span>
+<span id="1065">1065</span>
+<span id="1066">1066</span>
+<span id="1067">1067</span>
+<span id="1068">1068</span>
+<span id="1069">1069</span>
+<span id="1070">1070</span>
+<span id="1071">1071</span>
+<span id="1072">1072</span>
+<span id="1073">1073</span>
+<span id="1074">1074</span>
+<span id="1075">1075</span>
+<span id="1076">1076</span>
+<span id="1077">1077</span>
+<span id="1078">1078</span>
+<span id="1079">1079</span>
+<span id="1080">1080</span>
+<span id="1081">1081</span>
+<span id="1082">1082</span>
+<span id="1083">1083</span>
+<span id="1084">1084</span>
+<span id="1085">1085</span>
+<span id="1086">1086</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -1267,21 +1355,56 @@
 // Expr
 //
 
-</span><span class="kw">impl </span>Expr {
+</span><span class="doccomment">/// Information that we need to pass around between expression nodes when type checking.
+</span><span class="kw">struct </span>ExprTyInfo {
+    <span class="doccomment">/// This is needed to obtain information on variables.
+    /// For example, parsing of an assignment expression needs to know if the lhs variable is mutable.
+    </span>var_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
+
+    <span class="doccomment">/// The type of the expression node.
+    </span>typ: TyKind,
+}
+
+<span class="kw">impl </span>ExprTyInfo {
+    <span class="kw">fn </span>new(var_name: <span class="prelude-ty">Option</span>&lt;String&gt;, typ: TyKind) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            var_name: var_name,
+            typ,
+        }
+    }
+
+    <span class="kw">fn </span>new_var(var_name: String, typ: TyKind) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            var_name: <span class="prelude-val">Some</span>(var_name),
+            typ,
+        }
+    }
+
+    <span class="kw">fn </span>new_anon(typ: TyKind) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            var_name: <span class="prelude-val">None</span>,
+            typ,
+        }
+    }
+}
+
+<span class="kw">impl </span>Expr {
     <span class="comment">// TODO: implement this on typed_global_env, and modify the name of typed_global_env to type_checker?
-    </span><span class="kw">pub fn </span>compute_type(
+    </span><span class="kw">fn </span>compute_type(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         typed_global_env: <span class="kw-2">&amp;mut </span>TypedGlobalEnv,
         typed_fn_env: <span class="kw-2">&amp;mut </span>TypedFnEnv,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TyKind&gt;&gt; {
-        <span class="kw">let </span>typ = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;ExprTyInfo&gt;&gt; {
+        <span class="kw">let </span>typ: <span class="prelude-ty">Option</span>&lt;ExprTyInfo&gt; = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
             ExprKind::FieldAccess { lhs, rhs } =&gt; {
                 <span class="comment">// compute type of left-hand side
-                </span><span class="kw">let </span>lhs_type = lhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>lhs_node = lhs
+                    .compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?
+                    </span>.expect(<span class="string">&quot;type-checker bug: field access on an empty var&quot;</span>);
 
                 <span class="comment">// obtain the type of the field
-                </span><span class="kw">let </span>struct_name = <span class="kw">match </span>lhs_type {
-                    <span class="prelude-val">Some</span>(TyKind::Custom(name)) =&gt; name,
+                </span><span class="kw">let </span>struct_name = <span class="kw">match </span>lhs_node.typ {
+                    TyKind::Custom(name) =&gt; name,
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;field access must be done on a custom struct&quot;</span>),
                 };
 
@@ -1298,7 +1421,7 @@
                     .map(|(<span class="kw">_</span>, typ)| typ.clone())
                     .expect(<span class="string">&quot;could not find field&quot;</span>);
 
-                <span class="prelude-val">Some</span>(res)
+                <span class="prelude-val">Some</span>(ExprTyInfo::new(lhs_node.var_name, res))
             }
 
             <span class="comment">// `module::fn_name(args)`
@@ -1343,15 +1466,17 @@
 
                 <span class="comment">// type check the function call
                 </span><span class="kw">let </span>method_call = <span class="bool-val">false</span>;
-                check_fn_call(
+                <span class="kw">let </span>res = check_fn_call(
                     typed_global_env,
                     typed_fn_env,
                     method_call,
                     fn_sig,
                     args,
                     <span class="self">self</span>.span,
-                )<span class="question-mark">?
-            </span>}
+                )<span class="question-mark">?</span>;
+
+                res.map(|ty| ExprTyInfo::new_anon(ty))
+            }
 
             <span class="comment">// `lhs.method_name(args)`
             </span>ExprKind::MethodCall {
@@ -1361,7 +1486,7 @@
             } =&gt; {
                 <span class="comment">// retrieve struct name on the lhs
                 </span><span class="kw">let </span>lhs_type = lhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>;
-                <span class="kw">let </span>struct_name = <span class="kw">match </span>lhs_type {
+                <span class="kw">let </span>struct_name = <span class="kw">match </span>lhs_type.map(|t| t.typ) {
                     <span class="prelude-val">Some</span>(TyKind::Custom(name)) =&gt; name,
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;method call can only be applied on custom structs&quot;</span>),
                 };
@@ -1380,46 +1505,78 @@
 
                 <span class="comment">// type check the method call
                 </span><span class="kw">let </span>method_call = <span class="bool-val">true</span>;
-                check_fn_call(
+                <span class="kw">let </span>res = check_fn_call(
                     typed_global_env,
                     typed_fn_env,
                     method_call,
                     method_type.sig.clone(),
                     args,
                     <span class="self">self</span>.span,
-                )<span class="question-mark">?
-            </span>}
+                )<span class="question-mark">?</span>;
+
+                res.map(|ty| ExprTyInfo::new(<span class="prelude-val">None</span>, ty))
+            }
 
             ExprKind::Assignment { lhs, rhs } =&gt; {
+                <span class="comment">// compute type of lhs
+                </span><span class="kw">let </span>lhs_node = lhs
+                    .compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?
+                    </span>.expect(<span class="string">&quot;type-checker bug: lhs access on an empty var&quot;</span>);
+
                 <span class="comment">// lhs can be a local variable or a path to an array
                 </span><span class="kw">let </span>lhs_name = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs.kind {
-                    ExprKind::Variable { module, name } =&gt; {
+                    <span class="comment">// `name = &lt;rhs&gt;`
+                    </span>ExprKind::Variable { module, name } =&gt; {
                         <span class="kw">if </span>module.is_some() {
                             <span class="macro">panic!</span>(<span class="string">&quot;cannot assign to an external variable&quot;</span>);
                         }
-                        name
+
+                        name.value.clone()
                     }
-                    ExprKind::ArrayAccess { .. } =&gt; <span class="macro">todo!</span>(),
-                    ExprKind::FieldAccess { .. } =&gt; {
-                        <span class="macro">todo!</span>()
+
+                    <span class="comment">// `array[idx] = &lt;rhs&gt;`
+                    </span>ExprKind::ArrayAccess { array, idx } =&gt; {
+                        <span class="comment">// get variable behind array
+                        </span><span class="kw">let </span>array_node = array
+                            .compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?
+                            </span>.expect(<span class="string">&quot;type-checker bug: array access on an empty var&quot;</span>);
+
+                        array_node
+                            .var_name
+                            .expect(<span class="string">&quot;anonymous array access cannot be mutated&quot;</span>)
+                    }
+
+                    <span class="comment">// `struct.field = &lt;rhs&gt;`
+                    </span>ExprKind::FieldAccess { lhs, rhs } =&gt; {
+                        <span class="comment">// get variable behind lhs
+                        </span><span class="kw">let </span>lhs_node = lhs
+                            .compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?
+                            </span>.expect(<span class="string">&quot;type-checker bug: lhs access on an empty var&quot;</span>);
+
+                        lhs_node
+                            .var_name
+                            .expect(<span class="string">&quot;anonymous lhs access cannot be mutated&quot;</span>)
                     }
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;bad expression assignment (TODO: replace with error)&quot;</span>),
                 };
 
                 <span class="comment">// check that the var exists locally
                 </span><span class="kw">let </span>lhs_info = typed_fn_env
-                    .get_type_info(<span class="kw-2">&amp;</span>lhs_name.value)
+                    .get_type_info(<span class="kw-2">&amp;</span>lhs_name)
                     .expect(<span class="string">&quot;variable not found (TODO: replace with error&quot;</span>)
                     .clone();
 
                 <span class="comment">// and is mutable
                 </span><span class="kw">if </span>!lhs_info.mutable {
-                    <span class="macro">panic!</span>(<span class="string">&quot;variable is not mutable (TODO: replace with error)&quot;</span>);
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::AssignmentToImmutableVariable,
+                        <span class="self">self</span>.span,
+                    ));
                 }
 
                 <span class="comment">// and is of the same type as the rhs
                 </span><span class="kw">let </span>rhs_typ = rhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
-                <span class="kw">if </span>lhs_info.typ != rhs_typ {
+                <span class="kw">if </span>lhs_node.typ != rhs_typ.typ {
                     <span class="macro">panic!</span>(<span class="string">&quot;lhs type doesn&#39;t match rhs type (TODO: replace with error)&quot;</span>);
                 }
 
@@ -1427,49 +1584,55 @@
             </span>}
 
             ExprKind::Op { op, lhs, rhs } =&gt; {
-                <span class="kw">let </span>lhs_typ = lhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
-                <span class="kw">let </span>rhs_typ = rhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>lhs_node = lhs
+                    .compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?
+                    </span>.expect(<span class="string">&quot;type-checker bug&quot;</span>);
+                <span class="kw">let </span>rhs_node = rhs
+                    .compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?
+                    </span>.expect(<span class="string">&quot;type-checker bug&quot;</span>);
 
-                <span class="kw">if </span>lhs_typ != rhs_typ {
+                <span class="kw">if </span>lhs_node.typ != rhs_node.typ {
                     <span class="comment">// only allow bigint mixed with field
-                    </span><span class="kw">match </span>(<span class="kw-2">&amp;</span>lhs_typ, <span class="kw-2">&amp;</span>rhs_typ) {
+                    </span><span class="kw">match </span>(<span class="kw-2">&amp;</span>lhs_node.typ, <span class="kw-2">&amp;</span>rhs_node.typ) {
                         (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) =&gt; (),
                         <span class="kw">_ </span>=&gt; {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                                ErrorKind::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
+                                ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
                                 <span class="self">self</span>.span,
                             ))
                         }
                     }
                 }
 
-                <span class="kw">match </span>op {
-                    Op2::Equality =&gt; <span class="prelude-val">Some</span>(TyKind::Bool),
+                <span class="kw">let </span>typ = <span class="kw">match </span>op {
+                    Op2::Equality =&gt; TyKind::Bool,
                     Op2::Addition
                     | Op2::Subtraction
                     | Op2::Multiplication
                     | Op2::Division
                     | Op2::BoolAnd
                     | Op2::BoolOr
-                    | Op2::BoolNot =&gt; <span class="prelude-val">Some</span>(lhs_typ),
-                }
+                    | Op2::BoolNot =&gt; lhs_node.typ,
+                };
+
+                <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(typ))
             }
 
             ExprKind::Negated(inner) =&gt; {
                 <span class="kw">let </span>inner_typ = inner.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
-                <span class="kw">if </span>!<span class="macro">matches!</span>(inner_typ, TyKind::Bool) {
+                <span class="kw">if </span>!<span class="macro">matches!</span>(inner_typ.typ, TyKind::Bool) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                        ErrorKind::MismatchType(TyKind::Bool, inner_typ),
+                        ErrorKind::MismatchType(TyKind::Bool, inner_typ.typ),
                         <span class="self">self</span>.span,
                     ));
                 }
 
-                <span class="prelude-val">Some</span>(TyKind::Bool)
+                <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(TyKind::Bool))
             }
 
-            ExprKind::BigInt(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(TyKind::BigInt),
+            ExprKind::BigInt(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(TyKind::BigInt)),
 
-            ExprKind::Bool(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(TyKind::Bool),
+            ExprKind::Bool(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(TyKind::Bool)),
 
             <span class="comment">// mod::path.of.var
             </span>ExprKind::Variable { module, name } =&gt; {
@@ -1479,13 +1642,14 @@
                 }
 
                 <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>name.value) {
-                    <span class="comment">// if the variable is a type, make sure it exists
+                    <span class="comment">// if it&#39;s a type, make sure it exists
                     </span><span class="kw">let </span>_struct_info = typed_global_env
                         .struct_info(<span class="kw-2">&amp;</span>name.value)
                         .expect(<span class="string">&quot;custom type does not exist&quot;</span>);
 
                     <span class="comment">// and return its type
-                    </span><span class="prelude-val">Some</span>(TyKind::Custom(name.value.clone()))
+                    </span><span class="kw">let </span>res = ExprTyInfo::new_anon(TyKind::Custom(name.value.clone()));
+                    <span class="prelude-val">Some</span>(res)
                 } <span class="kw">else </span>{
                     <span class="comment">// if it&#39;s a variable,
                     // check if it&#39;s a constant first
@@ -1510,7 +1674,8 @@
                         }
                     };
 
-                    <span class="prelude-val">Some</span>(typ)
+                    <span class="kw">let </span>res = ExprTyInfo::new_var(name.value.clone(), typ);
+                    <span class="prelude-val">Some</span>(res)
                 }
             }
 
@@ -1519,22 +1684,25 @@
                 </span><span class="kw">let </span>typ = array.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
 
                 <span class="comment">// check that it is an array
-                </span><span class="kw">if </span>!<span class="macro">matches!</span>(typ, TyKind::Array(..)) {
+                </span><span class="kw">if </span>!<span class="macro">matches!</span>(typ.typ, TyKind::Array(..)) {
                     <span class="macro">panic!</span>(<span class="string">&quot;array access can only be performed on arrays&quot;</span>);
                 }
 
                 <span class="comment">// check that expression is a bigint
                 </span><span class="kw">let </span>idx_typ = idx.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>;
-                <span class="kw">match </span>idx_typ {
+                <span class="kw">match </span>idx_typ.map(|t| t.typ) {
                     <span class="prelude-val">Some</span>(TyKind::BigInt) =&gt; (),
                     <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::ExpectedConstant, <span class="self">self</span>.span)),
                 };
 
-                <span class="comment">//
-                </span><span class="kw">match </span>typ {
-                    TyKind::Array(typkind, <span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>typkind),
+                <span class="comment">// get type of element
+                </span><span class="kw">let </span>el_typ = <span class="kw">match </span>typ.typ {
+                    TyKind::Array(typkind, <span class="kw">_</span>) =&gt; <span class="kw-2">*</span>typkind,
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;not an array&quot;</span>),
-                }
+                };
+
+                <span class="kw">let </span>res = ExprTyInfo::new(typ.var_name, el_typ);
+                <span class="prelude-val">Some</span>(res)
             }
 
             ExprKind::ArrayDeclaration(items) =&gt; {
@@ -1548,20 +1716,21 @@
                         </span>.expect(<span class="string">&quot;expected a value&quot;</span>);
 
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(tykind) = <span class="kw-2">&amp;</span>tykind {
-                        <span class="kw">if </span>tykind != <span class="kw-2">&amp;</span>item_typ {
+                        <span class="kw">if </span>tykind != <span class="kw-2">&amp;</span>item_typ.typ {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                                ErrorKind::MismatchType(tykind.clone(), item_typ),
+                                ErrorKind::MismatchType(tykind.clone(), item_typ.typ),
                                 <span class="self">self</span>.span,
                             ));
                         }
                     } <span class="kw">else </span>{
-                        tykind = <span class="prelude-val">Some</span>(item_typ);
+                        tykind = <span class="prelude-val">Some</span>(item_typ.typ);
                     }
                 }
 
                 <span class="kw">let </span>tykind = tykind.expect(<span class="string">&quot;empty array declaration?&quot;</span>);
 
-                <span class="prelude-val">Some</span>(TyKind::Array(Box::new(tykind), len))
+                <span class="kw">let </span>res = ExprTyInfo::new_anon(TyKind::Array(Box::new(tykind), len));
+                <span class="prelude-val">Some</span>(res)
             }
 
             ExprKind::CustomTypeDeclaration {
@@ -1598,18 +1767,25 @@
                         </span>.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?
                         </span>.expect(<span class="string">&quot;expected a value (TODO: better error)&quot;</span>);
 
-                    <span class="kw">if </span>defined.<span class="number">1 </span>!= observed_typ {
+                    <span class="kw">if </span>defined.<span class="number">1 </span>!= observed_typ.typ {
                         <span class="comment">// we accept constants as `Field` types.
-                        </span><span class="kw">if </span>!<span class="macro">matches!</span>((<span class="kw-2">&amp;</span>defined.<span class="number">1</span>, <span class="kw-2">&amp;</span>observed_typ), (TyKind::Field, TyKind::BigInt)) {
+                        </span><span class="kw">if </span>!<span class="macro">matches!</span>(
+                            (<span class="kw-2">&amp;</span>defined.<span class="number">1</span>, <span class="kw-2">&amp;</span>observed_typ.typ),
+                            (TyKind::Field, TyKind::BigInt)
+                        ) {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                                ErrorKind::InvalidStructFieldType(defined.<span class="number">1</span>.clone(), observed_typ),
+                                ErrorKind::InvalidStructFieldType(
+                                    defined.<span class="number">1</span>.clone(),
+                                    observed_typ.typ,
+                                ),
                                 <span class="self">self</span>.span,
                             ));
                         }
                     }
                 }
 
-                <span class="prelude-val">Some</span>(TyKind::Custom(name.clone()))
+                <span class="kw">let </span>res = ExprTyInfo::new_anon(TyKind::Custom(name.clone()));
+                <span class="prelude-val">Some</span>(res)
             }
         };
 
@@ -1617,7 +1793,7 @@
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="kw-2">&amp;</span>typ {
             typed_global_env
                 .node_types
-                .insert(<span class="self">self</span>.node_id, typ.clone());
+                .insert(<span class="self">self</span>.node_id, typ.typ.clone());
         }
 
         <span class="comment">// return the type to the caller
@@ -1886,12 +2062,12 @@
                 <span class="comment">// inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
 
                 // but first we need to compute the type of the rhs expression
-                </span><span class="kw">let </span>typ = rhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                </span><span class="kw">let </span>node = rhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
 
                 <span class="kw">let </span>type_info = <span class="kw">if </span><span class="kw-2">*</span>mutable {
-                    TypeInfo::new_mut(typ, lhs.span)
+                    TypeInfo::new_mut(node.typ, lhs.span)
                 } <span class="kw">else </span>{
-                    TypeInfo::new(typ, lhs.span)
+                    TypeInfo::new(node.typ, lhs.span)
                 };
 
                 <span class="comment">// store the type of lhs in the env
@@ -1926,9 +2102,9 @@
                 }
             }
             StmtKind::Return(res) =&gt; {
-                <span class="kw">let </span>typ = res.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>node = res.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
 
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(typ));
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(node.typ));
             }
             StmtKind::Comment(<span class="kw">_</span>) =&gt; (),
         }
@@ -1961,8 +2137,8 @@
     <span class="comment">// compute the observed arguments types
     </span><span class="kw">let </span><span class="kw-2">mut </span>observed = Vec::with_capacity(args.len());
     <span class="kw">for </span>arg <span class="kw">in </span>args {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = arg.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">? </span>{
-            observed.push((typ.clone(), arg.span));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(node) = arg.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">? </span>{
+            observed.push((node.typ.clone(), arg.span));
         } <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::CannotComputeExpression, arg.span));
         }

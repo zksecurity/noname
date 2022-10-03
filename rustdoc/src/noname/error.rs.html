@@ -243,6 +243,9 @@
 <span id="243">243</span>
 <span id="244">244</span>
 <span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
 </pre><pre class="rust"><code><span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
@@ -277,6 +280,9 @@
 <span class="doccomment">/// The type of error.
 </span><span class="attribute">#[derive(Error, Diagnostic, Debug, Clone)]
 </span><span class="kw">pub enum </span>ErrorKind {
+    <span class="attribute">#[error(<span class="string">&quot;variable is not mutable. You must set the `mut` keyword to make it mutable&quot;</span>)]
+    </span>AssignmentToImmutableVariable,
+
     <span class="attribute">#[error(<span class="string">&quot;the `const` attribute cannot be used for arguments of the main function&quot;</span>)]
     </span>ConstArgumentNotForMain,
 

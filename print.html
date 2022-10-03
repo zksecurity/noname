@@ -831,7 +831,8 @@ Not leaving us enough information to modify the variables of <code>x</code> in o
 <li>if the variable is mutable or not (it was defined with the <code>mut</code> keyword)</li>
 <li>the range of circuit variables in the <code>Var.cvars</code> of <code>x</code>, that the <code>x.y.z</code> field access, or the <code>x[42]</code> array access, represents.</li>
 </ul>
-<p>To implement this, we follow a common practice of tracking <strong>references</strong>:</p>
+<h3 id="circuit-writer"><a class="header" href="#circuit-writer">Circuit writer</a></h3>
+<p>To implement this in the circuit writer, we follow a common practice of tracking <strong>references</strong>:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>/// Represents a variable in the circuit, or a reference to one.
@@ -911,6 +912,16 @@ This way, if there is a bug in the type checker, this will turn unsafe code into
     }
 <span class="boring">}
 </span></code></pre></pre>
+<h3 id="type-checker-1"><a class="header" href="#type-checker-1">Type checker</a></h3>
+<p>While the type checker does not care about the range within a variable, it also needs to figure out if a variable is mutable or not.</p>
+<p>That information is in two places:</p>
+<ol>
+<li>it is stored under the variable’s name in the local environment</li>
+<li>it is also known when we look up a variable, and we can thus bubble it up to the parent expression nodes</li>
+</ol>
+<p>Implementing solution 1. means bubbling up the variable name, in addition to the type, associated to an expression node.</p>
+<p>Implementing solution 2. means bubbling up the mutability instead.</p>
+<p>As it is possible that we might want to retrieve additional information in the future, we chose to implement solution 1. and carry the variable name in addition to type information when parsing the AST in the type checker.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="cellvar"><a class="header" href="#cellvar">CellVar</a></h1>
 <p>A <a href="https://mimoo.github.io/noname/rustdoc/var/struct.CellVar.html"><code>CellVar</code></a> type is a type that represents an internal variable. Importantly, it is named after the fact that it relates to a specific cell, or even multiple cells if they will have the same value (using some wiring), in the execution trace.</p>
 <p>A <code>CellVar</code> looks like this:</p>

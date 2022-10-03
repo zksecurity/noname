@@ -1354,6 +1354,11 @@
 <span id="1354">1354</span>
 <span id="1355">1355</span>
 <span id="1356">1356</span>
+<span id="1357">1357</span>
+<span id="1358">1358</span>
+<span id="1359">1359</span>
+<span id="1360">1360</span>
+<span id="1361">1361</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1574,7 +1579,7 @@
             } =&gt; {
                 <span class="comment">// ensure that the new range is contained in the older range
                 </span><span class="macro">assert!</span>(start &lt; <span class="kw-2">*</span>old_len); <span class="comment">// lower bound
-                </span><span class="macro">assert!</span>(start + len &lt; <span class="kw-2">*</span>old_len); <span class="comment">// upper bound
+                </span><span class="macro">assert!</span>(start + len &lt;= <span class="kw-2">*</span>old_len); <span class="comment">// upper bound
                 </span><span class="macro">assert!</span>(len &gt; <span class="number">0</span>); <span class="comment">// empty range not allowed
 
                 </span><span class="self">Self</span>::Ref {
@@ -2314,7 +2319,12 @@
 
                 <span class="kw">let </span>elem_type = <span class="kw">match </span>array_typ {
                     TyKind::Array(ty, array_len) =&gt; {
-                        <span class="macro">assert!</span>(idx &lt; (<span class="kw-2">*</span>array_len <span class="kw">as </span>usize));
+                        <span class="kw">if </span>idx &gt;= (<span class="kw-2">*</span>array_len <span class="kw">as </span>usize) {
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                ErrorKind::ArrayIndexOutOfBounds(idx, <span class="kw-2">*</span>array_len <span class="kw">as </span>usize - <span class="number">1</span>),
+                                expr.span,
+                            ));
+                        }
                         ty
                     }
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;expected array&quot;</span>),
