@@ -1808,6 +1808,44 @@
 <span id="1808">1808</span>
 <span id="1809">1809</span>
 <span id="1810">1810</span>
+<span id="1811">1811</span>
+<span id="1812">1812</span>
+<span id="1813">1813</span>
+<span id="1814">1814</span>
+<span id="1815">1815</span>
+<span id="1816">1816</span>
+<span id="1817">1817</span>
+<span id="1818">1818</span>
+<span id="1819">1819</span>
+<span id="1820">1820</span>
+<span id="1821">1821</span>
+<span id="1822">1822</span>
+<span id="1823">1823</span>
+<span id="1824">1824</span>
+<span id="1825">1825</span>
+<span id="1826">1826</span>
+<span id="1827">1827</span>
+<span id="1828">1828</span>
+<span id="1829">1829</span>
+<span id="1830">1830</span>
+<span id="1831">1831</span>
+<span id="1832">1832</span>
+<span id="1833">1833</span>
+<span id="1834">1834</span>
+<span id="1835">1835</span>
+<span id="1836">1836</span>
+<span id="1837">1837</span>
+<span id="1838">1838</span>
+<span id="1839">1839</span>
+<span id="1840">1840</span>
+<span id="1841">1841</span>
+<span id="1842">1842</span>
+<span id="1843">1843</span>
+<span id="1844">1844</span>
+<span id="1845">1845</span>
+<span id="1846">1846</span>
+<span id="1847">1847</span>
+<span id="1848">1848</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -2195,11 +2233,7 @@
 
     <span class="doccomment">/// An array access, for example:
     /// `lhs[idx]`
-    </span>ArrayAccess {
-        module: <span class="prelude-ty">Option</span>&lt;Ident&gt;,
-        name: Ident,
-        idx: Box&lt;Expr&gt;,
-    },
+    </span>ArrayAccess { array: Box&lt;Expr&gt;, idx: Box&lt;Expr&gt; },
 
     <span class="doccomment">/// `[ ... ]`
     </span>ArrayDeclaration(Vec&lt;Expr&gt;),
@@ -2467,6 +2501,7 @@
                     }
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;bad type declaration&quot;</span>),
                 };
+
                 parse_type_declaration(ctx, tokens, ident)<span class="question-mark">?
             </span>}
 
@@ -2477,11 +2512,13 @@
             }) =&gt; {
                 tokens.bump(ctx); <span class="comment">// [
 
-                // sanitize array
-                </span><span class="kw">let </span>(module, name) = <span class="kw">match </span><span class="self">self</span>.kind {
-                    ExprKind::Variable { module, name } =&gt; (module, name),
-                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;array access on a non-variable&quot;</span>),
-                };
+                // sanity check
+                </span><span class="kw">if </span>!<span class="macro">matches!</span>(
+                    <span class="self">self</span>.kind,
+                    ExprKind::Variable { .. } | ExprKind::FieldAccess { .. }
+                ) {
+                    <span class="macro">panic!</span>(<span class="string">&quot;an array access can only follow a variable&quot;</span>);
+                }
 
                 <span class="comment">// array[idx]
                 //       ^^^
@@ -2496,8 +2533,7 @@
                 Expr::new(
                     ctx,
                     ExprKind::ArrayAccess {
-                        module,
-                        name,
+                        array: Box::new(<span class="self">self</span>),
                         idx: Box::new(idx),
                     },
                     span,
@@ -2542,7 +2578,7 @@
                 kind: TokenKind::Dot,
                 ..
             }) =&gt; {
-                tokens.bump(ctx); <span class="comment">// .
+                <span class="kw">let </span>period = tokens.bump(ctx).unwrap(); <span class="comment">// .
 
                 // sanitize
                 </span><span class="kw">if </span>!<span class="macro">matches!</span>(
@@ -2551,7 +2587,9 @@
                         | ExprKind::Variable { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {
-                    <span class="macro">panic!</span>(<span class="string">&quot;field or method calls can only follow a field of another struct, a struct, or an array access (TODO: better error)&quot;</span>);
+                    <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.kind);
+                    <span class="kw">let </span>span = <span class="self">self</span>.span.merge_with(period.span);
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidFieldAccessExpression, span));
                 }
 
                 <span class="comment">// lhs.field
@@ -2572,6 +2610,12 @@
                         <span class="comment">// lhs.method_name(args)
                         //                 ^^^^
                         </span><span class="kw">let </span>args = parse_fn_call_args(ctx, tokens)<span class="question-mark">?</span>;
+
+                        <span class="kw">let </span>span = <span class="kw">if let </span><span class="prelude-val">Some</span>(arg) = args.last() {
+                            span.merge_with(arg.span)
+                        } <span class="kw">else </span>{
+                            span
+                        };
 
                         Expr::new(
                             ctx,
@@ -2669,11 +2713,16 @@
 <span class="attribute">#[derive(Debug, Clone, Copy)]
 </span><span class="kw">pub enum </span>AttributeKind {
     Pub,
+    Const,
 }
 
 <span class="kw">impl </span>AttributeKind {
     <span class="kw">pub fn </span>is_public(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="macro">matches!</span>(<span class="self">self</span>, <span class="self">Self</span>::Pub)
+    }
+
+    <span class="kw">pub fn </span>is_constant(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(<span class="self">self</span>, <span class="self">Self</span>::Const)
     }
 }
 
@@ -2681,6 +2730,16 @@
 </span><span class="kw">pub struct </span>Attribute {
     <span class="kw">pub </span>kind: AttributeKind,
     <span class="kw">pub </span>span: Span,
+}
+
+<span class="kw">impl </span>Attribute {
+    <span class="kw">pub fn </span>is_public(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.kind.is_public()
+    }
+
+    <span class="kw">pub fn </span>is_constant(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.kind.is_constant()
+    }
 }
 
 <span class="attribute">#[derive(Debug, Clone)]
@@ -2702,13 +2761,17 @@
 
 <span class="kw">impl </span>FnArg {
     <span class="kw">pub fn </span>is_public(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(
-            <span class="self">self</span>.attribute,
-            <span class="prelude-val">Some</span>(Attribute {
-                kind: AttributeKind::Pub,
-                ..
-            })
-        )
+        <span class="self">self</span>.attribute
+            .as_ref()
+            .map(|attr| attr.is_public())
+            .unwrap_or(<span class="bool-val">false</span>)
+    }
+
+    <span class="kw">pub fn </span>is_constant(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.attribute
+            .as_ref()
+            .map(|attr| attr.is_constant())
+            .unwrap_or(<span class="bool-val">false</span>)
     }
 }
 
@@ -2794,7 +2857,7 @@
                 ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected function arguments&quot;</span>),
             )<span class="question-mark">?</span>;
 
-            <span class="kw">let </span>(public, arg_name) = <span class="kw">match </span>token.kind {
+            <span class="kw">let </span>(attribute, arg_name) = <span class="kw">match </span>token.kind {
                 TokenKind::RightParen =&gt; <span class="kw">break</span>,
                 <span class="comment">// public input
                 </span>TokenKind::Keyword(Keyword::Pub) =&gt; {
@@ -2802,6 +2865,17 @@
                     (
                         <span class="prelude-val">Some</span>(Attribute {
                             kind: AttributeKind::Pub,
+                            span: token.span,
+                        }),
+                        arg_name,
+                    )
+                }
+                <span class="comment">// constant input
+                </span>TokenKind::Keyword(Keyword::Const) =&gt; {
+                    <span class="kw">let </span>arg_name = Ident::parse(ctx, tokens)<span class="question-mark">?</span>;
+                    (
+                        <span class="prelude-val">Some</span>(Attribute {
+                            kind: AttributeKind::Const,
                             span: token.span,
                         }),
                         arg_name,
@@ -2863,7 +2937,7 @@
             <span class="kw">let </span>arg = FnArg {
                 name: arg_name,
                 typ: arg_typ,
-                attribute: public,
+                attribute,
                 span,
             };
             args.push(arg);
@@ -3049,7 +3123,9 @@
     Expr(Box&lt;Expr&gt;),
     Return(Box&lt;Expr&gt;),
     Comment(String),
-    For {
+
+    <span class="comment">// `for var in 0..10 { &lt;body&gt; }`
+    </span>For {
         var: Ident,
         range: Range,
         body: Vec&lt;Stmt&gt;,

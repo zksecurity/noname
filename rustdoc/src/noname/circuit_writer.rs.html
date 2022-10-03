@@ -1328,6 +1328,36 @@
 <span id="1328">1328</span>
 <span id="1329">1329</span>
 <span id="1330">1330</span>
+<span id="1331">1331</span>
+<span id="1332">1332</span>
+<span id="1333">1333</span>
+<span id="1334">1334</span>
+<span id="1335">1335</span>
+<span id="1336">1336</span>
+<span id="1337">1337</span>
+<span id="1338">1338</span>
+<span id="1339">1339</span>
+<span id="1340">1340</span>
+<span id="1341">1341</span>
+<span id="1342">1342</span>
+<span id="1343">1343</span>
+<span id="1344">1344</span>
+<span id="1345">1345</span>
+<span id="1346">1346</span>
+<span id="1347">1347</span>
+<span id="1348">1348</span>
+<span id="1349">1349</span>
+<span id="1350">1350</span>
+<span id="1351">1351</span>
+<span id="1352">1352</span>
+<span id="1353">1353</span>
+<span id="1354">1354</span>
+<span id="1355">1355</span>
+<span id="1356">1356</span>
+<span id="1357">1357</span>
+<span id="1358">1358</span>
+<span id="1359">1359</span>
+<span id="1360">1360</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1463,9 +1493,18 @@
     </span>Wired(Vec&lt;(Cell, Span)&gt;),
 }
 
-<span class="kw">pub enum </span>VarOrRef {
-    Var(Var),
-    Ref {
+<span class="doccomment">/// Represents a variable in the circuit, or a reference to one.
+/// Note that mutable variables are always passed as references,
+/// as one needs to have access to the variable name to be able to reassign it in the environment.
+</span><span class="kw">pub enum </span>VarOrRef {
+    <span class="doccomment">/// A [Var].
+    </span>Var(Var),
+
+    <span class="doccomment">/// A reference to a noname variable in the environment.
+    /// Potentially narrowing it down to a range of cells in that variable.
+    /// For example, `x[2]` would be represented with &quot;x&quot; and the range `(2, 1)`,
+    /// if `x` is an array of `Field` elements.
+    </span>Ref {
         var_name: String,
         start: usize,
         len: usize,
@@ -1550,6 +1589,17 @@
             }
         }
     }
+
+    <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="kw">match </span><span class="self">self </span>{
+            VarOrRef::Var(var) =&gt; var.len(),
+            VarOrRef::Ref { len, .. } =&gt; <span class="kw-2">*</span>len,
+        }
+    }
+
+    <span class="kw">fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.len() == <span class="number">0
+    </span>}
 }
 
 <span class="comment">//
@@ -2170,7 +2220,16 @@
                     <span class="kw">let </span>res = field::add(<span class="self">self</span>, <span class="kw-2">&amp;</span>lhs[<span class="number">0</span>], <span class="kw-2">&amp;</span>rhs[<span class="number">0</span>], expr.span);
                     <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(VarOrRef::Var(res)))
                 }
-                Op2::Subtraction =&gt; <span class="macro">todo!</span>(),
+                Op2::Subtraction =&gt; {
+                    <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
+
+                    <span class="kw">let </span>lhs = lhs.value(fn_env, global_env);
+                    <span class="kw">let </span>rhs = rhs.value(fn_env, global_env);
+
+                    <span class="kw">let </span>res = field::sub(<span class="self">self</span>, <span class="kw-2">&amp;</span>lhs[<span class="number">0</span>], <span class="kw-2">&amp;</span>rhs[<span class="number">0</span>], expr.span);
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(VarOrRef::Var(res)))
+                }
                 Op2::Multiplication =&gt; <span class="macro">todo!</span>(),
                 Op2::Division =&gt; <span class="macro">todo!</span>(),
                 Op2::Equality =&gt; {
@@ -2239,13 +2298,11 @@
                 }
             }
 
-            ExprKind::ArrayAccess { module, name, idx } =&gt; {
-                <span class="kw">if </span>module.is_some() {
-                    <span class="macro">panic!</span>(<span class="string">&quot;accessing module arrays not supported yet&quot;</span>);
-                }
-
-                <span class="comment">// retrieve var info of array
-                </span><span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>name.value);
+            ExprKind::ArrayAccess { array, idx } =&gt; {
+                <span class="comment">// retrieve var of array
+                </span><span class="kw">let </span>var = <span class="self">self
+                    </span>.compute_expr(global_env, fn_env, array)<span class="question-mark">?
+                    </span>.expect(<span class="string">&quot;array access on non-array&quot;</span>);
 
                 <span class="comment">// compute the index
                 </span><span class="kw">let </span>idx_var = <span class="self">self
@@ -2258,7 +2315,12 @@
                 <span class="kw">let </span>idx: usize = idx.try_into().unwrap();
 
                 <span class="comment">// retrieve the type of the elements in the array
-                </span><span class="kw">let </span>elem_type = <span class="kw">match </span>var_info.typ.as_ref().expect(<span class="string">&quot;array has no type&quot;</span>) {
+                </span><span class="kw">let </span>array_typ = global_env
+                    .typed
+                    .expr_type(array)
+                    .expect(<span class="string">&quot;cannot find type of array&quot;</span>);
+
+                <span class="kw">let </span>elem_type = <span class="kw">match </span>array_typ {
                     TyKind::Array(ty, array_len) =&gt; {
                         <span class="macro">assert!</span>(idx &lt; (<span class="kw-2">*</span>array_len <span class="kw">as </span>usize));
                         ty
@@ -2273,8 +2335,7 @@
                 </span><span class="kw">let </span>start = idx * len;
 
                 <span class="comment">// out-of-bound checks
-                </span><span class="kw">let </span>var = <span class="kw-2">&amp;</span>var_info.var;
-                <span class="kw">if </span>start &gt;= var.len() || start + len &gt; var.len() {
+                </span><span class="kw">if </span>start &gt;= var.len() || start + len &gt; var.len() {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
                         ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
                         expr.span,
@@ -2282,11 +2343,10 @@
                 }
 
                 <span class="comment">// index into the var
-                </span><span class="kw">let </span>var_or_ref =
-                    VarOrRef::from_var_info(name.value.clone(), var_info).narrow(start, len);
+                </span><span class="kw">let </span>var = var.narrow(start, len);
 
                 <span class="comment">//
-                </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var_or_ref))
+                </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
             }
 
             ExprKind::ArrayDeclaration(items) =&gt; {

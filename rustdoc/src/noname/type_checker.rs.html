@@ -991,6 +991,8 @@
 <span id="991">991</span>
 <span id="992">992</span>
 <span id="993">993</span>
+<span id="994">994</span>
+<span id="995">995</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -1021,6 +1023,9 @@
     <span class="doccomment">/// If the variable can be mutated or not.
     </span><span class="kw">pub </span>mutable: bool,
 
+    <span class="doccomment">/// If the variable is a constant or not.
+    </span><span class="kw">pub </span>constant: bool,
+
     <span class="doccomment">/// A variable becomes disabled once we exit its scope.
     /// We do this instead of deleting a variable to detect shadowing.
     </span><span class="kw">pub </span>disabled: bool,
@@ -1036,6 +1041,7 @@
     <span class="kw">pub fn </span>new(typ: TyKind, span: Span) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             mutable: <span class="bool-val">false</span>,
+            constant: <span class="bool-val">false</span>,
             disabled: <span class="bool-val">false</span>,
             typ,
             span,
@@ -1045,6 +1051,13 @@
     <span class="kw">pub fn </span>new_mut(typ: TyKind, span: Span) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             mutable: <span class="bool-val">true</span>,
+            ..<span class="self">Self</span>::new(typ, span)
+        }
+    }
+
+    <span class="kw">pub fn </span>new_cst(typ: TyKind, span: Span) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            constant: <span class="bool-val">true</span>,
             ..<span class="self">Self</span>::new(typ, span)
         }
     }
@@ -1252,7 +1265,8 @@
 //
 
 </span><span class="kw">impl </span>Expr {
-    <span class="kw">pub fn </span>compute_type(
+    <span class="comment">// TODO: implement this on typed_global_env, and modify the name of typed_global_env to type_checker?
+    </span><span class="kw">pub fn </span>compute_type(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         typed_global_env: <span class="kw-2">&amp;mut </span>TypedGlobalEnv,
         typed_fn_env: <span class="kw-2">&amp;mut </span>TypedFnEnv,
@@ -1470,33 +1484,42 @@
                     <span class="comment">// if it&#39;s a variable,
                     // check if it&#39;s a constant first
                     </span><span class="kw">let </span>typ = <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typed_global_env.constants.get(<span class="kw-2">&amp;</span>name.value) {
-                        typ.kind.clone()
+                        <span class="comment">// if it&#39;s a field, we need to convert it to a bigint
+                        </span><span class="kw">if </span><span class="macro">matches!</span>(typ.kind, TyKind::Field) {
+                            TyKind::BigInt
+                        } <span class="kw">else </span>{
+                            typ.kind.clone()
+                        }
                     } <span class="kw">else </span>{
                         <span class="comment">// otherwise it&#39;s a local variable
-                        </span>typed_fn_env
+                        </span><span class="kw">let </span>typ = typed_fn_env
                             .get_type(<span class="kw-2">&amp;</span>name.value)
                             .ok_or_else(|| Error::new(ErrorKind::UndefinedVariable, name.span))<span class="question-mark">?
-                            </span>.clone()
+                            </span>.clone();
+                        <span class="comment">// if it&#39;s a field, we need to convert it to a bigint
+                        </span><span class="kw">if </span><span class="macro">matches!</span>(typ, TyKind::Field) {
+                            TyKind::BigInt
+                        } <span class="kw">else </span>{
+                            typ
+                        }
                     };
 
                     <span class="prelude-val">Some</span>(typ)
                 }
             }
 
-            ExprKind::ArrayAccess { module, name, idx } =&gt; {
-                <span class="comment">// sanitize
-                </span><span class="kw">if </span>module.is_some() {
-                    <span class="macro">panic!</span>(<span class="string">&quot;we don&#39;t support module arrays for now&quot;</span>);
+            ExprKind::ArrayAccess { array, idx } =&gt; {
+                <span class="comment">// get type of lhs
+                </span><span class="kw">let </span>typ = array.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+
+                <span class="comment">// check that it is an array
+                </span><span class="kw">if </span>!<span class="macro">matches!</span>(typ, TyKind::Array(..)) {
+                    <span class="macro">panic!</span>(<span class="string">&quot;array access can only be performed on arrays&quot;</span>);
                 }
 
-                <span class="comment">// figure out if variable is in scope
-                </span><span class="kw">let </span>typ = typed_fn_env
-                    .get_type(<span class="kw-2">&amp;</span>name.value)
-                    .ok_or_else(|| Error::new(ErrorKind::UndefinedVariable, <span class="self">self</span>.span))<span class="question-mark">?
-                    </span>.clone();
-
                 <span class="comment">// check that expression is a bigint
-                </span><span class="kw">match </span>idx.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">? </span>{
+                </span><span class="kw">let </span>idx_typ = idx.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>;
+                <span class="kw">match </span>idx_typ {
                     <span class="prelude-val">Some</span>(TyKind::BigInt) =&gt; (),
                     <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::ExpectedConstant, <span class="self">self</span>.span)),
                 };
@@ -1570,19 +1593,13 @@
                         </span>.expect(<span class="string">&quot;expected a value (TODO: better error)&quot;</span>);
 
                     <span class="kw">if </span>defined.<span class="number">1 </span>!= observed_typ {
-                        <span class="comment">// TODO: replace with `if !matches!`
-                        </span><span class="kw">match </span>(<span class="kw-2">&amp;</span>defined.<span class="number">1</span>, <span class="kw-2">&amp;</span>observed_typ) {
-                            (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field) =&gt; (),
-                            <span class="kw">_ </span>=&gt; {
-                                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                                    ErrorKind::InvalidStructFieldType(
-                                        defined.<span class="number">1</span>.clone(),
-                                        observed_typ,
-                                    ),
-                                    <span class="self">self</span>.span,
-                                ));
-                            }
-                        };
+                        <span class="comment">// we accept constants as `Field` types.
+                        </span><span class="kw">if </span>!<span class="macro">matches!</span>((<span class="kw-2">&amp;</span>defined.<span class="number">1</span>, <span class="kw-2">&amp;</span>observed_typ), (TyKind::Field, TyKind::BigInt)) {
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                ErrorKind::InvalidStructFieldType(defined.<span class="number">1</span>.clone(), observed_typ),
+                                <span class="self">self</span>.span,
+                            ));
+                        }
                     }
                 }
 
@@ -1749,36 +1766,27 @@
                             ));
                         }
 
-                        <span class="kw">match </span><span class="kw-2">&amp;</span>arg.typ.kind {
-                            TyKind::Field =&gt; {
-                                typed_fn_env.store_type(
-                                    arg.name.value.clone(),
-                                    TypeInfo::new(arg.typ.kind.clone(), arg.span),
-                                )<span class="question-mark">?</span>;
-                            }
+                        <span class="comment">// `const` arguments are only for non-main functions
+                        </span><span class="kw">if </span>is_main &amp;&amp; arg.is_constant() {
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                ErrorKind::ConstArgumentNotForMain,
+                                arg.name.span,
+                            ));
+                        }
 
-                            TyKind::Array(..) =&gt; {
-                                typed_fn_env.store_type(
-                                    arg.name.value.clone(),
-                                    TypeInfo::new(arg.typ.kind.clone(), arg.span),
-                                )<span class="question-mark">?</span>;
-                            }
+                        <span class="comment">// store the args&#39; type in the fn environment
+                        </span><span class="kw">let </span>arg_typ = arg.typ.kind.clone();
 
-                            TyKind::Bool =&gt; {
-                                typed_fn_env.store_type(
-                                    arg.name.value.clone(),
-                                    TypeInfo::new(arg.typ.kind.clone(), arg.span),
-                                )<span class="question-mark">?</span>;
-                            }
-
-                            TyKind::Custom(custom) =&gt; {
-                                typed_fn_env.store_type(
-                                    <span class="string">&quot;self&quot;</span>.to_string(),
-                                    TypeInfo::new(TyKind::Custom(custom.clone()), arg.span),
-                                )<span class="question-mark">?</span>;
-                            }
-
-                            t =&gt; <span class="macro">panic!</span>(<span class="string">&quot;unimplemented type {:?}&quot;</span>, t),
+                        <span class="kw">if </span>arg.is_constant() {
+                            typed_fn_env.store_type(
+                                arg.name.value.clone(),
+                                TypeInfo::new_cst(arg_typ, arg.span),
+                            )<span class="question-mark">?</span>;
+                        } <span class="kw">else </span>{
+                            typed_fn_env.store_type(
+                                arg.name.value.clone(),
+                                TypeInfo::new(arg_typ, arg.span),
+                            )<span class="question-mark">?</span>;
                         }
                     }
 
@@ -1965,12 +1973,8 @@
     <span class="comment">// compare argument types with the function signature
     </span><span class="kw">for </span>(sig_arg, (typ, span)) <span class="kw">in </span>expected.iter().zip(observed) {
         <span class="kw">if </span>sig_arg.typ.kind != typ {
-            <span class="comment">// it&#39;s ok if a bigint is supposed to be a field no?
-            // TODO: replace bigint -&gt; constant?
-            </span><span class="kw">if </span><span class="macro">matches!</span>(
-                (<span class="kw-2">&amp;</span>sig_arg.typ.kind, <span class="kw-2">&amp;</span>typ),
-                (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field)
-            ) {
+            <span class="comment">// we accept constants as [Field] types
+            </span><span class="kw">if </span><span class="macro">matches!</span>((<span class="kw-2">&amp;</span>sig_arg.typ.kind, <span class="kw-2">&amp;</span>typ), (TyKind::Field, TyKind::BigInt)) {
                 <span class="kw">continue</span>;
             }
 

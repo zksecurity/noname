@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Public Outputs - noname</title>
+        <title>Literals and the const keyword - noname</title>
 
 
         <!-- Custom HTML head -->
@@ -82,7 +82,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded "><a href="literals.html"><strong aria-hidden="true">11.</strong> Literals and the const keyword</a></li><li class="chapter-item expanded "><a href="expressions.html"><strong aria-hidden="true">12.</strong> Expressions</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">13.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">14.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">15.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">16.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">17.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html" class="active"><strong aria-hidden="true">18.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">19.</strong> Witness Generation</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded "><a href="literals.html" class="active"><strong aria-hidden="true">11.</strong> Literals and the const keyword</a></li><li class="chapter-item expanded "><a href="expressions.html"><strong aria-hidden="true">12.</strong> Expressions</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">13.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">14.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">15.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">16.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">17.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">18.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">19.</strong> Witness Generation</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -146,77 +146,101 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="public-outputs"><a class="header" href="#public-outputs">Public Outputs</a></h1>
-<p>Public outputs are usually part of the public inputs in Plonk.</p>
-<p>In noname, public ouputs are treated differently than the public inputs for one reason: unlike (real) public inputs they cannot be computed directly during witness generation (proving).</p>
-<p>This is because public inputs are listed first in the circuit. During witness generation, we go through each rows and evaluate the values of the cells to construct the execution trace. 
-When we reach the public output part of the public input, we do not yet have enough information to construct the values.
-Thus, we ignore them, and fill them later on.</p>
-<p>During the compilation, we create <code>CellVars</code> to keep track of the public output:</p>
+                        <h1 id="literals-and-the-const-keyword"><a class="header" href="#literals-and-the-const-keyword">Literals and the <code>const</code> keyword</a></h1>
+<p>We want to be able to support a few things:</p>
+<ul>
+<li>writing numbers that will act as field elements directly in the code</li>
+<li>writing numbers that will act as relatively small numbers (for indexing into arrays for example) in the code</li>
+<li>writing functions that will accept constant arguments. For example to index into an array.</li>
+</ul>
+<p>The first two points allow us to write things like that:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct Compiler {
-    // ...
-
-    /// If a public output is set, this will be used to store its [CircuitVar] (cvar).
-    /// The public output generation works as follows:
-    /// 1. This cvar is created and inserted in the circuit (gates) during compilation of the public input
-    ///    (as the public output is the end of the public input)
-    /// 2. When the `return` statement of the circuit is parsed,
-    ///    it will set this `public_output` variable again to the correct vars.
-    /// 3. During witness generation, the public output computation
-    ///    is delayed until the very end.
-    pub public_output: Option&lt;CellVars&gt;,
+</span>let x = 3;
+assert_eq(y[5], 4);
+<span class="boring">}
+</span></code></pre></pre>
+<p>The third point allows us to write things like that:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn House.get(self, room: Field) -&gt; Field {
+    return House.rooms[room];
 }
 <span class="boring">}
 </span></code></pre></pre>
-<p>During witness generation (see the <a href="./witness-generation.html">Witness Generation chapter</a>), we indeed defer computation the first time we go through the public output rows:</p>
+<p>Since <code>House</code> takes a <code>Field</code> here, it can in theory be used with anything during type checking.</p>
+<p>This is bad. There are two solutions:</p>
+<ol>
+<li>During type checking, when we realize that <code>room</code> is used to index into an array, we enforce that it must be a constant value during compilation.</li>
+<li>We create a distinct type for constants and literals.</li>
+</ol>
+<p>Approach 1. is not elegant, because it means that it is not clear from the signature of the function alone that the <code>room</code> argument must be a constant.
+The user of the function will only get warned when trying to compile the program.</p>
+<p>Approach 2. is interesting, because we already have such a type internally to track literals: a <code>BigInt</code>.
+The name is a bit misleading in the case of array accesses, because we additionaly enforce that it is NOT a big integer, but rather a 32-bit integer (<code>u32</code> in Rust).</p>
+<h2 id="implementing-a-literal-type"><a class="header" href="#implementing-a-literal-type">Implementing a literal type</a></h2>
+<p>Approach 2 can be implemented in two ways:</p>
+<p>a. Use a brand new type, like <code>BigInt</code> for literals.
+b. Use a <code>const</code> attribute to indicate that it is a constant.</p>
+<p>Approach a. is a bit clumsy in my opinion because the developer need to remember about a new type name, and understand the distinction with that and <code>Field</code>.</p>
+<p>On the other hand, approach b. uses the <code>const</code> keyword which is already well-known in many compiled programming languages.</p>
+<p>What about this:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let val = if let Some(var) = var {
-    // if it's a public output, defer it's computation
-    if matches!(self.witness_vars[&amp;var], Value::PublicOutput(_)) {
-        public_outputs_vars.push((row, *var));
-        Field::zero()
-    } else {
-        self.compute_var(&amp;mut env, *var)?
-    }
-} else {
-    Field::zero()
-};
-witness_row[col] = val;
+</span>fn House.get(self, const room: Field) -&gt; Field {
+// versus
+fn House.get(self, room: const Field) -&gt; Field {
 <span class="boring">}
 </span></code></pre></pre>
-<p>and at the end we go back to them:</p>
+<p>To contrast, the two other existing attributes (<code>pub</code> and <code>mut</code>) are placed in front of the variable names, not the type names.</p>
+<p>One could argue that the type is the same, but the variable being passed is a constant, and so it makes more sense to implement the first version.
+This is what we do in noname.</p>
+<p>At the time of this writing, the <code>const</code> keyword only seem to make sense in a function argument, and so is implemented in the same way as the <code>pub</code> attribute:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// compute public output at last
-let mut public_output = vec![];
+</span>pub enum AttributeKind {
+    Pub,
+    Const,
+}
 
-for (row, var) in public_outputs_vars {
-    let val = self.compute_var(&amp;mut env, var)?;
-    witness[row][0] = val;
-    public_output.push(val);
+pub struct Attribute {
+    pub kind: AttributeKind,
+    pub span: Span,
+}
+
+pub struct FnArg {
+    pub name: Ident,
+    pub typ: Ty,
+    pub attribute: Option&lt;Attribute&gt;,
+    pub span: Span,
 }
 <span class="boring">}
 </span></code></pre></pre>
-<p>and finally we return the public output to the prover so that they can send it to the verifier, as well as the “full public input” which is the concatenation of the public input and the public output (needed to finalized the proof):</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// return the public output separately as well
-Ok((Witness(witness), full_public_inputs, public_output))
-<span class="boring">}
-</span></code></pre></pre>
+<p>When a function is parsed by the type checker, a <code>const Field</code> is transformed into a <code>BigInt</code>.
+And as such, the type checker will be happy with that variable being used to index into an array, or being used by other functions expecting a constant.</p>
+<p>What about other types being <code>const</code>? 
+I don’t think it makes sense for now, as I can only think of array access requiring this.
+So we don’t implement it.</p>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<div>
+<p>If we do want to support that one day, we will have to track more than <code>TyKind</code> in the typechecker…
+This can be achieved by adding a <code>const</code> field in the <code>TypeInfo</code> structure that tracks type-related data on noname variables present in the scope.</p>
+</div>
+</div>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="scope.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="methods.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="witness-generation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="expressions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -226,11 +250,11 @@ Ok((Witness(witness), full_public_inputs, public_output))
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="scope.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="methods.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="witness-generation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="expressions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

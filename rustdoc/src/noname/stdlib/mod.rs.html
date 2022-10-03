@@ -284,7 +284,7 @@
 //       not something descriptive internally like &quot;builtins&quot;
 
 </span><span class="kw">const </span>ASSERT_FN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;assert(condition: Bool)&quot;</span>;
-<span class="kw">const </span>ASSERT_EQ_FN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;assert_eq(a: Field, b: Field)&quot;</span>;
+<span class="kw">const </span>ASSERT_EQ_FN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;assert_eq(lhs: Field, rhs: Field)&quot;</span>;
 
 <span class="kw">pub const </span>BUILTIN_FNS: [(<span class="kw-2">&amp;</span>str, FnHandle); <span class="number">2</span>] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
 

@@ -232,6 +232,17 @@
 <span id="232">232</span>
 <span id="233">233</span>
 <span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
 </pre><pre class="rust"><code><span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
@@ -266,6 +277,12 @@
 <span class="doccomment">/// The type of error.
 </span><span class="attribute">#[derive(Error, Diagnostic, Debug, Clone)]
 </span><span class="kw">pub enum </span>ErrorKind {
+    <span class="attribute">#[error(<span class="string">&quot;the `const` attribute cannot be used for arguments of the main function&quot;</span>)]
+    </span>ConstArgumentNotForMain,
+
+    <span class="attribute">#[error(<span class="string">&quot;a field access or a method call can only be applied on a field of another struct, a struct, or an array access&quot;</span>)]
+    </span>InvalidFieldAccessExpression,
+
     <span class="attribute">#[error(<span class="string">&quot;the method called is not a static method&quot;</span>)]
     </span>NotAStaticMethod,
 
@@ -405,6 +422,11 @@
 
     <span class="attribute">#[error(<span class="string">&quot;array accessed at index {0} is out of bounds (max {1})&quot;</span>)]
     </span>ArrayIndexOutOfBounds(usize, usize),
+
+    <span class="attribute">#[error(
+        <span class="string">&quot;one-letter variables or types are not allowed. Best practice is to use descriptive names&quot;
+    </span>)]
+    </span>NoOneLetterVariable,
 
     <span class="attribute">#[error(<span class="string">&quot;array indexes must be constants in circuits&quot;</span>)]
     </span>ExpectedConstant,
