@@ -54,10 +54,8 @@ impl Tokens {
     }
     /// Like [Self::bump] but errors with `err` pointing to the latest token
     pub fn bump_err(&mut self, ctx: &mut ParserCtx, err: ErrorKind) -> Result<Token> {
-        self.bump(ctx).ok_or(Error {
-            kind: err,
-            span: ctx.last_span(),
-        })
+        self.bump(ctx)
+            .ok_or_else(|| Error::new(err, ctx.last_span()))
     }
 
     /// Like [Self::bump] but errors if the token is not `typ`
@@ -66,10 +64,7 @@ impl Tokens {
         if token.kind == typ {
             Ok(token)
         } else {
-            Err(Error {
-                kind: ErrorKind::ExpectedToken(typ),
-                span: ctx.last_span(),
-            })
+            Err(Error::new(ErrorKind::ExpectedToken(typ), ctx.last_span()))
         }
     }
 
@@ -81,7 +76,7 @@ impl Tokens {
                 value: value.to_string(),
                 span,
             }),
-            _ => Err(Error { kind, span }),
+            _ => Err(Error::new(kind, span)),
         }
     }
 }

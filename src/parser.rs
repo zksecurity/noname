@@ -123,12 +123,7 @@ pub fn parse_type_declaration(
                 kind: TokenKind::RightCurlyBracket,
                 ..
             } => break,
-            _ => {
-                return Err(Error {
-                    kind: ErrorKind::InvalidEndOfLine,
-                    span: ctx.last_span(),
-                })
-            }
+            _ => return Err(Error::new(ErrorKind::InvalidEndOfLine, ctx.last_span())),
         };
     }
 
@@ -173,10 +168,10 @@ pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ve
             },
 
             None => {
-                return Err(Error {
-                    kind: ErrorKind::InvalidFnCall("unexpected end of function call"),
-                    span: ctx.last_span(),
-                })
+                return Err(Error::new(
+                    ErrorKind::InvalidFnCall("unexpected end of function call"),
+                    ctx.last_span(),
+                ))
             }
         }
     }
@@ -282,15 +277,14 @@ impl Ty {
                 //         ^
                 let siz = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
                 let siz: u32 = match siz.kind {
-                    TokenKind::BigInt(s) => s.parse().map_err(|_e| Error {
-                        kind: ErrorKind::InvalidArraySize,
-                        span: siz.span,
-                    })?,
+                    TokenKind::BigInt(s) => s
+                        .parse()
+                        .map_err(|_e| Error::new(ErrorKind::InvalidArraySize, siz.span))?,
                     _ => {
-                        return Err(Error {
-                            kind: ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
-                            span: siz.span,
-                        });
+                        return Err(Error::new(
+                            ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            siz.span,
+                        ));
                     }
                 };
 
@@ -307,10 +301,7 @@ impl Ty {
             }
 
             // unrecognized
-            _ => Err(Error {
-                kind: ErrorKind::InvalidType,
-                span: token.span,
-            }),
+            _ => Err(Error::new(ErrorKind::InvalidType, token.span)),
         }
     }
 }
@@ -545,12 +536,7 @@ impl Expr {
                             break;
                         }
                         TokenKind::Comma => (),
-                        _ => {
-                            return Err(Error {
-                                kind: ErrorKind::InvalidEndOfLine,
-                                span: token.span,
-                            })
-                        }
+                        _ => return Err(Error::new(ErrorKind::InvalidEndOfLine, token.span)),
                     };
                 }
 
@@ -567,10 +553,7 @@ impl Expr {
 
             // unrecognized pattern
             _ => {
-                return Err(Error {
-                    kind: ErrorKind::InvalidExpression,
-                    span: token.span,
-                });
+                return Err(Error::new(ErrorKind::InvalidExpression, token.span));
             }
         };
 
@@ -597,10 +580,10 @@ impl Expr {
                     &self.kind,
                     ExprKind::Variable { .. } | ExprKind::ArrayAccess { .. },
                 ) {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidAssignmentExpression,
-                        span: self.span.merge_with(span),
-                    });
+                    return Err(Error::new(
+                        ErrorKind::InvalidAssignmentExpression,
+                        self.span.merge_with(span),
+                    ));
                 }
 
                 let rhs = Expr::parse(ctx, tokens)?;
@@ -865,10 +848,10 @@ impl Ident {
                 span: token.span,
             }),
 
-            _ => Err(Error {
-                kind: ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
-                span: token.span,
-            }),
+            _ => Err(Error::new(
+                ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
+                token.span,
+            )),
         }
     }
 }
@@ -1023,29 +1006,29 @@ impl Function {
                     },
                 ),
                 _ => {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidFunctionSignature("expected identifier"),
-                        span: token.span,
-                    });
+                    return Err(Error::new(
+                        ErrorKind::InvalidFunctionSignature("expected identifier"),
+                        token.span,
+                    ));
                 }
             };
 
             // self takes no value
             let arg_typ = if arg_name.value == "self" {
-                let self_name = self_name.ok_or(Error {
-                    kind: ErrorKind::InvalidFunctionSignature(
-                        "the `self` argynebt is only allowed in struct methods",
-                    ),
-                    span: arg_name.span,
+                let self_name = self_name.ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::InvalidFunctionSignature(
+                            "the `self` argynebt is only allowed in struct methods",
+                        ),
+                        arg_name.span,
+                    )
                 })?;
 
                 if !args.is_empty() {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidFunctionSignature(
-                            "`self` must be the first argument",
-                        ),
-                        span: arg_name.span,
-                    });
+                    return Err(Error::new(
+                        ErrorKind::InvalidFunctionSignature("`self` must be the first argument"),
+                        arg_name.span,
+                    ));
                 }
 
                 Ty {
@@ -1083,12 +1066,12 @@ impl Function {
                 //                              ^
                 TokenKind::RightParen => break,
                 _ => {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidFunctionSignature(
+                    return Err(Error::new(
+                        ErrorKind::InvalidFunctionSignature(
                             "expected end of function or other argument",
                         ),
-                        span: separator.span,
-                    });
+                        separator.span,
+                    ));
                 }
             }
         }
@@ -1143,9 +1126,11 @@ impl Function {
         // ghetto way of getting the span of the function: get the span of the first token (name), then try to get the span of the last token
         let mut span = tokens
             .peek()
-            .ok_or(Error {
-                kind: ErrorKind::InvalidFunctionSignature("expected function name"),
-                span: ctx.last_span(),
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidFunctionSignature("expected function name"),
+                    ctx.last_span(),
+                )
             })?
             .span;
 
@@ -1159,10 +1144,10 @@ impl Function {
         if let Some(t) = body.last() {
             span.1 = (t.span.0 + t.span.1) - span.0;
         } else {
-            return Err(Error {
-                kind: ErrorKind::InvalidFunctionSignature("expected function body"),
-                span: ctx.last_span(),
-            });
+            return Err(Error::new(
+                ErrorKind::InvalidFunctionSignature("expected function body"),
+                ctx.last_span(),
+            ));
         }
 
         let func = Self {
@@ -1265,10 +1250,7 @@ impl Stmt {
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         match tokens.peek() {
-            None => Err(Error {
-                kind: ErrorKind::InvalidStatement,
-                span: ctx.last_span(),
-            }),
+            None => Err(Error::new(ErrorKind::InvalidStatement, ctx.last_span())),
             // assignment
             Some(Token {
                 kind: TokenKind::Keyword(Keyword::Let),
@@ -1340,17 +1322,16 @@ impl Stmt {
                         kind: TokenKind::BigInt(n),
                         span,
                     }) => {
-                        let start: u32 = n.parse().map_err(|_e| Error {
-                            kind: ErrorKind::InvalidRangeSize,
-                            span,
-                        })?;
+                        let start: u32 = n
+                            .parse()
+                            .map_err(|_e| Error::new(ErrorKind::InvalidRangeSize, span))?;
                         (start, span)
                     }
                     _ => {
-                        return Err(Error {
-                            kind: ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
-                            span: ctx.last_span(),
-                        })
+                        return Err(Error::new(
+                            ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            ctx.last_span(),
+                        ))
                     }
                 };
 
@@ -1365,17 +1346,16 @@ impl Stmt {
                         kind: TokenKind::BigInt(n),
                         span,
                     }) => {
-                        let end: u32 = n.parse().map_err(|_e| Error {
-                            kind: ErrorKind::InvalidRangeSize,
-                            span,
-                        })?;
+                        let end: u32 = n
+                            .parse()
+                            .map_err(|_e| Error::new(ErrorKind::InvalidRangeSize, span))?;
                         (end, span)
                     }
                     _ => {
-                        return Err(Error {
-                            kind: ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
-                            span: ctx.last_span(),
-                        })
+                        return Err(Error::new(
+                            ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            ctx.last_span(),
+                        ))
                     }
                 };
 
@@ -1560,15 +1540,11 @@ impl Const {
         //             ^^
         let value = Expr::parse(ctx, tokens)?;
         let value = match &value.kind {
-            ExprKind::BigInt(s) => s.parse().map_err(|_e| Error {
-                kind: ErrorKind::InvalidField(s.clone()),
-                span: value.span,
-            })?,
+            ExprKind::BigInt(s) => s
+                .parse()
+                .map_err(|_e| Error::new(ErrorKind::InvalidField(s.clone()), value.span))?,
             _ => {
-                return Err(Error {
-                    kind: ErrorKind::InvalidConstType,
-                    span: value.span,
-                });
+                return Err(Error::new(ErrorKind::InvalidConstType, value.span));
             }
         };
 
@@ -1599,9 +1575,11 @@ impl Struct {
         // ghetto way of getting the span of the function: get the span of the first token (name), then try to get the span of the last token
         let span = tokens
             .peek()
-            .ok_or(Error {
-                kind: ErrorKind::InvalidFunctionSignature("expected function name"),
-                span: ctx.last_span(),
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidFunctionSignature("expected function name"),
+                    ctx.last_span(),
+                )
             })?
             .span;
 
@@ -1656,10 +1634,10 @@ impl Struct {
                     break;
                 }
                 _ => {
-                    return Err(Error {
-                        kind: ErrorKind::ExpectedToken(TokenKind::Comma),
-                        span: ctx.last_span(),
-                    })
+                    return Err(Error::new(
+                        ErrorKind::ExpectedToken(TokenKind::Comma),
+                        ctx.last_span(),
+                    ))
                 }
             }
         }
@@ -1692,10 +1670,7 @@ impl AST {
                 // `use crypto::poseidon;`
                 TokenKind::Keyword(Keyword::Use) => {
                     if function_observed {
-                        return Err(Error {
-                            kind: ErrorKind::UseAfterFn,
-                            span: token.span,
-                        });
+                        return Err(Error::new(ErrorKind::UseAfterFn, token.span));
                     }
 
                     let path = UsePath::parse(ctx, &mut tokens)?;
@@ -1713,10 +1688,7 @@ impl AST {
                             ..
                         })
                     ) {
-                        return Err(Error {
-                            kind: ErrorKind::InvalidEndOfLine,
-                            span: token.span,
-                        });
+                        return Err(Error::new(ErrorKind::InvalidEndOfLine, token.span));
                     }
                 }
 
@@ -1760,10 +1732,7 @@ impl AST {
 
                 // unrecognized
                 _ => {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidToken,
-                        span: token.span,
-                    });
+                    return Err(Error::new(ErrorKind::InvalidToken, token.span));
                 }
             }
         }
@@ -1792,10 +1761,10 @@ pub fn parse_type(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<CustomType
 
     // make sure that this type is allowed
     if !matches!(Ty::reserved_types(&ty_name.value), TyKind::Custom(_)) {
-        return Err(Error {
-            kind: ErrorKind::ReservedType(ty_name.value),
-            span: ty_name.span,
-        });
+        return Err(Error::new(
+            ErrorKind::ReservedType(ty_name.value),
+            ty_name.span,
+        ));
     }
 
     Ok(CustomType {

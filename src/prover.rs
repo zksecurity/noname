@@ -91,10 +91,7 @@ pub fn compile_and_prove(code: &str) -> Result<(ProverIndex, VerifierIndex)> {
     let cs = kimchi::circuits::constraints::ConstraintSystem::create(gates, fp_sponge_params)
         .public(circuit.public_input_size)
         .build()
-        .map_err(|e| Error {
-            kind: e.into(),
-            span: Span(0, 0),
-        })?;
+        .map_err(|e| Error::new(e.into(), Span(0, 0)))?;
 
     // create SRS (for vesta, as the circuit is in Fp)
 
@@ -164,10 +161,7 @@ impl ProverIndex {
         // create proof
         let proof =
             ProverProof::create::<BaseSponge, ScalarSponge>(&GROUP_MAP, witness, &[], &self.index)
-                .map_err(|e| Error {
-                    kind: e.into(),
-                    span: Span(0, 0),
-                });
+                .map_err(|e| Error::new(e.into(), Span(0, 0)));
 
         // return proof + public output
         proof.map(|proof| (proof, full_public_inputs, public_output))
@@ -186,9 +180,6 @@ impl VerifierIndex {
 
         // verify the proof
         kimchi::verifier::verify::<Curve, BaseSponge, ScalarSponge>(&GROUP_MAP, &self.index, &proof)
-            .map_err(|e| Error {
-                kind: e.into(),
-                span: Span(0, 0),
-            })
+            .map_err(|e| Error::new(e.into(), Span(0, 0)))
     }
 }

@@ -54,12 +54,7 @@ pub fn parse_std_import(submodule: &str, span: Span) -> Result<ImportedModule> {
                     .insert(func.sig().name.name.value.clone(), func);
             }
         }
-        _ => {
-            return Err(Error {
-                kind: ErrorKind::StdImport("unknown module"),
-                span,
-            })
-        }
+        _ => return Err(Error::new(ErrorKind::StdImport("unknown module"), span)),
     }
 
     Ok(res)
@@ -130,10 +125,7 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
         // two constants
         (ConstOrCell::Const(a), ConstOrCell::Const(b)) => {
             if a != b {
-                return Err(Error {
-                    kind: ErrorKind::AssertionFailed,
-                    span,
-                });
+                return Err(Error::new(ErrorKind::AssertionFailed, span));
             }
         }
 

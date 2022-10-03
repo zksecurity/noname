@@ -67,10 +67,10 @@ impl TypeEnv {
             .vars
             .insert(ident.clone(), (self.current_scope, type_info.clone()))
         {
-            Some(_) => Err(Error {
-                kind: ErrorKind::DuplicateDefinition(ident),
-                span: type_info.span,
-            }),
+            Some(_) => Err(Error::new(
+                 ErrorKind::DuplicateDefinition(ident),
+                 type_info.span,
+            )),
             None => Ok(()),
         }
     }

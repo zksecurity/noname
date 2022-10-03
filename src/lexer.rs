@@ -205,10 +205,10 @@ impl Token {
                     } else if is_identifier_or_type(&ident_or_number) {
                         TokenKind::Identifier(ident_or_number)
                     } else {
-                        return Err(Error {
-                            kind: ErrorKind::InvalidIdentifier(ident_or_number),
-                            span: Span(ctx.offset, 1),
-                        });
+                        return Err(Error::new(
+                            ErrorKind::InvalidIdentifier(ident_or_number),
+                            Span(ctx.offset, 1),
+                        ));
                     };
                     tokens.push(token_type.new_token(ctx, len));
                 }
@@ -351,10 +351,7 @@ impl Token {
                 }
                 ' ' => ctx.offset += 1,
                 _ => {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidToken,
-                        span: Span(ctx.offset, 1),
-                    });
+                    return Err(Error::new(ErrorKind::InvalidToken, Span(ctx.offset, 1)));
                 }
             }
         }

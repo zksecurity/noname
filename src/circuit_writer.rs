@@ -440,7 +440,7 @@ impl CircuitWriter {
                 // compute the rhs
                 let rhs_var = self
                     .compute_expr(global_env, fn_env, rhs)?
-                    .ok_or(Error::new(ErrorKind::CannotComputeExpression, stmt.span))?;
+                    .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))?;
 
                 // obtain the actual values
                 let rhs_var = rhs_var.value(fn_env, global_env);
@@ -476,7 +476,7 @@ impl CircuitWriter {
             StmtKind::Return(expr) => {
                 let var = self
                     .compute_expr(global_env, fn_env, expr)?
-                    .ok_or(Error::new(ErrorKind::CannotComputeExpression, stmt.span))?;
+                    .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))?;
 
                 // we already checked in type checking that this is not an early return
                 return Ok(Some(var));
@@ -614,10 +614,9 @@ impl CircuitWriter {
                 let mut vars = Vec::with_capacity(args.len());
                 for arg in args {
                     // get the variable behind the expression
-                    let var = self.compute_expr(global_env, fn_env, arg)?.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: arg.span,
-                    })?;
+                    let var = self
+                        .compute_expr(global_env, fn_env, arg)?
+                        .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))?;
 
                     // we pass variables by values always
                     let var = var.value(fn_env, global_env);
@@ -633,13 +632,17 @@ impl CircuitWriter {
                 if let Some(module) = module {
                     // module::fn_name(args)
                     // ^^^^^^
-                    let module = global_env.typed.modules.get(&module.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedModule(module.value.clone()),
-                        span: module.span,
+                    let module = global_env.typed.modules.get(&module.value).ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::UndefinedModule(module.value.clone()),
+                            module.span,
+                        )
                     })?;
-                    let fn_info = module.functions.get(&fn_name.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                        span: fn_name.span,
+                    let fn_info = module.functions.get(&fn_name.value).ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                            fn_name.span,
+                        )
                     })?;
 
                     match &fn_info.kind {
@@ -648,22 +651,22 @@ impl CircuitWriter {
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Native(_) => todo!(),
-                        FnKind::Main(_) => Err(Error {
-                            kind: ErrorKind::RecursiveMain,
-                            span: expr.span,
-                        }),
+                        FnKind::Main(_) => Err(Error::new(ErrorKind::RecursiveMain, expr.span)),
                     }
                 } else {
                     // fn_name(args)
                     // ^^^^^^^
-                    let fn_info = global_env
-                        .typed
-                        .functions
-                        .get(&fn_name.value)
-                        .ok_or(Error {
-                            kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                            span: fn_name.span,
-                        })?;
+                    let fn_info =
+                        global_env
+                            .typed
+                            .functions
+                            .get(&fn_name.value)
+                            .ok_or_else(|| {
+                                Error::new(
+                                    ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                                    fn_name.span,
+                                )
+                            })?;
 
                     match &fn_info.kind {
                         FnKind::BuiltIn(_sig, handle) => {
@@ -674,26 +677,22 @@ impl CircuitWriter {
                             let res = self.compile_native_function_call(global_env, func, vars);
                             res.map(|r| r.map(VarOrRef::Var))
                         }
-                        FnKind::Main(_) => Err(Error {
-                            kind: ErrorKind::RecursiveMain,
-                            span: expr.span,
-                        }),
+                        FnKind::Main(_) => Err(Error::new(ErrorKind::RecursiveMain, expr.span)),
                     }
                 }
             }
 
             ExprKind::FieldAccess { lhs, rhs } => {
                 // get var behind lhs
-                let lhs_var = self.compute_expr(global_env, fn_env, lhs)?.ok_or(Error {
-                    kind: ErrorKind::CannotComputeExpression,
-                    span: lhs.span,
-                })?;
+                let lhs_var = self
+                    .compute_expr(global_env, fn_env, lhs)?
+                    .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))?;
 
                 // get struct info behind lhs
-                let lhs_struct = global_env.typed.expr_type(lhs).ok_or(Error {
-                    kind: ErrorKind::CannotComputeExpression,
-                    span: lhs.span,
-                })?;
+                let lhs_struct = global_env
+                    .typed
+                    .expr_type(lhs)
+                    .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))?;
 
                 let self_struct = match lhs_struct {
                     TyKind::Custom(s) => s,
@@ -879,9 +878,8 @@ impl CircuitWriter {
 
             ExprKind::BigInt(b) => {
                 let biguint = BigUint::from_str_radix(b, 10).expect("failed to parse number.");
-                let ff = Field::try_from(biguint).map_err(|_| Error {
-                    kind: ErrorKind::CannotConvertToField(b.to_string()),
-                    span: expr.span,
+                let ff = Field::try_from(biguint).map_err(|_| {
+                    Error::new(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
                 })?;
 
                 let res = VarOrRef::Var(Var::new_constant(ff, expr.span));
@@ -920,14 +918,12 @@ impl CircuitWriter {
                 let var_info = fn_env.get_var(global_env, &name.value);
 
                 // compute the index
-                let idx_var = self.compute_expr(global_env, fn_env, idx)?.ok_or(Error {
-                    kind: ErrorKind::CannotComputeExpression,
-                    span: expr.span,
-                })?;
-                let idx = idx_var.constant().ok_or(Error {
-                    kind: ErrorKind::ExpectedConstant,
-                    span: expr.span,
-                })?;
+                let idx_var = self
+                    .compute_expr(global_env, fn_env, idx)?
+                    .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, expr.span))?;
+                let idx = idx_var
+                    .constant()
+                    .ok_or_else(|| Error::new(ErrorKind::ExpectedConstant, expr.span))?;
                 let idx: BigUint = idx.into();
                 let idx: usize = idx.try_into().unwrap();
 
@@ -949,10 +945,10 @@ impl CircuitWriter {
                 // out-of-bound checks
                 let var = &var_info.var;
                 if start >= var.len() || start + len > var.len() {
-                    return Err(Error {
-                        kind: ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
-                        span: expr.span,
-                    });
+                    return Err(Error::new(
+                        ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
+                        expr.span,
+                    ));
                 }
 
                 // index into the var
@@ -1012,10 +1008,7 @@ impl CircuitWriter {
                 let rhs = self.compute_constant(*rhs, span)?;
                 Ok(lhs * rhs)
             }
-            _ => Err(Error {
-                kind: ErrorKind::ExpectedConstant,
-                span,
-            }),
+            _ => Err(Error::new(ErrorKind::ExpectedConstant, span)),
         }
     }
 

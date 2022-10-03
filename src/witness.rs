@@ -117,10 +117,8 @@ impl CompiledCircuit {
             }
             Value::External(name, idx) => Ok(env.get_external(name)[*idx]),
             Value::PublicOutput(var) => {
-                let var = var.ok_or(Error {
-                    kind: ErrorKind::MissingPublicOutput,
-                    span: Span(0, 0),
-                })?;
+                let var =
+                    var.ok_or_else(|| Error::new(ErrorKind::MissingPublicOutput, Span(0, 0)))?;
                 self.compute_var(env, var)
             }
         }
@@ -146,10 +144,8 @@ impl CompiledCircuit {
                         private_inputs.0.remove(name)
                     };
 
-                    input.ok_or(Error {
-                        kind: ErrorKind::MissingArg(name.clone()),
-                        span: arg.span,
-                    })?
+                    input
+                        .ok_or_else(|| Error::new(ErrorKind::MissingArg(name.clone()), arg.span))?
                 }
                 TyKind::Array(array_typ, size) if **array_typ == TyKind::Field => {
                     let input = if arg.is_public() {
@@ -158,10 +154,8 @@ impl CompiledCircuit {
                         private_inputs.0.remove(name)
                     };
 
-                    let cval = input.ok_or(Error {
-                        kind: ErrorKind::MissingArg(name.clone()),
-                        span: arg.span,
-                    })?;
+                    let cval = input
+                        .ok_or_else(|| Error::new(ErrorKind::MissingArg(name.clone()), arg.span))?;
                     if cval.values.len() != *size as usize {
                         panic!(
                             "wrong length given for field array (TODO: convert this to an error)"
@@ -176,10 +170,8 @@ impl CompiledCircuit {
                         private_inputs.0.remove(name)
                     };
 
-                    let cval = input.ok_or(Error {
-                        kind: ErrorKind::MissingArg(name.clone()),
-                        span: arg.span,
-                    })?;
+                    let cval = input
+                        .ok_or_else(|| Error::new(ErrorKind::MissingArg(name.clone()), arg.span))?;
                     if cval.values.len() != 1 {
                         panic!("the boolean value {name} must be passed as a single field element (TODO: convert this to an error)");
                     }
@@ -196,10 +188,10 @@ impl CompiledCircuit {
 
         // ensure that we've used all of the inputs provided
         if let Some(name) = chain![private_inputs.0.keys(), public_inputs.0.keys()].next() {
-            return Err(Error {
-                kind: ErrorKind::UnusedInput(name.clone()),
-                span: self.main.1,
-            });
+            return Err(Error::new(
+                ErrorKind::UnusedInput(name.clone()),
+                self.main.1,
+            ));
         }
 
         // compute each rows' vars, except for the deferred ones (public output)
@@ -240,10 +232,7 @@ impl CompiledCircuit {
                         let sum =
                             c(0) * w[0] + c(1) * w[1] + c(2) * w[2] + c(3) * w[0] * w[1] + c(4);
                         if sum != Field::zero() {
-                            return Err(Error {
-                                kind: ErrorKind::InvalidWitness(row),
-                                span: gate.span,
-                            });
+                            return Err(Error::new(ErrorKind::InvalidWitness(row), gate.span));
                         }
                     }
                     // for all other gates, we trust the gadgets

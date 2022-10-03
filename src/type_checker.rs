@@ -164,10 +164,10 @@ impl TypedGlobalEnv {
             .insert(module.name.clone(), module.clone())
             .is_some()
         {
-            return Err(Error {
-                kind: ErrorKind::DuplicateModule(module.name.clone()),
-                span: module.span,
-            });
+            return Err(Error::new(
+                ErrorKind::DuplicateModule(module.name.clone()),
+                module.span,
+            ));
         }
 
         Ok(())
@@ -222,10 +222,10 @@ impl TypedFnEnv {
             .vars
             .insert(ident.clone(), (self.current_scope, type_info.clone()))
         {
-            Some(_) => Err(Error {
-                kind: ErrorKind::DuplicateDefinition(ident),
-                span: type_info.span,
-            }),
+            Some(_) => Err(Error::new(
+                ErrorKind::DuplicateDefinition(ident),
+                type_info.span,
+            )),
             None => Ok(()),
         }
     }
@@ -302,24 +302,32 @@ impl Expr {
                     // check module present in the scope
                     let module_val = &module.value;
                     let imported_module =
-                        typed_global_env.modules.get(module_val).ok_or(Error {
-                            kind: ErrorKind::UndefinedModule(module_val.clone()),
-                            span: module.span,
+                        typed_global_env.modules.get(module_val).ok_or_else(|| {
+                            Error::new(ErrorKind::UndefinedModule(module_val.clone()), module.span)
                         })?;
-                    let fn_info = imported_module.functions.get(&fn_name.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                        span: fn_name.span,
-                    })?;
+                    let fn_info =
+                        imported_module
+                            .functions
+                            .get(&fn_name.value)
+                            .ok_or_else(|| {
+                                Error::new(
+                                    ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                                    fn_name.span,
+                                )
+                            })?;
                     fn_info.sig().clone()
                 } else {
                     // functions present in the scope
-                    let fn_info = typed_global_env
-                        .functions
-                        .get(&fn_name.value)
-                        .ok_or(Error {
-                            kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                            span: fn_name.span,
-                        })?;
+                    let fn_info =
+                        typed_global_env
+                            .functions
+                            .get(&fn_name.value)
+                            .ok_or_else(|| {
+                                Error::new(
+                                    ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                                    fn_name.span,
+                                )
+                            })?;
                     fn_info.sig().clone()
                 };
 
@@ -414,10 +422,10 @@ impl Expr {
                     match (&lhs_typ, &rhs_typ) {
                         (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => (),
                         _ => {
-                            return Err(Error {
-                                kind: ErrorKind::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
-                                span: self.span,
-                            })
+                            return Err(Error::new(
+                                ErrorKind::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
+                                self.span,
+                            ))
                         }
                     }
                 }
@@ -437,10 +445,10 @@ impl Expr {
             ExprKind::Negated(inner) => {
                 let inner_typ = inner.compute_type(typed_global_env, typed_fn_env)?.unwrap();
                 if !matches!(inner_typ, TyKind::Bool) {
-                    return Err(Error {
-                        kind: ErrorKind::MismatchType(TyKind::Bool, inner_typ),
-                        span: self.span,
-                    });
+                    return Err(Error::new(
+                        ErrorKind::MismatchType(TyKind::Bool, inner_typ),
+                        self.span,
+                    ));
                 }
 
                 Some(TyKind::Bool)
@@ -491,21 +499,13 @@ impl Expr {
                 // figure out if variable is in scope
                 let typ = typed_fn_env
                     .get_type(&name.value)
-                    .ok_or(Error {
-                        kind: ErrorKind::UndefinedVariable,
-                        span: self.span,
-                    })?
+                    .ok_or_else(|| Error::new(ErrorKind::UndefinedVariable, self.span))?
                     .clone();
 
                 // check that expression is a bigint
                 match idx.compute_type(typed_global_env, typed_fn_env)? {
                     Some(TyKind::BigInt) => (),
-                    _ => {
-                        return Err(Error {
-                            kind: ErrorKind::ExpectedConstant,
-                            span: self.span,
-                        })
-                    }
+                    _ => return Err(Error::new(ErrorKind::ExpectedConstant, self.span)),
                 };
 
                 //
@@ -527,10 +527,10 @@ impl Expr {
 
                     if let Some(tykind) = &tykind {
                         if tykind != &item_typ {
-                            return Err(Error {
-                                kind: ErrorKind::MismatchType(tykind.clone(), item_typ),
-                                span: self.span,
-                            });
+                            return Err(Error::new(
+                                ErrorKind::MismatchType(tykind.clone(), item_typ),
+                                self.span,
+                            ));
                         }
                     } else {
                         tykind = Some(item_typ);
@@ -547,29 +547,28 @@ impl Expr {
                 fields,
             } => {
                 let name = &name.value;
-                let struct_info = typed_global_env.structs.get(name).ok_or(Error {
-                    kind: ErrorKind::UndefinedStruct(name.clone()),
-                    span: self.span,
+                let struct_info = typed_global_env.structs.get(name).ok_or_else(|| {
+                    Error::new(ErrorKind::UndefinedStruct(name.clone()), self.span)
                 })?;
 
                 let defined_fields = &struct_info.fields.clone();
 
                 if defined_fields.len() != fields.len() {
-                    return Err(Error {
-                        kind: ErrorKind::MismatchStructFields(name.clone()),
-                        span: self.span,
-                    });
+                    return Err(Error::new(
+                        ErrorKind::MismatchStructFields(name.clone()),
+                        self.span,
+                    ));
                 }
 
                 for (defined, observed) in defined_fields.iter().zip(fields) {
                     if defined.0 != observed.0.value {
-                        return Err(Error {
-                            kind: ErrorKind::InvalidStructField(
+                        return Err(Error::new(
+                            ErrorKind::InvalidStructField(
                                 defined.0.clone(),
                                 observed.0.value.clone(),
                             ),
-                            span: self.span,
-                        });
+                            self.span,
+                        ));
                     }
 
                     let observed_typ = observed
@@ -582,13 +581,13 @@ impl Expr {
                         match (&defined.1, &observed_typ) {
                             (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field) => (),
                             _ => {
-                                return Err(Error {
-                                    kind: ErrorKind::InvalidStructFieldType(
+                                return Err(Error::new(
+                                    ErrorKind::InvalidStructFieldType(
                                         defined.1.clone(),
                                         observed_typ,
                                     ),
-                                    span: self.span,
-                                });
+                                    self.span,
+                                ));
                             }
                         };
                     }
@@ -743,18 +742,18 @@ impl TAST {
                         // public_output is a reserved name,
                         // associated automatically to the public output of the main function
                         if RESERVED_ARGS.contains(&arg.name.value.as_str()) {
-                            return Err(Error {
-                                kind: ErrorKind::PublicOutputReserved(arg.name.value.to_string()),
-                                span: arg.name.span,
-                            });
+                            return Err(Error::new(
+                                ErrorKind::PublicOutputReserved(arg.name.value.to_string()),
+                                arg.name.span,
+                            ));
                         }
 
                         // `pub` arguments are only for the main function
                         if !is_main && arg.is_public() {
-                            return Err(Error {
-                                kind: ErrorKind::PubArgumentOutsideMain,
-                                span: arg.name.span,
-                            });
+                            return Err(Error::new(
+                                ErrorKind::PubArgumentOutsideMain,
+                                arg.name.span,
+                            ));
                         }
 
                         match &arg.typ.kind {
@@ -848,12 +847,7 @@ impl TAST {
         // check the return
         if let Some(expected) = expected_return {
             let observed = match return_typ {
-                None => {
-                    return Err(Error {
-                        kind: ErrorKind::MissingPublicOutput,
-                        span: expected.span,
-                    })
-                }
+                None => return Err(Error::new(ErrorKind::MissingPublicOutput, expected.span)),
                 Some(e) => e,
             };
 
@@ -921,10 +915,7 @@ impl TAST {
 
                 let typ = expr.compute_type(typed_global_env, typed_fn_env)?;
                 if typ.is_some() {
-                    return Err(Error {
-                        kind: ErrorKind::UnusedReturnValue,
-                        span: expr.span,
-                    });
+                    return Err(Error::new(ErrorKind::UnusedReturnValue, expr.span));
                 }
             }
             StmtKind::Return(res) => {
@@ -966,19 +957,16 @@ pub fn check_fn_call(
         if let Some(typ) = arg.compute_type(typed_global_env, typed_fn_env)? {
             observed.push((typ.clone(), arg.span));
         } else {
-            return Err(Error {
-                kind: ErrorKind::CannotComputeExpression,
-                span: arg.span,
-            });
+            return Err(Error::new(ErrorKind::CannotComputeExpression, arg.span));
         }
     }
 
     // check argument length
     if expected.len() != observed.len() {
-        return Err(Error {
-            kind: ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
+        return Err(Error::new(
+            ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
             span,
-        });
+        ));
     }
 
     // compare argument types with the function signature
@@ -993,10 +981,10 @@ pub fn check_fn_call(
                 continue;
             }
 
-            return Err(Error {
-                kind: ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
+            return Err(Error::new(
+                ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                 span,
-            });
+            ));
         }
     }
 
