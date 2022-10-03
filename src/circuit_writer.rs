@@ -133,8 +133,17 @@ pub enum Wiring {
     Wired(Vec<(Cell, Span)>),
 }
 
+/// Represents a variable in the circuit, or a reference to one.
+/// Note that mutable variables are always passed as references,
+/// as one needs to have access to the variable name to be able to reassign it in the environment.
 pub enum VarOrRef {
+    /// A [Var].
     Var(Var),
+
+    /// A reference to a noname variable in the environment.
+    /// Potentially narrowing it down to a range of cells in that variable.
+    /// For example, `x[2]` would be represented with "x" and the range `(2, 1)`,
+    /// if `x` is an array of `Field` elements.
     Ref {
         var_name: String,
         start: usize,
@@ -219,6 +228,17 @@ impl VarOrRef {
                 }
             }
         }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            VarOrRef::Var(var) => var.len(),
+            VarOrRef::Ref { len, .. } => *len,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
