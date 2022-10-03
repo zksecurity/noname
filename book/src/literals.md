@@ -16,7 +16,7 @@ assert_eq(y[5], 4);
 The third point allows us to write things like that:
 
 ```rust
-fn House.get(self room: Field) -> Field {
+fn House.get(self, room: Field) -> Field {
     return House.rooms[room];
 }
 ```
@@ -44,3 +44,49 @@ b. Use a `const` attribute to indicate that it is a constant.
 Approach a. is a bit clumsy in my opinion because the developer need to remember about a new type name, and understand the distinction with that and `Field`.
 
 On the other hand, approach b. uses the `const` keyword which is already well-known in many compiled programming languages.
+
+What about this:
+
+```rust
+fn House.get(self, const room: Field) -> Field {
+// versus
+fn House.get(self, room: const Field) -> Field {
+```
+
+To contrast, the two other existing attributes (`pub` and `mut`) are placed in front of the variable names, not the type names.
+
+One could argue that the type is the same, but the variable being passed is a constant, and so it makes more sense to implement the first version.
+This is what we do in noname.
+
+At the time of this writing, the `const` keyword only seem to make sense in a function argument, and so is implemented in the same way as the `pub` attribute:
+
+```rust
+pub enum AttributeKind {
+    Pub,
+    Const,
+}
+
+pub struct Attribute {
+    pub kind: AttributeKind,
+    pub span: Span,
+}
+
+pub struct FnArg {
+    pub name: Ident,
+    pub typ: Ty,
+    pub attribute: Option<Attribute>,
+    pub span: Span,
+}
+```
+
+When a function is parsed by the type checker, a `const Field` is transformed into a `BigInt`.
+And as such, the type checker will be happy with that variable being used to index into an array, or being used by other functions expecting a constant.
+
+What about other types being `const`? 
+I don't think it makes sense for now, as I can only think of array access requiring this.
+So we don't implement it.
+
+```admonish
+If we do want to support that one day, we will have to track more than `TyKind` in the typechecker...
+This can be achieved by adding a `const` field in the `TypeInfo` structure that tracks type-related data on noname variables present in the scope.
+```
