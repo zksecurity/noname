@@ -259,6 +259,7 @@ impl TypedFnEnv {
 //
 
 impl Expr {
+    // TODO: implement this on typed_global_env, and modify the name of typed_global_env to type_checker?
     pub fn compute_type(
         &self,
         typed_global_env: &mut TypedGlobalEnv,
