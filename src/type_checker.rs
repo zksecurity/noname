@@ -491,17 +491,14 @@ impl Expr {
                 }
             }
 
-            ExprKind::ArrayAccess { module, name, idx } => {
-                // sanitize
-                if module.is_some() {
-                    panic!("we don't support module arrays for now");
-                }
+            ExprKind::ArrayAccess { array, idx } => {
+                // get type of lhs
+                let typ = array.compute_type(typed_global_env, typed_fn_env)?.unwrap();
 
-                // figure out if variable is in scope
-                let typ = typed_fn_env
-                    .get_type(&name.value)
-                    .ok_or_else(|| Error::new(ErrorKind::UndefinedVariable, self.span))?
-                    .clone();
+                // check that it is an array
+                if !matches!(typ, TyKind::Array(..)) {
+                    panic!("array access can only be performed on arrays");
+                }
 
                 // check that expression is a bigint
                 match idx.compute_type(typed_global_env, typed_fn_env)? {

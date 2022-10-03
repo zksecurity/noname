@@ -86,7 +86,7 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> Vec<FnInfo> {
 //       not something descriptive internally like "builtins"
 
 const ASSERT_FN: &str = "assert(condition: Bool)";
-const ASSERT_EQ_FN: &str = "assert_eq(a: Field, b: Field)";
+const ASSERT_EQ_FN: &str = "assert_eq(lhs: Field, rhs: Field)";
 
 pub const BUILTIN_FNS: [(&str, FnHandle); 2] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
 

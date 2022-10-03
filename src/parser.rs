@@ -385,11 +385,7 @@ pub enum ExprKind {
 
     /// An array access, for example:
     /// `lhs[idx]`
-    ArrayAccess {
-        module: Option<Ident>,
-        name: Ident,
-        idx: Box<Expr>,
-    },
+    ArrayAccess { array: Box<Expr>, idx: Box<Expr> },
 
     /// `[ ... ]`
     ArrayDeclaration(Vec<Expr>),
@@ -657,6 +653,7 @@ impl Expr {
                     }
                     _ => panic!("bad type declaration"),
                 };
+
                 parse_type_declaration(ctx, tokens, ident)?
             }
 
@@ -667,11 +664,13 @@ impl Expr {
             }) => {
                 tokens.bump(ctx); // [
 
-                // sanitize array
-                let (module, name) = match self.kind {
-                    ExprKind::Variable { module, name } => (module, name),
-                    _ => panic!("array access on a non-variable"),
-                };
+                // sanity check
+                if !matches!(
+                    self.kind,
+                    ExprKind::Variable { .. } | ExprKind::FieldAccess { .. }
+                ) {
+                    panic!("an array access can only follow a variable");
+                }
 
                 // array[idx]
                 //       ^^^
@@ -686,8 +685,7 @@ impl Expr {
                 Expr::new(
                     ctx,
                     ExprKind::ArrayAccess {
-                        module,
-                        name,
+                        array: Box::new(self),
                         idx: Box::new(idx),
                     },
                     span,
@@ -732,7 +730,7 @@ impl Expr {
                 kind: TokenKind::Dot,
                 ..
             }) => {
-                tokens.bump(ctx); // .
+                let period = tokens.bump(ctx).unwrap(); // .
 
                 // sanitize
                 if !matches!(
@@ -741,7 +739,9 @@ impl Expr {
                         | ExprKind::Variable { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {
-                    panic!("field or method calls can only follow a field of another struct, a struct, or an array access (TODO: better error)");
+                    dbg!(&self.kind);
+                    let span = self.span.merge_with(period.span);
+                    return Err(Error::new(ErrorKind::InvalidFieldAccessExpression, span));
                 }
 
                 // lhs.field
@@ -762,6 +762,12 @@ impl Expr {
                         // lhs.method_name(args)
                         //                 ^^^^
                         let args = parse_fn_call_args(ctx, tokens)?;
+
+                        let span = if let Some(arg) = args.last() {
+                            span.merge_with(arg.span)
+                        } else {
+                            span
+                        };
 
                         Expr::new(
                             ctx,
@@ -859,11 +865,16 @@ impl Ident {
 #[derive(Debug, Clone, Copy)]
 pub enum AttributeKind {
     Pub,
+    Const,
 }
 
 impl AttributeKind {
     pub fn is_public(&self) -> bool {
         matches!(self, Self::Pub)
+    }
+
+    pub fn is_constant(&self) -> bool {
+        matches!(self, Self::Const)
     }
 }
 
@@ -871,6 +882,16 @@ impl AttributeKind {
 pub struct Attribute {
     pub kind: AttributeKind,
     pub span: Span,
+}
+
+impl Attribute {
+    pub fn is_public(&self) -> bool {
+        self.kind.is_public()
+    }
+
+    pub fn is_constant(&self) -> bool {
+        self.kind.is_constant()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -892,13 +913,17 @@ pub struct FnArg {
 
 impl FnArg {
     pub fn is_public(&self) -> bool {
-        matches!(
-            self.attribute,
-            Some(Attribute {
-                kind: AttributeKind::Pub,
-                ..
-            })
-        )
+        self.attribute
+            .as_ref()
+            .map(|attr| attr.is_public())
+            .unwrap_or(false)
+    }
+
+    pub fn is_constant(&self) -> bool {
+        self.attribute
+            .as_ref()
+            .map(|attr| attr.is_constant())
+            .unwrap_or(false)
     }
 }
 
@@ -984,7 +1009,7 @@ impl Function {
                 ErrorKind::InvalidFunctionSignature("expected function arguments"),
             )?;
 
-            let (public, arg_name) = match token.kind {
+            let (attribute, arg_name) = match token.kind {
                 TokenKind::RightParen => break,
                 // public input
                 TokenKind::Keyword(Keyword::Pub) => {
@@ -992,6 +1017,17 @@ impl Function {
                     (
                         Some(Attribute {
                             kind: AttributeKind::Pub,
+                            span: token.span,
+                        }),
+                        arg_name,
+                    )
+                }
+                // constant input
+                TokenKind::Keyword(Keyword::Const) => {
+                    let arg_name = Ident::parse(ctx, tokens)?;
+                    (
+                        Some(Attribute {
+                            kind: AttributeKind::Const,
                             span: token.span,
                         }),
                         arg_name,
@@ -1053,7 +1089,7 @@ impl Function {
             let arg = FnArg {
                 name: arg_name,
                 typ: arg_typ,
-                attribute: public,
+                attribute,
                 span,
             };
             args.push(arg);
@@ -1239,6 +1275,8 @@ pub enum StmtKind {
     Expr(Box<Expr>),
     Return(Box<Expr>),
     Comment(String),
+
+    // `for var in 0..10 { <body> }`
     For {
         var: Ident,
         range: Range,
