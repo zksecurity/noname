@@ -16,6 +16,8 @@
 - [Noname ASM](./asm.md)
 - [Structs](./structs.md)
 - [Methods](./methods.md)
+- [Literals and the `const` keyword](./literals.md)
+- [Expressions](./expressions.md)
 
 # Circuit Generation
 
