@@ -1,17 +1,17 @@
 struct Thing {
-    x: Field,
-    y: Field,
+    xx: Field,
+    yy: Field,
 }
 
 fn Thing.check(self) -> Field {
-    assert_eq(self.x, 1);
-    assert_eq(self.y, 2);
+    assert_eq(self.xx, 1);
+    assert_eq(self.yy, 2);
 
-    return self.x + self.y;
+    return self.xx + self.yy;
 }
 
-fn main(pub x: Field) {
-    let thing = Thing { x: x, y: x + 1 };
+fn main(pub xx: Field) {
+    let thing = Thing { xx: xx, yy: xx + 1 };
     let res = thing.check();
     assert_eq(res, 3);
 }

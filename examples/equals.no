@@ -1,7 +1,7 @@
-fn main(pub x: [Field; 2]) {
-    let cond = x[0] == x[1];
+fn main(pub xx: [Field; 2]) {
+    let cond = xx[0] == xx[1];
     assert(cond);
 
-    let cond2 = x[0] == 3;
+    let cond2 = xx[0] == 3;
     assert(cond2);
 }

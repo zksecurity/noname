@@ -1,9 +1,9 @@
-fn add(x: Field, y: Field) -> Field {
-    return x + y;
+fn add(xx: Field, yy: Field) -> Field {
+    return xx + yy;
 }
 
-fn double(x: Field) -> Field {
-    return x + x;
+fn double(xx: Field) -> Field {
+    return xx + xx;
 }
 
 fn main(pub one: Field) {

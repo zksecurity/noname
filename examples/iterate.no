@@ -1,0 +1,41 @@
+struct Room {
+    holes: Field,
+}
+
+fn Room.windows(self) -> Field {
+    // a door doesn't count as a window
+    return self.holes + 1;
+}
+
+struct House {
+    rooms: [Room; 2],
+}
+
+fn House.room(self, const idx: Field) -> Room {
+    return self.rooms[idx];
+}
+
+fn House.windows(house: House) -> Field {
+    let mut windows = 0;
+    // ideally: for room in house.rooms {
+    for room_idx in 0..2 {
+        let room = house.room(room_idx);
+        // ideally: windows +=
+        windows = windows + room.windows();
+    }
+    return windows;
+}
+
+fn main(pub bedroom_holes: Field) -> Field {
+    let bedroom = Room {
+        holes: bedroom_holes,
+    };
+
+    let livingroom = Room {
+        holes: 4,
+    };
+
+    let house = House { rooms: [bedroom, livingroom] };
+
+    return House.windows(house);
+}

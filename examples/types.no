@@ -1,14 +1,14 @@
 struct Thing {
-    x: Field,
-    y: Field,
+    xx: Field,
+    yy: Field,
 }
 
-fn main(pub x: Field, pub y: Field) {
+fn main(pub xx: Field, pub yy: Field) {
     let thing = Thing {
-        x: 1,
-        y: 2,
+        xx: 1,
+        yy: 2,
     };
     
-    assert_eq(thing.x, x);
-    assert_eq(thing.y, y);
+    assert_eq(thing.xx, xx);
+    assert_eq(thing.yy, yy);
 }

@@ -97,7 +97,7 @@ fn test_bool() {
 
 #[test]
 fn test_mutable() {
-    let private_inputs = r#"{"x": ["2"], "y": ["3"]}"#;
+    let private_inputs = r#"{"xx": ["2"], "yy": ["3"]}"#;
     let public_inputs = r#"{}"#;
 
     test_file("mutable", public_inputs, private_inputs, vec![]);
@@ -122,7 +122,7 @@ fn test_array() {
 #[test]
 fn test_equals() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"x": ["3", "3"]}"#;
+    let public_inputs = r#"{"xx": ["3", "3"]}"#;
 
     test_file("equals", public_inputs, private_inputs, vec![]);
 }
@@ -130,7 +130,7 @@ fn test_equals() {
 #[test]
 fn test_types() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"x": ["1"], "y": ["2"]}"#;
+    let public_inputs = r#"{"xx": ["1"], "yy": ["2"]}"#;
 
     test_file("types", public_inputs, private_inputs, vec![]);
 }
@@ -160,7 +160,7 @@ fn test_functions() {
 #[test]
 fn test_methods() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"x": ["1"]}"#;
+    let public_inputs = r#"{"xx": ["1"]}"#;
 
     test_file("methods", public_inputs, private_inputs, vec![]);
 }
@@ -168,7 +168,7 @@ fn test_methods() {
 #[test]
 fn test_types_array() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"x": ["1"], "y": ["4"]}"#;
+    let public_inputs = r#"{"xx": ["1"], "yy": ["4"]}"#;
 
     test_file("types_array", public_inputs, private_inputs, vec![]);
 }

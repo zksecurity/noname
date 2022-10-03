@@ -1,5 +1,5 @@
 // no main function in here!
 
-fn add(x: Field, y: Field) -> Field {
-    return x + y;
+fn add(xx: Field, yy: Field) -> Field {
+    return xx + yy;
 }

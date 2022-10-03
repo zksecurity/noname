@@ -1,13 +1,13 @@
 fn main(pub public_input: Bool, private_input: Bool) {
     // constants
-    let x = false & false;
-    assert(!x);
+    let xx = false & false;
+    assert(!xx);
 
     // private input must be true
-    let y = private_input & true;
-    assert(!y);
+    let yy = private_input & true;
+    assert(!yy);
 
     // public input must be false
-    let z = public_input & true;
-    assert(z);
+    let zz = public_input & true;
+    assert(zz);
 }
