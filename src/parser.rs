@@ -379,7 +379,7 @@ pub enum ExprKind {
     /// any numbers
     BigInt(String),
 
-    /// a variable. For example, `mod::A`, `x`, `y`, etc.
+    /// a variable or a type. For example, `mod::A`, `x`, `y`, etc.
     // TODO: change to `identifier` or `path`?
     Variable { module: Option<Ident>, name: Ident },
 

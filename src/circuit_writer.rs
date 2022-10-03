@@ -218,7 +218,7 @@ impl VarOrRef {
             } => {
                 // ensure that the new range is contained in the older range
                 assert!(start < *old_len); // lower bound
-                assert!(start + len < *old_len); // upper bound
+                assert!(start + len <= *old_len); // upper bound
                 assert!(len > 0); // empty range not allowed
 
                 Self::Ref {
@@ -958,7 +958,12 @@ impl CircuitWriter {
 
                 let elem_type = match array_typ {
                     TyKind::Array(ty, array_len) => {
-                        assert!(idx < (*array_len as usize));
+                        if idx >= (*array_len as usize) {
+                            return Err(Error::new(
+                                ErrorKind::ArrayIndexOutOfBounds(idx, *array_len as usize - 1),
+                                expr.span,
+                            ));
+                        }
                         ty
                     }
                     _ => panic!("expected array"),

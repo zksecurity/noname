@@ -195,3 +195,11 @@ fn test_iterate() {
         expected_public_output,
     );
 }
+
+#[test]
+fn test_assignment() {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"xx": ["2"]}"#;
+
+    test_file("assignment", public_inputs, private_inputs, vec![]);
+}

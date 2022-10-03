@@ -91,7 +91,9 @@ What we really need when we reach the assignment node is the following:
 - if the variable is mutable or not (it was defined with the `mut` keyword)
 - the range of circuit variables in the `Var.cvars` of `x`, that the `x.y.z` field access, or the `x[42]` array access, represents.
 
-To implement this, we follow a common practice of tracking **references**:
+### Circuit writer
+
+To implement this in the circuit writer, we follow a common practice of tracking **references**:
 
 ```rust
 /// Represents a variable in the circuit, or a reference to one.
@@ -166,3 +168,18 @@ impl VarOrRef {
         }
     }
 ```
+
+### Type checker
+
+While the type checker does not care about the range within a variable, it also needs to figure out if a variable is mutable or not.
+
+That information is in two places:
+
+1. it is stored under the variable's name in the local environment
+2. it is also known when we look up a variable, and we can thus bubble it up to the parent expression nodes
+
+Implementing solution 1. means bubbling up the variable name, in addition to the type, associated to an expression node.
+
+Implementing solution 2. means bubbling up the mutability instead.
+
+As it is possible that we might want to retrieve additional information in the future, we chose to implement solution 1. and carry the variable name in addition to type information when parsing the AST in the type checker.

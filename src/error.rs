@@ -32,6 +32,9 @@ impl Error {
 /// The type of error.
 #[derive(Error, Diagnostic, Debug, Clone)]
 pub enum ErrorKind {
+    #[error("variable is not mutable. You must set the `mut` keyword to make it mutable")]
+    AssignmentToImmutableVariable,
+
     #[error("the `const` attribute cannot be used for arguments of the main function")]
     ConstArgumentNotForMain,
 

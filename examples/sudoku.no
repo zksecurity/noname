@@ -7,14 +7,15 @@ struct Sudoku {
     inner: [Field; 81], // TODO: replace by sudoku_size
 }
 
-fn Sudoku.cell(self, row: T, col: T) {
+fn Sudoku.cell(self, const row: Field, const col: Field) {
     return self.inner[row * 9 + col];
 }
 
 // doesn't matter which one is the grid and which one is the solution
 // this function merges `self` and `grid2` into a new grid
 fn Sudoku.merge(self, grid2: Sudoku) -> Sudoku {
-    let merged = Sudoku([0; 9 * 9]);
+    // ideally: Sudoku([0; 9 * 9])
+    let mut merged = Sudoku([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ]);
     for row in 0..9 {
         for col in 0..9 {
             let grid1_empty = self.cell(row, col) == empty;

@@ -269,21 +269,56 @@ impl TypedFnEnv {
 // Expr
 //
 
+/// Information that we need to pass around between expression nodes when type checking.
+struct ExprTyInfo {
+    /// This is needed to obtain information on variables.
+    /// For example, parsing of an assignment expression needs to know if the lhs variable is mutable.
+    var_name: Option<String>,
+
+    /// The type of the expression node.
+    typ: TyKind,
+}
+
+impl ExprTyInfo {
+    fn new(var_name: Option<String>, typ: TyKind) -> Self {
+        Self {
+            var_name: var_name,
+            typ,
+        }
+    }
+
+    fn new_var(var_name: String, typ: TyKind) -> Self {
+        Self {
+            var_name: Some(var_name),
+            typ,
+        }
+    }
+
+    fn new_anon(typ: TyKind) -> Self {
+        Self {
+            var_name: None,
+            typ,
+        }
+    }
+}
+
 impl Expr {
     // TODO: implement this on typed_global_env, and modify the name of typed_global_env to type_checker?
-    pub fn compute_type(
+    fn compute_type(
         &self,
         typed_global_env: &mut TypedGlobalEnv,
         typed_fn_env: &mut TypedFnEnv,
-    ) -> Result<Option<TyKind>> {
-        let typ = match &self.kind {
+    ) -> Result<Option<ExprTyInfo>> {
+        let typ: Option<ExprTyInfo> = match &self.kind {
             ExprKind::FieldAccess { lhs, rhs } => {
                 // compute type of left-hand side
-                let lhs_type = lhs.compute_type(typed_global_env, typed_fn_env)?;
+                let lhs_node = lhs
+                    .compute_type(typed_global_env, typed_fn_env)?
+                    .expect("type-checker bug: field access on an empty var");
 
                 // obtain the type of the field
-                let struct_name = match lhs_type {
-                    Some(TyKind::Custom(name)) => name,
+                let struct_name = match lhs_node.typ {
+                    TyKind::Custom(name) => name,
                     _ => panic!("field access must be done on a custom struct"),
                 };
 
@@ -300,7 +335,7 @@ impl Expr {
                     .map(|(_, typ)| typ.clone())
                     .expect("could not find field");
 
-                Some(res)
+                Some(ExprTyInfo::new(lhs_node.var_name, res))
             }
 
             // `module::fn_name(args)`
@@ -345,14 +380,16 @@ impl Expr {
 
                 // type check the function call
                 let method_call = false;
-                check_fn_call(
+                let res = check_fn_call(
                     typed_global_env,
                     typed_fn_env,
                     method_call,
                     fn_sig,
                     args,
                     self.span,
-                )?
+                )?;
+
+                res.map(|ty| ExprTyInfo::new_anon(ty))
             }
 
             // `lhs.method_name(args)`
@@ -363,7 +400,7 @@ impl Expr {
             } => {
                 // retrieve struct name on the lhs
                 let lhs_type = lhs.compute_type(typed_global_env, typed_fn_env)?;
-                let struct_name = match lhs_type {
+                let struct_name = match lhs_type.map(|t| t.typ) {
                     Some(TyKind::Custom(name)) => name,
                     _ => panic!("method call can only be applied on custom structs"),
                 };
@@ -382,46 +419,78 @@ impl Expr {
 
                 // type check the method call
                 let method_call = true;
-                check_fn_call(
+                let res = check_fn_call(
                     typed_global_env,
                     typed_fn_env,
                     method_call,
                     method_type.sig.clone(),
                     args,
                     self.span,
-                )?
+                )?;
+
+                res.map(|ty| ExprTyInfo::new(None, ty))
             }
 
             ExprKind::Assignment { lhs, rhs } => {
+                // compute type of lhs
+                let lhs_node = lhs
+                    .compute_type(typed_global_env, typed_fn_env)?
+                    .expect("type-checker bug: lhs access on an empty var");
+
                 // lhs can be a local variable or a path to an array
                 let lhs_name = match &lhs.kind {
+                    // `name = <rhs>`
                     ExprKind::Variable { module, name } => {
                         if module.is_some() {
                             panic!("cannot assign to an external variable");
                         }
-                        name
+
+                        name.value.clone()
                     }
-                    ExprKind::ArrayAccess { .. } => todo!(),
-                    ExprKind::FieldAccess { .. } => {
-                        todo!()
+
+                    // `array[idx] = <rhs>`
+                    ExprKind::ArrayAccess { array, idx } => {
+                        // get variable behind array
+                        let array_node = array
+                            .compute_type(typed_global_env, typed_fn_env)?
+                            .expect("type-checker bug: array access on an empty var");
+
+                        array_node
+                            .var_name
+                            .expect("anonymous array access cannot be mutated")
+                    }
+
+                    // `struct.field = <rhs>`
+                    ExprKind::FieldAccess { lhs, rhs } => {
+                        // get variable behind lhs
+                        let lhs_node = lhs
+                            .compute_type(typed_global_env, typed_fn_env)?
+                            .expect("type-checker bug: lhs access on an empty var");
+
+                        lhs_node
+                            .var_name
+                            .expect("anonymous lhs access cannot be mutated")
                     }
                     _ => panic!("bad expression assignment (TODO: replace with error)"),
                 };
 
                 // check that the var exists locally
                 let lhs_info = typed_fn_env
-                    .get_type_info(&lhs_name.value)
+                    .get_type_info(&lhs_name)
                     .expect("variable not found (TODO: replace with error")
                     .clone();
 
                 // and is mutable
                 if !lhs_info.mutable {
-                    panic!("variable is not mutable (TODO: replace with error)");
+                    return Err(Error::new(
+                        ErrorKind::AssignmentToImmutableVariable,
+                        self.span,
+                    ));
                 }
 
                 // and is of the same type as the rhs
                 let rhs_typ = rhs.compute_type(typed_global_env, typed_fn_env)?.unwrap();
-                if lhs_info.typ != rhs_typ {
+                if lhs_node.typ != rhs_typ.typ {
                     panic!("lhs type doesn't match rhs type (TODO: replace with error)");
                 }
 
@@ -429,49 +498,55 @@ impl Expr {
             }
 
             ExprKind::Op { op, lhs, rhs } => {
-                let lhs_typ = lhs.compute_type(typed_global_env, typed_fn_env)?.unwrap();
-                let rhs_typ = rhs.compute_type(typed_global_env, typed_fn_env)?.unwrap();
+                let lhs_node = lhs
+                    .compute_type(typed_global_env, typed_fn_env)?
+                    .expect("type-checker bug");
+                let rhs_node = rhs
+                    .compute_type(typed_global_env, typed_fn_env)?
+                    .expect("type-checker bug");
 
-                if lhs_typ != rhs_typ {
+                if lhs_node.typ != rhs_node.typ {
                     // only allow bigint mixed with field
-                    match (&lhs_typ, &rhs_typ) {
+                    match (&lhs_node.typ, &rhs_node.typ) {
                         (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => (),
                         _ => {
                             return Err(Error::new(
-                                ErrorKind::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
+                                ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
                                 self.span,
                             ))
                         }
                     }
                 }
 
-                match op {
-                    Op2::Equality => Some(TyKind::Bool),
+                let typ = match op {
+                    Op2::Equality => TyKind::Bool,
                     Op2::Addition
                     | Op2::Subtraction
                     | Op2::Multiplication
                     | Op2::Division
                     | Op2::BoolAnd
                     | Op2::BoolOr
-                    | Op2::BoolNot => Some(lhs_typ),
-                }
+                    | Op2::BoolNot => lhs_node.typ,
+                };
+
+                Some(ExprTyInfo::new_anon(typ))
             }
 
             ExprKind::Negated(inner) => {
                 let inner_typ = inner.compute_type(typed_global_env, typed_fn_env)?.unwrap();
-                if !matches!(inner_typ, TyKind::Bool) {
+                if !matches!(inner_typ.typ, TyKind::Bool) {
                     return Err(Error::new(
-                        ErrorKind::MismatchType(TyKind::Bool, inner_typ),
+                        ErrorKind::MismatchType(TyKind::Bool, inner_typ.typ),
                         self.span,
                     ));
                 }
 
-                Some(TyKind::Bool)
+                Some(ExprTyInfo::new_anon(TyKind::Bool))
             }
 
-            ExprKind::BigInt(_) => Some(TyKind::BigInt),
+            ExprKind::BigInt(_) => Some(ExprTyInfo::new_anon(TyKind::BigInt)),
 
-            ExprKind::Bool(_) => Some(TyKind::Bool),
+            ExprKind::Bool(_) => Some(ExprTyInfo::new_anon(TyKind::Bool)),
 
             // mod::path.of.var
             ExprKind::Variable { module, name } => {
@@ -481,13 +556,14 @@ impl Expr {
                 }
 
                 if is_type(&name.value) {
-                    // if the variable is a type, make sure it exists
+                    // if it's a type, make sure it exists
                     let _struct_info = typed_global_env
                         .struct_info(&name.value)
                         .expect("custom type does not exist");
 
                     // and return its type
-                    Some(TyKind::Custom(name.value.clone()))
+                    let res = ExprTyInfo::new_anon(TyKind::Custom(name.value.clone()));
+                    Some(res)
                 } else {
                     // if it's a variable,
                     // check if it's a constant first
@@ -512,7 +588,8 @@ impl Expr {
                         }
                     };
 
-                    Some(typ)
+                    let res = ExprTyInfo::new_var(name.value.clone(), typ);
+                    Some(res)
                 }
             }
 
@@ -521,22 +598,25 @@ impl Expr {
                 let typ = array.compute_type(typed_global_env, typed_fn_env)?.unwrap();
 
                 // check that it is an array
-                if !matches!(typ, TyKind::Array(..)) {
+                if !matches!(typ.typ, TyKind::Array(..)) {
                     panic!("array access can only be performed on arrays");
                 }
 
                 // check that expression is a bigint
                 let idx_typ = idx.compute_type(typed_global_env, typed_fn_env)?;
-                match idx_typ {
+                match idx_typ.map(|t| t.typ) {
                     Some(TyKind::BigInt) => (),
                     _ => return Err(Error::new(ErrorKind::ExpectedConstant, self.span)),
                 };
 
-                //
-                match typ {
-                    TyKind::Array(typkind, _) => Some(*typkind),
+                // get type of element
+                let el_typ = match typ.typ {
+                    TyKind::Array(typkind, _) => *typkind,
                     _ => panic!("not an array"),
-                }
+                };
+
+                let res = ExprTyInfo::new(typ.var_name, el_typ);
+                Some(res)
             }
 
             ExprKind::ArrayDeclaration(items) => {
@@ -550,20 +630,21 @@ impl Expr {
                         .expect("expected a value");
 
                     if let Some(tykind) = &tykind {
-                        if tykind != &item_typ {
+                        if tykind != &item_typ.typ {
                             return Err(Error::new(
-                                ErrorKind::MismatchType(tykind.clone(), item_typ),
+                                ErrorKind::MismatchType(tykind.clone(), item_typ.typ),
                                 self.span,
                             ));
                         }
                     } else {
-                        tykind = Some(item_typ);
+                        tykind = Some(item_typ.typ);
                     }
                 }
 
                 let tykind = tykind.expect("empty array declaration?");
 
-                Some(TyKind::Array(Box::new(tykind), len))
+                let res = ExprTyInfo::new_anon(TyKind::Array(Box::new(tykind), len));
+                Some(res)
             }
 
             ExprKind::CustomTypeDeclaration {
@@ -600,18 +681,25 @@ impl Expr {
                         .compute_type(typed_global_env, typed_fn_env)?
                         .expect("expected a value (TODO: better error)");
 
-                    if defined.1 != observed_typ {
+                    if defined.1 != observed_typ.typ {
                         // we accept constants as `Field` types.
-                        if !matches!((&defined.1, &observed_typ), (TyKind::Field, TyKind::BigInt)) {
+                        if !matches!(
+                            (&defined.1, &observed_typ.typ),
+                            (TyKind::Field, TyKind::BigInt)
+                        ) {
                             return Err(Error::new(
-                                ErrorKind::InvalidStructFieldType(defined.1.clone(), observed_typ),
+                                ErrorKind::InvalidStructFieldType(
+                                    defined.1.clone(),
+                                    observed_typ.typ,
+                                ),
                                 self.span,
                             ));
                         }
                     }
                 }
 
-                Some(TyKind::Custom(name.clone()))
+                let res = ExprTyInfo::new_anon(TyKind::Custom(name.clone()));
+                Some(res)
             }
         };
 
@@ -619,7 +707,7 @@ impl Expr {
         if let Some(typ) = &typ {
             typed_global_env
                 .node_types
-                .insert(self.node_id, typ.clone());
+                .insert(self.node_id, typ.typ.clone());
         }
 
         // return the type to the caller
@@ -888,12 +976,12 @@ impl TAST {
                 // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
 
                 // but first we need to compute the type of the rhs expression
-                let typ = rhs.compute_type(typed_global_env, typed_fn_env)?.unwrap();
+                let node = rhs.compute_type(typed_global_env, typed_fn_env)?.unwrap();
 
                 let type_info = if *mutable {
-                    TypeInfo::new_mut(typ, lhs.span)
+                    TypeInfo::new_mut(node.typ, lhs.span)
                 } else {
-                    TypeInfo::new(typ, lhs.span)
+                    TypeInfo::new(node.typ, lhs.span)
                 };
 
                 // store the type of lhs in the env
@@ -928,9 +1016,9 @@ impl TAST {
                 }
             }
             StmtKind::Return(res) => {
-                let typ = res.compute_type(typed_global_env, typed_fn_env)?.unwrap();
+                let node = res.compute_type(typed_global_env, typed_fn_env)?.unwrap();
 
-                return Ok(Some(typ));
+                return Ok(Some(node.typ));
             }
             StmtKind::Comment(_) => (),
         }
@@ -963,8 +1051,8 @@ pub fn check_fn_call(
     // compute the observed arguments types
     let mut observed = Vec::with_capacity(args.len());
     for arg in args {
-        if let Some(typ) = arg.compute_type(typed_global_env, typed_fn_env)? {
-            observed.push((typ.clone(), arg.span));
+        if let Some(node) = arg.compute_type(typed_global_env, typed_fn_env)? {
+            observed.push((node.typ.clone(), arg.span));
         } else {
             return Err(Error::new(ErrorKind::CannotComputeExpression, arg.span));
         }

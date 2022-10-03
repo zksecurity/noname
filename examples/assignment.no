@@ -1,0 +1,29 @@
+struct Thing {
+    xx: Field,
+}
+
+fn try_to_mutate(thing: Thing) {
+    // this should not work
+    // thing.xx = 4;
+
+    let zz = thing.xx + 3; // ideally: warning of variable unused?
+}
+
+fn main(pub xx: Field) {
+    let mut thing = Thing {
+        xx: xx,
+    };
+
+    // ideally: thing.xx += 1;
+    thing.xx = thing.xx + 1;
+
+    try_to_mutate(thing);
+
+    let mut array = [xx, xx + 2, xx + 3];
+
+    array[0] = array[0] + array[0];
+    assert_eq(array[0], xx + xx);
+    assert_eq(array[0], 4);
+    assert_eq(array[1], 4);
+    assert_eq(array[2], 5);
+}
