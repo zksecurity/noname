@@ -172,7 +172,6 @@
 <span id="172">172</span>
 <span id="173">173</span>
 <span id="174">174</span>
-<span id="175">175</span>
 </pre><pre class="rust"><code><span class="kw">use </span>ark_ff::Zero;
 <span class="kw">use </span>kimchi::{
     circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW},
@@ -338,12 +337,11 @@
         span,
     );
 
-    <span class="comment">//    states.borrow_mut().pop().unwrap();
-    </span><span class="kw">let </span>vars = final_row
+    <span class="kw">let </span>vars = final_row
         .iter()
         .flatten()
         .cloned()
-        .map(|c| ConstOrCell::Cell(c))
+        .map(ConstOrCell::Cell)
         .collect();
 
     <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(vars, span)))

@@ -1808,44 +1808,13 @@
 <span id="1808">1808</span>
 <span id="1809">1809</span>
 <span id="1810">1810</span>
-<span id="1811">1811</span>
-<span id="1812">1812</span>
-<span id="1813">1813</span>
-<span id="1814">1814</span>
-<span id="1815">1815</span>
-<span id="1816">1816</span>
-<span id="1817">1817</span>
-<span id="1818">1818</span>
-<span id="1819">1819</span>
-<span id="1820">1820</span>
-<span id="1821">1821</span>
-<span id="1822">1822</span>
-<span id="1823">1823</span>
-<span id="1824">1824</span>
-<span id="1825">1825</span>
-<span id="1826">1826</span>
-<span id="1827">1827</span>
-<span id="1828">1828</span>
-<span id="1829">1829</span>
-<span id="1830">1830</span>
-<span id="1831">1831</span>
-<span id="1832">1832</span>
-<span id="1833">1833</span>
-<span id="1834">1834</span>
-<span id="1835">1835</span>
-<span id="1836">1836</span>
-<span id="1837">1837</span>
-<span id="1838">1838</span>
-<span id="1839">1839</span>
-<span id="1840">1840</span>
-<span id="1841">1841</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
     constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     lexer::{Keyword, Token, TokenKind},
-    syntax::{is_identifier, is_type},
+    syntax::is_type,
     tokens::Tokens,
 };
 
@@ -1964,12 +1933,7 @@
                 kind: TokenKind::RightCurlyBracket,
                 ..
             } =&gt; <span class="kw">break</span>,
-            <span class="kw">_ </span>=&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                    kind: ErrorKind::InvalidEndOfLine,
-                    span: ctx.last_span(),
-                })
-            }
+            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidEndOfLine, ctx.last_span())),
         };
     }
 
@@ -2014,10 +1978,10 @@
             },
 
             <span class="prelude-val">None </span>=&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                    kind: ErrorKind::InvalidFnCall(<span class="string">&quot;unexpected end of function call&quot;</span>),
-                    span: ctx.last_span(),
-                })
+                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                    ErrorKind::InvalidFnCall(<span class="string">&quot;unexpected end of function call&quot;</span>),
+                    ctx.last_span(),
+                ))
             }
         }
     }
@@ -2123,15 +2087,14 @@
                 //         ^
                 </span><span class="kw">let </span>siz = tokens.bump_err(ctx, ErrorKind::InvalidToken)<span class="question-mark">?</span>;
                 <span class="kw">let </span>siz: u32 = <span class="kw">match </span>siz.kind {
-                    TokenKind::BigInt(s) =&gt; s.parse().map_err(|_e| Error {
-                        kind: ErrorKind::InvalidArraySize,
-                        span: siz.span,
-                    })<span class="question-mark">?</span>,
+                    TokenKind::BigInt(s) =&gt; s
+                        .parse()
+                        .map_err(|_e| Error::new(ErrorKind::InvalidArraySize, siz.span))<span class="question-mark">?</span>,
                     <span class="kw">_ </span>=&gt; {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::ExpectedToken(TokenKind::BigInt(<span class="string">&quot;&quot;</span>.to_string())),
-                            span: siz.span,
-                        });
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            ErrorKind::ExpectedToken(TokenKind::BigInt(<span class="string">&quot;&quot;</span>.to_string())),
+                            siz.span,
+                        ));
                     }
                 };
 
@@ -2148,10 +2111,7 @@
             }
 
             <span class="comment">// unrecognized
-            </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::InvalidType,
-                span: token.span,
-            }),
+            </span><span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidType, token.span)),
         }
     }
 }
@@ -2386,12 +2346,7 @@
                             <span class="kw">break</span>;
                         }
                         TokenKind::Comma =&gt; (),
-                        <span class="kw">_ </span>=&gt; {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                kind: ErrorKind::InvalidEndOfLine,
-                                span: token.span,
-                            })
-                        }
+                        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidEndOfLine, token.span)),
                     };
                 }
 
@@ -2408,10 +2363,7 @@
 
             <span class="comment">// unrecognized pattern
             </span><span class="kw">_ </span>=&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                    kind: ErrorKind::InvalidExpression,
-                    span: token.span,
-                });
+                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidExpression, token.span));
             }
         };
 
@@ -2438,10 +2390,10 @@
                     <span class="kw-2">&amp;</span><span class="self">self</span>.kind,
                     ExprKind::Variable { .. } | ExprKind::ArrayAccess { .. },
                 ) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::InvalidAssignmentExpression,
-                        span: <span class="self">self</span>.span.merge_with(span),
-                    });
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::InvalidAssignmentExpression,
+                        <span class="self">self</span>.span.merge_with(span),
+                    ));
                 }
 
                 <span class="kw">let </span>rhs = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
@@ -2567,9 +2519,9 @@
                 </span><span class="kw">let </span>args = parse_fn_call_args(ctx, tokens)<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>span = <span class="kw">if let </span><span class="prelude-val">Some</span>(arg) = args.last() {
-                    <span class="self">self</span>.span.merge_with(arg.span)
+                    span.merge_with(arg.span)
                 } <span class="kw">else </span>{
-                    <span class="self">self</span>.span
+                    span
                 };
 
                 Expr::new(
@@ -2706,10 +2658,10 @@
                 span: token.span,
             }),
 
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::ExpectedToken(TokenKind::Identifier(<span class="string">&quot;&quot;</span>.to_string())),
-                span: token.span,
-            }),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(
+                ErrorKind::ExpectedToken(TokenKind::Identifier(<span class="string">&quot;&quot;</span>.to_string())),
+                token.span,
+            )),
         }
     }
 }
@@ -2864,29 +2816,29 @@
                     },
                 ),
                 <span class="kw">_ </span>=&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected identifier&quot;</span>),
-                        span: token.span,
-                    });
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected identifier&quot;</span>),
+                        token.span,
+                    ));
                 }
             };
 
             <span class="comment">// self takes no value
             </span><span class="kw">let </span>arg_typ = <span class="kw">if </span>arg_name.value == <span class="string">&quot;self&quot; </span>{
-                <span class="kw">let </span>self_name = self_name.ok_or(Error {
-                    kind: ErrorKind::InvalidFunctionSignature(
-                        <span class="string">&quot;the `self` argynebt is only allowed in struct methods&quot;</span>,
-                    ),
-                    span: arg_name.span,
+                <span class="kw">let </span>self_name = self_name.ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::InvalidFunctionSignature(
+                            <span class="string">&quot;the `self` argynebt is only allowed in struct methods&quot;</span>,
+                        ),
+                        arg_name.span,
+                    )
                 })<span class="question-mark">?</span>;
 
-                <span class="kw">if </span>args.len() != <span class="number">0 </span>{
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::InvalidFunctionSignature(
-                            <span class="string">&quot;`self` must be the first argument&quot;</span>,
-                        ),
-                        span: arg_name.span,
-                    });
+                <span class="kw">if </span>!args.is_empty() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::InvalidFunctionSignature(<span class="string">&quot;`self` must be the first argument&quot;</span>),
+                        arg_name.span,
+                    ));
                 }
 
                 Ty {
@@ -2924,12 +2876,12 @@
                 //                              ^
                 </span>TokenKind::RightParen =&gt; <span class="kw">break</span>,
                 <span class="kw">_ </span>=&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::InvalidFunctionSignature(
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::InvalidFunctionSignature(
                             <span class="string">&quot;expected end of function or other argument&quot;</span>,
                         ),
-                        span: separator.span,
-                    });
+                        separator.span,
+                    ));
                 }
             }
         }
@@ -2984,9 +2936,11 @@
         <span class="comment">// ghetto way of getting the span of the function: get the span of the first token (name), then try to get the span of the last token
         </span><span class="kw">let </span><span class="kw-2">mut </span>span = tokens
             .peek()
-            .ok_or(Error {
-                kind: ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected function name&quot;</span>),
-                span: ctx.last_span(),
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected function name&quot;</span>),
+                    ctx.last_span(),
+                )
             })<span class="question-mark">?
             </span>.span;
 
@@ -3000,10 +2954,10 @@
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(t) = body.last() {
             span.<span class="number">1 </span>= (t.span.<span class="number">0 </span>+ t.span.<span class="number">1</span>) - span.<span class="number">0</span>;
         } <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected function body&quot;</span>),
-                span: ctx.last_span(),
-            });
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected function body&quot;</span>),
+                ctx.last_span(),
+            ));
         }
 
         <span class="kw">let </span>func = <span class="self">Self </span>{
@@ -3106,10 +3060,7 @@
     <span class="doccomment">/// Returns a list of statement parsed until seeing the end of a block (`}`).
     </span><span class="kw">pub fn </span>parse(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">match </span>tokens.peek() {
-            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::InvalidStatement,
-                span: ctx.last_span(),
-            }),
+            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidStatement, ctx.last_span())),
             <span class="comment">// assignment
             </span><span class="prelude-val">Some</span>(Token {
                 kind: TokenKind::Keyword(Keyword::Let),
@@ -3181,17 +3132,16 @@
                         kind: TokenKind::BigInt(n),
                         span,
                     }) =&gt; {
-                        <span class="kw">let </span>start: u32 = n.parse().map_err(|_e| Error {
-                            kind: ErrorKind::InvalidRangeSize,
-                            span,
-                        })<span class="question-mark">?</span>;
+                        <span class="kw">let </span>start: u32 = n
+                            .parse()
+                            .map_err(|_e| Error::new(ErrorKind::InvalidRangeSize, span))<span class="question-mark">?</span>;
                         (start, span)
                     }
                     <span class="kw">_ </span>=&gt; {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::ExpectedToken(TokenKind::BigInt(<span class="string">&quot;&quot;</span>.to_string())),
-                            span: ctx.last_span(),
-                        })
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            ErrorKind::ExpectedToken(TokenKind::BigInt(<span class="string">&quot;&quot;</span>.to_string())),
+                            ctx.last_span(),
+                        ))
                     }
                 };
 
@@ -3206,17 +3156,16 @@
                         kind: TokenKind::BigInt(n),
                         span,
                     }) =&gt; {
-                        <span class="kw">let </span>end: u32 = n.parse().map_err(|_e| Error {
-                            kind: ErrorKind::InvalidRangeSize,
-                            span,
-                        })<span class="question-mark">?</span>;
+                        <span class="kw">let </span>end: u32 = n
+                            .parse()
+                            .map_err(|_e| Error::new(ErrorKind::InvalidRangeSize, span))<span class="question-mark">?</span>;
                         (end, span)
                     }
                     <span class="kw">_ </span>=&gt; {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::ExpectedToken(TokenKind::BigInt(<span class="string">&quot;&quot;</span>.to_string())),
-                            span: ctx.last_span(),
-                        })
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            ErrorKind::ExpectedToken(TokenKind::BigInt(<span class="string">&quot;&quot;</span>.to_string())),
+                            ctx.last_span(),
+                        ))
                     }
                 };
 
@@ -3349,9 +3298,9 @@
         )<span class="question-mark">?</span>;
         <span class="kw">let </span>span = module.span;
 
-        <span class="kw">let </span>separator = tokens.bump_expected(ctx, TokenKind::DoubleColon)<span class="question-mark">?</span>;
+        tokens.bump_expected(ctx, TokenKind::DoubleColon)<span class="question-mark">?</span>; <span class="comment">// ::
 
-        <span class="kw">let </span>submodule = tokens.bump_ident(
+        </span><span class="kw">let </span>submodule = tokens.bump_ident(
             ctx,
             ErrorKind::InvalidPath(
                 <span class="string">&quot;wrong path: expected a submodule after `::` (TODO: better error&quot;</span>,
@@ -3401,15 +3350,11 @@
         //             ^^
         </span><span class="kw">let </span>value = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
         <span class="kw">let </span>value = <span class="kw">match </span><span class="kw-2">&amp;</span>value.kind {
-            ExprKind::BigInt(s) =&gt; s.parse().map_err(|_e| Error {
-                kind: ErrorKind::InvalidField(s.clone()),
-                span: value.span,
-            })<span class="question-mark">?</span>,
+            ExprKind::BigInt(s) =&gt; s
+                .parse()
+                .map_err(|_e| Error::new(ErrorKind::InvalidField(s.clone()), value.span))<span class="question-mark">?</span>,
             <span class="kw">_ </span>=&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                    kind: ErrorKind::InvalidConstType,
-                    span: value.span,
-                });
+                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidConstType, value.span));
             }
         };
 
@@ -3440,9 +3385,11 @@
         <span class="comment">// ghetto way of getting the span of the function: get the span of the first token (name), then try to get the span of the last token
         </span><span class="kw">let </span>span = tokens
             .peek()
-            .ok_or(Error {
-                kind: ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected function name&quot;</span>),
-                span: ctx.last_span(),
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected function name&quot;</span>),
+                    ctx.last_span(),
+                )
             })<span class="question-mark">?
             </span>.span;
 
@@ -3497,10 +3444,10 @@
                     <span class="kw">break</span>;
                 }
                 <span class="kw">_ </span>=&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::ExpectedToken(TokenKind::Comma),
-                        span: ctx.last_span(),
-                    })
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::ExpectedToken(TokenKind::Comma),
+                        ctx.last_span(),
+                    ))
                 }
             }
         }
@@ -3533,10 +3480,7 @@
                 <span class="comment">// `use crypto::poseidon;`
                 </span>TokenKind::Keyword(Keyword::Use) =&gt; {
                     <span class="kw">if </span>function_observed {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::UseAfterFn,
-                            span: token.span,
-                        });
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::UseAfterFn, token.span));
                     }
 
                     <span class="kw">let </span>path = UsePath::parse(ctx, <span class="kw-2">&amp;mut </span>tokens)<span class="question-mark">?</span>;
@@ -3554,10 +3498,7 @@
                             ..
                         })
                     ) {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::InvalidEndOfLine,
-                            span: token.span,
-                        });
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidEndOfLine, token.span));
                     }
                 }
 
@@ -3601,10 +3542,7 @@
 
                 <span class="comment">// unrecognized
                 </span><span class="kw">_ </span>=&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::InvalidToken,
-                        span: token.span,
-                    });
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidToken, token.span));
                 }
             }
         }
@@ -3633,10 +3571,10 @@
 
     <span class="comment">// make sure that this type is allowed
     </span><span class="kw">if </span>!<span class="macro">matches!</span>(Ty::reserved_types(<span class="kw-2">&amp;</span>ty_name.value), TyKind::Custom(<span class="kw">_</span>)) {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-            kind: ErrorKind::ReservedType(ty_name.value),
-            span: ty_name.span,
-        });
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+            ErrorKind::ReservedType(ty_name.value),
+            ty_name.span,
+        ));
     }
 
     <span class="prelude-val">Ok</span>(CustomType {

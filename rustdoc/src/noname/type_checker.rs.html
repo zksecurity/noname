@@ -989,6 +989,8 @@
 <span id="989">989</span>
 <span id="990">990</span>
 <span id="991">991</span>
+<span id="992">992</span>
+<span id="993">993</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -996,7 +998,7 @@
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     imports::{resolve_builtin_functions, resolve_imports, FnKind},
     parser::{
-        Expr, ExprKind, FnSig, Function, Ident, Op2, RootKind, Stmt, StmtKind, Struct, Ty, TyKind,
+        Expr, ExprKind, FnSig, Function, Op2, RootKind, Stmt, StmtKind, Struct, Ty, TyKind,
         UsePath, AST,
     },
     stdlib::ImportedModule,
@@ -1155,10 +1157,10 @@
             .insert(module.name.clone(), module.clone())
             .is_some()
         {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::DuplicateModule(module.name.clone()),
-                span: module.span,
-            });
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                ErrorKind::DuplicateModule(module.name.clone()),
+                module.span,
+            ));
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -1213,10 +1215,10 @@
             </span>.vars
             .insert(ident.clone(), (<span class="self">self</span>.current_scope, type_info.clone()))
         {
-            <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::DuplicateDefinition(ident),
-                span: type_info.span,
-            }),
+            <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error::new(
+                ErrorKind::DuplicateDefinition(ident),
+                type_info.span,
+            )),
             <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(()),
         }
     }
@@ -1293,24 +1295,32 @@
                     <span class="comment">// check module present in the scope
                     </span><span class="kw">let </span>module_val = <span class="kw-2">&amp;</span>module.value;
                     <span class="kw">let </span>imported_module =
-                        typed_global_env.modules.get(module_val).ok_or(Error {
-                            kind: ErrorKind::UndefinedModule(module_val.clone()),
-                            span: module.span,
+                        typed_global_env.modules.get(module_val).ok_or_else(|| {
+                            Error::new(ErrorKind::UndefinedModule(module_val.clone()), module.span)
                         })<span class="question-mark">?</span>;
-                    <span class="kw">let </span>fn_info = imported_module.functions.get(<span class="kw-2">&amp;</span>fn_name.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                        span: fn_name.span,
-                    })<span class="question-mark">?</span>;
+                    <span class="kw">let </span>fn_info =
+                        imported_module
+                            .functions
+                            .get(<span class="kw-2">&amp;</span>fn_name.value)
+                            .ok_or_else(|| {
+                                Error::new(
+                                    ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                                    fn_name.span,
+                                )
+                            })<span class="question-mark">?</span>;
                     fn_info.sig().clone()
                 } <span class="kw">else </span>{
                     <span class="comment">// functions present in the scope
-                    </span><span class="kw">let </span>fn_info = typed_global_env
-                        .functions
-                        .get(<span class="kw-2">&amp;</span>fn_name.value)
-                        .ok_or(Error {
-                            kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                            span: fn_name.span,
-                        })<span class="question-mark">?</span>;
+                    </span><span class="kw">let </span>fn_info =
+                        typed_global_env
+                            .functions
+                            .get(<span class="kw-2">&amp;</span>fn_name.value)
+                            .ok_or_else(|| {
+                                Error::new(
+                                    ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                                    fn_name.span,
+                                )
+                            })<span class="question-mark">?</span>;
                     fn_info.sig().clone()
                 };
 
@@ -1405,10 +1415,10 @@
                     </span><span class="kw">match </span>(<span class="kw-2">&amp;</span>lhs_typ, <span class="kw-2">&amp;</span>rhs_typ) {
                         (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) =&gt; (),
                         <span class="kw">_ </span>=&gt; {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                kind: ErrorKind::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
-                                span: <span class="self">self</span>.span,
-                            })
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                ErrorKind::MismatchType(lhs_typ.clone(), rhs_typ.clone()),
+                                <span class="self">self</span>.span,
+                            ))
                         }
                     }
                 }
@@ -1428,10 +1438,10 @@
             ExprKind::Negated(inner) =&gt; {
                 <span class="kw">let </span>inner_typ = inner.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
                 <span class="kw">if </span>!<span class="macro">matches!</span>(inner_typ, TyKind::Bool) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::MismatchType(TyKind::Bool, inner_typ),
-                        span: <span class="self">self</span>.span,
-                    });
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::MismatchType(TyKind::Bool, inner_typ),
+                        <span class="self">self</span>.span,
+                    ));
                 }
 
                 <span class="prelude-val">Some</span>(TyKind::Bool)
@@ -1448,21 +1458,29 @@
                     <span class="macro">panic!</span>(<span class="string">&quot;we don&#39;t support module variables for now&quot;</span>);
                 }
 
-                <span class="comment">// check if it&#39;s a constant first
-                </span><span class="kw">let </span>typ = <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typed_global_env.constants.get(<span class="kw-2">&amp;</span>name.value) {
-                    typ.kind.clone()
-                } <span class="kw">else </span>{
-                    <span class="comment">// otherwise it&#39;s a local variable
-                    </span>typed_fn_env
-                        .get_type(<span class="kw-2">&amp;</span>name.value)
-                        .ok_or(Error {
-                            kind: ErrorKind::UndefinedVariable,
-                            span: name.span,
-                        })<span class="question-mark">?
-                        </span>.clone()
-                };
+                <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>name.value) {
+                    <span class="comment">// if the variable is a type, make sure it exists
+                    </span><span class="kw">let </span>_struct_info = typed_global_env
+                        .struct_info(<span class="kw-2">&amp;</span>name.value)
+                        .expect(<span class="string">&quot;custom type does not exist&quot;</span>);
 
-                <span class="prelude-val">Some</span>(typ)
+                    <span class="comment">// and return its type
+                    </span><span class="prelude-val">Some</span>(TyKind::Custom(name.value.clone()))
+                } <span class="kw">else </span>{
+                    <span class="comment">// if it&#39;s a variable,
+                    // check if it&#39;s a constant first
+                    </span><span class="kw">let </span>typ = <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typed_global_env.constants.get(<span class="kw-2">&amp;</span>name.value) {
+                        typ.kind.clone()
+                    } <span class="kw">else </span>{
+                        <span class="comment">// otherwise it&#39;s a local variable
+                        </span>typed_fn_env
+                            .get_type(<span class="kw-2">&amp;</span>name.value)
+                            .ok_or_else(|| Error::new(ErrorKind::UndefinedVariable, name.span))<span class="question-mark">?
+                            </span>.clone()
+                    };
+
+                    <span class="prelude-val">Some</span>(typ)
+                }
             }
 
             ExprKind::ArrayAccess { module, name, idx } =&gt; {
@@ -1474,21 +1492,13 @@
                 <span class="comment">// figure out if variable is in scope
                 </span><span class="kw">let </span>typ = typed_fn_env
                     .get_type(<span class="kw-2">&amp;</span>name.value)
-                    .ok_or(Error {
-                        kind: ErrorKind::UndefinedVariable,
-                        span: <span class="self">self</span>.span,
-                    })<span class="question-mark">?
+                    .ok_or_else(|| Error::new(ErrorKind::UndefinedVariable, <span class="self">self</span>.span))<span class="question-mark">?
                     </span>.clone();
 
                 <span class="comment">// check that expression is a bigint
                 </span><span class="kw">match </span>idx.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">? </span>{
                     <span class="prelude-val">Some</span>(TyKind::BigInt) =&gt; (),
-                    <span class="kw">_ </span>=&gt; {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::ExpectedConstant,
-                            span: <span class="self">self</span>.span,
-                        })
-                    }
+                    <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::ExpectedConstant, <span class="self">self</span>.span)),
                 };
 
                 <span class="comment">//
@@ -1510,10 +1520,10 @@
 
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(tykind) = <span class="kw-2">&amp;</span>tykind {
                         <span class="kw">if </span>tykind != <span class="kw-2">&amp;</span>item_typ {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                kind: ErrorKind::MismatchType(tykind.clone(), item_typ),
-                                span: <span class="self">self</span>.span,
-                            });
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                ErrorKind::MismatchType(tykind.clone(), item_typ),
+                                <span class="self">self</span>.span,
+                            ));
                         }
                     } <span class="kw">else </span>{
                         tykind = <span class="prelude-val">Some</span>(item_typ);
@@ -1530,29 +1540,28 @@
                 fields,
             } =&gt; {
                 <span class="kw">let </span>name = <span class="kw-2">&amp;</span>name.value;
-                <span class="kw">let </span>struct_info = typed_global_env.structs.get(name).ok_or(Error {
-                    kind: ErrorKind::UndefinedStruct(name.clone()),
-                    span: <span class="self">self</span>.span,
+                <span class="kw">let </span>struct_info = typed_global_env.structs.get(name).ok_or_else(|| {
+                    Error::new(ErrorKind::UndefinedStruct(name.clone()), <span class="self">self</span>.span)
                 })<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>defined_fields = <span class="kw-2">&amp;</span>struct_info.fields.clone();
 
                 <span class="kw">if </span>defined_fields.len() != fields.len() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::MismatchStructFields(name.clone()),
-                        span: <span class="self">self</span>.span,
-                    });
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::MismatchStructFields(name.clone()),
+                        <span class="self">self</span>.span,
+                    ));
                 }
 
-                <span class="kw">for </span>(defined, observed) <span class="kw">in </span>defined_fields.into_iter().zip(fields) {
+                <span class="kw">for </span>(defined, observed) <span class="kw">in </span>defined_fields.iter().zip(fields) {
                     <span class="kw">if </span>defined.<span class="number">0 </span>!= observed.<span class="number">0</span>.value {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::InvalidStructField(
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            ErrorKind::InvalidStructField(
                                 defined.<span class="number">0</span>.clone(),
                                 observed.<span class="number">0</span>.value.clone(),
                             ),
-                            span: <span class="self">self</span>.span,
-                        });
+                            <span class="self">self</span>.span,
+                        ));
                     }
 
                     <span class="kw">let </span>observed_typ = observed
@@ -1561,16 +1570,17 @@
                         </span>.expect(<span class="string">&quot;expected a value (TODO: better error)&quot;</span>);
 
                     <span class="kw">if </span>defined.<span class="number">1 </span>!= observed_typ {
-                        <span class="kw">match </span>(<span class="kw-2">&amp;</span>defined.<span class="number">1</span>, <span class="kw-2">&amp;</span>observed_typ) {
+                        <span class="comment">// TODO: replace with `if !matches!`
+                        </span><span class="kw">match </span>(<span class="kw-2">&amp;</span>defined.<span class="number">1</span>, <span class="kw-2">&amp;</span>observed_typ) {
                             (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field) =&gt; (),
                             <span class="kw">_ </span>=&gt; {
-                                <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                    kind: ErrorKind::InvalidStructFieldType(
+                                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                    ErrorKind::InvalidStructFieldType(
                                         defined.<span class="number">1</span>.clone(),
                                         observed_typ,
                                     ),
-                                    span: <span class="self">self</span>.span,
-                                });
+                                    <span class="self">self</span>.span,
+                                ));
                             }
                         };
                     }
@@ -1725,18 +1735,18 @@
                         <span class="comment">// public_output is a reserved name,
                         // associated automatically to the public output of the main function
                         </span><span class="kw">if </span>RESERVED_ARGS.contains(<span class="kw-2">&amp;</span>arg.name.value.as_str()) {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                kind: ErrorKind::PublicOutputReserved(arg.name.value.to_string()),
-                                span: arg.name.span,
-                            });
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                ErrorKind::PublicOutputReserved(arg.name.value.to_string()),
+                                arg.name.span,
+                            ));
                         }
 
                         <span class="comment">// `pub` arguments are only for the main function
                         </span><span class="kw">if </span>!is_main &amp;&amp; arg.is_public() {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                kind: ErrorKind::PubArgumentOutsideMain,
-                                span: arg.name.span,
-                            });
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                ErrorKind::PubArgumentOutsideMain,
+                                arg.name.span,
+                            ));
                         }
 
                         <span class="kw">match </span><span class="kw-2">&amp;</span>arg.typ.kind {
@@ -1830,16 +1840,16 @@
         <span class="comment">// check the return
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(expected) = expected_return {
             <span class="kw">let </span>observed = <span class="kw">match </span>return_typ {
-                <span class="prelude-val">None </span>=&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::MissingPublicOutput,
-                        span: expected.span,
-                    })
-                }
+                <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::MissingPublicOutput, expected.span)),
                 <span class="prelude-val">Some</span>(e) =&gt; e,
             };
 
-            <span class="kw">if </span>expected.kind != observed {
+            <span class="kw">if </span>expected.kind != observed
+                &amp;&amp; !<span class="macro">matches!</span>(
+                    (<span class="kw-2">&amp;</span>expected.kind, observed),
+                    (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field)
+                )
+            {
                 <span class="macro">panic!</span>(
                     <span class="string">&quot;returned type is not the same as expected return type (TODO: return an error)&quot;
                 </span>);
@@ -1898,10 +1908,7 @@
 
                 </span><span class="kw">let </span>typ = expr.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>;
                 <span class="kw">if </span>typ.is_some() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::UnusedReturnValue,
-                        span: expr.span,
-                    });
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::UnusedReturnValue, expr.span));
                 }
             }
             StmtKind::Return(res) =&gt; {
@@ -1943,19 +1950,16 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = arg.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">? </span>{
             observed.push((typ.clone(), arg.span));
         } <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::CannotComputeExpression,
-                span: arg.span,
-            });
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::CannotComputeExpression, arg.span));
         }
     }
 
     <span class="comment">// check argument length
     </span><span class="kw">if </span>expected.len() != observed.len() {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-            kind: ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+            ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
             span,
-        });
+        ));
     }
 
     <span class="comment">// compare argument types with the function signature
@@ -1970,10 +1974,10 @@
                 <span class="kw">continue</span>;
             }
 
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                 span,
-            });
+            ));
         }
     }
 

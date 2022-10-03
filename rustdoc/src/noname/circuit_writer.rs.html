@@ -1328,16 +1328,6 @@
 <span id="1328">1328</span>
 <span id="1329">1329</span>
 <span id="1330">1330</span>
-<span id="1331">1331</span>
-<span id="1332">1332</span>
-<span id="1333">1333</span>
-<span id="1334">1334</span>
-<span id="1335">1335</span>
-<span id="1336">1336</span>
-<span id="1337">1337</span>
-<span id="1338">1338</span>
-<span id="1339">1339</span>
-<span id="1340">1340</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1625,10 +1615,7 @@
         } = tast;
 
         <span class="kw">if </span>!typed_global_env.has_main {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::NoMainFunction,
-                span: Span::default(),
-            });
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::NoMainFunction, Span::default()));
         }
 
         <span class="kw">let </span>(main_sig, main_span) = {
@@ -1673,10 +1660,7 @@
                     <span class="comment">// if there are no arguments, return an error
                     // TODO: should we check this in the type checker?
                     </span><span class="kw">if </span>function.sig.arguments.is_empty() {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::NoArgsInMain,
-                            span: function.span,
-                        });
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::NoArgsInMain, function.span));
                     }
 
                     <span class="comment">// create public and private inputs
@@ -1701,10 +1685,10 @@
 
                         <span class="kw">let </span>var = <span class="kw">if let </span><span class="prelude-val">Some</span>(attr) = attribute {
                             <span class="kw">if </span>!<span class="macro">matches!</span>(attr.kind, AttributeKind::Pub) {
-                                <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                    kind: ErrorKind::InvalidAttribute(attr.kind),
-                                    span: attr.span,
-                                });
+                                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                    ErrorKind::InvalidAttribute(attr.kind),
+                                    attr.span,
+                                ));
                             }
                             circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
                         } <span class="kw">else </span>{
@@ -1751,10 +1735,10 @@
         <span class="kw">for </span>var <span class="kw">in </span><span class="number">0</span>..circuit_writer.next_variable {
             <span class="kw">if </span>!written_vars.contains(<span class="kw-2">&amp;</span>var) {
                 <span class="kw">if </span>circuit_writer.private_input_indices.contains(<span class="kw-2">&amp;</span>var) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::PrivateInputNotUsed,
-                        span: circuit_writer.main.<span class="number">1</span>,
-                    });
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::PrivateInputNotUsed,
+                        circuit_writer.main.<span class="number">1</span>,
+                    ));
                 } <span class="kw">else </span>{
                     <span class="macro">panic!</span>(<span class="string">&quot;there&#39;s a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!&quot;</span>);
                 }
@@ -1784,10 +1768,9 @@
         <span class="kw">match </span><span class="kw-2">&amp;</span>stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } =&gt; {
                 <span class="comment">// compute the rhs
-                </span><span class="kw">let </span>rhs_var = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.ok_or(Error {
-                    kind: ErrorKind::CannotComputeExpression,
-                    span: stmt.span,
-                })<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>rhs_var = <span class="self">self
+                    </span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?
+                    </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// obtain the actual values
                 </span><span class="kw">let </span>rhs_var = rhs_var.value(fn_env, global_env);
@@ -1821,10 +1804,9 @@
                 </span><span class="macro">assert!</span>(var.is_none());
             }
             StmtKind::Return(expr) =&gt; {
-                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, expr)<span class="question-mark">?</span>.ok_or(Error {
-                    kind: ErrorKind::CannotComputeExpression,
-                    span: stmt.span,
-                })<span class="question-mark">?</span>;
+                <span class="kw">let </span>var = <span class="self">self
+                    </span>.compute_expr(global_env, fn_env, expr)<span class="question-mark">?
+                    </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// we already checked in type checking that this is not an early return
                 </span><span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var));
@@ -1894,14 +1876,8 @@
         <span class="comment">// we&#39;re expecting something returned?
         </span><span class="kw">match </span>(function.sig.return_type.as_ref(), returned) {
             (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; <span class="prelude-val">Ok</span>(()),
-            (<span class="prelude-val">Some</span>(expected), <span class="prelude-val">None</span>) =&gt; <span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::MissingReturn,
-                span: expected.span,
-            }),
-            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(returned)) =&gt; <span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::UnexpectedReturn,
-                span: returned.span,
-            }),
+            (<span class="prelude-val">Some</span>(expected), <span class="prelude-val">None</span>) =&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::MissingReturn, expected.span)),
+            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(returned)) =&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::UnexpectedReturn, returned.span)),
             (<span class="prelude-val">Some</span>(_expected), <span class="prelude-val">Some</span>(returned)) =&gt; {
                 <span class="comment">// make sure there are no constants in the returned value
                 </span><span class="kw">let </span><span class="kw-2">mut </span>returned_cells = <span class="macro">vec!</span>[];
@@ -1909,10 +1885,7 @@
                     <span class="kw">match </span>r {
                         ConstOrCell::Cell(c) =&gt; returned_cells.push(c),
                         ConstOrCell::Const(<span class="kw">_</span>) =&gt; {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                kind: ErrorKind::ConstantInOutput,
-                                span: returned.span,
-                            })
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::ConstantInOutput, returned.span))
                         }
                     }
                 }
@@ -1959,19 +1932,21 @@
         expr: <span class="kw-2">&amp;</span>Expr,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;VarOrRef&gt;&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span>expr.kind {
-            ExprKind::FnCall {
+            <span class="comment">// `module::fn_name(args)`
+            </span>ExprKind::FnCall {
                 module,
                 fn_name,
                 args,
             } =&gt; {
                 <span class="comment">// compute the arguments
+                // module::fn_name(args)
+                //                 ^^^^
                 </span><span class="kw">let </span><span class="kw-2">mut </span>vars = Vec::with_capacity(args.len());
                 <span class="kw">for </span>arg <span class="kw">in </span>args {
                     <span class="comment">// get the variable behind the expression
-                    </span><span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, arg)<span class="question-mark">?</span>.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: arg.span,
-                    })<span class="question-mark">?</span>;
+                    </span><span class="kw">let </span>var = <span class="self">self
+                        </span>.compute_expr(global_env, fn_env, arg)<span class="question-mark">?
+                        </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))<span class="question-mark">?</span>;
 
                     <span class="comment">// we pass variables by values always
                     </span><span class="kw">let </span>var = var.value(fn_env, global_env);
@@ -1985,14 +1960,19 @@
 
                 <span class="comment">// retrieve the function in the env
                 </span><span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-                    <span class="comment">// check module present in the scope
-                    </span><span class="kw">let </span>module = global_env.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedModule(module.value.clone()),
-                        span: module.span,
+                    <span class="comment">// module::fn_name(args)
+                    // ^^^^^^
+                    </span><span class="kw">let </span>module = global_env.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::UndefinedModule(module.value.clone()),
+                            module.span,
+                        )
                     })<span class="question-mark">?</span>;
-                    <span class="kw">let </span>fn_info = module.functions.get(<span class="kw-2">&amp;</span>fn_name.value).ok_or(Error {
-                        kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                        span: fn_name.span,
+                    <span class="kw">let </span>fn_info = module.functions.get(<span class="kw-2">&amp;</span>fn_name.value).ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                            fn_name.span,
+                        )
                     })<span class="question-mark">?</span>;
 
                     <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
@@ -2001,24 +1981,25 @@
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Native(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
-                        FnKind::Main(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::RecursiveMain,
-                            span: expr.span,
-                        }),
+                        FnKind::Main(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::RecursiveMain, expr.span)),
                     }
                 } <span class="kw">else </span>{
-                    <span class="comment">// functions present in the scope
-                    </span><span class="kw">let </span>fn_info = global_env
-                        .typed
-                        .functions
-                        .get(<span class="kw-2">&amp;</span>fn_name.value)
-                        .ok_or(Error {
-                            kind: ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                            span: fn_name.span,
-                        })<span class="question-mark">?</span>;
+                    <span class="comment">// fn_name(args)
+                    // ^^^^^^^
+                    </span><span class="kw">let </span>fn_info =
+                        global_env
+                            .typed
+                            .functions
+                            .get(<span class="kw-2">&amp;</span>fn_name.value)
+                            .ok_or_else(|| {
+                                Error::new(
+                                    ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                                    fn_name.span,
+                                )
+                            })<span class="question-mark">?</span>;
 
                     <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
-                        FnKind::BuiltIn(sig, handle) =&gt; {
+                        FnKind::BuiltIn(_sig, handle) =&gt; {
                             <span class="kw">let </span>res = handle(<span class="self">self</span>, <span class="kw-2">&amp;</span>vars, expr.span);
                             res.map(|r| r.map(VarOrRef::Var))
                         }
@@ -2026,26 +2007,22 @@
                             <span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(global_env, func, vars);
                             res.map(|r| r.map(VarOrRef::Var))
                         }
-                        FnKind::Main(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error {
-                            kind: ErrorKind::RecursiveMain,
-                            span: expr.span,
-                        }),
+                        FnKind::Main(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::RecursiveMain, expr.span)),
                     }
                 }
             }
 
             ExprKind::FieldAccess { lhs, rhs } =&gt; {
                 <span class="comment">// get var behind lhs
-                </span><span class="kw">let </span>lhs_var = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.ok_or(Error {
-                    kind: ErrorKind::CannotComputeExpression,
-                    span: lhs.span,
-                })<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>lhs_var = <span class="self">self
+                    </span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?
+                    </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// get struct info behind lhs
-                </span><span class="kw">let </span>lhs_struct = global_env.typed.expr_type(lhs).ok_or(Error {
-                    kind: ErrorKind::CannotComputeExpression,
-                    span: lhs.span,
-                })<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>lhs_struct = global_env
+                    .typed
+                    .expr_type(lhs)
+                    .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>self_struct = <span class="kw">match </span>lhs_struct {
                     TyKind::Custom(s) =&gt; s,
@@ -2100,7 +2077,7 @@
                 <span class="comment">// find method info
                 </span><span class="kw">let </span>struct_info = global_env
                     .typed
-                    .struct_info(<span class="kw-2">&amp;</span>struct_name)
+                    .struct_info(struct_name)
                     .expect(<span class="string">&quot;could not find struct info&quot;</span>);
 
                 <span class="kw">let </span>func = struct_info
@@ -2112,7 +2089,9 @@
                 </span><span class="kw">let </span><span class="kw-2">mut </span>vars = <span class="macro">vec!</span>[];
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(first_arg) = func.sig.arguments.first() {
                     <span class="kw">if </span>first_arg.name.value == <span class="string">&quot;self&quot; </span>{
-                        <span class="kw">let </span>self_var = self_var.expect(<span class="string">&quot;that is not a static method&quot;</span>);
+                        <span class="kw">let </span>self_var = self_var.ok_or_else(|| {
+                            Error::new(ErrorKind::NotAStaticMethod, method_name.span)
+                        })<span class="question-mark">?</span>;
 
                         <span class="comment">// TODO: for now we pass `self` by value as well
                         </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>;
@@ -2121,14 +2100,15 @@
                         <span class="kw">let </span>self_var_info = VarInfo::new(self_var, mutable, <span class="prelude-val">Some</span>(lhs_typ.clone()));
                         vars.insert(<span class="number">0</span>, self_var_info);
                     }
+                } <span class="kw">else </span>{
+                    <span class="macro">assert!</span>(self_var.is_none());
                 }
 
                 <span class="comment">// compute the arguments
                 </span><span class="kw">for </span>arg <span class="kw">in </span>args {
-                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, arg)<span class="question-mark">?</span>.ok_or(Error {
-                        kind: ErrorKind::CannotComputeExpression,
-                        span: arg.span,
-                    })<span class="question-mark">?</span>;
+                    <span class="kw">let </span>var = <span class="self">self
+                        </span>.compute_expr(global_env, fn_env, arg)<span class="question-mark">?
+                        </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))<span class="question-mark">?</span>;
 
                     <span class="comment">// TODO: for now we pass `self` by value as well
                     </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>;
@@ -2228,9 +2208,8 @@
 
             ExprKind::BigInt(b) =&gt; {
                 <span class="kw">let </span>biguint = BigUint::from_str_radix(b, <span class="number">10</span>).expect(<span class="string">&quot;failed to parse number.&quot;</span>);
-                <span class="kw">let </span>ff = Field::try_from(biguint).map_err(|<span class="kw">_</span>| Error {
-                    kind: ErrorKind::CannotConvertToField(b.to_string()),
-                    span: expr.span,
+                <span class="kw">let </span>ff = Field::try_from(biguint).map_err(|<span class="kw">_</span>| {
+                    Error::new(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
                 })<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>res = VarOrRef::Var(Var::new_constant(ff, expr.span));
@@ -2248,10 +2227,16 @@
                     <span class="macro">panic!</span>(<span class="string">&quot;accessing module variables not supported yet&quot;</span>);
                 }
 
-                <span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>name.value).clone();
+                <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>name.value) {
+                    <span class="comment">// if it&#39;s a type we return nothing
+                    // (most likely what follows is a static method call)
+                    </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+                } <span class="kw">else </span>{
+                    <span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>name.value);
 
-                <span class="kw">let </span>res = VarOrRef::from_var_info(name.value.clone(), var_info);
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(res))
+                    <span class="kw">let </span>res = VarOrRef::from_var_info(name.value.clone(), var_info);
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(res))
+                }
             }
 
             ExprKind::ArrayAccess { module, name, idx } =&gt; {
@@ -2263,14 +2248,12 @@
                 </span><span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>name.value);
 
                 <span class="comment">// compute the index
-                </span><span class="kw">let </span>idx_var = <span class="self">self</span>.compute_expr(global_env, fn_env, idx)<span class="question-mark">?</span>.ok_or(Error {
-                    kind: ErrorKind::CannotComputeExpression,
-                    span: expr.span,
-                })<span class="question-mark">?</span>;
-                <span class="kw">let </span>idx = idx_var.constant().ok_or(Error {
-                    kind: ErrorKind::ExpectedConstant,
-                    span: expr.span,
-                })<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>idx_var = <span class="self">self
+                    </span>.compute_expr(global_env, fn_env, idx)<span class="question-mark">?
+                    </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, expr.span))<span class="question-mark">?</span>;
+                <span class="kw">let </span>idx = idx_var
+                    .constant()
+                    .ok_or_else(|| Error::new(ErrorKind::ExpectedConstant, expr.span))<span class="question-mark">?</span>;
                 <span class="kw">let </span>idx: BigUint = idx.into();
                 <span class="kw">let </span>idx: usize = idx.try_into().unwrap();
 
@@ -2292,10 +2275,10 @@
                 <span class="comment">// out-of-bound checks
                 </span><span class="kw">let </span>var = <span class="kw-2">&amp;</span>var_info.var;
                 <span class="kw">if </span>start &gt;= var.len() || start + len &gt; var.len() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                        kind: ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
-                        span: expr.span,
-                    });
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
+                        expr.span,
+                    ));
                 }
 
                 <span class="comment">// index into the var
@@ -2355,10 +2338,7 @@
                 <span class="kw">let </span>rhs = <span class="self">self</span>.compute_constant(<span class="kw-2">*</span>rhs, span)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(lhs * rhs)
             }
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::ExpectedConstant,
-                span,
-            }),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::ExpectedConstant, span)),
         }
     }
 

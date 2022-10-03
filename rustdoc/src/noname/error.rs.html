@@ -219,6 +219,19 @@
 <span id="219">219</span>
 <span id="220">220</span>
 <span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
 </pre><pre class="rust"><code><span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
@@ -230,19 +243,32 @@
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
 
-<span class="attribute">#[derive(Diagnostic, Debug, Error)]
-#[error(<span class="string">&quot;I&#39;m so sorry, looks like something went wrong...&quot;</span>)]
-#[diagnostic()]
+<span class="doccomment">/// An error in noname.
+</span><span class="attribute">#[derive(Diagnostic, Debug, Error)]
+#[error(<span class="string">&quot;Looks like something went wrong...&quot;</span>)]
 </span><span class="kw">pub struct </span>Error {
-    <span class="attribute">#[help]
+    <span class="doccomment">/// The type of error.
+    </span><span class="attribute">#[help]
     </span><span class="kw">pub </span>kind: ErrorKind,
 
-    <span class="attribute">#[label(<span class="string">&quot;here&quot;</span>)]
+    <span class="doccomment">/// Indicate where the error occurred in the source code.
+    </span><span class="attribute">#[label(<span class="string">&quot;here&quot;</span>)]
     </span><span class="kw">pub </span>span: Span,
 }
 
-<span class="attribute">#[derive(Error, Diagnostic, Debug, Clone)]
+<span class="kw">impl </span>Error {
+    <span class="doccomment">/// Creates a new [Error] from an [ErrorKind].
+    </span><span class="kw">pub fn </span>new(kind: ErrorKind, span: Span) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ kind, span }
+    }
+}
+
+<span class="doccomment">/// The type of error.
+</span><span class="attribute">#[derive(Error, Diagnostic, Debug, Clone)]
 </span><span class="kw">pub enum </span>ErrorKind {
+    <span class="attribute">#[error(<span class="string">&quot;the method called is not a static method&quot;</span>)]
+    </span>NotAStaticMethod,
+
     <span class="attribute">#[error(<span class="string">&quot;{0} arguments are passed when {1} were expected&quot;</span>)]
     </span>MismatchFunctionArguments(usize, usize),
 

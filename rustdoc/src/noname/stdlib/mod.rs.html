@@ -196,14 +196,6 @@
 <span id="196">196</span>
 <span id="197">197</span>
 <span id="198">198</span>
-<span id="199">199</span>
-<span id="200">200</span>
-<span id="201">201</span>
-<span id="202">202</span>
-<span id="203">203</span>
-<span id="204">204</span>
-<span id="205">205</span>
-<span id="206">206</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Neg <span class="kw">as _</span>};
 
 <span class="kw">use </span>ark_ff::{One <span class="kw">as _</span>, Zero};
@@ -244,7 +236,7 @@
 }
 
 <span class="doccomment">/// Parses the rest of a `use std::` statement. Returns a list of functions to import in the scope.
-</span><span class="kw">pub fn </span>parse_std_import&lt;<span class="lifetime">&#39;a</span>&gt;(submodule: <span class="kw-2">&amp;</span>str, span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;ImportedModule&gt; {
+</span><span class="kw">pub fn </span>parse_std_import(submodule: <span class="kw-2">&amp;</span>str, span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;ImportedModule&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>res = ImportedModule {
         name: submodule.to_string(),
         functions: HashMap::new(),
@@ -260,12 +252,7 @@
                     .insert(func.sig().name.name.value.clone(), func);
             }
         }
-        <span class="kw">_ </span>=&gt; {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::StdImport(<span class="string">&quot;unknown module&quot;</span>),
-                span,
-            })
-        }
+        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::StdImport(<span class="string">&quot;unknown module&quot;</span>), span)),
     }
 
     <span class="prelude-val">Ok</span>(res)
@@ -336,10 +323,7 @@
         <span class="comment">// two constants
         </span>(ConstOrCell::Const(a), ConstOrCell::Const(b)) =&gt; {
             <span class="kw">if </span>a != b {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                    kind: ErrorKind::AssertionFailed,
-                    span,
-                });
+                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::AssertionFailed, span));
             }
         }
 

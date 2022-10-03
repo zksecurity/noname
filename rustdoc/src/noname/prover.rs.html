@@ -183,15 +183,6 @@
 <span id="183">183</span>
 <span id="184">184</span>
 <span id="185">185</span>
-<span id="186">186</span>
-<span id="187">187</span>
-<span id="188">188</span>
-<span id="189">189</span>
-<span id="190">190</span>
-<span id="191">191</span>
-<span id="192">192</span>
-<span id="193">193</span>
-<span id="194">194</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module contains the prover.
 
 </span><span class="kw">use </span>std::iter::once;
@@ -285,10 +276,7 @@
     <span class="kw">let </span>cs = kimchi::circuits::constraints::ConstraintSystem::create(gates, fp_sponge_params)
         .public(circuit.public_input_size)
         .build()
-        .map_err(|e| Error {
-            kind: e.into(),
-            span: Span(<span class="number">0</span>, <span class="number">0</span>),
-        })<span class="question-mark">?</span>;
+        .map_err(|e| Error::new(e.into(), Span(<span class="number">0</span>, <span class="number">0</span>)))<span class="question-mark">?</span>;
 
     <span class="comment">// create SRS (for vesta, as the circuit is in Fp)
 
@@ -358,10 +346,7 @@
         <span class="comment">// create proof
         </span><span class="kw">let </span>proof =
             ProverProof::create::&lt;BaseSponge, ScalarSponge&gt;(<span class="kw-2">&amp;</span>GROUP_MAP, witness, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span><span class="self">self</span>.index)
-                .map_err(|e| Error {
-                    kind: e.into(),
-                    span: Span(<span class="number">0</span>, <span class="number">0</span>),
-                });
+                .map_err(|e| Error::new(e.into(), Span(<span class="number">0</span>, <span class="number">0</span>)));
 
         <span class="comment">// return proof + public output
         </span>proof.map(|proof| (proof, full_public_inputs, public_output))
@@ -380,10 +365,7 @@
 
         <span class="comment">// verify the proof
         </span>kimchi::verifier::verify::&lt;Curve, BaseSponge, ScalarSponge&gt;(<span class="kw-2">&amp;</span>GROUP_MAP, <span class="kw-2">&amp;</span><span class="self">self</span>.index, <span class="kw-2">&amp;</span>proof)
-            .map_err(|e| Error {
-                kind: e.into(),
-                span: Span(<span class="number">0</span>, <span class="number">0</span>),
-            })
+            .map_err(|e| Error::new(e.into(), Span(<span class="number">0</span>, <span class="number">0</span>)))
     }
 }
 </code></pre></div>

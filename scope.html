@@ -210,10 +210,10 @@ In addition, all variables from a scope must be disabled (but not deleted, in or
             .vars
             .insert(ident.clone(), (self.current_scope, type_info.clone()))
         {
-            Some(_) =&gt; Err(Error {
-                kind: ErrorKind::DuplicateDefinition(ident),
-                span: type_info.span,
-            }),
+            Some(_) =&gt; Err(Error::new(
+                 ErrorKind::DuplicateDefinition(ident),
+                 type_info.span,
+            )),
             None =&gt; Ok(()),
         }
     }

@@ -268,17 +268,6 @@
 <span id="268">268</span>
 <span id="269">269</span>
 <span id="270">270</span>
-<span id="271">271</span>
-<span id="272">272</span>
-<span id="273">273</span>
-<span id="274">274</span>
-<span id="275">275</span>
-<span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Deref};
 
 <span class="kw">use </span>ark_ff::{Field <span class="kw">as _</span>, Zero};
@@ -398,10 +387,8 @@
             }
             Value::External(name, idx) =&gt; <span class="prelude-val">Ok</span>(env.get_external(name)[<span class="kw-2">*</span>idx]),
             Value::PublicOutput(var) =&gt; {
-                <span class="kw">let </span>var = var.ok_or(Error {
-                    kind: ErrorKind::MissingPublicOutput,
-                    span: Span(<span class="number">0</span>, <span class="number">0</span>),
-                })<span class="question-mark">?</span>;
+                <span class="kw">let </span>var =
+                    var.ok_or_else(|| Error::new(ErrorKind::MissingPublicOutput, Span(<span class="number">0</span>, <span class="number">0</span>)))<span class="question-mark">?</span>;
                 <span class="self">self</span>.compute_var(env, var)
             }
         }
@@ -427,10 +414,8 @@
                         private_inputs.<span class="number">0</span>.remove(name)
                     };
 
-                    input.ok_or(Error {
-                        kind: ErrorKind::MissingArg(name.clone()),
-                        span: arg.span,
-                    })<span class="question-mark">?
+                    input
+                        .ok_or_else(|| Error::new(ErrorKind::MissingArg(name.clone()), arg.span))<span class="question-mark">?
                 </span>}
                 TyKind::Array(array_typ, size) <span class="kw">if </span><span class="kw-2">**</span>array_typ == TyKind::Field =&gt; {
                     <span class="kw">let </span>input = <span class="kw">if </span>arg.is_public() {
@@ -439,10 +424,8 @@
                         private_inputs.<span class="number">0</span>.remove(name)
                     };
 
-                    <span class="kw">let </span>cval = input.ok_or(Error {
-                        kind: ErrorKind::MissingArg(name.clone()),
-                        span: arg.span,
-                    })<span class="question-mark">?</span>;
+                    <span class="kw">let </span>cval = input
+                        .ok_or_else(|| Error::new(ErrorKind::MissingArg(name.clone()), arg.span))<span class="question-mark">?</span>;
                     <span class="kw">if </span>cval.values.len() != <span class="kw-2">*</span>size <span class="kw">as </span>usize {
                         <span class="macro">panic!</span>(
                             <span class="string">&quot;wrong length given for field array (TODO: convert this to an error)&quot;
@@ -457,10 +440,8 @@
                         private_inputs.<span class="number">0</span>.remove(name)
                     };
 
-                    <span class="kw">let </span>cval = input.ok_or(Error {
-                        kind: ErrorKind::MissingArg(name.clone()),
-                        span: arg.span,
-                    })<span class="question-mark">?</span>;
+                    <span class="kw">let </span>cval = input
+                        .ok_or_else(|| Error::new(ErrorKind::MissingArg(name.clone()), arg.span))<span class="question-mark">?</span>;
                     <span class="kw">if </span>cval.values.len() != <span class="number">1 </span>{
                         <span class="macro">panic!</span>(<span class="string">&quot;the boolean value {name} must be passed as a single field element (TODO: convert this to an error)&quot;</span>);
                     }
@@ -477,10 +458,10 @@
 
         <span class="comment">// ensure that we&#39;ve used all of the inputs provided
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(name) = <span class="macro">chain!</span>[private_inputs.<span class="number">0</span>.keys(), public_inputs.<span class="number">0</span>.keys()].next() {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                kind: ErrorKind::UnusedInput(name.clone()),
-                span: <span class="self">self</span>.main.<span class="number">1</span>,
-            });
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                ErrorKind::UnusedInput(name.clone()),
+                <span class="self">self</span>.main.<span class="number">1</span>,
+            ));
         }
 
         <span class="comment">// compute each rows&#39; vars, except for the deferred ones (public output)
@@ -521,10 +502,7 @@
                         <span class="kw">let </span>sum =
                             c(<span class="number">0</span>) * w[<span class="number">0</span>] + c(<span class="number">1</span>) * w[<span class="number">1</span>] + c(<span class="number">2</span>) * w[<span class="number">2</span>] + c(<span class="number">3</span>) * w[<span class="number">0</span>] * w[<span class="number">1</span>] + c(<span class="number">4</span>);
                         <span class="kw">if </span>sum != Field::zero() {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error {
-                                kind: ErrorKind::InvalidWitness(row),
-                                span: gate.span,
-                            });
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidWitness(row), gate.span));
                         }
                     }
                     <span class="comment">// for all other gates, we trust the gadgets
