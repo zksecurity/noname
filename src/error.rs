@@ -32,6 +32,12 @@ impl Error {
 /// The type of error.
 #[derive(Error, Diagnostic, Debug, Clone)]
 pub enum ErrorKind {
+    #[error("the `const` attribute cannot be used for arguments of the main function")]
+    ConstArgumentNotForMain,
+
+    #[error("a field access or a method call can only be applied on a field of another struct, a struct, or an array access")]
+    InvalidFieldAccessExpression,
+
     #[error("the method called is not a static method")]
     NotAStaticMethod,
 
@@ -171,6 +177,11 @@ pub enum ErrorKind {
 
     #[error("array accessed at index {0} is out of bounds (max {1})")]
     ArrayIndexOutOfBounds(usize, usize),
+
+    #[error(
+        "one-letter variables or types are not allowed. Best practice is to use descriptive names"
+    )]
+    NoOneLetterVariable,
 
     #[error("array indexes must be constants in circuits")]
     ExpectedConstant,
