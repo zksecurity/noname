@@ -203,6 +203,13 @@ impl Token {
                     } else if is_hexadecimal(&ident_or_number) {
                         TokenKind::Hex(ident_or_number)
                     } else if is_identifier_or_type(&ident_or_number) {
+                        if ident_or_number.len() < 2 {
+                            return Err(Error::new(
+                                ErrorKind::NoOneLetterVariable,
+                                Span(ctx.offset, 1),
+                            ));
+                        }
+
                         TokenKind::Identifier(ident_or_number)
                     } else {
                         return Err(Error::new(
