@@ -28,6 +28,9 @@ pub struct TypeInfo {
     /// If the variable can be mutated or not.
     pub mutable: bool,
 
+    /// If the variable is a constant or not.
+    pub constant: bool,
+
     /// A variable becomes disabled once we exit its scope.
     /// We do this instead of deleting a variable to detect shadowing.
     pub disabled: bool,
@@ -43,6 +46,7 @@ impl TypeInfo {
     pub fn new(typ: TyKind, span: Span) -> Self {
         Self {
             mutable: false,
+            constant: false,
             disabled: false,
             typ,
             span,
@@ -52,6 +56,13 @@ impl TypeInfo {
     pub fn new_mut(typ: TyKind, span: Span) -> Self {
         Self {
             mutable: true,
+            ..Self::new(typ, span)
+        }
+    }
+
+    pub fn new_cst(typ: TyKind, span: Span) -> Self {
+        Self {
+            constant: true,
             ..Self::new(typ, span)
         }
     }
@@ -478,13 +489,24 @@ impl Expr {
                     // if it's a variable,
                     // check if it's a constant first
                     let typ = if let Some(typ) = typed_global_env.constants.get(&name.value) {
-                        typ.kind.clone()
+                        // if it's a field, we need to convert it to a bigint
+                        if matches!(typ.kind, TyKind::Field) {
+                            TyKind::BigInt
+                        } else {
+                            typ.kind.clone()
+                        }
                     } else {
                         // otherwise it's a local variable
-                        typed_fn_env
+                        let typ = typed_fn_env
                             .get_type(&name.value)
                             .ok_or_else(|| Error::new(ErrorKind::UndefinedVariable, name.span))?
-                            .clone()
+                            .clone();
+                        // if it's a field, we need to convert it to a bigint
+                        if matches!(typ, TyKind::Field) {
+                            TyKind::BigInt
+                        } else {
+                            typ
+                        }
                     };
 
                     Some(typ)
@@ -501,7 +523,8 @@ impl Expr {
                 }
 
                 // check that expression is a bigint
-                match idx.compute_type(typed_global_env, typed_fn_env)? {
+                let idx_typ = idx.compute_type(typed_global_env, typed_fn_env)?;
+                match idx_typ {
                     Some(TyKind::BigInt) => (),
                     _ => return Err(Error::new(ErrorKind::ExpectedConstant, self.span)),
                 };
@@ -575,19 +598,13 @@ impl Expr {
                         .expect("expected a value (TODO: better error)");
 
                     if defined.1 != observed_typ {
-                        // TODO: replace with `if !matches!`
-                        match (&defined.1, &observed_typ) {
-                            (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field) => (),
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorKind::InvalidStructFieldType(
-                                        defined.1.clone(),
-                                        observed_typ,
-                                    ),
-                                    self.span,
-                                ));
-                            }
-                        };
+                        // we accept constants as `Field` types.
+                        if !matches!((&defined.1, &observed_typ), (TyKind::Field, TyKind::BigInt)) {
+                            return Err(Error::new(
+                                ErrorKind::InvalidStructFieldType(defined.1.clone(), observed_typ),
+                                self.span,
+                            ));
+                        }
                     }
                 }
 
@@ -754,36 +771,27 @@ impl TAST {
                             ));
                         }
 
-                        match &arg.typ.kind {
-                            TyKind::Field => {
-                                typed_fn_env.store_type(
-                                    arg.name.value.clone(),
-                                    TypeInfo::new(arg.typ.kind.clone(), arg.span),
-                                )?;
-                            }
+                        // `const` arguments are only for non-main functions
+                        if is_main && arg.is_constant() {
+                            return Err(Error::new(
+                                ErrorKind::ConstArgumentNotForMain,
+                                arg.name.span,
+                            ));
+                        }
 
-                            TyKind::Array(..) => {
-                                typed_fn_env.store_type(
-                                    arg.name.value.clone(),
-                                    TypeInfo::new(arg.typ.kind.clone(), arg.span),
-                                )?;
-                            }
+                        // store the args' type in the fn environment
+                        let arg_typ = arg.typ.kind.clone();
 
-                            TyKind::Bool => {
-                                typed_fn_env.store_type(
-                                    arg.name.value.clone(),
-                                    TypeInfo::new(arg.typ.kind.clone(), arg.span),
-                                )?;
-                            }
-
-                            TyKind::Custom(custom) => {
-                                typed_fn_env.store_type(
-                                    "self".to_string(),
-                                    TypeInfo::new(TyKind::Custom(custom.clone()), arg.span),
-                                )?;
-                            }
-
-                            t => panic!("unimplemented type {:?}", t),
+                        if arg.is_constant() {
+                            typed_fn_env.store_type(
+                                arg.name.value.clone(),
+                                TypeInfo::new_cst(arg_typ, arg.span),
+                            )?;
+                        } else {
+                            typed_fn_env.store_type(
+                                arg.name.value.clone(),
+                                TypeInfo::new(arg_typ, arg.span),
+                            )?;
                         }
                     }
 
@@ -970,12 +978,8 @@ pub fn check_fn_call(
     // compare argument types with the function signature
     for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
         if sig_arg.typ.kind != typ {
-            // it's ok if a bigint is supposed to be a field no?
-            // TODO: replace bigint -> constant?
-            if matches!(
-                (&sig_arg.typ.kind, &typ),
-                (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field)
-            ) {
+            // we accept constants as [Field] types
+            if matches!((&sig_arg.typ.kind, &typ), (TyKind::Field, TyKind::BigInt)) {
                 continue;
             }
 

@@ -4,7 +4,7 @@ struct Room {
 
 fn Room.windows(self) -> Field {
     // a door doesn't count as a window
-    return self.holes + 1;
+    return self.holes - 1;
 }
 
 struct House {

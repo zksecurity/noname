@@ -41,7 +41,16 @@ fn test_file(
     let (proof, full_public_inputs, public_output) = prover_index
         .prove(public_inputs, private_inputs, false)
         .unwrap();
-    assert_eq!(public_output, expected_public_output);
+
+    if public_output != expected_public_output {
+        eprintln!("obtained by executing the circuit:");
+        public_output.iter().for_each(|x| eprintln!("- {x}"));
+        eprintln!("passed as output by the verifier:");
+        expected_public_output
+            .iter()
+            .for_each(|x| eprintln!("- {x}"));
+        panic!("Obtained output does not match expected output");
+    }
 
     // verify proof
     verifier_index.verify(full_public_inputs, proof).unwrap();
@@ -171,4 +180,18 @@ fn test_types_array() {
     let public_inputs = r#"{"xx": ["1"], "yy": ["4"]}"#;
 
     test_file("types_array", public_inputs, private_inputs, vec![]);
+}
+
+#[test]
+fn test_iterate() {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"bedroom_holes": ["2"]}"#;
+    let expected_public_output = vec![Field::from(4)];
+
+    test_file(
+        "iterate",
+        public_inputs,
+        private_inputs,
+        expected_public_output,
+    );
 }

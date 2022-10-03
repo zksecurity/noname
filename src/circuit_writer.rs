@@ -860,7 +860,16 @@ impl CircuitWriter {
                     let res = field::add(self, &lhs[0], &rhs[0], expr.span);
                     Ok(Some(VarOrRef::Var(res)))
                 }
-                Op2::Subtraction => todo!(),
+                Op2::Subtraction => {
+                    let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
+                    let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
+
+                    let lhs = lhs.value(fn_env, global_env);
+                    let rhs = rhs.value(fn_env, global_env);
+
+                    let res = field::sub(self, &lhs[0], &rhs[0], expr.span);
+                    Ok(Some(VarOrRef::Var(res)))
+                }
                 Op2::Multiplication => todo!(),
                 Op2::Division => todo!(),
                 Op2::Equality => {
