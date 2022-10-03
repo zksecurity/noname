@@ -929,13 +929,11 @@ impl CircuitWriter {
                 }
             }
 
-            ExprKind::ArrayAccess { module, name, idx } => {
-                if module.is_some() {
-                    panic!("accessing module arrays not supported yet");
-                }
-
-                // retrieve var info of array
-                let var_info = fn_env.get_var(global_env, &name.value);
+            ExprKind::ArrayAccess { array, idx } => {
+                // retrieve var of array
+                let var = self
+                    .compute_expr(global_env, fn_env, array)?
+                    .expect("array access on non-array");
 
                 // compute the index
                 let idx_var = self
@@ -948,7 +946,12 @@ impl CircuitWriter {
                 let idx: usize = idx.try_into().unwrap();
 
                 // retrieve the type of the elements in the array
-                let elem_type = match var_info.typ.as_ref().expect("array has no type") {
+                let array_typ = global_env
+                    .typed
+                    .expr_type(array)
+                    .expect("cannot find type of array");
+
+                let elem_type = match array_typ {
                     TyKind::Array(ty, array_len) => {
                         assert!(idx < (*array_len as usize));
                         ty
@@ -963,7 +966,6 @@ impl CircuitWriter {
                 let start = idx * len;
 
                 // out-of-bound checks
-                let var = &var_info.var;
                 if start >= var.len() || start + len > var.len() {
                     return Err(Error::new(
                         ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
@@ -972,11 +974,10 @@ impl CircuitWriter {
                 }
 
                 // index into the var
-                let var_or_ref =
-                    VarOrRef::from_var_info(name.value.clone(), var_info).narrow(start, len);
+                let var = var.narrow(start, len);
 
                 //
-                Ok(Some(var_or_ref))
+                Ok(Some(var))
             }
 
             ExprKind::ArrayDeclaration(items) => {
