@@ -121,6 +121,10 @@ impl CompiledCircuit {
                     var.ok_or_else(|| Error::new(ErrorKind::MissingPublicOutput, Span(0, 0)))?;
                 self.compute_var(env, var)
             }
+            Value::Scale(scalar, var) => {
+                let var = self.compute_var(env, *var)?;
+                Ok(*scalar * var)
+            }
         }
     }
 

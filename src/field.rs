@@ -148,6 +148,63 @@ pub fn sub(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
     }
 }
 
+/// Multiplies two field elements
+pub fn mul(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, span: Span) -> Var {
+    let zero = Field::zero();
+    let one = Field::one();
+
+    match (lhs, rhs) {
+        // 2 constants
+        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs * *rhs, span),
+
+        // const and a var
+        (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
+        | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
+            // if the constant is zero, we can ignore this gate
+            if cst.is_zero() {
+                let zero = compiler.add_constant(
+                    Some("encoding zero for the result of 0 * var"),
+                    Field::zero(),
+                    span,
+                );
+                return Var::new_var(zero, span);
+            }
+
+            // create a new variable to store the result
+            let res = compiler.new_internal_var(Value::Scale(*cst, *cvar), span);
+
+            // create a gate to store the result
+            // TODO: we should use an add_generic function that takes advantage of the double generic gate
+            compiler.add_gate(
+                "add a constant with a variable",
+                GateKind::DoubleGeneric,
+                vec![Some(*cvar), None, Some(res)],
+                vec![*cst, zero, one.neg(), zero, *cst],
+                span,
+            );
+
+            Var::new_var(res, span)
+        }
+
+        // everything is a var
+        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
+            // create a new variable to store the result
+            let res = compiler.new_internal_var(Value::Mul(*lhs, *rhs), span);
+
+            // create a gate to store the result
+            compiler.add_gate(
+                "add two variables together",
+                GateKind::DoubleGeneric,
+                vec![Some(*lhs), Some(*rhs), Some(res)],
+                vec![zero, zero, one.neg(), one],
+                span,
+            );
+
+            Var::new_var(res, span)
+        }
+    }
+}
+
 /// This takes variables that can be anything, and returns a boolean
 // TODO: so perhaps it's not really relevant in this file?
 pub fn equal(compiler: &mut CircuitWriter, lhs: &Var, rhs: &Var, span: Span) -> Var {

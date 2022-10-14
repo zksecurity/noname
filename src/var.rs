@@ -44,6 +44,8 @@ pub enum Value {
 
     Mul(CellVar, CellVar),
 
+    Scale(Field, CellVar),
+
     /// Returns the inverse of the given variable.
     /// Note that it will potentially return 0 if the given variable is 0.
     Inverse(CellVar),
@@ -73,6 +75,7 @@ impl std::fmt::Debug for Value {
             Value::Inverse(_) => write!(f, "Inverse"),
             Value::External(..) => write!(f, "External"),
             Value::PublicOutput(..) => write!(f, "PublicOutput"),
+            Value::Scale(..) => write!(f, "Scaling"),
         }
     }
 }
