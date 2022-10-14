@@ -647,6 +647,51 @@ impl Expr {
                 Some(res)
             }
 
+            ExprKind::IfElse { cond, then_, else_ } => {
+                // cond can only be a boolean
+                let cond_node = cond
+                    .compute_type(typed_global_env, typed_fn_env)?
+                    .expect("can't compute type of condition");
+                if !matches!(cond_node.typ, TyKind::Bool) {
+                    panic!("`if` must be followed by a boolean");
+                }
+
+                // then_ and else_ can only be variables, field accesses, or array accesses
+                if !matches!(
+                    &then_.kind,
+                    ExprKind::Variable { .. }
+                        | ExprKind::FieldAccess { .. }
+                        | ExprKind::ArrayAccess { .. }
+                ) {
+                    panic!("`if` branch must be a variable, a field access, or an array access. It can't be logic that creates constraints.");
+                }
+
+                if !matches!(
+                    &else_.kind,
+                    ExprKind::Variable { .. }
+                        | ExprKind::FieldAccess { .. }
+                        | ExprKind::ArrayAccess { .. }
+                ) {
+                    panic!("`else` branch must be a variable, a field access, or an array access. It can't be logic that creates constraints.");
+                }
+
+                // compute type of if/else branches
+                let then_node = then_
+                    .compute_type(typed_global_env, typed_fn_env)?
+                    .expect("can't compute type of first branch of `if/else`");
+                let else_node = else_
+                    .compute_type(typed_global_env, typed_fn_env)?
+                    .expect("can't compute type of first branch of `if/else`");
+
+                // make sure that the type of then_ and else_ match
+                if then_node.typ != else_node.typ {
+                    panic!("`if` branch and `else` branch must have matching types");
+                }
+
+                //
+                Some(ExprTyInfo::new_anon(then_node.typ))
+            }
+
             ExprKind::CustomTypeDeclaration {
                 struct_name: name,
                 fields,

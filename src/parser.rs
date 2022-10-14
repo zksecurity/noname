@@ -398,6 +398,13 @@ pub enum ExprKind {
 
     /// `true` or `false`
     Bool(bool),
+
+    /// `if cond { then_ } else { else_ }`
+    IfElse {
+        cond: Box<Expr>,
+        then_: Box<Expr>,
+        else_: Box<Expr>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -487,6 +494,67 @@ impl Expr {
                 let is_true = matches!(token.kind, TokenKind::Keyword(Keyword::True));
 
                 Expr::new(ctx, ExprKind::Bool(is_true), span)
+            }
+
+            // `if cond { expr1 } else { expr2 }`
+            TokenKind::Keyword(Keyword::If) => {
+                // if cond { expr1 } else { expr2 }
+                //    ^^^^
+                let cond = Box::new(Expr::parse(ctx, tokens)?);
+
+                // if cond { expr1 } else { expr2 }
+                //         ^
+                tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
+
+                // if cond { expr1 } else { expr2 }
+                //           ^^^^^
+                let then_ = Box::new(Expr::parse(ctx, tokens)?);
+
+                if !matches!(
+                    &then_.kind,
+                    ExprKind::Variable { .. }
+                        | ExprKind::Bool { .. }
+                        | ExprKind::BigInt { .. }
+                        | ExprKind::FieldAccess { .. }
+                        | ExprKind::ArrayAccess { .. }
+                ) {
+                    panic!("_then_ branch of ternary operator cannot be more than a variable")
+                }
+
+                // if cond { expr1 } else { expr2 }
+                //                 ^
+                tokens.bump_expected(ctx, TokenKind::RightCurlyBracket)?;
+
+                // if cond { expr1 } else { expr2 }
+                //                   ^^^^
+                tokens.bump_expected(ctx, TokenKind::Keyword(Keyword::Else))?;
+
+                // if cond { expr1 } else { expr2 }
+                //                        ^
+                tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
+
+                // if cond { expr1 } else { expr2 }
+                //                          ^^^^^
+                let else_ = Box::new(Expr::parse(ctx, tokens)?);
+
+                if !matches!(
+                    &else_.kind,
+                    ExprKind::Variable { .. }
+                        | ExprKind::Bool { .. }
+                        | ExprKind::BigInt { .. }
+                        | ExprKind::FieldAccess { .. }
+                        | ExprKind::ArrayAccess { .. }
+                ) {
+                    panic!("_else_ branch of ternary operator cannot be more than a variable")
+                }
+
+                // if cond { expr1 } else { expr2 }
+                //                                ^
+                let end = tokens.bump_expected(ctx, TokenKind::RightCurlyBracket)?;
+
+                let span = span.merge_with(end.span);
+
+                Expr::new(ctx, ExprKind::IfElse { cond, then_, else_ }, span)
             }
 
             // negation (logical NOT)
@@ -640,20 +708,27 @@ impl Expr {
                 )
             }
 
-            // type declaration
+            // type declaration or if condition
             Some(Token {
                 kind: TokenKind::LeftCurlyBracket,
                 ..
             }) => {
-                let ident = match self.kind {
+                let ident = match &self.kind {
                     ExprKind::Variable { module, name } => {
+                        // probably an if condition
+                        if !is_type(&name.value) {
+                            return Ok(self);
+                        }
+
                         if module.is_some() {
                             panic!("a type declaration cannot be qualified");
                         }
 
-                        name
+                        name.clone()
                     }
-                    _ => panic!("bad type declaration"),
+
+                    // probably an if condition
+                    _ => return Ok(self),
                 };
 
                 parse_type_declaration(ctx, tokens, ident)?

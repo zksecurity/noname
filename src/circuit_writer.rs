@@ -811,6 +811,25 @@ impl CircuitWriter {
                 res.map(|r| r.map(VarOrRef::Var))
             }
 
+            ExprKind::IfElse { cond, then_, else_ } => {
+                let cond = self
+                    .compute_expr(global_env, fn_env, cond)?
+                    .unwrap()
+                    .value(fn_env, global_env);
+                let then_ = self
+                    .compute_expr(global_env, fn_env, then_)?
+                    .unwrap()
+                    .value(fn_env, global_env);
+                let else_ = self
+                    .compute_expr(global_env, fn_env, else_)?
+                    .unwrap()
+                    .value(fn_env, global_env);
+
+                let res = field::if_else(self, &cond, &then_, &else_, expr.span);
+
+                Ok(Some(VarOrRef::Var(res)))
+            }
+
             ExprKind::Assignment { lhs, rhs } => {
                 // figure out the local var  of lhs
                 let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();

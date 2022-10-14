@@ -203,3 +203,11 @@ fn test_assignment() {
 
     test_file("assignment", public_inputs, private_inputs, vec![]);
 }
+
+#[test]
+fn test_if_else() {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"xx": ["1"]}"#;
+
+    test_file("if_else", public_inputs, private_inputs, vec![]);
+}

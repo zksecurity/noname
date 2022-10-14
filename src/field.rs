@@ -357,3 +357,141 @@ fn equal_cells(
         }
     }
 }
+
+pub fn if_else(
+    compiler: &mut CircuitWriter,
+    cond: &Var,
+    then_: &Var,
+    else_: &Var,
+    span: Span,
+) -> Var {
+    assert_eq!(cond.len(), 1);
+    assert_eq!(then_.len(), else_.len());
+
+    let cond = cond[0];
+
+    let mut vars = vec![];
+
+    for (then_, else_) in then_.cvars.iter().zip(&else_.cvars) {
+        let var = if_else_inner(compiler, &cond, then_, else_, span);
+        vars.push(var[0]);
+    }
+
+    Var::new(vars, span)
+}
+
+pub fn if_else_inner(
+    compiler: &mut CircuitWriter,
+    cond: &ConstOrCell,
+    then_: &ConstOrCell,
+    else_: &ConstOrCell,
+    span: Span,
+) -> Var {
+    // we need to constrain:
+    //
+    // * res = (1 - cond) * else + cond * then
+    //
+
+    // if cond is constant, easy
+    let cond_cell = match cond {
+        ConstOrCell::Const(cond) => {
+            if cond.is_one() {
+                return Var::new_cvar(*then_, span);
+            } else {
+                return Var::new_cvar(*else_, span);
+            }
+        }
+        ConstOrCell::Cell(cond) => cond.clone(),
+    };
+
+    match (&then_, &else_) {
+        // if the branches are constant,
+        // we can create the following constraints:
+        //
+        // res = (1 - cond) * else + cond * then
+        //
+        // translates to
+        //
+        // cond_then = cond * then
+        // temp = (1 - cond) * else =>
+        //      - either
+        //          - one_minus_cond = 1 - cond
+        //          - one_minus_cond * else
+        //      - or
+        //          - cond_else = cond * else
+        //          - else - cond_else
+        // res - temp + cond_then = 0
+        // res - X = 0
+        //
+        (ConstOrCell::Const(_), ConstOrCell::Const(_)) => {
+            let cond_then = mul(compiler, &then_, &cond, span);
+            let one = ConstOrCell::Const(Field::one());
+            let one_minus_cond = sub(compiler, &one, &cond, span);
+            let temp = mul(compiler, &one_minus_cond[0], else_, span);
+            let res = add(compiler, &cond_then[0], &temp[0], span);
+            res
+        }
+
+        // if one of them is a var
+        //
+        // res = (1 - cond) * else + cond * then
+        //
+        // translates to
+        //
+        // cond_then = cond * then
+        // temp = (1 - cond) * else =>
+        //      - either
+        //          - one_minus_cond = 1 - cond
+        //          - one_minus_cond * else
+        //      - or
+        //          - cond_else = cond * else
+        //          - else - cond_else
+        // res - temp + cond_then = 0
+        // res - X = 0
+        //
+        _ => {
+            //            let cond_inner = cond.clone();
+            let then_clone = then_.clone();
+            let else_clone = else_.clone();
+
+            let res = compiler.new_internal_var(
+                Value::Hint(Box::new(move |compiler, env| {
+                    let cond = compiler.compute_var(env, cond_cell)?;
+                    let res_var = if cond.is_one() {
+                        &then_clone
+                    } else {
+                        &else_clone
+                    };
+                    match res_var {
+                        ConstOrCell::Const(cst) => Ok(*cst),
+                        ConstOrCell::Cell(var) => compiler.compute_var(env, *var),
+                    }
+                })),
+                span,
+            );
+
+            let then_m_else = sub(compiler, &then_, &else_, span)[0]
+                .cvar()
+                .cloned()
+                .unwrap();
+            let res_m_else = sub(compiler, &ConstOrCell::Cell(res), &else_, span)[0]
+                .cvar()
+                .cloned()
+                .unwrap();
+
+            let zero = Field::zero();
+            let one = Field::one();
+
+            compiler.add_gate(
+                "constraint for ternary operator: cond * (then - else) = res - else",
+                GateKind::DoubleGeneric,
+                vec![Some(cond_cell), Some(then_m_else), Some(res_m_else)],
+                // cond * (then - else) = res - else
+                vec![zero, zero, one.neg(), one],
+                span,
+            );
+
+            Var::new_var(res, span)
+        }
+    }
+}

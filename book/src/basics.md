@@ -129,7 +129,18 @@ fn main(pub player: Field) -> Field {
 
 ## If Else statements
 
-TODO
+Currently, if/else statements are not supported. Only the ternary operator is:
+
+```rust
+fn main(pub xx: Field) {
+    let plus = xx + 1;
+    let cond = xx == 1;
+    let yy = cond ? plus : xx ;
+    assert_eq(yy, 2);
+}
+```
+
+The two branches of the ternary operator must be variables (as in the xample), or array accesses (e.g. `thing[0]`), or field accesses (e.g. `thing.field`).
 
 ## Functions
 

@@ -1,0 +1,6 @@
+fn main(pub xx: Field) {
+    let plus = xx + 1;
+    let cond = xx == 1;
+    let yy = if cond { plus } else { xx };
+    assert_eq(yy, 2);
+}
