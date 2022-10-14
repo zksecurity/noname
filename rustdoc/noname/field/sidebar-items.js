@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["add","Adds two field elements"],["equal","This takes variables that can be anything, and returns a boolean"],["sub","Subtracts two variables, we only support variables that are of length 1."]]};
+window.SIDEBAR_ITEMS = {"fn":[["add","Adds two field elements"],["equal","This takes variables that can be anything, and returns a boolean"],["if_else",""],["if_else_inner",""],["mul","Multiplies two field elements"],["sub","Subtracts two variables, we only support variables that are of length 1."]]};

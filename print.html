@@ -249,7 +249,15 @@ fn main(pub player: Field) -&gt; Field {
 }
 </code></pre></pre>
 <h2 id="if-else-statements"><a class="header" href="#if-else-statements">If Else statements</a></h2>
-<p>TODO</p>
+<p>Currently, if/else statements are not supported. Only the ternary operator is:</p>
+<pre><pre class="playground"><code class="language-rust">fn main(pub xx: Field) {
+    let plus = xx + 1;
+    let cond = xx == 1;
+    let yy = cond ? plus : xx ;
+    assert_eq(yy, 2);
+}
+</code></pre></pre>
+<p>The two branches of the ternary operator must be variables (as in the xample), or array accesses (e.g. <code>thing[0]</code>), or field accesses (e.g. <code>thing.field</code>).</p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <pre><pre class="playground"><code class="language-rust">fn add(x: Field, y: Field) -&gt; Field {
     return x + y;
