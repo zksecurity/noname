@@ -23,7 +23,7 @@ fn Sudoku.merge(self, grid2: Sudoku) -> Sudoku {
             let valid = grid1_empty || grid2_empty;
             assert(valid);
 
-            merged.cell(row, col) = if grid1_empty {
+            merged[row * 9 + col] = if grid1_empty {
                 grid2.cell(row, col)
             } else {
                 self.inner.cell(row, col)
