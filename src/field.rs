@@ -211,6 +211,10 @@ pub fn equal(compiler: &mut CircuitWriter, lhs: &Var, rhs: &Var, span: Span) -> 
     // sanity check
     assert_eq!(lhs.len(), rhs.len());
 
+    if lhs.len() == 1 {
+        return equal_cells(compiler, &lhs[0], &rhs[0], span);
+    }
+
     // create an accumulator
     let one = Field::one();
 
