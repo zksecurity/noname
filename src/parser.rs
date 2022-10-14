@@ -605,8 +605,8 @@ impl Expr {
                     | TokenKind::Star
                     | TokenKind::Slash
                     | TokenKind::DoubleEqual
-                    | TokenKind::Ampersand
-                    | TokenKind::Pipe
+                    | TokenKind::DoubleAmpersand
+                    | TokenKind::DoublePipe
                     | TokenKind::Exclamation,
                 span,
             }) => {
@@ -618,8 +618,8 @@ impl Expr {
                     TokenKind::Star => Op2::Multiplication,
                     TokenKind::Slash => Op2::Division,
                     TokenKind::DoubleEqual => Op2::Equality,
-                    TokenKind::Ampersand => Op2::BoolAnd,
-                    TokenKind::Pipe => Op2::BoolOr,
+                    TokenKind::DoubleAmpersand => Op2::BoolAnd,
+                    TokenKind::DoublePipe => Op2::BoolOr,
                     TokenKind::Exclamation => Op2::BoolNot,
                     _ => unreachable!(),
                 };

@@ -119,8 +119,11 @@ pub enum TokenKind {
     RightArrow,         // ->
     Star,               // *
     Ampersand,          // &
+    DoubleAmpersand,    // &&
     Pipe,               // |
+    DoublePipe,         // ||
     Exclamation,        // !
+    Question,           // ?
                         //    Literal,               // "thing"
 }
 
@@ -157,8 +160,11 @@ impl Display for TokenKind {
             RightArrow => "`->`",
             Star => "`*`",
             Ampersand => "`&`",
+            DoubleAmpersand => "`&&`",
             Pipe => "`|`",
+            DoublePipe => "`||`",
             Exclamation => "`!`",
+            Question => "`?`",
             //            TokenType::Literal => "`\"something\"",
         };
 
@@ -348,13 +354,29 @@ impl Token {
                     tokens.push(TokenKind::Star.new_token(ctx, 1));
                 }
                 '&' => {
-                    tokens.push(TokenKind::Ampersand.new_token(ctx, 1));
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'&')) {
+                        tokens.push(TokenKind::DoubleAmpersand.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenKind::Ampersand.new_token(ctx, 1));
+                    }
                 }
                 '|' => {
-                    tokens.push(TokenKind::Pipe.new_token(ctx, 1));
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'|')) {
+                        tokens.push(TokenKind::DoublePipe.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenKind::Pipe.new_token(ctx, 1));
+                    }
                 }
                 '!' => {
                     tokens.push(TokenKind::Exclamation.new_token(ctx, 1));
+                }
+
+                '?' => {
+                    tokens.push(TokenKind::Question.new_token(ctx, 1));
                 }
                 ' ' => ctx.offset += 1,
                 _ => {
