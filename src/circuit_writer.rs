@@ -469,7 +469,7 @@ impl CircuitWriter {
                 fn_env.add_var(global_env, lhs.value.clone(), var_info);
             }
 
-            StmtKind::For { var, range, body } => {
+            StmtKind::ForLoop { var, range, body } => {
                 for ii in range.range() {
                     fn_env.nest();
 

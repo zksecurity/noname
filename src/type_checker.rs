@@ -1023,7 +1023,7 @@ impl TAST {
                 // store the type of lhs in the env
                 typed_fn_env.store_type(lhs.value.clone(), type_info)?;
             }
-            StmtKind::For { var, range, body } => {
+            StmtKind::ForLoop { var, range, body } => {
                 // enter a new scope
                 typed_fn_env.nest();
 

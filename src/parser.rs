@@ -1383,7 +1383,7 @@ pub enum StmtKind {
     Comment(String),
 
     // `for var in 0..10 { <body> }`
-    For {
+    ForLoop {
         var: Ident,
         range: Range,
         body: Vec<Stmt>,
@@ -1541,7 +1541,7 @@ impl Stmt {
 
                 //
                 Ok(Stmt {
-                    kind: StmtKind::For { var, range, body },
+                    kind: StmtKind::ForLoop { var, range, body },
                     span,
                 })
             }
