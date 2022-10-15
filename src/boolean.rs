@@ -51,7 +51,7 @@ pub fn and(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
     }
 }
 
-pub fn neg(compiler: &mut CircuitWriter, var: &ConstOrCell, span: Span) -> Var {
+pub fn not(compiler: &mut CircuitWriter, var: &ConstOrCell, span: Span) -> Var {
     match var {
         ConstOrCell::Const(cst) => {
             let value = if cst.is_one() {
