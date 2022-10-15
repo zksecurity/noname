@@ -366,7 +366,7 @@ impl CircuitWriter {
                                 *len as usize
                             }
                             TyKind::Bool => 1,
-                            _ => unimplemented!(),
+                            typ => global_env.typed.size_of(typ),
                         };
 
                         let var = if let Some(attr) = attribute {
