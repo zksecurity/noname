@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2022-10-14
+
+- if/else expressions
+- array of custom types
+- fix for array accesses
+- better errors
+- reject one-letter variables
+- `mut` keyword introduced
+- fix syntax for booleans (`&` and `|` become `&&` and `||`)
+- added mul, or, not implementations
+- optimized `assert_eq()` for comparing two field elements
+- fix for methods that couldn't take custom types as arguments
+
 ## [0.5.0] - 2022-09-18
 
 - methods on types
