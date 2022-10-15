@@ -231,6 +231,12 @@ pub enum ErrorKind {
     #[error("invalid type for the field, expected `{0}` and got `{1}`")]
     InvalidStructFieldType(TyKind, TyKind),
 
+    #[error("method call can only be applied on custom structs")]
+    MethodCallOnNonCustomStruct,
+
+    #[error("array access can only be performed on arrays")]
+    ArrayAccessOnNonArray,
+
     #[error("struct `{0}` is never defined")]
     UndefinedStruct(String),
 

@@ -222,6 +222,19 @@ pub enum TyKind {
     // U64,
 }
 
+impl TyKind {
+    pub fn match_expected(&self, expected: &TyKind) -> bool {
+        match (self, expected) {
+            (TyKind::BigInt, TyKind::Field) => true,
+            (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
+                lhs_size == rhs_size && lhs.match_expected(rhs)
+            }
+            (x, y) if x == y => true,
+            _ => false,
+        }
+    }
+}
+
 impl Display for TyKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -1523,7 +1536,7 @@ impl Stmt {
                 span: _,
             }) => {
                 // TODO: wait, this should be implemented as an expresssion! not a statement
-                todo!()
+                panic!("if statements are not implemented yet. Use if expressions instead (e.g. `x = if cond {{ 1 }} else {{ 2 }};`)");
             }
 
             // return

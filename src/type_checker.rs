@@ -402,7 +402,12 @@ impl Expr {
                 let lhs_type = lhs.compute_type(typed_global_env, typed_fn_env)?;
                 let struct_name = match lhs_type.map(|t| t.typ) {
                     Some(TyKind::Custom(name)) => name,
-                    _ => panic!("method call can only be applied on custom structs"),
+                    _ => {
+                        return Err(Error::new(
+                            ErrorKind::MethodCallOnNonCustomStruct,
+                            self.span,
+                        ))
+                    }
                 };
 
                 // get struct info
@@ -490,7 +495,8 @@ impl Expr {
 
                 // and is of the same type as the rhs
                 let rhs_typ = rhs.compute_type(typed_global_env, typed_fn_env)?.unwrap();
-                if lhs_node.typ != rhs_typ.typ {
+
+                if !rhs_typ.typ.match_expected(&lhs_node.typ) {
                     panic!("lhs type doesn't match rhs type (TODO: replace with error)");
                 }
 
@@ -599,7 +605,7 @@ impl Expr {
 
                 // check that it is an array
                 if !matches!(typ.typ, TyKind::Array(..)) {
-                    panic!("array access can only be performed on arrays");
+                    return Err(Error::new(ErrorKind::ArrayAccessOnNonArray, self.span));
                 }
 
                 // check that expression is a bigint
@@ -726,20 +732,11 @@ impl Expr {
                         .compute_type(typed_global_env, typed_fn_env)?
                         .expect("expected a value (TODO: better error)");
 
-                    if defined.1 != observed_typ.typ {
-                        // we accept constants as `Field` types.
-                        if !matches!(
-                            (&defined.1, &observed_typ.typ),
-                            (TyKind::Field, TyKind::BigInt)
-                        ) {
-                            return Err(Error::new(
-                                ErrorKind::InvalidStructFieldType(
-                                    defined.1.clone(),
-                                    observed_typ.typ,
-                                ),
-                                self.span,
-                            ));
-                        }
+                    if !observed_typ.typ.match_expected(&defined.1) {
+                        return Err(Error::new(
+                            ErrorKind::InvalidStructFieldType(defined.1.clone(), observed_typ.typ),
+                            self.span,
+                        ));
                     }
                 }
 
@@ -993,12 +990,7 @@ impl TAST {
                 Some(e) => e,
             };
 
-            if expected.kind != observed
-                && !matches!(
-                    (&expected.kind, observed),
-                    (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field)
-                )
-            {
+            if !observed.match_expected(&expected.kind) {
                 panic!(
                     "returned type is not the same as expected return type (TODO: return an error)"
                 );
@@ -1113,12 +1105,7 @@ pub fn check_fn_call(
 
     // compare argument types with the function signature
     for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
-        if sig_arg.typ.kind != typ {
-            // we accept constants as [Field] types
-            if matches!((&sig_arg.typ.kind, &typ), (TyKind::Field, TyKind::BigInt)) {
-                continue;
-            }
-
+        if !typ.match_expected(&sig_arg.typ.kind) {
             return Err(Error::new(
                 ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                 span,
