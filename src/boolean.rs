@@ -87,3 +87,10 @@ pub fn not(compiler: &mut CircuitWriter, var: &ConstOrCell, span: Span) -> Var {
         }
     }
 }
+
+pub fn or(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, span: Span) -> Var {
+    let not_lhs = not(compiler, lhs, span);
+    let not_rhs = not(compiler, rhs, span);
+    let both_false = and(compiler, &not_lhs[0], &not_rhs[0], span);
+    not(compiler, &both_false[0], span)
+}
