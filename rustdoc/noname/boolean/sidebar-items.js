@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["and",""],["is_valid",""],["neg",""]]};
+window.SIDEBAR_ITEMS = {"fn":[["and",""],["is_valid",""],["not",""],["or",""]]};

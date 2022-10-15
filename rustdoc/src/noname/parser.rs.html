@@ -1923,6 +1923,17 @@
 <span id="1923">1923</span>
 <span id="1924">1924</span>
 <span id="1925">1925</span>
+<span id="1926">1926</span>
+<span id="1927">1927</span>
+<span id="1928">1928</span>
+<span id="1929">1929</span>
+<span id="1930">1930</span>
+<span id="1931">1931</span>
+<span id="1932">1932</span>
+<span id="1933">1933</span>
+<span id="1934">1934</span>
+<span id="1935">1935</span>
+<span id="1936">1936</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -2147,6 +2158,19 @@
     // U64,
 </span>}
 
+<span class="kw">impl </span>TyKind {
+    <span class="kw">pub fn </span>match_expected(<span class="kw-2">&amp;</span><span class="self">self</span>, expected: <span class="kw-2">&amp;</span>TyKind) -&gt; bool {
+        <span class="kw">match </span>(<span class="self">self</span>, expected) {
+            (TyKind::BigInt, TyKind::Field) =&gt; <span class="bool-val">true</span>,
+            (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) =&gt; {
+                lhs_size == rhs_size &amp;&amp; lhs.match_expected(rhs)
+            }
+            (x, y) <span class="kw">if </span>x == y =&gt; <span class="bool-val">true</span>,
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+        }
+    }
+}
+
 <span class="kw">impl </span>Display <span class="kw">for </span>TyKind {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
@@ -2341,7 +2365,6 @@
     Equality,
     BoolAnd,
     BoolOr,
-    BoolNot,
 }
 
 <span class="kw">impl </span>Expr {
@@ -2613,7 +2636,6 @@
                     TokenKind::DoubleEqual =&gt; Op2::Equality,
                     TokenKind::DoubleAmpersand =&gt; Op2::BoolAnd,
                     TokenKind::DoublePipe =&gt; Op2::BoolOr,
-                    TokenKind::Exclamation =&gt; Op2::BoolNot,
                     <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
                 };
 
@@ -3448,7 +3470,7 @@
                 span: <span class="kw">_</span>,
             }) =&gt; {
                 <span class="comment">// TODO: wait, this should be implemented as an expresssion! not a statement
-                </span><span class="macro">todo!</span>()
+                </span><span class="macro">panic!</span>(<span class="string">&quot;if statements are not implemented yet. Use if expressions instead (e.g. `x = if cond {{ 1 }} else {{ 2 }};`)&quot;</span>);
             }
 
             <span class="comment">// return

@@ -1115,20 +1115,6 @@
 <span id="1115">1115</span>
 <span id="1116">1116</span>
 <span id="1117">1117</span>
-<span id="1118">1118</span>
-<span id="1119">1119</span>
-<span id="1120">1120</span>
-<span id="1121">1121</span>
-<span id="1122">1122</span>
-<span id="1123">1123</span>
-<span id="1124">1124</span>
-<span id="1125">1125</span>
-<span id="1126">1126</span>
-<span id="1127">1127</span>
-<span id="1128">1128</span>
-<span id="1129">1129</span>
-<span id="1130">1130</span>
-<span id="1131">1131</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -1533,7 +1519,12 @@
                 </span><span class="kw">let </span>lhs_type = lhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>;
                 <span class="kw">let </span>struct_name = <span class="kw">match </span>lhs_type.map(|t| t.typ) {
                     <span class="prelude-val">Some</span>(TyKind::Custom(name)) =&gt; name,
-                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;method call can only be applied on custom structs&quot;</span>),
+                    <span class="kw">_ </span>=&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            ErrorKind::MethodCallOnNonCustomStruct,
+                            <span class="self">self</span>.span,
+                        ))
+                    }
                 };
 
                 <span class="comment">// get struct info
@@ -1621,7 +1612,8 @@
 
                 <span class="comment">// and is of the same type as the rhs
                 </span><span class="kw">let </span>rhs_typ = rhs.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?</span>.unwrap();
-                <span class="kw">if </span>lhs_node.typ != rhs_typ.typ {
+
+                <span class="kw">if </span>!rhs_typ.typ.match_expected(<span class="kw-2">&amp;</span>lhs_node.typ) {
                     <span class="macro">panic!</span>(<span class="string">&quot;lhs type doesn&#39;t match rhs type (TODO: replace with error)&quot;</span>);
                 }
 
@@ -1656,8 +1648,7 @@
                     | Op2::Multiplication
                     | Op2::Division
                     | Op2::BoolAnd
-                    | Op2::BoolOr
-                    | Op2::BoolNot =&gt; lhs_node.typ,
+                    | Op2::BoolOr =&gt; lhs_node.typ,
                 };
 
                 <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(typ))
@@ -1730,7 +1721,7 @@
 
                 <span class="comment">// check that it is an array
                 </span><span class="kw">if </span>!<span class="macro">matches!</span>(typ.typ, TyKind::Array(..)) {
-                    <span class="macro">panic!</span>(<span class="string">&quot;array access can only be performed on arrays&quot;</span>);
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::ArrayAccessOnNonArray, <span class="self">self</span>.span));
                 }
 
                 <span class="comment">// check that expression is a bigint
@@ -1857,20 +1848,11 @@
                         </span>.compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?
                         </span>.expect(<span class="string">&quot;expected a value (TODO: better error)&quot;</span>);
 
-                    <span class="kw">if </span>defined.<span class="number">1 </span>!= observed_typ.typ {
-                        <span class="comment">// we accept constants as `Field` types.
-                        </span><span class="kw">if </span>!<span class="macro">matches!</span>(
-                            (<span class="kw-2">&amp;</span>defined.<span class="number">1</span>, <span class="kw-2">&amp;</span>observed_typ.typ),
-                            (TyKind::Field, TyKind::BigInt)
-                        ) {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                                ErrorKind::InvalidStructFieldType(
-                                    defined.<span class="number">1</span>.clone(),
-                                    observed_typ.typ,
-                                ),
-                                <span class="self">self</span>.span,
-                            ));
-                        }
+                    <span class="kw">if </span>!observed_typ.typ.match_expected(<span class="kw-2">&amp;</span>defined.<span class="number">1</span>) {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            ErrorKind::InvalidStructFieldType(defined.<span class="number">1</span>.clone(), observed_typ.typ),
+                            <span class="self">self</span>.span,
+                        ));
                     }
                 }
 
@@ -2124,12 +2106,7 @@
                 <span class="prelude-val">Some</span>(e) =&gt; e,
             };
 
-            <span class="kw">if </span>expected.kind != observed
-                &amp;&amp; !<span class="macro">matches!</span>(
-                    (<span class="kw-2">&amp;</span>expected.kind, observed),
-                    (TyKind::Field, TyKind::BigInt) | (TyKind::BigInt, TyKind::Field)
-                )
-            {
+            <span class="kw">if </span>!observed.match_expected(<span class="kw-2">&amp;</span>expected.kind) {
                 <span class="macro">panic!</span>(
                     <span class="string">&quot;returned type is not the same as expected return type (TODO: return an error)&quot;
                 </span>);
@@ -2244,12 +2221,7 @@
 
     <span class="comment">// compare argument types with the function signature
     </span><span class="kw">for </span>(sig_arg, (typ, span)) <span class="kw">in </span>expected.iter().zip(observed) {
-        <span class="kw">if </span>sig_arg.typ.kind != typ {
-            <span class="comment">// we accept constants as [Field] types
-            </span><span class="kw">if </span><span class="macro">matches!</span>((<span class="kw-2">&amp;</span>sig_arg.typ.kind, <span class="kw-2">&amp;</span>typ), (TyKind::Field, TyKind::BigInt)) {
-                <span class="kw">continue</span>;
-            }
-
+        <span class="kw">if </span>!typ.match_expected(<span class="kw-2">&amp;</span>sig_arg.typ.kind) {
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
                 ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                 span,

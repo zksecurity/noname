@@ -246,6 +246,12 @@
 <span id="246">246</span>
 <span id="247">247</span>
 <span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
 </pre><pre class="rust"><code><span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
@@ -478,6 +484,12 @@
 
     <span class="attribute">#[error(<span class="string">&quot;invalid type for the field, expected `{0}` and got `{1}`&quot;</span>)]
     </span>InvalidStructFieldType(TyKind, TyKind),
+
+    <span class="attribute">#[error(<span class="string">&quot;method call can only be applied on custom structs&quot;</span>)]
+    </span>MethodCallOnNonCustomStruct,
+
+    <span class="attribute">#[error(<span class="string">&quot;array access can only be performed on arrays&quot;</span>)]
+    </span>ArrayAccessOnNonArray,
 
     <span class="attribute">#[error(<span class="string">&quot;struct `{0}` is never defined&quot;</span>)]
     </span>UndefinedStruct(String),
