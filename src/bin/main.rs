@@ -3,11 +3,16 @@ use std::path::PathBuf;
 use clap::Parser;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use noname::{
-    inputs::{parse_inputs, Inputs},
+    inputs::{parse_inputs, JsonInputs},
     prover::compile_and_prove,
 };
 
-fn parse(code: &str, public_inputs: Inputs, private_inputs: Inputs, debug: bool) -> Result<()> {
+fn parse(
+    code: &str,
+    public_inputs: JsonInputs,
+    private_inputs: JsonInputs,
+    debug: bool,
+) -> Result<()> {
     // compile
     let (prover_index, verifier_index) = compile_and_prove(code)?;
     println!("successfuly compiled");
@@ -58,13 +63,13 @@ fn main() -> Result<()> {
     let public_inputs = if let Some(s) = cli.public_inputs {
         parse_inputs(&s)?
     } else {
-        Inputs::default()
+        JsonInputs::default()
     };
 
     let private_inputs = if let Some(s) = cli.private_inputs {
         parse_inputs(&s)?
     } else {
-        Inputs::default()
+        JsonInputs::default()
     };
 
     parse(&code, public_inputs, private_inputs, cli.debug).map_err(|e| e.with_source_code(code))?;

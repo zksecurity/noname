@@ -58,8 +58,8 @@ fn test_file(
 
 #[test]
 fn test_arithmetic() {
-    let public_inputs = r#"{"public_input": ["1"]}"#;
-    let private_inputs = r#"{"private_input": ["1"]}"#;
+    let public_inputs = r#"{"public_input": "1"}"#;
+    let private_inputs = r#"{"private_input": "1"}"#;
 
     println!("public inputs: {:?}", public_inputs);
     println!("private inputs: {:?}", private_inputs);
@@ -69,8 +69,8 @@ fn test_arithmetic() {
 
 #[test]
 fn test_public_output() {
-    let public_inputs = r#"{"public_input": ["1"]}"#;
-    let private_inputs = r#"{"private_input": ["1"]}"#;
+    let public_inputs = r#"{"public_input": "1"}"#;
+    let private_inputs = r#"{"private_input": "1"}"#;
 
     test_file(
         "public_output",
@@ -91,22 +91,22 @@ fn test_poseidon() {
         digest_dec
     );
 
-    let public_inputs = &format!(r#"{{"public_input": ["{digest_dec}"]}}"#);
+    let public_inputs = &format!(r#"{{"public_input": "{digest_dec}"}}"#);
 
     test_file("poseidon", public_inputs, private_inputs, vec![]);
 }
 
 #[test]
 fn test_bool() {
-    let private_inputs = r#"{"private_input": ["0"]}"#;
-    let public_inputs = r#"{"public_input": ["1"]}"#;
+    let private_inputs = r#"{"private_input": false}"#;
+    let public_inputs = r#"{"public_input": true}"#;
 
     test_file("bool", public_inputs, private_inputs, vec![]);
 }
 
 #[test]
 fn test_mutable() {
-    let private_inputs = r#"{"xx": ["2"], "yy": ["3"]}"#;
+    let private_inputs = r#"{"xx": "2", "yy": "3"}"#;
     let public_inputs = r#"{}"#;
 
     test_file("mutable", public_inputs, private_inputs, vec![]);
@@ -115,7 +115,7 @@ fn test_mutable() {
 #[test]
 fn test_for_loop() {
     let private_inputs = r#"{"private_input": ["2", "3", "4"]}"#;
-    let public_inputs = r#"{"public_input": ["9"]}"#;
+    let public_inputs = r#"{"public_input": "9"}"#;
 
     test_file("for_loop", public_inputs, private_inputs, vec![]);
 }
@@ -139,7 +139,7 @@ fn test_equals() {
 #[test]
 fn test_types() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"xx": ["1"], "yy": ["2"]}"#;
+    let public_inputs = r#"{"xx": "1", "yy": "2"}"#;
 
     test_file("types", public_inputs, private_inputs, vec![]);
 }
@@ -147,7 +147,7 @@ fn test_types() {
 #[test]
 fn test_const() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"player": ["1"]}"#;
+    let public_inputs = r#"{"player": "1"}"#;
     let expected_public_output = vec![Field::from(2)];
 
     test_file(
@@ -161,7 +161,7 @@ fn test_const() {
 #[test]
 fn test_functions() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"one": ["1"]}"#;
+    let public_inputs = r#"{"one": "1"}"#;
 
     test_file("functions", public_inputs, private_inputs, vec![]);
 }
@@ -169,7 +169,7 @@ fn test_functions() {
 #[test]
 fn test_methods() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"xx": ["1"]}"#;
+    let public_inputs = r#"{"xx": "1"}"#;
 
     test_file("methods", public_inputs, private_inputs, vec![]);
 }
@@ -177,7 +177,7 @@ fn test_methods() {
 #[test]
 fn test_types_array() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"xx": ["1"], "yy": ["4"]}"#;
+    let public_inputs = r#"{"xx": "1", "yy": "4"}"#;
 
     test_file("types_array", public_inputs, private_inputs, vec![]);
 }
@@ -185,7 +185,7 @@ fn test_types_array() {
 #[test]
 fn test_iterate() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"bedroom_holes": ["2"]}"#;
+    let public_inputs = r#"{"bedroom_holes": "2"}"#;
     let expected_public_output = vec![Field::from(4)];
 
     test_file(
@@ -199,7 +199,7 @@ fn test_iterate() {
 #[test]
 fn test_assignment() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"xx": ["2"]}"#;
+    let public_inputs = r#"{"xx": "2"}"#;
 
     test_file("assignment", public_inputs, private_inputs, vec![]);
 }
@@ -207,7 +207,7 @@ fn test_assignment() {
 #[test]
 fn test_if_else() {
     let private_inputs = r#"{}"#;
-    let public_inputs = r#"{"xx": ["1"]}"#;
+    let public_inputs = r#"{"xx": "1"}"#;
 
     test_file("if_else", public_inputs, private_inputs, vec![]);
 }

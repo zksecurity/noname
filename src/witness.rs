@@ -9,26 +9,26 @@ use crate::{
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     helpers::PrettyField as _,
-    inputs::Inputs,
+    inputs::{parse_single_input, JsonInputs},
     parser::TyKind,
-    var::{CellValues, CellVar, Value},
+    var::{CellVar, Value},
 };
 
 #[derive(Debug, Default)]
 pub struct WitnessEnv {
-    pub var_values: HashMap<String, CellValues>,
+    pub var_values: HashMap<String, Vec<Field>>,
 
     pub cached_values: HashMap<CellVar, Field>,
 }
 
 impl WitnessEnv {
-    pub fn add_value(&mut self, name: String, val: CellValues) {
+    pub fn add_value(&mut self, name: String, val: Vec<Field>) {
         assert!(self.var_values.insert(name, val).is_none());
     }
 
     pub fn get_external(&self, name: &str) -> Vec<Field> {
         // TODO: return an error instead of crashing
-        self.var_values.get(name).unwrap().clone().values
+        self.var_values.get(name).unwrap().clone()
     }
 }
 
@@ -130,8 +130,8 @@ impl CompiledCircuit {
 
     pub fn generate_witness(
         &self,
-        mut public_inputs: Inputs,
-        mut private_inputs: Inputs,
+        mut public_inputs: JsonInputs,
+        mut private_inputs: JsonInputs,
     ) -> Result<(Witness, Vec<Field>, Vec<Field>)> {
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
@@ -140,54 +140,20 @@ impl CompiledCircuit {
         for arg in &self.main.0.arguments {
             let name = &arg.name.value;
 
-            let cval = match &arg.typ.kind {
-                TyKind::Field => {
-                    let input = if arg.is_public() {
-                        public_inputs.0.remove(name)
-                    } else {
-                        private_inputs.0.remove(name)
-                    };
-
-                    input
-                        .ok_or_else(|| Error::new(ErrorKind::MissingArg(name.clone()), arg.span))?
-                }
-                TyKind::Array(array_typ, size) if **array_typ == TyKind::Field => {
-                    let input = if arg.is_public() {
-                        public_inputs.0.remove(name)
-                    } else {
-                        private_inputs.0.remove(name)
-                    };
-
-                    let cval = input
-                        .ok_or_else(|| Error::new(ErrorKind::MissingArg(name.clone()), arg.span))?;
-                    if cval.values.len() != *size as usize {
-                        panic!(
-                            "wrong length given for field array (TODO: convert this to an error)"
-                        );
-                    }
-                    cval
-                }
-                TyKind::Bool => {
-                    let input = if arg.is_public() {
-                        public_inputs.0.remove(name)
-                    } else {
-                        private_inputs.0.remove(name)
-                    };
-
-                    let cval = input
-                        .ok_or_else(|| Error::new(ErrorKind::MissingArg(name.clone()), arg.span))?;
-                    if cval.values.len() != 1 {
-                        panic!("the boolean value {name} must be passed as a single field element (TODO: convert this to an error)");
-                    }
-                    if !boolean::is_valid(cval.values[0]) {
-                        panic!("boolean value {name} passed is not valid, expected 1 or 0, got {} (TODO: convert this into an error)", cval.values[0]);
-                    }
-                    cval
-                }
-                tt => panic!("{:?} not implemented", tt),
+            let input = if arg.is_public() {
+                public_inputs.0.remove(name).ok_or_else(|| {
+                    Error::new(ErrorKind::MissingPublicArg(name.clone()), arg.span)
+                })?
+            } else {
+                private_inputs.0.remove(name).ok_or_else(|| {
+                    Error::new(ErrorKind::MissingPrivateArg(name.clone()), arg.span)
+                })?
             };
 
-            env.add_value(name.clone(), cval.clone());
+            let fields = parse_single_input(input, &arg.typ.kind)
+                .map_err(|e| Error::new(ErrorKind::ParsingError(e), arg.span))?;
+
+            env.add_value(name.clone(), fields.clone());
         }
 
         // ensure that we've used all of the inputs provided

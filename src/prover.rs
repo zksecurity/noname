@@ -7,7 +7,7 @@ use crate::{
     compiler,
     constants::{Field, Span},
     error::{Error, Result},
-    inputs::Inputs,
+    inputs::JsonInputs,
     witness::CompiledCircuit,
 };
 
@@ -136,8 +136,8 @@ impl ProverIndex {
     /// returns a proof and a public output
     pub fn prove(
         &self,
-        public_inputs: Inputs,
-        private_inputs: Inputs,
+        public_inputs: JsonInputs,
+        private_inputs: JsonInputs,
         debug: bool,
     ) -> Result<(ProverProof<Curve>, Vec<Field>, Vec<Field>)> {
         // generate the witness

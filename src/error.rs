@@ -3,6 +3,7 @@ use thiserror::Error;
 
 use crate::{
     constants::Span,
+    inputs::ParsingError,
     lexer::TokenKind,
     parser::{AttributeKind, TyKind},
 };
@@ -30,10 +31,13 @@ impl Error {
 }
 
 /// The type of error.
-#[derive(Error, Diagnostic, Debug, Clone)]
+#[derive(Error, Diagnostic, Debug)]
 pub enum ErrorKind {
     #[error("variable is not mutable. You must set the `mut` keyword to make it mutable")]
     AssignmentToImmutableVariable,
+
+    #[error(transparent)]
+    ParsingError(#[from] ParsingError),
 
     #[error("the `const` attribute cannot be used for arguments of the main function")]
     ConstArgumentNotForMain,
@@ -142,8 +146,11 @@ pub enum ErrorKind {
     #[error("the function `{0}` return value must be used")]
     FunctionReturnsType(String),
 
-    #[error("you need to pass the following argument: `{0}`")]
-    MissingArg(String),
+    #[error("you need to pass the following public argument: `{0}`")]
+    MissingPublicArg(String),
+
+    #[error("you need to pass the following private argument: `{0}`")]
+    MissingPrivateArg(String),
 
     #[error("cannot convert `{0}` to field element")]
     CannotConvertToField(String),

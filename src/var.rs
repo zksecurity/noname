@@ -180,6 +180,10 @@ impl Var {
     pub fn range(&self, start: usize, len: usize) -> &[ConstOrCell] {
         &self.cvars[start..(start + len)]
     }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, ConstOrCell> {
+        self.cvars.iter()
+    }
 }
 
 // implement indexing into Var
@@ -188,17 +192,5 @@ impl std::ops::Index<usize> for Var {
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.cvars[index]
-    }
-}
-
-/// the equivalent of [CellVar]s but for witness generation
-#[derive(Debug, Clone)]
-pub struct CellValues {
-    pub values: Vec<Field>,
-}
-
-impl CellValues {
-    pub fn new(values: Vec<Field>) -> Self {
-        Self { values }
     }
 }

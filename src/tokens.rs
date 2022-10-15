@@ -69,14 +69,16 @@ impl Tokens {
     }
 
     pub fn bump_ident(&mut self, ctx: &mut ParserCtx, kind: ErrorKind) -> Result<Ident> {
-        let token = self.bump_err(ctx, kind.clone())?;
-        let span = token.span;
-        match &token.kind {
-            TokenKind::Identifier(value) => Ok(Ident {
+        match self.bump(ctx) {
+            Some(Token {
+                kind: TokenKind::Identifier(value),
+                span,
+            }) => Ok(Ident {
                 value: value.to_string(),
                 span,
             }),
-            _ => Err(Error::new(kind, span)),
+            Some(token) => Err(Error::new(kind, token.span)),
+            None => Err(Error::new(kind, ctx.last_span())),
         }
     }
 }
