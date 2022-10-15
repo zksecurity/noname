@@ -864,59 +864,32 @@ impl CircuitWriter {
                 Ok(None)
             }
 
-            ExprKind::Op { op, lhs, rhs } => match op {
-                Op2::Addition => {
-                    let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
-                    let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
+            ExprKind::Op { op, lhs, rhs } => {
+                let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
+                let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 
-                    let lhs = lhs.value(fn_env, global_env);
-                    let rhs = rhs.value(fn_env, global_env);
+                let lhs = lhs.value(fn_env, global_env);
+                let rhs = rhs.value(fn_env, global_env);
 
-                    let res = field::add(self, &lhs[0], &rhs[0], expr.span);
-                    Ok(Some(VarOrRef::Var(res)))
-                }
-                Op2::Subtraction => {
-                    let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
-                    let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
+                let res = match op {
+                    Op2::Addition => field::add(self, &lhs[0], &rhs[0], expr.span),
+                    Op2::Subtraction => field::sub(self, &lhs[0], &rhs[0], expr.span),
+                    Op2::Multiplication => field::mul(self, &lhs[0], &rhs[0], expr.span),
+                    Op2::Equality => field::equal(self, &lhs, &rhs, expr.span),
+                    Op2::BoolAnd => boolean::and(self, &lhs[0], &rhs[0], expr.span),
+                    Op2::BoolOr => boolean::or(self, &lhs[0], &rhs[0], expr.span),
+                    Op2::Division => todo!(),
+                };
 
-                    let lhs = lhs.value(fn_env, global_env);
-                    let rhs = rhs.value(fn_env, global_env);
-
-                    let res = field::sub(self, &lhs[0], &rhs[0], expr.span);
-                    Ok(Some(VarOrRef::Var(res)))
-                }
-                Op2::Multiplication => todo!(),
-                Op2::Division => todo!(),
-                Op2::Equality => {
-                    let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
-                    let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
-
-                    let lhs = lhs.value(fn_env, global_env);
-                    let rhs = rhs.value(fn_env, global_env);
-
-                    let res = field::equal(self, &lhs, &rhs, expr.span);
-                    Ok(Some(VarOrRef::Var(res)))
-                }
-                Op2::BoolAnd => {
-                    let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
-                    let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
-
-                    let lhs = lhs.value(fn_env, global_env);
-                    let rhs = rhs.value(fn_env, global_env);
-
-                    let res = boolean::and(self, &lhs[0], &rhs[0], expr.span);
-                    Ok(Some(VarOrRef::Var(res)))
-                }
-                Op2::BoolOr => todo!(),
-                Op2::BoolNot => todo!(),
-            },
+                Ok(Some(VarOrRef::Var(res)))
+            }
 
             ExprKind::Negated(b) => {
                 let var = self.compute_expr(global_env, fn_env, b)?.unwrap();
 
                 let var = var.value(fn_env, global_env);
 
-                let res = boolean::neg(self, &var[0], expr.span);
+                let res = boolean::not(self, &var[0], expr.span);
                 Ok(Some(VarOrRef::Var(res)))
             }
 
