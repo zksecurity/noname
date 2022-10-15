@@ -864,7 +864,7 @@ impl CircuitWriter {
                 Ok(None)
             }
 
-            ExprKind::Op { op, lhs, rhs } => {
+            ExprKind::BinaryOp { op, lhs, rhs, .. } => {
                 let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
                 let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
 

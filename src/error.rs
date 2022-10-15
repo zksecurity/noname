@@ -47,6 +47,9 @@ pub enum ErrorKind {
     #[error("{0} arguments are passed when {1} were expected")]
     MismatchFunctionArguments(usize, usize),
 
+    #[error("cannot chain arithmetic operations without using parenthesis")]
+    MissingParenthesis,
+
     #[error("the `pub` keyword is reserved for arguments of the main function")]
     PubArgumentOutsideMain,
 
@@ -178,7 +181,7 @@ pub enum ErrorKind {
     #[error("A return value is not used")]
     UnusedReturnValue,
 
-    #[error("array accessed at index {0} is out of bounds (max {1})")]
+    #[error("array accessed at index {0} is out of bounds (max allowed index is {1})")]
     ArrayIndexOutOfBounds(usize, usize),
 
     #[error(

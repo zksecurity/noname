@@ -380,10 +380,13 @@ pub enum ExprKind {
     FieldAccess { lhs: Box<Expr>, rhs: Ident },
 
     /// `lhs <op> rhs`
-    Op {
+    BinaryOp {
         op: Op2,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
+
+        /// is it surrounded by parenthesis?
+        protected: bool,
     },
 
     /// `!expr`
@@ -496,8 +499,13 @@ impl Expr {
 
             // parenthesis
             TokenKind::LeftParen => {
-                let expr = Expr::parse(ctx, tokens)?;
+                let mut expr = Expr::parse(ctx, tokens)?;
                 tokens.bump_expected(ctx, TokenKind::RightParen)?;
+
+                if let ExprKind::BinaryOp { protected, .. } = &mut expr.kind {
+                    *protected = true;
+                }
+
                 expr
             }
 
@@ -707,13 +715,23 @@ impl Expr {
                 //       ^^^
                 let rhs = Expr::parse(ctx, tokens)?;
 
-                let span = span.merge_with(rhs.span);
+                let span = self.span.merge_with(rhs.span);
+
+                // make sure that arithmetic operations are not chained without parenthesis
+                if let ExprKind::BinaryOp { protected, .. } = &rhs.kind {
+                    if !protected {
+                        return Err(Error::new(ErrorKind::MissingParenthesis, span));
+                    }
+                }
+
+                //
                 Expr::new(
                     ctx,
-                    ExprKind::Op {
+                    ExprKind::BinaryOp {
                         op,
                         lhs: Box::new(self),
                         rhs: Box::new(rhs),
+                        protected: false,
                     },
                     span,
                 )

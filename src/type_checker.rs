@@ -503,7 +503,7 @@ impl Expr {
                 None
             }
 
-            ExprKind::Op { op, lhs, rhs } => {
+            ExprKind::BinaryOp { op, lhs, rhs, .. } => {
                 let lhs_node = lhs
                     .compute_type(typed_global_env, typed_fn_env)?
                     .expect("type-checker bug");
