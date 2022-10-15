@@ -429,7 +429,6 @@ pub enum Op2 {
     Equality,
     BoolAnd,
     BoolOr,
-    BoolNot,
 }
 
 impl Expr {
@@ -701,7 +700,6 @@ impl Expr {
                     TokenKind::DoubleEqual => Op2::Equality,
                     TokenKind::DoubleAmpersand => Op2::BoolAnd,
                     TokenKind::DoublePipe => Op2::BoolOr,
-                    TokenKind::Exclamation => Op2::BoolNot,
                     _ => unreachable!(),
                 };
 
