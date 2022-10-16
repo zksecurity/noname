@@ -766,7 +766,7 @@ impl TypeChecker {
                 panic!("early return detected: we don't allow that for now (TODO: return error");
             }
 
-            return_typ = Self::check_stmt(self, typed_fn_env, stmt)?;
+            return_typ = self.check_stmt(typed_fn_env, stmt)?;
         }
 
         // check the return
@@ -832,7 +832,7 @@ impl TypeChecker {
                 }
 
                 // check block
-                Self::check_block(self, typed_fn_env, body, None)?;
+                self.check_block(typed_fn_env, body, None)?;
 
                 // exit the scope
                 typed_fn_env.pop();
@@ -860,7 +860,7 @@ impl TypeChecker {
     /// type checks a function call.
     /// Note that this can also be a method call.
     pub fn check_fn_call(
-        self: &mut TypeChecker,
+        &mut self,
         typed_fn_env: &mut TypedFnEnv,
         method_call: bool, // indicates if it's a fn call or a method call
         fn_sig: FnSig,
