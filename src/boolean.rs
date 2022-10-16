@@ -14,6 +14,23 @@ pub fn is_valid(f: Field) -> bool {
     f.is_one() || f.is_zero()
 }
 
+pub fn check(compiler: &mut CircuitWriter, xx: &ConstOrCell, span: Span) {
+    let zero = Field::zero();
+    let one = Field::one();
+
+    match xx {
+        ConstOrCell::Const(ff) => assert!(is_valid(*ff)),
+        ConstOrCell::Cell(var) => compiler.add_gate(
+            "constraint to validate a boolean (`x(x-1) = 0`)",
+            GateKind::DoubleGeneric,
+            // x^2 - x = 0
+            vec![Some(*var), Some(*var), None],
+            vec![one.neg(), zero, zero, one],
+            span,
+        ),
+    };
+}
+
 pub fn and(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, span: Span) -> Var {
     match (lhs, rhs) {
         // two constants
