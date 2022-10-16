@@ -388,7 +388,7 @@ impl CircuitWriter {
                         // add argument variable to the ast env
                         let mutable = false; // TODO: should we add a mut keyword in arguments as well?
                         let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
-                        fn_env.add_var(&mut global_env, name.value.clone(), var_info);
+                        fn_env.add_var(&global_env, name.value.clone(), var_info);
                     }
 
                     // create public output
@@ -402,7 +402,7 @@ impl CircuitWriter {
                     }
 
                     // compile function
-                    circuit_writer.compile_main_function(&mut global_env, fn_env, function)?;
+                    circuit_writer.compile_main_function(&global_env, fn_env, function)?;
                 }
 
                 // struct definition (already dealt with in type checker)

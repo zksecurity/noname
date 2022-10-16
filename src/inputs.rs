@@ -54,11 +54,11 @@ pub fn parse_single_input(
         (TyKind::BigInt, _) => unreachable!(),
         (TyKind::Field, Value::String(ss)) => {
             let cell_value = Field::from_str(&ss).map_err(|_| ParsingError::InvalidField(ss))?;
-            return Ok(vec![cell_value]);
+            Ok(vec![cell_value])
         }
         (TyKind::Bool, Value::Bool(bb)) => {
             let ff = if bb { Field::one() } else { Field::zero() };
-            return Ok(vec![ff]);
+            Ok(vec![ff])
         }
 
         (TyKind::Array(el_typ, size), Value::Array(values)) => {
@@ -71,7 +71,7 @@ pub fn parse_single_input(
                 res.extend(el);
             }
 
-            return Ok(res);
+            Ok(res)
         }
         (TyKind::Custom(struct_name), Value::Object(mut map)) => {
             // get fields of struct
@@ -97,7 +97,8 @@ pub fn parse_single_input(
                 let parsed = parse_single_input(env, value, field_ty)?;
                 res.extend(parsed);
             }
-            return Ok(res);
+
+            Ok(res)
         }
         (expected, observed) => {
             dbg!(&expected);

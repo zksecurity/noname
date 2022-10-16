@@ -73,10 +73,7 @@ impl Tokens {
             Some(Token {
                 kind: TokenKind::Identifier(value),
                 span,
-            }) => Ok(Ident {
-                value: value.to_string(),
-                span,
-            }),
+            }) => Ok(Ident { value: value, span }),
             Some(token) => Err(Error::new(kind, token.span)),
             None => Err(Error::new(kind, ctx.last_span())),
         }

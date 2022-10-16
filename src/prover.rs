@@ -137,6 +137,10 @@ impl ProverIndex {
         self.compiled_circuit.compiled_gates().len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// returns a proof and a public output
     pub fn prove(
         &self,

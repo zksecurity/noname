@@ -389,7 +389,7 @@ impl Expr {
                     self.span,
                 )?;
 
-                res.map(|ty| ExprTyInfo::new_anon(ty))
+                res.map(ExprTyInfo::new_anon)
             }
 
             // `lhs.method_name(args)`

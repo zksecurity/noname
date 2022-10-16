@@ -405,7 +405,7 @@ pub fn if_else_inner(
                 return Var::new_cvar(*else_, span);
             }
         }
-        ConstOrCell::Cell(cond) => cond.clone(),
+        ConstOrCell::Cell(cond) => *cond,
     };
 
     match (&then_, &else_) {
@@ -428,12 +428,11 @@ pub fn if_else_inner(
         // res - X = 0
         //
         (ConstOrCell::Const(_), ConstOrCell::Const(_)) => {
-            let cond_then = mul(compiler, &then_, &cond, span);
+            let cond_then = mul(compiler, then_, cond, span);
             let one = ConstOrCell::Const(Field::one());
-            let one_minus_cond = sub(compiler, &one, &cond, span);
+            let one_minus_cond = sub(compiler, &one, cond, span);
             let temp = mul(compiler, &one_minus_cond[0], else_, span);
-            let res = add(compiler, &cond_then[0], &temp[0], span);
-            res
+            add(compiler, &cond_then[0], &temp[0], span)
         }
 
         // if one of them is a var
@@ -455,8 +454,8 @@ pub fn if_else_inner(
         //
         _ => {
             //            let cond_inner = cond.clone();
-            let then_clone = then_.clone();
-            let else_clone = else_.clone();
+            let then_clone = *then_;
+            let else_clone = *else_;
 
             let res = compiler.new_internal_var(
                 Value::Hint(Box::new(move |compiler, env| {
@@ -474,11 +473,11 @@ pub fn if_else_inner(
                 span,
             );
 
-            let then_m_else = sub(compiler, &then_, &else_, span)[0]
+            let then_m_else = sub(compiler, then_, else_, span)[0]
                 .cvar()
                 .cloned()
                 .unwrap();
-            let res_m_else = sub(compiler, &ConstOrCell::Cell(res), &else_, span)[0]
+            let res_m_else = sub(compiler, &ConstOrCell::Cell(res), else_, span)[0]
                 .cvar()
                 .cloned()
                 .unwrap();
