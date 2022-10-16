@@ -539,6 +539,18 @@ impl Expr {
 
             ExprKind::Negated(inner) => {
                 let inner_typ = inner.compute_type(typed_global_env, typed_fn_env)?.unwrap();
+                if !matches!(inner_typ.typ, TyKind::Field | TyKind::BigInt) {
+                    return Err(Error::new(
+                        ErrorKind::MismatchType(TyKind::Field, inner_typ.typ),
+                        self.span,
+                    ));
+                }
+
+                Some(ExprTyInfo::new_anon(TyKind::Field))
+            }
+
+            ExprKind::Not(inner) => {
+                let inner_typ = inner.compute_type(typed_global_env, typed_fn_env)?.unwrap();
                 if !matches!(inner_typ.typ, TyKind::Bool) {
                     return Err(Error::new(
                         ErrorKind::MismatchType(TyKind::Bool, inner_typ.typ),

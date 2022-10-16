@@ -944,6 +944,14 @@ impl CircuitWriter {
 
                 let var = var.value(fn_env, global_env);
 
+                todo!()
+            }
+
+            ExprKind::Not(b) => {
+                let var = self.compute_expr(global_env, fn_env, b)?.unwrap();
+
+                let var = var.value(fn_env, global_env);
+
                 let res = boolean::not(self, &var[0], expr.span);
                 Ok(Some(VarOrRef::Var(res)))
             }

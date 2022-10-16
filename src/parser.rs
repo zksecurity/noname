@@ -389,8 +389,11 @@ pub enum ExprKind {
         protected: bool,
     },
 
-    /// `!expr`
+    /// `-expr`
     Negated(Box<Expr>),
+
+    /// `!bool_expr`
+    Not(Box<Expr>),
 
     /// any numbers
     BigInt(String),
@@ -581,7 +584,7 @@ impl Expr {
             TokenKind::Exclamation => {
                 let expr = Expr::parse(ctx, tokens)?;
 
-                Expr::new(ctx, ExprKind::Negated(Box::new(expr)), span)
+                Expr::new(ctx, ExprKind::Not(Box::new(expr)), span)
             }
 
             // array declaration
