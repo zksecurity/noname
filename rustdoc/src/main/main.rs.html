@@ -71,16 +71,26 @@
 <span id="71">71</span>
 <span id="72">72</span>
 <span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use </span>clap::Parser;
 <span class="kw">use </span>miette::{IntoDiagnostic, <span class="prelude-ty">Result</span>, WrapErr};
 <span class="kw">use </span>noname::{
-    inputs::{parse_inputs, Inputs},
+    inputs::{parse_inputs, JsonInputs},
     prover::compile_and_prove,
 };
 
-<span class="kw">fn </span>parse(code: <span class="kw-2">&amp;</span>str, public_inputs: Inputs, private_inputs: Inputs, debug: bool) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<span class="kw">fn </span>parse(
+    code: <span class="kw-2">&amp;</span>str,
+    public_inputs: JsonInputs,
+    private_inputs: JsonInputs,
+    debug: bool,
+) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="comment">// compile
     </span><span class="kw">let </span>(prover_index, verifier_index) = compile_and_prove(code)<span class="question-mark">?</span>;
     <span class="macro">println!</span>(<span class="string">&quot;successfuly compiled&quot;</span>);
@@ -131,13 +141,13 @@
     <span class="kw">let </span>public_inputs = <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = cli.public_inputs {
         parse_inputs(<span class="kw-2">&amp;</span>s)<span class="question-mark">?
     </span>} <span class="kw">else </span>{
-        Inputs::default()
+        JsonInputs::default()
     };
 
     <span class="kw">let </span>private_inputs = <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = cli.private_inputs {
         parse_inputs(<span class="kw-2">&amp;</span>s)<span class="question-mark">?
     </span>} <span class="kw">else </span>{
-        Inputs::default()
+        JsonInputs::default()
     };
 
     parse(<span class="kw-2">&amp;</span>code, public_inputs, private_inputs, cli.debug).map_err(|e| e.with_source_code(code))<span class="question-mark">?</span>;
@@ -145,4 +155,4 @@
     <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="main" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6b3ede3f7 2022-10-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="main" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (b8c35ca26 2022-10-15)" ></div></body></html>

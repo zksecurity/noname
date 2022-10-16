@@ -1506,7 +1506,7 @@
                     <span class="self">self</span>.span,
                 )<span class="question-mark">?</span>;
 
-                res.map(|ty| ExprTyInfo::new_anon(ty))
+                res.map(ExprTyInfo::new_anon)
             }
 
             <span class="comment">// `lhs.method_name(args)`
@@ -1620,7 +1620,7 @@
                 <span class="prelude-val">None
             </span>}
 
-            ExprKind::Op { op, lhs, rhs } =&gt; {
+            ExprKind::BinaryOp { op, lhs, rhs, .. } =&gt; {
                 <span class="kw">let </span>lhs_node = lhs
                     .compute_type(typed_global_env, typed_fn_env)<span class="question-mark">?
                     </span>.expect(<span class="string">&quot;type-checker bug&quot;</span>);
@@ -2140,7 +2140,7 @@
                 <span class="comment">// store the type of lhs in the env
                 </span>typed_fn_env.store_type(lhs.value.clone(), type_info)<span class="question-mark">?</span>;
             }
-            StmtKind::For { var, range, body } =&gt; {
+            StmtKind::ForLoop { var, range, body } =&gt; {
                 <span class="comment">// enter a new scope
                 </span>typed_fn_env.nest();
 
@@ -2233,4 +2233,4 @@
     </span><span class="prelude-val">Ok</span>(fn_sig.return_type.as_ref().map(|ty| ty.kind.clone()))
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6b3ede3f7 2022-10-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (b8c35ca26 2022-10-15)" ></div></body></html>

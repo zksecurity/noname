@@ -1351,6 +1351,10 @@
 <span id="1351">1351</span>
 <span id="1352">1352</span>
 <span id="1353">1353</span>
+<span id="1354">1354</span>
+<span id="1355">1355</span>
+<span id="1356">1356</span>
+<span id="1357">1357</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1373,7 +1377,7 @@
         TyKind,
     },
     syntax::is_type,
-    type_checker::{TypedGlobalEnv, TAST},
+    type_checker::{StructInfo, TypedGlobalEnv, TAST},
     var::{CellVar, ConstOrCell, Value, Var},
     witness::CompiledCircuit,
 };
@@ -1398,6 +1402,10 @@
             typed: typed_global_env,
             constants: HashMap::new(),
         }
+    }
+
+    <span class="kw">pub fn </span>struct_info(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>StructInfo&gt; {
+        <span class="self">self</span>.typed.struct_info(name)
     }
 
     <span class="doccomment">/// Stores type information about a local variable.
@@ -1674,7 +1682,7 @@
             <span class="macro">panic!</span>(<span class="string">&quot;circuit already finalized (TODO: return a proper error&quot;</span>);
         }
 
-        <span class="kw">let </span>global_env = <span class="kw-2">&amp;mut </span>GlobalEnv::new(typed_global_env);
+        <span class="kw">let </span><span class="kw-2">mut </span>global_env = GlobalEnv::new(typed_global_env);
 
         <span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
             <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
@@ -1737,7 +1745,7 @@
                         <span class="comment">// add argument variable to the ast env
                         </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>; <span class="comment">// TODO: should we add a mut keyword in arguments as well?
                         </span><span class="kw">let </span>var_info = VarInfo::new(var, mutable, <span class="prelude-val">Some</span>(typ.kind.clone()));
-                        fn_env.add_var(global_env, name.value.clone(), var_info);
+                        fn_env.add_var(<span class="kw-2">&amp;</span>global_env, name.value.clone(), var_info);
                     }
 
                     <span class="comment">// create public output
@@ -1751,7 +1759,7 @@
                     }
 
                     <span class="comment">// compile function
-                    </span>circuit_writer.compile_main_function(global_env, fn_env, function)<span class="question-mark">?</span>;
+                    </span>circuit_writer.compile_main_function(<span class="kw-2">&amp;</span>global_env, fn_env, function)<span class="question-mark">?</span>;
                 }
 
                 <span class="comment">// struct definition (already dealt with in type checker)
@@ -1787,7 +1795,7 @@
         <span class="comment">// we finalized!
         </span>circuit_writer.finalized = <span class="bool-val">true</span>;
 
-        <span class="prelude-val">Ok</span>(CompiledCircuit::new(circuit_writer))
+        <span class="prelude-val">Ok</span>(CompiledCircuit::new(circuit_writer, global_env))
     }
 
     <span class="doccomment">/// Returns the compiled gates of the circuit.
@@ -1822,7 +1830,7 @@
                 </span>fn_env.add_var(global_env, lhs.value.clone(), var_info);
             }
 
-            StmtKind::For { var, range, body } =&gt; {
+            StmtKind::ForLoop { var, range, body } =&gt; {
                 <span class="kw">for </span>ii <span class="kw">in </span>range.range() {
                     fn_env.nest();
 
@@ -2217,7 +2225,7 @@
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
             }
 
-            ExprKind::Op { op, lhs, rhs } =&gt; {
+            ExprKind::BinaryOp { op, lhs, rhs, .. } =&gt; {
                 <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.unwrap();
                 <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
@@ -2705,4 +2713,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6b3ede3f7 2022-10-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (b8c35ca26 2022-10-15)" ></div></body></html>

@@ -498,7 +498,6 @@
 <span id="498">498</span>
 <span id="499">499</span>
 <span id="500">500</span>
-<span id="501">501</span>
 </pre><pre class="rust"><code><span class="kw">use crate</span>::{
     boolean,
     circuit_writer::{CircuitWriter, GateKind},
@@ -906,7 +905,7 @@
                 <span class="kw">return </span>Var::new_cvar(<span class="kw-2">*</span>else_, span);
             }
         }
-        ConstOrCell::Cell(cond) =&gt; cond.clone(),
+        ConstOrCell::Cell(cond) =&gt; <span class="kw-2">*</span>cond,
     };
 
     <span class="kw">match </span>(<span class="kw-2">&amp;</span>then_, <span class="kw-2">&amp;</span>else_) {
@@ -929,12 +928,11 @@
         // res - X = 0
         //
         </span>(ConstOrCell::Const(<span class="kw">_</span>), ConstOrCell::Const(<span class="kw">_</span>)) =&gt; {
-            <span class="kw">let </span>cond_then = mul(compiler, <span class="kw-2">&amp;</span>then_, <span class="kw-2">&amp;</span>cond, span);
+            <span class="kw">let </span>cond_then = mul(compiler, then_, cond, span);
             <span class="kw">let </span>one = ConstOrCell::Const(Field::one());
-            <span class="kw">let </span>one_minus_cond = sub(compiler, <span class="kw-2">&amp;</span>one, <span class="kw-2">&amp;</span>cond, span);
+            <span class="kw">let </span>one_minus_cond = sub(compiler, <span class="kw-2">&amp;</span>one, cond, span);
             <span class="kw">let </span>temp = mul(compiler, <span class="kw-2">&amp;</span>one_minus_cond[<span class="number">0</span>], else_, span);
-            <span class="kw">let </span>res = add(compiler, <span class="kw-2">&amp;</span>cond_then[<span class="number">0</span>], <span class="kw-2">&amp;</span>temp[<span class="number">0</span>], span);
-            res
+            add(compiler, <span class="kw-2">&amp;</span>cond_then[<span class="number">0</span>], <span class="kw-2">&amp;</span>temp[<span class="number">0</span>], span)
         }
 
         <span class="comment">// if one of them is a var
@@ -956,8 +954,8 @@
         //
         </span><span class="kw">_ </span>=&gt; {
             <span class="comment">//            let cond_inner = cond.clone();
-            </span><span class="kw">let </span>then_clone = then_.clone();
-            <span class="kw">let </span>else_clone = else_.clone();
+            </span><span class="kw">let </span>then_clone = <span class="kw-2">*</span>then_;
+            <span class="kw">let </span>else_clone = <span class="kw-2">*</span>else_;
 
             <span class="kw">let </span>res = compiler.new_internal_var(
                 Value::Hint(Box::new(<span class="kw">move </span>|compiler, env| {
@@ -975,11 +973,11 @@
                 span,
             );
 
-            <span class="kw">let </span>then_m_else = sub(compiler, <span class="kw-2">&amp;</span>then_, <span class="kw-2">&amp;</span>else_, span)[<span class="number">0</span>]
+            <span class="kw">let </span>then_m_else = sub(compiler, then_, else_, span)[<span class="number">0</span>]
                 .cvar()
                 .cloned()
                 .unwrap();
-            <span class="kw">let </span>res_m_else = sub(compiler, <span class="kw-2">&amp;</span>ConstOrCell::Cell(res), <span class="kw-2">&amp;</span>else_, span)[<span class="number">0</span>]
+            <span class="kw">let </span>res_m_else = sub(compiler, <span class="kw-2">&amp;</span>ConstOrCell::Cell(res), else_, span)[<span class="number">0</span>]
                 .cvar()
                 .cloned()
                 .unwrap();
@@ -1001,4 +999,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6b3ede3f7 2022-10-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (b8c35ca26 2022-10-15)" ></div></body></html>

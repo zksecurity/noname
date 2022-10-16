@@ -183,6 +183,14 @@
 <span id="183">183</span>
 <span id="184">184</span>
 <span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module contains the prover.
 
 </span><span class="kw">use </span>std::iter::once;
@@ -192,7 +200,7 @@
     compiler,
     constants::{Field, Span},
     error::{Error, <span class="prelude-ty">Result</span>},
-    inputs::Inputs,
+    inputs::JsonInputs,
     witness::CompiledCircuit,
 };
 
@@ -228,7 +236,7 @@
 
 </span><span class="kw">pub struct </span>ProverIndex {
     index: kimchi::prover_index::ProverIndex&lt;Curve&gt;,
-    circuit: CompiledCircuit,
+    compiled_circuit: CompiledCircuit,
 }
 
 <span class="kw">pub struct </span>VerifierIndex {
@@ -240,10 +248,10 @@
 //
 
 </span><span class="kw">pub fn </span>compile_and_prove(code: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(ProverIndex, VerifierIndex)&gt; {
-    <span class="kw">let </span>circuit = compiler::compile(code)<span class="question-mark">?</span>;
+    <span class="kw">let </span>compiled_circuit = compiler::compile(code)<span class="question-mark">?</span>;
 
     <span class="comment">// convert gates to kimchi gates
-    </span><span class="kw">let </span><span class="kw-2">mut </span>gates: Vec&lt;<span class="kw">_</span>&gt; = circuit
+    </span><span class="kw">let </span><span class="kw-2">mut </span>gates: Vec&lt;<span class="kw">_</span>&gt; = compiled_circuit
         .compiled_gates()
         .iter()
         .enumerate()
@@ -251,7 +259,7 @@
         .collect();
 
     <span class="comment">// wiring
-    </span><span class="kw">for </span>wiring <span class="kw">in </span>circuit.wiring.values() {
+    </span><span class="kw">for </span>wiring <span class="kw">in </span>compiled_circuit.circuit.wiring.values() {
         <span class="kw">if let </span>Wiring::Wired(cells_and_spans) = wiring {
             <span class="comment">// all the wired cells form a cycle, remember!
             </span><span class="kw">let </span><span class="kw-2">mut </span>wired_cells = cells_and_spans.iter().map(|(cell, <span class="kw">_</span>)| cell).copied();
@@ -274,7 +282,7 @@
     </span><span class="kw">let </span>fp_sponge_params = kimchi::oracle::pasta::fp_kimchi::params();
 
     <span class="kw">let </span>cs = kimchi::circuits::constraints::ConstraintSystem::create(gates, fp_sponge_params)
-        .public(circuit.public_input_size)
+        .public(compiled_circuit.circuit.public_input_size)
         .build()
         .map_err(|e| Error::new(e.into(), Span(<span class="number">0</span>, <span class="number">0</span>)))<span class="question-mark">?</span>;
 
@@ -298,7 +306,7 @@
     </span><span class="kw">let </span>prover_index = {
         ProverIndex {
             index: prover_index,
-            circuit,
+            compiled_circuit,
         }
     };
     <span class="kw">let </span>verifier_index = VerifierIndex {
@@ -315,19 +323,27 @@
 
 </span><span class="kw">impl </span>ProverIndex {
     <span class="kw">pub fn </span>asm(<span class="kw-2">&amp;</span><span class="self">self</span>, debug: bool) -&gt; String {
-        <span class="self">self</span>.circuit.asm(debug)
+        <span class="self">self</span>.compiled_circuit.asm(debug)
     }
+
+    <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.compiled_circuit.compiled_gates().len()
+    }
+
+    <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.len() == <span class="number">0
+    </span>}
 
     <span class="doccomment">/// returns a proof and a public output
     </span><span class="kw">pub fn </span>prove(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        public_inputs: Inputs,
-        private_inputs: Inputs,
+        public_inputs: JsonInputs,
+        private_inputs: JsonInputs,
         debug: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(ProverProof&lt;Curve&gt;, Vec&lt;Field&gt;, Vec&lt;Field&gt;)&gt; {
         <span class="comment">// generate the witness
         </span><span class="kw">let </span>(witness, full_public_inputs, public_output) = <span class="self">self
-            </span>.circuit
+            </span>.compiled_circuit
             .generate_witness(public_inputs, private_inputs)<span class="question-mark">?</span>;
 
         <span class="kw">if </span>debug {
@@ -369,4 +385,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6b3ede3f7 2022-10-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (b8c35ca26 2022-10-15)" ></div></body></html>

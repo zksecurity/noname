@@ -1934,6 +1934,23 @@
 <span id="1934">1934</span>
 <span id="1935">1935</span>
 <span id="1936">1936</span>
+<span id="1937">1937</span>
+<span id="1938">1938</span>
+<span id="1939">1939</span>
+<span id="1940">1940</span>
+<span id="1941">1941</span>
+<span id="1942">1942</span>
+<span id="1943">1943</span>
+<span id="1944">1944</span>
+<span id="1945">1945</span>
+<span id="1946">1946</span>
+<span id="1947">1947</span>
+<span id="1948">1948</span>
+<span id="1949">1949</span>
+<span id="1950">1950</span>
+<span id="1951">1951</span>
+<span id="1952">1952</span>
+<span id="1953">1953</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -2174,7 +2191,7 @@
 <span class="kw">impl </span>Display <span class="kw">for </span>TyKind {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
-            TyKind::Custom(name) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, name),
+            TyKind::Custom(name) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;a `{}` struct&quot;</span>, name),
             TyKind::Field =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;Field&quot;</span>),
             TyKind::BigInt =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;BigInt&quot;</span>),
             TyKind::Array(ty, size) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;[{}; {}]&quot;</span>, ty, size),
@@ -2316,10 +2333,13 @@
     </span>FieldAccess { lhs: Box&lt;Expr&gt;, rhs: Ident },
 
     <span class="doccomment">/// `lhs &lt;op&gt; rhs`
-    </span>Op {
+    </span>BinaryOp {
         op: Op2,
         lhs: Box&lt;Expr&gt;,
         rhs: Box&lt;Expr&gt;,
+
+        <span class="doccomment">/// is it surrounded by parenthesis?
+        </span>protected: bool,
     },
 
     <span class="doccomment">/// `!expr`
@@ -2432,8 +2452,13 @@
 
             <span class="comment">// parenthesis
             </span>TokenKind::LeftParen =&gt; {
-                <span class="kw">let </span>expr = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+                <span class="kw">let </span><span class="kw-2">mut </span>expr = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
                 tokens.bump_expected(ctx, TokenKind::RightParen)<span class="question-mark">?</span>;
+
+                <span class="kw">if let </span>ExprKind::BinaryOp { protected, .. } = <span class="kw-2">&amp;mut </span>expr.kind {
+                    <span class="kw-2">*</span>protected = <span class="bool-val">true</span>;
+                }
+
                 expr
             }
 
@@ -2643,13 +2668,23 @@
                 //       ^^^
                 </span><span class="kw">let </span>rhs = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>span = span.merge_with(rhs.span);
-                Expr::new(
+                <span class="kw">let </span>span = <span class="self">self</span>.span.merge_with(rhs.span);
+
+                <span class="comment">// make sure that arithmetic operations are not chained without parenthesis
+                </span><span class="kw">if let </span>ExprKind::BinaryOp { protected, .. } = <span class="kw-2">&amp;</span>rhs.kind {
+                    <span class="kw">if </span>!protected {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::MissingParenthesis, span));
+                    }
+                }
+
+                <span class="comment">//
+                </span>Expr::new(
                     ctx,
-                    ExprKind::Op {
+                    ExprKind::BinaryOp {
                         op,
                         lhs: Box::new(<span class="self">self</span>),
                         rhs: Box::new(rhs),
+                        protected: <span class="bool-val">false</span>,
                     },
                     span,
                 )
@@ -2763,7 +2798,6 @@
                         | ExprKind::Variable { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {
-                    <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.kind);
                     <span class="kw">let </span>span = <span class="self">self</span>.span.merge_with(period.span);
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidFieldAccessExpression, span));
                 }
@@ -3301,7 +3335,7 @@
     Comment(String),
 
     <span class="comment">// `for var in 0..10 { &lt;body&gt; }`
-    </span>For {
+    </span>ForLoop {
         var: Ident,
         range: Range,
         body: Vec&lt;Stmt&gt;,
@@ -3459,7 +3493,7 @@
 
                 <span class="comment">//
                 </span><span class="prelude-val">Ok</span>(Stmt {
-                    kind: StmtKind::For { var, range, body },
+                    kind: StmtKind::ForLoop { var, range, body },
                     span,
                 })
             }
@@ -3871,4 +3905,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6b3ede3f7 2022-10-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (b8c35ca26 2022-10-15)" ></div></body></html>

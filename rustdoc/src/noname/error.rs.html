@@ -252,11 +252,22 @@
 <span id="252">252</span>
 <span id="253">253</span>
 <span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
 </pre><pre class="rust"><code><span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
 <span class="kw">use crate</span>::{
     constants::Span,
+    inputs::ParsingError,
     lexer::TokenKind,
     parser::{AttributeKind, TyKind},
 };
@@ -284,10 +295,13 @@
 }
 
 <span class="doccomment">/// The type of error.
-</span><span class="attribute">#[derive(Error, Diagnostic, Debug, Clone)]
+</span><span class="attribute">#[derive(Error, Diagnostic, Debug)]
 </span><span class="kw">pub enum </span>ErrorKind {
     <span class="attribute">#[error(<span class="string">&quot;variable is not mutable. You must set the `mut` keyword to make it mutable&quot;</span>)]
     </span>AssignmentToImmutableVariable,
+
+    <span class="attribute">#[error(transparent)]
+    </span>ParsingError(<span class="attribute">#[from] </span>ParsingError),
 
     <span class="attribute">#[error(<span class="string">&quot;the `const` attribute cannot be used for arguments of the main function&quot;</span>)]
     </span>ConstArgumentNotForMain,
@@ -300,6 +314,9 @@
 
     <span class="attribute">#[error(<span class="string">&quot;{0} arguments are passed when {1} were expected&quot;</span>)]
     </span>MismatchFunctionArguments(usize, usize),
+
+    <span class="attribute">#[error(<span class="string">&quot;cannot chain arithmetic operations without using parenthesis&quot;</span>)]
+    </span>MissingParenthesis,
 
     <span class="attribute">#[error(<span class="string">&quot;the `pub` keyword is reserved for arguments of the main function&quot;</span>)]
     </span>PubArgumentOutsideMain,
@@ -393,8 +410,11 @@
     <span class="attribute">#[error(<span class="string">&quot;the function `{0}` return value must be used&quot;</span>)]
     </span>FunctionReturnsType(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;you need to pass the following argument: `{0}`&quot;</span>)]
-    </span>MissingArg(String),
+    <span class="attribute">#[error(<span class="string">&quot;you need to pass the following public argument: `{0}`&quot;</span>)]
+    </span>MissingPublicArg(String),
+
+    <span class="attribute">#[error(<span class="string">&quot;you need to pass the following private argument: `{0}`&quot;</span>)]
+    </span>MissingPrivateArg(String),
 
     <span class="attribute">#[error(<span class="string">&quot;cannot convert `{0}` to field element&quot;</span>)]
     </span>CannotConvertToField(String),
@@ -432,7 +452,7 @@
     <span class="attribute">#[error(<span class="string">&quot;A return value is not used&quot;</span>)]
     </span>UnusedReturnValue,
 
-    <span class="attribute">#[error(<span class="string">&quot;array accessed at index {0} is out of bounds (max {1})&quot;</span>)]
+    <span class="attribute">#[error(<span class="string">&quot;array accessed at index {0} is out of bounds (max allowed index is {1})&quot;</span>)]
     </span>ArrayIndexOutOfBounds(usize, usize),
 
     <span class="attribute">#[error(
@@ -507,4 +527,4 @@
     </span>NoMainFunction,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6b3ede3f7 2022-10-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (b8c35ca26 2022-10-15)" ></div></body></html>
