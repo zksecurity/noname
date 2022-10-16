@@ -1156,7 +1156,7 @@ impl Function {
                 let self_name = self_name.ok_or_else(|| {
                     Error::new(
                         ErrorKind::InvalidFunctionSignature(
-                            "the `self` argynebt is only allowed in struct methods",
+                            "the `self` argument is only allowed in struct methods",
                         ),
                         arg_name.span,
                     )
@@ -1188,9 +1188,17 @@ impl Function {
             )?;
 
             let span = if let Some(attr) = &attribute {
-                attr.span.merge_with(arg_typ.span)
+                if &arg_name.value == "self" {
+                    return Err(Error::new(ErrorKind::SelfHasAttribute, arg_name.span));
+                } else {
+                    attr.span.merge_with(arg_typ.span)
+                }
             } else {
-                span.merge_with(arg_typ.span)
+                if &arg_name.value == "self" {
+                    arg_name.span
+                } else {
+                    arg_name.span.merge_with(arg_typ.span)
+                }
             };
 
             let arg = FnArg {

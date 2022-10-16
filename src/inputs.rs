@@ -23,6 +23,9 @@ pub enum ParsingError {
 
     #[error("couldn't convert given field element `{0}`")]
     InvalidField(String),
+
+    #[error("mismatch between expected argument format ({0}), and given argument in JSON (`{1}`)")]
+    MismatchJsonArgument(TyKind, serde_json::Value),
 }
 
 //
@@ -101,9 +104,10 @@ pub fn parse_single_input(
             Ok(res)
         }
         (expected, observed) => {
-            dbg!(&expected);
-            dbg!(&observed);
-            panic!("mismatch between expected argument format ({expected}), and given argument in JSON (`{observed}`) (TODO: better error)")
+            return Err(ParsingError::MismatchJsonArgument(
+                expected.clone(),
+                observed,
+            ));
         }
     }
 }

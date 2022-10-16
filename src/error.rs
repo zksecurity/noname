@@ -161,6 +161,9 @@ pub enum ErrorKind {
     #[error("no return value was expected as part of this function signature")]
     NoReturnExpected,
 
+    #[error("the `self` argument cannot have attributes")]
+    SelfHasAttribute,
+
     #[error("the return type observed (`{0}`) doesn't match what the function expected as return type (`{1}`)")]
     ReturnTypeMismatch(TyKind, TyKind),
 
