@@ -5,12 +5,13 @@ use itertools::{chain, Itertools};
 
 use crate::{
     boolean,
-    circuit_writer::CircuitWriter,
+    circuit_writer::{CircuitWriter, Gate, GlobalEnv},
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     helpers::PrettyField as _,
     inputs::{parse_single_input, JsonInputs},
     parser::TyKind,
+    type_checker::TypedGlobalEnv,
     var::{CellVar, Value},
 };
 
@@ -64,19 +65,22 @@ impl Witness {
 }
 
 /// The compiled circuit.
-pub struct CompiledCircuit(CircuitWriter);
-
-impl Deref for CompiledCircuit {
-    type Target = CircuitWriter;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+pub struct CompiledCircuit {
+    pub circuit: CircuitWriter,
+    env: GlobalEnv,
 }
 
 impl CompiledCircuit {
-    pub(crate) fn new(circuit: CircuitWriter) -> Self {
-        Self(circuit)
+    pub(crate) fn new(circuit: CircuitWriter, env: GlobalEnv) -> Self {
+        Self { circuit, env }
+    }
+
+    pub fn asm(&self, debug: bool) -> String {
+        self.circuit.asm(debug)
+    }
+
+    pub fn compiled_gates(&self) -> &[Gate] {
+        self.circuit.compiled_gates()
     }
 
     pub fn compute_var(&self, env: &mut WitnessEnv, var: CellVar) -> Result<Field> {
@@ -86,7 +90,7 @@ impl CompiledCircuit {
             return Ok(*res);
         }
 
-        match &self.witness_vars[&var.index] {
+        match &self.circuit.witness_vars[&var.index] {
             Value::Hint(func) => {
                 let res = func(self, env)
                     .expect("that function doesn't return a var (type checker error)");
@@ -137,7 +141,7 @@ impl CompiledCircuit {
         let mut env = WitnessEnv::default();
 
         // create the argument's variables?
-        for arg in &self.main.0.arguments {
+        for arg in &self.circuit.main.0.arguments {
             let name = &arg.name.value;
 
             let input = if arg.is_public() {
@@ -150,7 +154,7 @@ impl CompiledCircuit {
                 })?
             };
 
-            let fields = parse_single_input(input, &arg.typ.kind)
+            let fields = parse_single_input(&self.env, input, &arg.typ.kind)
                 .map_err(|e| Error::new(ErrorKind::ParsingError(e), arg.span))?;
 
             env.add_value(name.clone(), fields.clone());
@@ -160,7 +164,7 @@ impl CompiledCircuit {
         if let Some(name) = chain![private_inputs.0.keys(), public_inputs.0.keys()].next() {
             return Err(Error::new(
                 ErrorKind::UnusedInput(name.clone()),
-                self.main.1,
+                self.circuit.main.1,
             ));
         }
 
@@ -168,9 +172,10 @@ impl CompiledCircuit {
         let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
 
         for (row, (row_of_vars, gate)) in self
+            .circuit
             .rows_of_vars
             .iter()
-            .zip_eq(self.compiled_gates())
+            .zip_eq(self.circuit.compiled_gates())
             .enumerate()
         {
             // create the witness row
@@ -178,7 +183,10 @@ impl CompiledCircuit {
             for (col, var) in row_of_vars.iter().enumerate() {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
-                    if matches!(self.witness_vars[&var.index], Value::PublicOutput(_)) {
+                    if matches!(
+                        self.circuit.witness_vars[&var.index],
+                        Value::PublicOutput(_)
+                    ) {
                         public_outputs_vars.push((row, *var));
                         Field::zero()
                     } else {
@@ -191,7 +199,7 @@ impl CompiledCircuit {
             }
 
             // check if the row makes sense
-            let is_not_public_input = row >= self.public_input_size;
+            let is_not_public_input = row >= self.circuit.public_input_size;
             if is_not_public_input {
                 #[allow(clippy::single_match)]
                 match gate.typ {
@@ -224,15 +232,15 @@ impl CompiledCircuit {
         }
 
         // extract full public input (containing the public output)
-        let mut full_public_inputs = Vec::with_capacity(self.public_input_size);
+        let mut full_public_inputs = Vec::with_capacity(self.circuit.public_input_size);
 
-        for witness_row in witness.iter().take(self.public_input_size) {
+        for witness_row in witness.iter().take(self.circuit.public_input_size) {
             full_public_inputs.push(witness_row[0]);
         }
 
         // sanity checks
-        assert_eq!(witness.len(), self.num_gates());
-        assert_eq!(witness.len(), self.rows_of_vars.len());
+        assert_eq!(witness.len(), self.circuit.num_gates());
+        assert_eq!(witness.len(), self.circuit.rows_of_vars.len());
 
         // return the public output separately as well
         Ok((Witness(witness), full_public_inputs, public_output))

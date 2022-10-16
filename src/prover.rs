@@ -43,7 +43,7 @@ static GROUP_MAP: Lazy<<Curve as CommitmentCurve>::Map> =
 
 pub struct ProverIndex {
     index: kimchi::prover_index::ProverIndex<Curve>,
-    circuit: CompiledCircuit,
+    compiled_circuit: CompiledCircuit,
 }
 
 pub struct VerifierIndex {
@@ -55,10 +55,10 @@ pub struct VerifierIndex {
 //
 
 pub fn compile_and_prove(code: &str) -> Result<(ProverIndex, VerifierIndex)> {
-    let circuit = compiler::compile(code)?;
+    let compiled_circuit = compiler::compile(code)?;
 
     // convert gates to kimchi gates
-    let mut gates: Vec<_> = circuit
+    let mut gates: Vec<_> = compiled_circuit
         .compiled_gates()
         .iter()
         .enumerate()
@@ -66,7 +66,7 @@ pub fn compile_and_prove(code: &str) -> Result<(ProverIndex, VerifierIndex)> {
         .collect();
 
     // wiring
-    for wiring in circuit.wiring.values() {
+    for wiring in compiled_circuit.circuit.wiring.values() {
         if let Wiring::Wired(cells_and_spans) = wiring {
             // all the wired cells form a cycle, remember!
             let mut wired_cells = cells_and_spans.iter().map(|(cell, _)| cell).copied();
@@ -89,7 +89,7 @@ pub fn compile_and_prove(code: &str) -> Result<(ProverIndex, VerifierIndex)> {
     let fp_sponge_params = kimchi::oracle::pasta::fp_kimchi::params();
 
     let cs = kimchi::circuits::constraints::ConstraintSystem::create(gates, fp_sponge_params)
-        .public(circuit.public_input_size)
+        .public(compiled_circuit.circuit.public_input_size)
         .build()
         .map_err(|e| Error::new(e.into(), Span(0, 0)))?;
 
@@ -113,7 +113,7 @@ pub fn compile_and_prove(code: &str) -> Result<(ProverIndex, VerifierIndex)> {
     let prover_index = {
         ProverIndex {
             index: prover_index,
-            circuit,
+            compiled_circuit,
         }
     };
     let verifier_index = VerifierIndex {
@@ -130,7 +130,7 @@ pub fn compile_and_prove(code: &str) -> Result<(ProverIndex, VerifierIndex)> {
 
 impl ProverIndex {
     pub fn asm(&self, debug: bool) -> String {
-        self.circuit.asm(debug)
+        self.compiled_circuit.asm(debug)
     }
 
     /// returns a proof and a public output
@@ -142,7 +142,7 @@ impl ProverIndex {
     ) -> Result<(ProverProof<Curve>, Vec<Field>, Vec<Field>)> {
         // generate the witness
         let (witness, full_public_inputs, public_output) = self
-            .circuit
+            .compiled_circuit
             .generate_witness(public_inputs, private_inputs)?;
 
         if debug {

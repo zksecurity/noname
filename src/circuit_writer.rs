@@ -20,7 +20,7 @@ use crate::{
         TyKind,
     },
     syntax::is_type,
-    type_checker::{TypedGlobalEnv, TAST},
+    type_checker::{StructInfo, TypedGlobalEnv, TAST},
     var::{CellVar, ConstOrCell, Value, Var},
     witness::CompiledCircuit,
 };
@@ -45,6 +45,10 @@ impl GlobalEnv {
             typed: typed_global_env,
             constants: HashMap::new(),
         }
+    }
+
+    pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
+        self.typed.struct_info(name)
     }
 
     /// Stores type information about a local variable.
@@ -321,7 +325,7 @@ impl CircuitWriter {
             panic!("circuit already finalized (TODO: return a proper error");
         }
 
-        let global_env = &mut GlobalEnv::new(typed_global_env);
+        let mut global_env = GlobalEnv::new(typed_global_env);
 
         for root in &ast.0 {
             match &root.kind {
@@ -384,7 +388,7 @@ impl CircuitWriter {
                         // add argument variable to the ast env
                         let mutable = false; // TODO: should we add a mut keyword in arguments as well?
                         let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
-                        fn_env.add_var(global_env, name.value.clone(), var_info);
+                        fn_env.add_var(&mut global_env, name.value.clone(), var_info);
                     }
 
                     // create public output
@@ -398,7 +402,7 @@ impl CircuitWriter {
                     }
 
                     // compile function
-                    circuit_writer.compile_main_function(global_env, fn_env, function)?;
+                    circuit_writer.compile_main_function(&mut global_env, fn_env, function)?;
                 }
 
                 // struct definition (already dealt with in type checker)
@@ -434,7 +438,7 @@ impl CircuitWriter {
         // we finalized!
         circuit_writer.finalized = true;
 
-        Ok(CompiledCircuit::new(circuit_writer))
+        Ok(CompiledCircuit::new(circuit_writer, global_env))
     }
 
     /// Returns the compiled gates of the circuit.

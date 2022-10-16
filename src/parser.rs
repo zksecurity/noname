@@ -238,7 +238,7 @@ impl TyKind {
 impl Display for TyKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TyKind::Custom(name) => write!(f, "{}", name),
+            TyKind::Custom(name) => write!(f, "a `{}` struct", name),
             TyKind::Field => write!(f, "Field"),
             TyKind::BigInt => write!(f, "BigInt"),
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
@@ -845,7 +845,6 @@ impl Expr {
                         | ExprKind::Variable { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {
-                    dbg!(&self.kind);
                     let span = self.span.merge_with(period.span);
                     return Err(Error::new(ErrorKind::InvalidFieldAccessExpression, span));
                 }

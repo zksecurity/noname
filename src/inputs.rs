@@ -7,7 +7,7 @@ use miette::Diagnostic;
 use num_bigint::BigUint;
 use thiserror::Error;
 
-use crate::{constants::Field, parser::TyKind};
+use crate::{circuit_writer::GlobalEnv, constants::Field, parser::TyKind};
 
 //
 // Errors
@@ -44,6 +44,7 @@ pub fn parse_inputs(s: &str) -> Result<JsonInputs, ParsingError> {
 //
 
 pub fn parse_single_input(
+    env: &GlobalEnv,
     input: serde_json::Value,
     expected_input: &TyKind,
 ) -> Result<Vec<Field>, ParsingError> {
@@ -66,17 +67,42 @@ pub fn parse_single_input(
             }
             let mut res = vec![];
             for value in values {
-                let el = parse_single_input(value, el_typ)?;
+                let el = parse_single_input(env, value, el_typ)?;
                 res.extend(el);
             }
 
             return Ok(res);
         }
-        (TyKind::Custom(_), _) => todo!(),
+        (TyKind::Custom(struct_name), Value::Object(mut map)) => {
+            // get fields of struct
+            let struct_info = env
+                .struct_info(struct_name)
+                .expect("compiler bug: couldn't find struct given as input");
+            let fields = &struct_info.fields;
+
+            // make sure that they're the same length
+            if fields.len() != map.len() {
+                panic!("wrong number of fields in struct (TODO: better error)");
+            }
+
+            // parse each field
+            let mut res = vec![];
+            for (field_name, field_ty) in fields {
+                let value = map
+                    .remove(field_name)
+                    .ok_or_else(|| {
+                        format!("couldn't find field `{field_name}` in given JSON input (TODO: better error)")
+                    })
+                    .unwrap();
+                let parsed = parse_single_input(env, value, field_ty)?;
+                res.extend(parsed);
+            }
+            return Ok(res);
+        }
         (expected, observed) => {
-            dbg!(expected);
-            dbg!(observed);
-            panic!("mismatch")
+            dbg!(&expected);
+            dbg!(&observed);
+            panic!("mismatch between expected argument format ({expected}), and given argument in JSON (`{observed}`) (TODO: better error)")
         }
     }
 }
