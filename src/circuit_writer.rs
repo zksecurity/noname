@@ -361,6 +361,7 @@ impl CircuitWriter {
                         ..
                     } in &function.sig.arguments
                     {
+                        // get length
                         let len = match &typ.kind {
                             TyKind::Field => 1,
                             TyKind::Array(typ, len) => {
@@ -373,6 +374,7 @@ impl CircuitWriter {
                             typ => global_env.typed.size_of(typ),
                         };
 
+                        // create the variable
                         let var = if let Some(attr) = attribute {
                             if !matches!(attr.kind, AttributeKind::Pub) {
                                 return Err(Error::new(
@@ -384,6 +386,20 @@ impl CircuitWriter {
                         } else {
                             circuit_writer.add_private_inputs(name.value.clone(), len, name.span)
                         };
+
+                        // constrain what needs to be constrained
+                        // (for example, booleans need to be constrained to be 0 or 1)
+                        // note: we constrain private inputs as well as public inputs
+                        // in theory we might not need to check the validity of public inputs,
+                        // but we are being extra cautious due to attacks
+                        // where the prover gives the verifier malformed inputs that look legit.
+                        // (See short address attacks in Ethereum.)
+                        circuit_writer.constrain_inputs_to_main(
+                            &global_env,
+                            &var.cvars,
+                            &typ.kind,
+                            name.span,
+                        );
 
                         // add argument variable to the ast env
                         let mutable = false; // TODO: should we add a mut keyword in arguments as well?
@@ -549,6 +565,41 @@ impl CircuitWriter {
 
         // compile it and potentially return a return value
         self.compile_block(global_env, fn_env, &function.body)
+    }
+
+    fn constrain_inputs_to_main(
+        &mut self,
+        global_env: &GlobalEnv,
+        input: &[ConstOrCell],
+        input_typ: &TyKind,
+        span: Span,
+    ) {
+        match input_typ {
+            TyKind::Field => (),
+            TyKind::Bool => {
+                assert_eq!(input.len(), 1);
+                boolean::check(self, &input[0], span);
+            }
+            TyKind::Array(tykind, _) => {
+                let el_size = global_env.typed.size_of(tykind);
+                for el in input.chunks(el_size) {
+                    self.constrain_inputs_to_main(global_env, el, tykind, span);
+                }
+            }
+            TyKind::Custom(struct_name) => {
+                let struct_info = global_env
+                    .struct_info(struct_name)
+                    .expect("type-checker bug: couldn't find struct info of input to main");
+                let mut offset = 0;
+                for (_field_name, field_typ) in &struct_info.fields {
+                    let len = global_env.typed.size_of(field_typ);
+                    let range = offset..(offset + len);
+                    self.constrain_inputs_to_main(global_env, &input[range], field_typ, span);
+                    offset += len;
+                }
+            }
+            TyKind::BigInt => unreachable!(),
+        }
     }
 
     /// Compile a function. Used to compile `main()` only for now
