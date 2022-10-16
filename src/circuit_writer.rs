@@ -398,7 +398,7 @@ impl CircuitWriter {
                             &global_env,
                             &var.cvars,
                             &typ.kind,
-                            name.span,
+                            typ.span,
                         );
 
                         // add argument variable to the ast env
@@ -952,7 +952,7 @@ impl CircuitWriter {
 
                 let var = var.value(fn_env, global_env);
 
-                let res = boolean::not(self, &var[0], expr.span);
+                let res = boolean::not(self, &var[0], expr.span.merge_with(b.span));
                 Ok(Some(VarOrRef::Var(res)))
             }
 

@@ -139,8 +139,9 @@ pub fn parse_type_declaration(
     ))
 }
 
-pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<Expr>> {
-    tokens.bump(ctx); // (
+pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<(Vec<Expr>, Span)> {
+    let start = tokens.bump(ctx).expect("parser error: parse_fn_call_args"); // (
+    let mut span = start.span;
 
     let mut args = vec![];
     loop {
@@ -155,7 +156,8 @@ pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ve
 
                 // )
                 TokenKind::RightParen => {
-                    tokens.bump(ctx);
+                    let end = tokens.bump(ctx).unwrap();
+                    span = span.merge_with(end.span);
                     break;
                 }
 
@@ -176,7 +178,7 @@ pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Ve
         }
     }
 
-    Ok(args)
+    Ok((args, span))
 }
 
 //~
@@ -804,7 +806,7 @@ impl Expr {
             // fn call
             Some(Token {
                 kind: TokenKind::LeftParen,
-                span,
+                ..
             }) => {
                 // sanitize
                 let (module, fn_name) = match self.kind {
@@ -813,13 +815,9 @@ impl Expr {
                 };
 
                 // parse the arguments
-                let args = parse_fn_call_args(ctx, tokens)?;
+                let (args, span) = parse_fn_call_args(ctx, tokens)?;
 
-                let span = if let Some(arg) = args.last() {
-                    span.merge_with(arg.span)
-                } else {
-                    span
-                };
+                let span = self.span.merge_with(span);
 
                 Expr::new(
                     ctx,
@@ -869,13 +867,9 @@ impl Expr {
                     }) => {
                         // lhs.method_name(args)
                         //                 ^^^^
-                        let args = parse_fn_call_args(ctx, tokens)?;
+                        let (args, end_span) = parse_fn_call_args(ctx, tokens)?;
 
-                        let span = if let Some(arg) = args.last() {
-                            span.merge_with(arg.span)
-                        } else {
-                            span
-                        };
+                        let span = span.merge_with(end_span);
 
                         Expr::new(
                             ctx,
@@ -1193,7 +1187,12 @@ impl Function {
                 ErrorKind::InvalidFunctionSignature("expected end of function or other argument"),
             )?;
 
-            let span = span.merge_with(separator.span);
+            let span = if let Some(attr) = &attribute {
+                attr.span.merge_with(arg_typ.span)
+            } else {
+                span.merge_with(arg_typ.span)
+            };
+
             let arg = FnArg {
                 name: arg_name,
                 typ: arg_typ,
