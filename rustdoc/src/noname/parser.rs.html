@@ -1951,6 +1951,9 @@
 <span id="1951">1951</span>
 <span id="1952">1952</span>
 <span id="1953">1953</span>
+<span id="1954">1954</span>
+<span id="1955">1955</span>
+<span id="1956">1956</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -2342,8 +2345,11 @@
         </span>protected: bool,
     },
 
-    <span class="doccomment">/// `!expr`
+    <span class="doccomment">/// `-expr`
     </span>Negated(Box&lt;Expr&gt;),
+
+    <span class="doccomment">/// `!bool_expr`
+    </span>Not(Box&lt;Expr&gt;),
 
     <span class="doccomment">/// any numbers
     </span>BigInt(String),
@@ -2534,7 +2540,7 @@
             </span>TokenKind::Exclamation =&gt; {
                 <span class="kw">let </span>expr = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
 
-                Expr::new(ctx, ExprKind::Negated(Box::new(expr)), span)
+                Expr::new(ctx, ExprKind::Not(Box::new(expr)), span)
             }
 
             <span class="comment">// array declaration

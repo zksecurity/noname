@@ -94,6 +94,23 @@
 <span id="94">94</span>
 <span id="95">95</span>
 <span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Custom types
 
 </span><span class="kw">use </span>std::ops::Neg;
@@ -108,6 +125,23 @@
 
 <span class="kw">pub fn </span>is_valid(f: Field) -&gt; bool {
     f.is_one() || f.is_zero()
+}
+
+<span class="kw">pub fn </span>check(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, xx: <span class="kw-2">&amp;</span>ConstOrCell, span: Span) {
+    <span class="kw">let </span>zero = Field::zero();
+    <span class="kw">let </span>one = Field::one();
+
+    <span class="kw">match </span>xx {
+        ConstOrCell::Const(ff) =&gt; <span class="macro">assert!</span>(is_valid(<span class="kw-2">*</span>ff)),
+        ConstOrCell::Cell(var) =&gt; compiler.add_gate(
+            <span class="string">&quot;constraint to validate a boolean (`x(x-1) = 0`)&quot;</span>,
+            GateKind::DoubleGeneric,
+            <span class="comment">// x^2 - x = 0
+            </span><span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>var), <span class="prelude-val">Some</span>(<span class="kw-2">*</span>var), <span class="prelude-val">None</span>],
+            <span class="macro">vec!</span>[one.neg(), zero, zero, one],
+            span,
+        ),
+    };
 }
 
 <span class="kw">pub fn </span>and(compiler: <span class="kw-2">&amp;mut </span>CircuitWriter, lhs: <span class="kw-2">&amp;</span>ConstOrCell, rhs: <span class="kw-2">&amp;</span>ConstOrCell, span: Span) -&gt; Var {
