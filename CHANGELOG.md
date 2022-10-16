@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- fix negated (e.g. `-5`) and not (e.g. `!true`) expressions
+- bugfix: arguments to the main functions are now constrained
+- enforce parenthesis when chaining arithmetic operations
+- fix: return an error when a return statement is missing
+
 ## [0.6.0] - 2022-10-14
 
 - if/else expressions
