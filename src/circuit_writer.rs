@@ -20,7 +20,7 @@ use crate::{
         TyKind,
     },
     syntax::is_type,
-    type_checker::{StructInfo, TypeChecker, TAST},
+    type_checker::{checker::TypeChecker, StructInfo, TAST},
     var::{CellVar, ConstOrCell, Value, Var},
     witness::CompiledCircuit,
 };
@@ -745,7 +745,7 @@ impl CircuitWriter {
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Native(func) => {
-                            let res = self.compile_native_function_call(global_env, func, vars);
+                            let res = self.compile_native_function_call(global_env, &func, vars);
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Main(_) => Err(Error::new(ErrorKind::RecursiveMain, expr.span)),
