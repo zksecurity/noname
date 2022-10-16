@@ -762,6 +762,7 @@ impl Expr {
 
 /// TAST for Typed-AST. Not sure how else to call this,
 /// this is to make sure we call this compilation phase before the actual compilation.
+#[derive(Debug)]
 pub struct TAST {
     pub ast: AST,
     pub typed_global_env: TypedGlobalEnv,
@@ -983,18 +984,26 @@ impl TAST {
         }
 
         // check the return
-        if let Some(expected) = expected_return {
-            let observed = match return_typ {
-                None => return Err(Error::new(ErrorKind::MissingPublicOutput, expected.span)),
-                Some(e) => e,
-            };
-
-            if !observed.match_expected(&expected.kind) {
-                panic!(
-                    "returned type is not the same as expected return type (TODO: return an error)"
-                );
+        match (expected_return, return_typ) {
+            (None, None) => (),
+            (Some(expected), None) => {
+                return Err(Error::new(ErrorKind::MissingReturn, expected.span))
             }
-        }
+            (None, Some(_)) => {
+                return Err(Error::new(
+                    ErrorKind::NoReturnExpected,
+                    stmts.last().unwrap().span,
+                ))
+            }
+            (Some(expected), Some(observed)) => {
+                if !observed.match_expected(&expected.kind) {
+                    return Err(Error::new(
+                        ErrorKind::ReturnTypeMismatch(expected.kind.clone(), observed.clone()),
+                        expected.span,
+                    ));
+                }
+            }
+        };
 
         // exit the scope
         typed_fn_env.pop();

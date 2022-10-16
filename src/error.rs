@@ -155,14 +155,14 @@ pub enum ErrorKind {
     #[error("cannot convert `{0}` to field element")]
     CannotConvertToField(String),
 
-    #[error("return value is `{0}` when `{1}` was expected")]
-    ReturnTypeMismatch(TyKind, TyKind),
-
     #[error("a return value was expected by the function signature")]
     MissingReturn,
 
-    #[error("public output not set as part of the circuit")]
-    MissingPublicOutput,
+    #[error("no return value was expected as part of this function signature")]
+    NoReturnExpected,
+
+    #[error("the return type observed (`{0}`) doesn't match what the function expected as return type (`{1}`)")]
+    ReturnTypeMismatch(TyKind, TyKind),
 
     #[error("missing return type in the function signature")]
     UnexpectedReturn,

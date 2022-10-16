@@ -121,8 +121,7 @@ impl CompiledCircuit {
             }
             Value::External(name, idx) => Ok(env.get_external(name)[*idx]),
             Value::PublicOutput(var) => {
-                let var =
-                    var.ok_or_else(|| Error::new(ErrorKind::MissingPublicOutput, Span(0, 0)))?;
+                let var = var.ok_or_else(|| Error::new(ErrorKind::MissingReturn, Span(0, 0)))?;
                 self.compute_var(env, var)
             }
             Value::Scale(scalar, var) => {

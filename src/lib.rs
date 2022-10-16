@@ -24,6 +24,9 @@ pub mod witness;
 #[cfg(test)]
 pub mod tests;
 
+#[cfg(test)]
+pub mod negative_tests;
+
 //
 // Helpers
 //
