@@ -245,7 +245,6 @@
 <span id="245">245</span>
 <span id="246">246</span>
 <span id="247">247</span>
-<span id="248">248</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Deref};
 
 <span class="kw">use </span>ark_ff::{Field <span class="kw">as _</span>, Zero};
@@ -369,8 +368,7 @@
             }
             Value::External(name, idx) =&gt; <span class="prelude-val">Ok</span>(env.get_external(name)[<span class="kw-2">*</span>idx]),
             Value::PublicOutput(var) =&gt; {
-                <span class="kw">let </span>var =
-                    var.ok_or_else(|| Error::new(ErrorKind::MissingPublicOutput, Span(<span class="number">0</span>, <span class="number">0</span>)))<span class="question-mark">?</span>;
+                <span class="kw">let </span>var = var.ok_or_else(|| Error::new(ErrorKind::MissingReturn, Span(<span class="number">0</span>, <span class="number">0</span>)))<span class="question-mark">?</span>;
                 <span class="self">self</span>.compute_var(env, var)
             }
             Value::Scale(scalar, var) =&gt; {

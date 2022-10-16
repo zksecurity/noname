@@ -419,14 +419,14 @@
     <span class="attribute">#[error(<span class="string">&quot;cannot convert `{0}` to field element&quot;</span>)]
     </span>CannotConvertToField(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;return value is `{0}` when `{1}` was expected&quot;</span>)]
-    </span>ReturnTypeMismatch(TyKind, TyKind),
-
     <span class="attribute">#[error(<span class="string">&quot;a return value was expected by the function signature&quot;</span>)]
     </span>MissingReturn,
 
-    <span class="attribute">#[error(<span class="string">&quot;public output not set as part of the circuit&quot;</span>)]
-    </span>MissingPublicOutput,
+    <span class="attribute">#[error(<span class="string">&quot;no return value was expected as part of this function signature&quot;</span>)]
+    </span>NoReturnExpected,
+
+    <span class="attribute">#[error(<span class="string">&quot;the return type observed (`{0}`) doesn&#39;t match what the function expected as return type (`{1}`)&quot;</span>)]
+    </span>ReturnTypeMismatch(TyKind, TyKind),
 
     <span class="attribute">#[error(<span class="string">&quot;missing return type in the function signature&quot;</span>)]
     </span>UnexpectedReturn,
