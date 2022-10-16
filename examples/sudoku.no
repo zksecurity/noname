@@ -4,90 +4,82 @@ const player2 = 2;
 const sudoku_size = 81; // 9 * 9
 
 struct Sudoku {
-    inner: [Field; 81], // TODO: replace by sudoku_size
+    inner: [Field; 81],
 }
 
-fn Sudoku.cell(self, const row: Field, const col: Field) {
-    return self.inner[row * 9 + col];
+// return the value in a given cell
+fn Sudoku.cell(self, const row: Field, const col: Field) -> Field {
+    return self.inner[(row * 9) + col];
 }
 
-// doesn't matter which one is the grid and which one is the solution
-// this function merges `self` and `grid2` into a new grid
-fn Sudoku.merge(self, grid2: Sudoku) -> Sudoku {
-    // ideally: Sudoku([0; 9 * 9])
-    let mut merged = Sudoku([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ]);
+// verifies that self matches the grid in places where the grid has numbers
+fn Sudoku.matches(self, grid: Sudoku) {
+    // for each cell
     for row in 0..9 {
         for col in 0..9 {
-            let grid1_empty = self.cell(row, col) == empty;
-            let grid2_empty = grid2.cell(row, col) == empty;
-            let valid = grid1_empty || grid2_empty;
-            assert(valid);
-
-            merged[row * 9 + col] = if grid1_empty {
-                grid2.cell(row, col)
-            } else {
-                self.inner.cell(row, col)
-            };
+            // either the solution matches the grid
+            // or the grid is zero
+            let matches = self.cell(row, col) == grid.cell(row, col);
+            let is_empty = grid.cell(row, col) == empty;
+            assert(matches || is_empty);
         }
     }
-
-    return merged;
 }
 
-fn Sudoku.verify(sudoku: Sudoku) {
-    // rows
+fn Sudoku.verify_rows(self) {
     for row in 0..9 {
-        for num in 0..9 {
-            let found = false;
+        for num in 1..10 {
+            let mut found = false;
             for col in 0..9 {
-                if sudoku.cell(row, col) == num {
-                    found = true;
-                }
+                let found_one = self.cell(row, col) == num;
+                found = found || found_one;
             }
             assert(found);
         }
     }
+}
 
-    // cols
+fn Sudoku.verify_cols(self) {
     for col in 0..9 {
-        for num in 0..9 {
-            let found = false;
+        for num in 1..10 {
+            let mut found = false;
             for row in 0..9 {
-                if sudoku.cell(row, col) == num {
-                    found = true;
-                }
+                let found_one = self.cell(row, col) == num;
+                found = found || found_one;
             }
             assert(found);
         }
     }
+}
 
-    // diagonals
-    for num in 0..9 {
+fn Sudoku.verify_diagonals(self) {
+    for num in 1..10 {
 
         // first diagonal
-        let found1 = false;
-        for row in 0..9 {
-            if sudoku.cell(row, row) == num {
-                found = true;
-            }
+        let mut found1 = false;
+        for row1 in 0..9 {
+            let temp1 = self.cell(row1, row1) == num;
+            found1 = found1 || temp1;
         }
         assert(found1);
 
         // second diagonal
-        let found2 = false;
-        for row in 0..9 {
-            if sudoku.cell(9 - row, row) == num {
-                found = true;
-            }
+        let mut found2 = false;
+        for row2 in 0..9 {
+            let temp2 = self.cell(8 - row2, row2) == num;
+            found2 = found2 || temp2;
         }
         assert(found2);
     }
 }
 
-fn main(pub grid: Sudoku, solution: Sudoku) {
-    // merge the grid with the solution
-    let full = grid.merge(solution);
+fn Sudoku.verify(self) {
+    self.verify_rows();
+    self.verify_cols();
+    self.verify_diagonals();
+}
 
-    // verify
-    full.verify();
+fn main(pub grid: Sudoku, solution: Sudoku) {
+    solution.matches(grid);
+    solution.verify();
 }

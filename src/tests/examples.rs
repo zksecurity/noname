@@ -17,20 +17,23 @@ fn test_file(
 
     // read noname file
     let code = std::fs::read_to_string(prefix.clone().join(format!("{file_name}.no"))).unwrap();
-    let expected_asm =
-        std::fs::read_to_string(prefix.clone().join(format!("{file_name}.asm"))).unwrap();
 
     // compile
     let (prover_index, verifier_index) = compile_and_prove(&code).unwrap();
 
-    // check compiled ASM
-    let obtained_asm = prover_index.asm(false);
-    if obtained_asm != expected_asm {
-        eprintln!("obtained:");
-        eprintln!("{obtained_asm}");
-        eprintln!("expected:");
-        eprintln!("{expected_asm}");
-        panic!("Obtained ASM does not match expected ASM");
+    // check compiled ASM only if it's not too large
+    if prover_index.len() < 100 {
+        let expected_asm =
+            std::fs::read_to_string(prefix.clone().join(format!("{file_name}.asm"))).unwrap();
+
+        let obtained_asm = prover_index.asm(false);
+        if obtained_asm != expected_asm {
+            eprintln!("obtained:");
+            eprintln!("{obtained_asm}");
+            eprintln!("expected:");
+            eprintln!("{expected_asm}");
+            panic!("Obtained ASM does not match expected ASM");
+        }
     }
 
     // parse inputs
@@ -210,4 +213,13 @@ fn test_if_else() {
     let public_inputs = r#"{"xx": "1"}"#;
 
     test_file("if_else", public_inputs, private_inputs, vec![]);
+}
+
+#[test]
+#[ignore]
+fn test_sudoku() {
+    let private_inputs = r#"{"solution": { "inner": ["9", "5", "3", "6", "2", "1", "7", "8", "4", "1", "4", "8", "7", "5", "9", "2", "6", "3", "2", "7", "6", "8", "3", "4", "9", "5", "1", "3", "6", "9", "2", "7", "5", "4", "1", "8", "4", "8", "5", "9", "1", "6", "3", "7", "2", "7", "1", "2", "3", "4", "8", "6", "9", "5", "6", "3", "7", "1", "8", "2", "5", "4", "9", "5", "2", "1", "4", "9", "7", "8", "3", "6", "8", "9", "4", "5", "6", "3", "1", "2", "7"] }}"#;
+    let public_inputs = r#"{"grid": { "inner": ["0", "5", "3", "6", "2", "1", "7", "8", "4", "0", "4", "8", "7", "5", "9", "2", "6", "3", "2", "7", "6", "8", "3", "4", "9", "5", "1", "3", "6", "9", "2", "7", "0", "4", "1", "8", "4", "8", "5", "9", "1", "6", "3", "7", "2", "0", "1", "2", "3", "4", "8", "6", "9", "5", "6", "3", "0", "1", "8", "2", "5", "4", "9", "5", "2", "1", "4", "9", "0", "8", "3", "6", "8", "9", "4", "5", "6", "3", "1", "2", "7"] }}"#;
+
+    test_file("sudoku", public_inputs, private_inputs, vec![]);
 }

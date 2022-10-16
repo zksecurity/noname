@@ -133,6 +133,10 @@ impl ProverIndex {
         self.compiled_circuit.asm(debug)
     }
 
+    pub fn len(&self) -> usize {
+        self.compiled_circuit.compiled_gates().len()
+    }
+
     /// returns a proof and a public output
     pub fn prove(
         &self,
