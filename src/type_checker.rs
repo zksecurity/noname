@@ -13,7 +13,7 @@ use crate::{
 };
 
 //
-// Consts
+// Constants
 //
 
 const RESERVED_ARGS: [&str; 1] = ["public_output"];
@@ -22,7 +22,7 @@ const RESERVED_ARGS: [&str; 1] = ["public_output"];
 // Data Structures
 //
 
-/// Some type information on local variables that we want to track.
+/// Some type information on local variables that we want to track in the [TypedFnEnv] environment.
 #[derive(Debug, Clone)]
 pub struct TypeInfo {
     /// If the variable can be mutated or not.
@@ -75,66 +75,6 @@ pub struct StructInfo {
     pub methods: HashMap<String, Function>,
 }
 
-/// The environment we use to type check a noname program.
-#[derive(Default, Debug)]
-pub struct TypeChecker {
-    /// the functions present in the scope
-    /// contains at least the set of builtin functions (like assert_eq)
-    pub functions: HashMap<String, FnInfo>,
-
-    /// stores the imported modules
-    pub modules: HashMap<String, ImportedModule>,
-
-    /// If there's a main function in this module, then this is true
-    /// (in other words, it's not a library)
-    pub has_main: bool,
-
-    /// Custom structs type information and ASTs for methods.
-    structs: HashMap<String, StructInfo>,
-
-    /// Constants declared in this module.
-    constants: HashMap<String, Ty>,
-
-    /// Mapping from node id to TyKind.
-    /// This can be used by the circuit-writer when it needs type information.
-    node_types: HashMap<usize, TyKind>,
-}
-
-impl TypeChecker {
-    pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
-        self.node_types.get(&expr.node_id)
-    }
-
-    pub fn node_type(&self, node_id: usize) -> Option<&TyKind> {
-        self.node_types.get(&node_id)
-    }
-
-    pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
-        self.structs.get(name)
-    }
-
-    /// Returns the number of field elements contained in the given type.
-    // TODO: might want to memoize that at some point
-    pub fn size_of(&self, typ: &TyKind) -> usize {
-        match typ {
-            TyKind::Field => 1,
-            TyKind::Custom(c) => {
-                let struct_info = self
-                    .struct_info(c)
-                    .expect("couldn't find struct info of {c}");
-                struct_info
-                    .fields
-                    .iter()
-                    .map(|(_, t)| self.size_of(t))
-                    .sum()
-            }
-            TyKind::BigInt => 1,
-            TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
-            TyKind::Bool => 1,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct FnInfo {
     pub kind: FnKind,
@@ -148,40 +88,6 @@ impl FnInfo {
             FnKind::Native(func) => &func.sig,
             FnKind::Main(sig) => sig,
         }
-    }
-}
-
-impl TypeChecker {
-    pub fn resolve_global_imports(&mut self) -> Result<()> {
-        let builtin_functions = resolve_builtin_functions();
-        for fn_info in builtin_functions {
-            if self
-                .functions
-                .insert(fn_info.sig().name.name.value.clone(), fn_info)
-                .is_some()
-            {
-                panic!("global imports conflict (TODO: better error)");
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn import(&mut self, path: &UsePath) -> Result<()> {
-        let module = resolve_imports(path)?;
-
-        if self
-            .modules
-            .insert(module.name.clone(), module.clone())
-            .is_some()
-        {
-            return Err(Error::new(
-                ErrorKind::DuplicateModule(module.name.clone()),
-                module.span,
-            ));
-        }
-
-        Ok(())
     }
 }
 
@@ -302,7 +208,101 @@ impl ExprTyInfo {
     }
 }
 
+//
+// Type checker
+//
+
+/// The environment we use to type check a noname program.
+#[derive(Default, Debug)]
+pub struct TypeChecker {
+    /// the functions present in the scope
+    /// contains at least the set of builtin functions (like assert_eq)
+    pub functions: HashMap<String, FnInfo>,
+
+    /// stores the imported modules
+    pub modules: HashMap<String, ImportedModule>,
+
+    /// If there's a main function in this module, then this is true
+    /// (in other words, it's not a library)
+    pub has_main: bool,
+
+    /// Custom structs type information and ASTs for methods.
+    structs: HashMap<String, StructInfo>,
+
+    /// Constants declared in this module.
+    constants: HashMap<String, Ty>,
+
+    /// Mapping from node id to TyKind.
+    /// This can be used by the circuit-writer when it needs type information.
+    node_types: HashMap<usize, TyKind>,
+}
+
 impl TypeChecker {
+    pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
+        self.node_types.get(&expr.node_id)
+    }
+
+    pub fn node_type(&self, node_id: usize) -> Option<&TyKind> {
+        self.node_types.get(&node_id)
+    }
+
+    pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
+        self.structs.get(name)
+    }
+
+    /// Returns the number of field elements contained in the given type.
+    // TODO: might want to memoize that at some point
+    pub fn size_of(&self, typ: &TyKind) -> usize {
+        match typ {
+            TyKind::Field => 1,
+            TyKind::Custom(c) => {
+                let struct_info = self
+                    .struct_info(c)
+                    .expect("couldn't find struct info of {c}");
+                struct_info
+                    .fields
+                    .iter()
+                    .map(|(_, t)| self.size_of(t))
+                    .sum()
+            }
+            TyKind::BigInt => 1,
+            TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
+            TyKind::Bool => 1,
+        }
+    }
+
+    pub fn resolve_global_imports(&mut self) -> Result<()> {
+        let builtin_functions = resolve_builtin_functions();
+        for fn_info in builtin_functions {
+            if self
+                .functions
+                .insert(fn_info.sig().name.name.value.clone(), fn_info)
+                .is_some()
+            {
+                panic!("global imports conflict (TODO: better error)");
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn import(&mut self, path: &UsePath) -> Result<()> {
+        let module = resolve_imports(path)?;
+
+        if self
+            .modules
+            .insert(module.name.clone(), module.clone())
+            .is_some()
+        {
+            return Err(Error::new(
+                ErrorKind::DuplicateModule(module.name.clone()),
+                module.span,
+            ));
+        }
+
+        Ok(())
+    }
+
     fn compute_type(
         &mut self,
         expr: &Expr,
