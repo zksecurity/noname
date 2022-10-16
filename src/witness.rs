@@ -11,7 +11,7 @@ use crate::{
     helpers::PrettyField as _,
     inputs::{parse_single_input, JsonInputs},
     parser::TyKind,
-    type_checker::TypedGlobalEnv,
+    type_checker::TypeChecker,
     var::{CellVar, Value},
 };
 

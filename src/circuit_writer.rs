@@ -20,7 +20,7 @@ use crate::{
         TyKind,
     },
     syntax::is_type,
-    type_checker::{StructInfo, TypedGlobalEnv, TAST},
+    type_checker::{StructInfo, TypeChecker, TAST},
     var::{CellVar, ConstOrCell, Value, Var},
     witness::CompiledCircuit,
 };
@@ -32,7 +32,7 @@ use crate::{
 /// The environment of the module/program.
 #[derive(Debug)]
 pub struct GlobalEnv {
-    typed: TypedGlobalEnv,
+    typed: TypeChecker,
 
     /// Constants defined in the module/program.
     constants: HashMap<String, VarInfo>,
@@ -40,7 +40,7 @@ pub struct GlobalEnv {
 
 impl GlobalEnv {
     /// Creates a global environment from the one created by the type checker.
-    pub fn new(typed_global_env: TypedGlobalEnv) -> Self {
+    pub fn new(typed_global_env: TypeChecker) -> Self {
         Self {
             typed: typed_global_env,
             constants: HashMap::new(),
