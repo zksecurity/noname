@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["TypeInfo","Some type information on local variables that we want to track in the [TypedFnEnv] environment."],["TypedFnEnv","The environment we use to type check functions."]]};
