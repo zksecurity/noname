@@ -110,6 +110,7 @@ impl CircuitWriter {
             source: code.to_string(),
             main: (main_sig, main_span),
             typed: typed_global_env,
+            double_generic_gate_optimization: false,
             ..Self::default()
         }
     }
