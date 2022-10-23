@@ -269,10 +269,14 @@
 <span id="269">269</span>
 <span id="270">270</span>
 <span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
-    constants::Span,
+    constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     parser::{AttributeKind, FnArg, FnSig, Function, RootKind, Struct, TyKind},
     type_checker::{TypeChecker, TAST},
@@ -351,6 +355,10 @@
     <span class="doccomment">/// This is used to implement the double generic gate,
     /// which encodes two generic gates.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) pending_generic_gate: <span class="prelude-ty">Option</span>&lt;PendingGate&gt;,
+
+    <span class="doccomment">/// We cache the association between a constant and its _constrained_ variable,
+    /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) cached_constants: HashMap&lt;Field, CellVar&gt;,
 }
 
 <span class="kw">impl </span>CircuitWriter {

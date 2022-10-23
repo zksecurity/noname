@@ -936,6 +936,7 @@
 <span id="936">936</span>
 <span id="937">937</span>
 <span id="938">938</span>
+<span id="939">939</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Display, Formatter},
     ops::Neg,
@@ -987,11 +988,7 @@
     <span class="doccomment">/// Type of gate
     </span><span class="kw">pub </span>typ: GateKind,
 
-    <span class="doccomment">/// col -&gt; (row, col)
-    </span><span class="comment">// TODO: do we want to do an external wiring instead?
-    //    wiring: HashMap&lt;u8, (u64, u8)&gt;,
-
-    </span><span class="doccomment">/// Coefficients
+    <span class="doccomment">/// Coefficients
     </span><span class="kw">pub </span>coeffs: Vec&lt;Field&gt;,
 
     <span class="doccomment">/// The place in the original source code that created that gate.
@@ -1706,7 +1703,12 @@
         value: Field,
         span: Span,
     ) -&gt; CellVar {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(cvar) = <span class="self">self</span>.cached_constants.get(<span class="kw-2">&amp;</span>value) {
+            <span class="kw">return </span><span class="kw-2">*</span>cvar;
+        }
+
         <span class="kw">let </span>var = <span class="self">self</span>.new_internal_var(Value::Constant(value), span);
+        <span class="self">self</span>.cached_constants.insert(value, var);
 
         <span class="kw">let </span>zero = Field::zero();
         <span class="self">self</span>.add_generic_gate(
