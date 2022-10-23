@@ -137,6 +137,10 @@
 <span id="137">137</span>
 <span id="138">138</span>
 <span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Used to parse public and private inputs to a program.
 
 </span><span class="kw">use </span>std::{collections::HashMap, str::FromStr};
@@ -146,7 +150,7 @@
 <span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>thiserror::Error;
 
-<span class="kw">use crate</span>::{circuit_writer::GlobalEnv, constants::Field, parser::TyKind};
+<span class="kw">use crate</span>::{constants::Field, parser::TyKind, witness::CompiledCircuit};
 
 <span class="comment">//
 // Errors
@@ -185,68 +189,72 @@
 // JSON deserialization of a single input
 //
 
-</span><span class="kw">pub fn </span>parse_single_input(
-    env: <span class="kw-2">&amp;</span>GlobalEnv,
-    input: serde_json::Value,
-    expected_input: <span class="kw-2">&amp;</span>TyKind,
-) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Field&gt;, ParsingError&gt; {
-    <span class="kw">use </span>serde_json::Value;
+</span><span class="kw">impl </span>CompiledCircuit {
+    <span class="kw">pub fn </span>parse_single_input(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        input: serde_json::Value,
+        expected_input: <span class="kw-2">&amp;</span>TyKind,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Field&gt;, ParsingError&gt; {
+        <span class="kw">use </span>serde_json::Value;
 
-    <span class="kw">match </span>(expected_input, input) {
-        (TyKind::BigInt, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
-        (TyKind::Field, Value::String(ss)) =&gt; {
-            <span class="kw">let </span>cell_value = Field::from_str(<span class="kw-2">&amp;</span>ss).map_err(|<span class="kw">_</span>| ParsingError::InvalidField(ss))<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[cell_value])
-        }
-        (TyKind::Bool, Value::Bool(bb)) =&gt; {
-            <span class="kw">let </span>ff = <span class="kw">if </span>bb { Field::one() } <span class="kw">else </span>{ Field::zero() };
-            <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[ff])
-        }
-
-        (TyKind::Array(el_typ, size), Value::Array(values)) =&gt; {
-            <span class="kw">if </span>values.len() != (<span class="kw-2">*</span>size <span class="kw">as </span>usize) {
-                <span class="macro">panic!</span>(<span class="string">&quot;wrong size of array&quot;</span>);
+        <span class="kw">match </span>(expected_input, input) {
+            (TyKind::BigInt, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
+            (TyKind::Field, Value::String(ss)) =&gt; {
+                <span class="kw">let </span>cell_value =
+                    Field::from_str(<span class="kw-2">&amp;</span>ss).map_err(|<span class="kw">_</span>| ParsingError::InvalidField(ss))<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[cell_value])
             }
-            <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[];
-            <span class="kw">for </span>value <span class="kw">in </span>values {
-                <span class="kw">let </span>el = parse_single_input(env, value, el_typ)<span class="question-mark">?</span>;
-                res.extend(el);
+            (TyKind::Bool, Value::Bool(bb)) =&gt; {
+                <span class="kw">let </span>ff = <span class="kw">if </span>bb { Field::one() } <span class="kw">else </span>{ Field::zero() };
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[ff])
             }
 
-            <span class="prelude-val">Ok</span>(res)
-        }
-        (TyKind::Custom(struct_name), Value::Object(<span class="kw-2">mut </span>map)) =&gt; {
-            <span class="comment">// get fields of struct
-            </span><span class="kw">let </span>struct_info = env
-                .struct_info(struct_name)
-                .expect(<span class="string">&quot;compiler bug: couldn&#39;t find struct given as input&quot;</span>);
-            <span class="kw">let </span>fields = <span class="kw-2">&amp;</span>struct_info.fields;
+            (TyKind::Array(el_typ, size), Value::Array(values)) =&gt; {
+                <span class="kw">if </span>values.len() != (<span class="kw-2">*</span>size <span class="kw">as </span>usize) {
+                    <span class="macro">panic!</span>(<span class="string">&quot;wrong size of array&quot;</span>);
+                }
+                <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[];
+                <span class="kw">for </span>value <span class="kw">in </span>values {
+                    <span class="kw">let </span>el = <span class="self">self</span>.parse_single_input(value, el_typ)<span class="question-mark">?</span>;
+                    res.extend(el);
+                }
 
-            <span class="comment">// make sure that they&#39;re the same length
-            </span><span class="kw">if </span>fields.len() != map.len() {
-                <span class="macro">panic!</span>(<span class="string">&quot;wrong number of fields in struct (TODO: better error)&quot;</span>);
+                <span class="prelude-val">Ok</span>(res)
             }
+            (TyKind::Custom(struct_name), Value::Object(<span class="kw-2">mut </span>map)) =&gt; {
+                <span class="comment">// get fields of struct
+                </span><span class="kw">let </span>struct_info = <span class="self">self
+                    </span>.circuit
+                    .struct_info(struct_name)
+                    .expect(<span class="string">&quot;compiler bug: couldn&#39;t find struct given as input&quot;</span>);
+                <span class="kw">let </span>fields = <span class="kw-2">&amp;</span>struct_info.fields;
 
-            <span class="comment">// parse each field
-            </span><span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[];
-            <span class="kw">for </span>(field_name, field_ty) <span class="kw">in </span>fields {
-                <span class="kw">let </span>value = map
+                <span class="comment">// make sure that they&#39;re the same length
+                </span><span class="kw">if </span>fields.len() != map.len() {
+                    <span class="macro">panic!</span>(<span class="string">&quot;wrong number of fields in struct (TODO: better error)&quot;</span>);
+                }
+
+                <span class="comment">// parse each field
+                </span><span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[];
+                <span class="kw">for </span>(field_name, field_ty) <span class="kw">in </span>fields {
+                    <span class="kw">let </span>value = map
                     .remove(field_name)
                     .ok_or_else(|| {
                         <span class="macro">format!</span>(<span class="string">&quot;couldn&#39;t find field `{field_name}` in given JSON input (TODO: better error)&quot;</span>)
                     })
                     .unwrap();
-                <span class="kw">let </span>parsed = parse_single_input(env, value, field_ty)<span class="question-mark">?</span>;
-                res.extend(parsed);
-            }
+                    <span class="kw">let </span>parsed = <span class="self">self</span>.parse_single_input(value, field_ty)<span class="question-mark">?</span>;
+                    res.extend(parsed);
+                }
 
-            <span class="prelude-val">Ok</span>(res)
-        }
-        (expected, observed) =&gt; {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(ParsingError::MismatchJsonArgument(
-                expected.clone(),
-                observed,
-            ));
+                <span class="prelude-val">Ok</span>(res)
+            }
+            (expected, observed) =&gt; {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(ParsingError::MismatchJsonArgument(
+                    expected.clone(),
+                    observed,
+                ));
+            }
         }
     }
 }
@@ -277,4 +285,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (5c8bff74b 2022-10-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6e95b6da8 2022-10-22)" ></div></body></html>

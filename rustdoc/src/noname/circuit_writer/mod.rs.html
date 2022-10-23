@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>circuit_writer.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><a class="sidebar-logo" href="../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../noname/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><a class="sidebar-logo" href="../../../noname/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -1224,196 +1224,6 @@
 <span id="1224">1224</span>
 <span id="1225">1225</span>
 <span id="1226">1226</span>
-<span id="1227">1227</span>
-<span id="1228">1228</span>
-<span id="1229">1229</span>
-<span id="1230">1230</span>
-<span id="1231">1231</span>
-<span id="1232">1232</span>
-<span id="1233">1233</span>
-<span id="1234">1234</span>
-<span id="1235">1235</span>
-<span id="1236">1236</span>
-<span id="1237">1237</span>
-<span id="1238">1238</span>
-<span id="1239">1239</span>
-<span id="1240">1240</span>
-<span id="1241">1241</span>
-<span id="1242">1242</span>
-<span id="1243">1243</span>
-<span id="1244">1244</span>
-<span id="1245">1245</span>
-<span id="1246">1246</span>
-<span id="1247">1247</span>
-<span id="1248">1248</span>
-<span id="1249">1249</span>
-<span id="1250">1250</span>
-<span id="1251">1251</span>
-<span id="1252">1252</span>
-<span id="1253">1253</span>
-<span id="1254">1254</span>
-<span id="1255">1255</span>
-<span id="1256">1256</span>
-<span id="1257">1257</span>
-<span id="1258">1258</span>
-<span id="1259">1259</span>
-<span id="1260">1260</span>
-<span id="1261">1261</span>
-<span id="1262">1262</span>
-<span id="1263">1263</span>
-<span id="1264">1264</span>
-<span id="1265">1265</span>
-<span id="1266">1266</span>
-<span id="1267">1267</span>
-<span id="1268">1268</span>
-<span id="1269">1269</span>
-<span id="1270">1270</span>
-<span id="1271">1271</span>
-<span id="1272">1272</span>
-<span id="1273">1273</span>
-<span id="1274">1274</span>
-<span id="1275">1275</span>
-<span id="1276">1276</span>
-<span id="1277">1277</span>
-<span id="1278">1278</span>
-<span id="1279">1279</span>
-<span id="1280">1280</span>
-<span id="1281">1281</span>
-<span id="1282">1282</span>
-<span id="1283">1283</span>
-<span id="1284">1284</span>
-<span id="1285">1285</span>
-<span id="1286">1286</span>
-<span id="1287">1287</span>
-<span id="1288">1288</span>
-<span id="1289">1289</span>
-<span id="1290">1290</span>
-<span id="1291">1291</span>
-<span id="1292">1292</span>
-<span id="1293">1293</span>
-<span id="1294">1294</span>
-<span id="1295">1295</span>
-<span id="1296">1296</span>
-<span id="1297">1297</span>
-<span id="1298">1298</span>
-<span id="1299">1299</span>
-<span id="1300">1300</span>
-<span id="1301">1301</span>
-<span id="1302">1302</span>
-<span id="1303">1303</span>
-<span id="1304">1304</span>
-<span id="1305">1305</span>
-<span id="1306">1306</span>
-<span id="1307">1307</span>
-<span id="1308">1308</span>
-<span id="1309">1309</span>
-<span id="1310">1310</span>
-<span id="1311">1311</span>
-<span id="1312">1312</span>
-<span id="1313">1313</span>
-<span id="1314">1314</span>
-<span id="1315">1315</span>
-<span id="1316">1316</span>
-<span id="1317">1317</span>
-<span id="1318">1318</span>
-<span id="1319">1319</span>
-<span id="1320">1320</span>
-<span id="1321">1321</span>
-<span id="1322">1322</span>
-<span id="1323">1323</span>
-<span id="1324">1324</span>
-<span id="1325">1325</span>
-<span id="1326">1326</span>
-<span id="1327">1327</span>
-<span id="1328">1328</span>
-<span id="1329">1329</span>
-<span id="1330">1330</span>
-<span id="1331">1331</span>
-<span id="1332">1332</span>
-<span id="1333">1333</span>
-<span id="1334">1334</span>
-<span id="1335">1335</span>
-<span id="1336">1336</span>
-<span id="1337">1337</span>
-<span id="1338">1338</span>
-<span id="1339">1339</span>
-<span id="1340">1340</span>
-<span id="1341">1341</span>
-<span id="1342">1342</span>
-<span id="1343">1343</span>
-<span id="1344">1344</span>
-<span id="1345">1345</span>
-<span id="1346">1346</span>
-<span id="1347">1347</span>
-<span id="1348">1348</span>
-<span id="1349">1349</span>
-<span id="1350">1350</span>
-<span id="1351">1351</span>
-<span id="1352">1352</span>
-<span id="1353">1353</span>
-<span id="1354">1354</span>
-<span id="1355">1355</span>
-<span id="1356">1356</span>
-<span id="1357">1357</span>
-<span id="1358">1358</span>
-<span id="1359">1359</span>
-<span id="1360">1360</span>
-<span id="1361">1361</span>
-<span id="1362">1362</span>
-<span id="1363">1363</span>
-<span id="1364">1364</span>
-<span id="1365">1365</span>
-<span id="1366">1366</span>
-<span id="1367">1367</span>
-<span id="1368">1368</span>
-<span id="1369">1369</span>
-<span id="1370">1370</span>
-<span id="1371">1371</span>
-<span id="1372">1372</span>
-<span id="1373">1373</span>
-<span id="1374">1374</span>
-<span id="1375">1375</span>
-<span id="1376">1376</span>
-<span id="1377">1377</span>
-<span id="1378">1378</span>
-<span id="1379">1379</span>
-<span id="1380">1380</span>
-<span id="1381">1381</span>
-<span id="1382">1382</span>
-<span id="1383">1383</span>
-<span id="1384">1384</span>
-<span id="1385">1385</span>
-<span id="1386">1386</span>
-<span id="1387">1387</span>
-<span id="1388">1388</span>
-<span id="1389">1389</span>
-<span id="1390">1390</span>
-<span id="1391">1391</span>
-<span id="1392">1392</span>
-<span id="1393">1393</span>
-<span id="1394">1394</span>
-<span id="1395">1395</span>
-<span id="1396">1396</span>
-<span id="1397">1397</span>
-<span id="1398">1398</span>
-<span id="1399">1399</span>
-<span id="1400">1400</span>
-<span id="1401">1401</span>
-<span id="1402">1402</span>
-<span id="1403">1403</span>
-<span id="1404">1404</span>
-<span id="1405">1405</span>
-<span id="1406">1406</span>
-<span id="1407">1407</span>
-<span id="1408">1408</span>
-<span id="1409">1409</span>
-<span id="1410">1410</span>
-<span id="1411">1411</span>
-<span id="1412">1412</span>
-<span id="1413">1413</span>
-<span id="1414">1414</span>
-<span id="1415">1415</span>
-<span id="1416">1416</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1433,7 +1243,7 @@
     imports::FnKind,
     parser::{
         AttributeKind, Expr, ExprKind, FnArg, FnSig, Function, Op2, RootKind, Stmt, StmtKind,
-        TyKind,
+        Struct, TyKind,
     },
     syntax::is_type,
     type_checker::{checker::TypeChecker, StructInfo, TAST},
@@ -1441,53 +1251,15 @@
     witness::CompiledCircuit,
 };
 
+<span class="kw">pub use </span>fn_env::{FnEnv, VarInfo};
+
+<span class="kw">pub mod </span>fn_env;
+
 <span class="comment">//
 // Data structures
 //
 
-</span><span class="doccomment">/// The environment of the module/program.
-</span><span class="attribute">#[derive(Debug)]
-</span><span class="kw">pub struct </span>GlobalEnv {
-    typed: TypeChecker,
-
-    <span class="doccomment">/// Constants defined in the module/program.
-    </span>constants: HashMap&lt;String, VarInfo&gt;,
-}
-
-<span class="kw">impl </span>GlobalEnv {
-    <span class="doccomment">/// Creates a global environment from the one created by the type checker.
-    </span><span class="kw">pub fn </span>new(typed_global_env: TypeChecker) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            typed: typed_global_env,
-            constants: HashMap::new(),
-        }
-    }
-
-    <span class="kw">pub fn </span>struct_info(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>StructInfo&gt; {
-        <span class="self">self</span>.typed.struct_info(name)
-    }
-
-    <span class="doccomment">/// Stores type information about a local variable.
-    /// Note that we forbid shadowing at all scopes.
-    </span><span class="kw">pub fn </span>add_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, constant: Field, span: Span) {
-        <span class="kw">let </span>var = Var::new_constant(constant, span);
-
-        <span class="kw">let </span>var_info = VarInfo::new(var, <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(TyKind::Field));
-
-        <span class="kw">if </span><span class="self">self</span>.constants.insert(name.clone(), var_info).is_some() {
-            <span class="macro">panic!</span>(<span class="string">&quot;constant `{name}` already exists (TODO: better error)&quot;</span>);
-        }
-    }
-
-    <span class="doccomment">/// Retrieves type information on a constantiable, given a name.
-    /// If the constantiable is not in scope, return false.
-    </span><span class="comment">// TODO: return an error no?
-    </span><span class="kw">pub fn </span>get_constant(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>VarInfo&gt; {
-        <span class="self">self</span>.constants.get(ident)
-    }
-}
-
-<span class="attribute">#[derive(Debug, Clone, Copy)]
+</span><span class="attribute">#[derive(Debug, Clone, Copy)]
 </span><span class="kw">pub enum </span>GateKind {
     DoubleGeneric,
     Poseidon,
@@ -1582,7 +1354,7 @@
     <span class="doccomment">/// Returns the value within the variable or pointer.
     /// If it is a pointer, we lose information about the original variable,
     /// thus calling this function is aking to passing the variable by value.
-    </span><span class="kw">pub fn </span>value(<span class="self">self</span>, env: <span class="kw-2">&amp;</span>FnEnv, global_env: <span class="kw-2">&amp;</span>GlobalEnv) -&gt; Var {
+    </span><span class="kw">pub fn </span>value(<span class="self">self</span>, env: <span class="kw-2">&amp;</span>FnEnv) -&gt; Var {
         <span class="kw">match </span><span class="self">self </span>{
             VarOrRef::Var(var) =&gt; var,
             VarOrRef::Ref {
@@ -1590,7 +1362,7 @@
                 start,
                 len,
             } =&gt; {
-                <span class="kw">let </span>var_info = env.get_var(global_env, <span class="kw-2">&amp;</span>var_name);
+                <span class="kw">let </span>var_info = env.get_var(<span class="kw-2">&amp;</span>var_name);
                 <span class="kw">let </span>cvars = var_info.var.range(start, len).to_vec();
                 Var::new(cvars, var_info.var.span)
             }
@@ -1669,6 +1441,7 @@
     </span><span class="kw">pub </span>source: String,
 
     <span class="doccomment">/// Once this is set, you can generate a witness (and can&#39;t modify the circuit?)
+    </span><span class="comment">// Note: I don&#39;t think we need this, but it acts as a nice redundant failsafe.
     </span><span class="kw">pub </span>finalized: bool,
 
     <span class="doccomment">/// This is used to give a distinct number to each variable during circuit generation.
@@ -1710,9 +1483,54 @@
     <span class="doccomment">/// Used during the witness generation to check
     /// public and private inputs given by the prover.
     </span><span class="kw">pub </span>main: (FnSig, Span),
+
+    <span class="doccomment">/// The state of the type checker.
+    </span>typed: TypeChecker,
+
+    <span class="doccomment">/// Constants defined in the module/program.
+    </span>constants: HashMap&lt;String, VarInfo&gt;,
 }
 
 <span class="kw">impl </span>CircuitWriter {
+    <span class="doccomment">/// Creates a global environment from the one created by the type checker.
+    </span><span class="kw">pub fn </span>new(code: <span class="kw-2">&amp;</span>str, typed_global_env: TypeChecker) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>(main_sig, main_span) = {
+            <span class="kw">let </span>fn_info = typed_global_env.functions.get(<span class="string">&quot;main&quot;</span>).cloned().unwrap();
+
+            (fn_info.sig().clone(), fn_info.span)
+        };
+
+        <span class="self">Self </span>{
+            source: code.to_string(),
+            main: (main_sig, main_span),
+            typed: typed_global_env,
+            ..<span class="self">Self</span>::default()
+        }
+    }
+
+    <span class="kw">pub fn </span>struct_info(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>StructInfo&gt; {
+        <span class="self">self</span>.typed.struct_info(name)
+    }
+
+    <span class="doccomment">/// Stores type information about a local variable.
+    /// Note that we forbid shadowing at all scopes.
+    </span><span class="kw">pub fn </span>add_constant_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, constant: Field, span: Span) {
+        <span class="kw">let </span>var = Var::new_constant(constant, span);
+
+        <span class="kw">let </span>var_info = VarInfo::new(var, <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(TyKind::Field));
+
+        <span class="kw">if </span><span class="self">self</span>.constants.insert(name.clone(), var_info).is_some() {
+            <span class="macro">panic!</span>(<span class="string">&quot;constant `{name}` already exists (TODO: better error)&quot;</span>);
+        }
+    }
+
+    <span class="doccomment">/// Retrieves type information on a constantiable, given a name.
+    /// If the constantiable is not in scope, return false.
+    </span><span class="comment">// TODO: return an error no?
+    </span><span class="kw">pub fn </span>get_constant(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>VarInfo&gt; {
+        <span class="self">self</span>.constants.get(ident)
+    }
+
     <span class="kw">pub fn </span>generate_circuit(tast: TAST, code: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledCircuit&gt; {
         <span class="comment">// if there&#39;s no main function, then return an error
         </span><span class="kw">let </span>TAST {
@@ -1724,39 +1542,59 @@
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::NoMainFunction, Span::default()));
         }
 
-        <span class="kw">let </span>(main_sig, main_span) = {
-            <span class="kw">let </span>fn_info = typed_global_env.functions.get(<span class="string">&quot;main&quot;</span>).cloned().unwrap();
-
-            (fn_info.sig().clone(), fn_info.span)
-        };
-
-        <span class="kw">let </span><span class="kw-2">mut </span>circuit_writer = CircuitWriter {
-            source: code.to_string(),
-            main: (main_sig, main_span),
-            ..CircuitWriter::default()
-        };
+        <span class="kw">let </span><span class="kw-2">mut </span>circuit_writer = CircuitWriter::new(code, typed_global_env);
 
         <span class="comment">// make sure we can&#39;t call that several times
         </span><span class="kw">if </span>circuit_writer.finalized {
             <span class="macro">panic!</span>(<span class="string">&quot;circuit already finalized (TODO: return a proper error&quot;</span>);
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>global_env = GlobalEnv::new(typed_global_env);
+        <span class="comment">//
+        // Process constants
+        //
+
+        // we detect struct or function definition
+        </span><span class="kw">let </span><span class="kw-2">mut </span>func_or_struct = <span class="prelude-val">None</span>;
 
         <span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
+            <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
+                RootKind::Const(cst) =&gt; {
+                    <span class="comment">// important: no struct or function definition must appear before a constant declaration
+                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(span) = func_or_struct {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            ErrorKind::ConstDeclarationAfterStructOrFunction,
+                            span,
+                        ));
+                    }
+                    circuit_writer.add_constant_var(cst.name.value.clone(), cst.value, cst.span);
+                }
+
+                RootKind::Function(Function { span, .. })
+                | RootKind::Struct(Struct { span, .. }) =&gt; func_or_struct = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>span),
+
+                RootKind::Use(<span class="kw">_</span>) | RootKind::Comment(<span class="kw">_</span>) =&gt; (),
+            }
+        }
+
+        <span class="comment">//
+        // Generate the circuit
+        //
+
+        </span><span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
             <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
                 <span class="comment">// imports (already dealt with in type checker)
                 </span>RootKind::Use(_path) =&gt; (),
 
                 <span class="comment">// `const thing = 42;`
-                </span>RootKind::Const(cst) =&gt; {
-                    global_env.add_constant(cst.name.value.clone(), cst.value, cst.span);
+                </span>RootKind::Const(_cst) =&gt; {
+                    <span class="comment">// already took care of it previously
+                    </span>()
                 }
 
                 <span class="comment">// `fn main() { ... }`
                 </span>RootKind::Function(function) =&gt; {
                     <span class="comment">// create the env
-                    </span><span class="kw">let </span>fn_env = <span class="kw-2">&amp;mut </span>FnEnv::default();
+                    </span><span class="kw">let </span>fn_env = <span class="kw-2">&amp;mut </span>FnEnv::new(<span class="kw-2">&amp;</span>circuit_writer.constants);
 
                     <span class="comment">// we only compile the main function
                     </span><span class="kw">if </span>!function.is_main() {
@@ -1787,7 +1625,7 @@
                                 <span class="kw-2">*</span>len <span class="kw">as </span>usize
                             }
                             TyKind::Bool =&gt; <span class="number">1</span>,
-                            typ =&gt; global_env.typed.size_of(typ),
+                            typ =&gt; circuit_writer.typed.size_of(typ),
                         };
 
                         <span class="comment">// create the variable
@@ -1810,17 +1648,12 @@
                         // but we are being extra cautious due to attacks
                         // where the prover gives the verifier malformed inputs that look legit.
                         // (See short address attacks in Ethereum.)
-                        </span>circuit_writer.constrain_inputs_to_main(
-                            <span class="kw-2">&amp;</span>global_env,
-                            <span class="kw-2">&amp;</span>var.cvars,
-                            <span class="kw-2">&amp;</span>typ.kind,
-                            typ.span,
-                        );
+                        </span>circuit_writer.constrain_inputs_to_main(<span class="kw-2">&amp;</span>var.cvars, <span class="kw-2">&amp;</span>typ.kind, typ.span);
 
                         <span class="comment">// add argument variable to the ast env
                         </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>; <span class="comment">// TODO: should we add a mut keyword in arguments as well?
                         </span><span class="kw">let </span>var_info = VarInfo::new(var, mutable, <span class="prelude-val">Some</span>(typ.kind.clone()));
-                        fn_env.add_var(<span class="kw-2">&amp;</span>global_env, name.value.clone(), var_info);
+                        fn_env.add_var(name.value.clone(), var_info);
                     }
 
                     <span class="comment">// create public output
@@ -1834,7 +1667,7 @@
                     }
 
                     <span class="comment">// compile function
-                    </span>circuit_writer.compile_main_function(<span class="kw-2">&amp;</span>global_env, fn_env, function)<span class="question-mark">?</span>;
+                    </span>circuit_writer.compile_main_function(fn_env, function)<span class="question-mark">?</span>;
                 }
 
                 <span class="comment">// struct definition (already dealt with in type checker)
@@ -1870,7 +1703,7 @@
         <span class="comment">// we finalized!
         </span>circuit_writer.finalized = <span class="bool-val">true</span>;
 
-        <span class="prelude-val">Ok</span>(CompiledCircuit::new(circuit_writer, global_env))
+        <span class="prelude-val">Ok</span>(CompiledCircuit::new(circuit_writer))
     }
 
     <span class="doccomment">/// Returns the compiled gates of the circuit.
@@ -1881,28 +1714,23 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.gates
     }
 
-    <span class="kw">fn </span>compile_stmt(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        global_env: <span class="kw-2">&amp;</span>GlobalEnv,
-        fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
-        stmt: <span class="kw-2">&amp;</span>Stmt,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;VarOrRef&gt;&gt; {
+    <span class="kw">fn </span>compile_stmt(<span class="kw-2">&amp;mut </span><span class="self">self</span>, fn_env: <span class="kw-2">&amp;mut </span>FnEnv, stmt: <span class="kw-2">&amp;</span>Stmt) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;VarOrRef&gt;&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span>stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } =&gt; {
                 <span class="comment">// compute the rhs
                 </span><span class="kw">let </span>rhs_var = <span class="self">self
-                    </span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?
+                    </span>.compute_expr(fn_env, rhs)<span class="question-mark">?
                     </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// obtain the actual values
-                </span><span class="kw">let </span>rhs_var = rhs_var.value(fn_env, global_env);
+                </span><span class="kw">let </span>rhs_var = rhs_var.value(fn_env);
 
-                <span class="kw">let </span>typ = global_env.typed.expr_type(rhs).cloned();
+                <span class="kw">let </span>typ = <span class="self">self</span>.typed.expr_type(rhs).cloned();
                 <span class="kw">let </span>var_info = VarInfo::new(rhs_var, <span class="kw-2">*</span>mutable, typ);
 
                 <span class="comment">// store the new variable
                 // TODO: do we really need to store that in the scope? That&#39;s not an actual var in the scope that&#39;s an internal var...
-                </span>fn_env.add_var(global_env, lhs.value.clone(), var_info);
+                </span>fn_env.add_var(lhs.value.clone(), var_info);
             }
 
             StmtKind::ForLoop { var, range, body } =&gt; {
@@ -1911,23 +1739,23 @@
 
                     <span class="kw">let </span>cst_var = Var::new_constant(ii.into(), var.span);
                     <span class="kw">let </span>var_info = VarInfo::new(cst_var, <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(TyKind::Field));
-                    fn_env.add_var(global_env, var.value.clone(), var_info);
+                    fn_env.add_var(var.value.clone(), var_info);
 
-                    <span class="self">self</span>.compile_block(global_env, fn_env, body)<span class="question-mark">?</span>;
+                    <span class="self">self</span>.compile_block(fn_env, body)<span class="question-mark">?</span>;
 
                     fn_env.pop();
                 }
             }
             StmtKind::Expr(expr) =&gt; {
                 <span class="comment">// compute the expression
-                </span><span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, expr)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, expr)<span class="question-mark">?</span>;
 
                 <span class="comment">// make sure it does not return any value.
                 </span><span class="macro">assert!</span>(var.is_none());
             }
             StmtKind::Return(expr) =&gt; {
                 <span class="kw">let </span>var = <span class="self">self
-                    </span>.compute_expr(global_env, fn_env, expr)<span class="question-mark">?
+                    </span>.compute_expr(fn_env, expr)<span class="question-mark">?
                     </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// we already checked in type checking that this is not an early return
@@ -1940,18 +1768,13 @@
     }
 
     <span class="doccomment">/// might return something?
-    </span><span class="kw">fn </span>compile_block(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        global_env: <span class="kw-2">&amp;</span>GlobalEnv,
-        fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
-        stmts: <span class="kw-2">&amp;</span>[Stmt],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
+    </span><span class="kw">fn </span>compile_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, fn_env: <span class="kw-2">&amp;mut </span>FnEnv, stmts: <span class="kw-2">&amp;</span>[Stmt]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
         fn_env.nest();
         <span class="kw">for </span>stmt <span class="kw">in </span>stmts {
-            <span class="kw">let </span>res = <span class="self">self</span>.compile_stmt(global_env, fn_env, stmt)<span class="question-mark">?</span>;
+            <span class="kw">let </span>res = <span class="self">self</span>.compile_stmt(fn_env, stmt)<span class="question-mark">?</span>;
             <span class="kw">if let </span><span class="prelude-val">Some</span>(var) = res {
                 <span class="comment">// a block doesn&#39;t return a pointer, only values
-                </span><span class="kw">let </span>var = var.value(fn_env, global_env);
+                </span><span class="kw">let </span>var = var.value(fn_env);
 
                 <span class="comment">// we already checked for early returns in type checking
                 </span><span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var));
@@ -1963,33 +1786,26 @@
 
     <span class="kw">fn </span>compile_native_function_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        global_env: <span class="kw-2">&amp;</span>GlobalEnv,
         function: <span class="kw-2">&amp;</span>Function,
         args: Vec&lt;VarInfo&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
         <span class="macro">assert!</span>(!function.is_main());
 
         <span class="comment">// create new fn_env
-        </span><span class="kw">let </span>fn_env = <span class="kw-2">&amp;mut </span>FnEnv::new();
+        </span><span class="kw">let </span>fn_env = <span class="kw-2">&amp;mut </span>FnEnv::new(<span class="kw-2">&amp;</span><span class="self">self</span>.constants);
 
         <span class="comment">// set arguments
         </span><span class="macro">assert_eq!</span>(function.sig.arguments.len(), args.len());
 
         <span class="kw">for </span>(name, var_info) <span class="kw">in </span>function.sig.arguments.iter().zip(args) {
-            fn_env.add_var(global_env, name.name.value.clone(), var_info);
+            fn_env.add_var(name.name.value.clone(), var_info);
         }
 
         <span class="comment">// compile it and potentially return a return value
-        </span><span class="self">self</span>.compile_block(global_env, fn_env, <span class="kw-2">&amp;</span>function.body)
+        </span><span class="self">self</span>.compile_block(fn_env, <span class="kw-2">&amp;</span>function.body)
     }
 
-    <span class="kw">fn </span>constrain_inputs_to_main(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        global_env: <span class="kw-2">&amp;</span>GlobalEnv,
-        input: <span class="kw-2">&amp;</span>[ConstOrCell],
-        input_typ: <span class="kw-2">&amp;</span>TyKind,
-        span: Span,
-    ) {
+    <span class="kw">fn </span>constrain_inputs_to_main(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>[ConstOrCell], input_typ: <span class="kw-2">&amp;</span>TyKind, span: Span) {
         <span class="kw">match </span>input_typ {
             TyKind::Field =&gt; (),
             TyKind::Bool =&gt; {
@@ -1997,20 +1813,21 @@
                 boolean::check(<span class="self">self</span>, <span class="kw-2">&amp;</span>input[<span class="number">0</span>], span);
             }
             TyKind::Array(tykind, <span class="kw">_</span>) =&gt; {
-                <span class="kw">let </span>el_size = global_env.typed.size_of(tykind);
+                <span class="kw">let </span>el_size = <span class="self">self</span>.typed.size_of(tykind);
                 <span class="kw">for </span>el <span class="kw">in </span>input.chunks(el_size) {
-                    <span class="self">self</span>.constrain_inputs_to_main(global_env, el, tykind, span);
+                    <span class="self">self</span>.constrain_inputs_to_main(el, tykind, span);
                 }
             }
             TyKind::Custom(struct_name) =&gt; {
-                <span class="kw">let </span>struct_info = global_env
-                    .struct_info(struct_name)
-                    .expect(<span class="string">&quot;type-checker bug: couldn&#39;t find struct info of input to main&quot;</span>);
+                <span class="kw">let </span>struct_info = <span class="self">self
+                    </span>.struct_info(struct_name)
+                    .expect(<span class="string">&quot;type-checker bug: couldn&#39;t find struct info of input to main&quot;</span>)
+                    .clone();
                 <span class="kw">let </span><span class="kw-2">mut </span>offset = <span class="number">0</span>;
                 <span class="kw">for </span>(_field_name, field_typ) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
-                    <span class="kw">let </span>len = global_env.typed.size_of(field_typ);
+                    <span class="kw">let </span>len = <span class="self">self</span>.typed.size_of(field_typ);
                     <span class="kw">let </span>range = offset..(offset + len);
-                    <span class="self">self</span>.constrain_inputs_to_main(global_env, <span class="kw-2">&amp;</span>input[range], field_typ, span);
+                    <span class="self">self</span>.constrain_inputs_to_main(<span class="kw-2">&amp;</span>input[range], field_typ, span);
                     offset += len;
                 }
             }
@@ -2019,16 +1836,11 @@
     }
 
     <span class="doccomment">/// Compile a function. Used to compile `main()` only for now
-    </span><span class="kw">fn </span>compile_main_function(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        global_env: <span class="kw-2">&amp;</span>GlobalEnv,
-        fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
-        function: <span class="kw-2">&amp;</span>Function,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    </span><span class="kw">fn </span>compile_main_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, fn_env: <span class="kw-2">&amp;mut </span>FnEnv, function: <span class="kw-2">&amp;</span>Function) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="macro">assert!</span>(function.is_main());
 
         <span class="comment">// compile the block
-        </span><span class="kw">let </span>returned = <span class="self">self</span>.compile_block(global_env, fn_env, <span class="kw-2">&amp;</span>function.body)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>returned = <span class="self">self</span>.compile_block(fn_env, <span class="kw-2">&amp;</span>function.body)<span class="question-mark">?</span>;
 
         <span class="comment">// we&#39;re expecting something returned?
         </span><span class="kw">match </span>(function.sig.return_type.as_ref(), returned) {
@@ -2082,12 +1894,7 @@
         var
     }
 
-    <span class="kw">fn </span>compute_expr(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        global_env: <span class="kw-2">&amp;</span>GlobalEnv,
-        fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
-        expr: <span class="kw-2">&amp;</span>Expr,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;VarOrRef&gt;&gt; {
+    <span class="kw">fn </span>compute_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, fn_env: <span class="kw-2">&amp;mut </span>FnEnv, expr: <span class="kw-2">&amp;</span>Expr) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;VarOrRef&gt;&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span>expr.kind {
             <span class="comment">// `module::fn_name(args)`
             </span>ExprKind::FnCall {
@@ -2102,13 +1909,13 @@
                 <span class="kw">for </span>arg <span class="kw">in </span>args {
                     <span class="comment">// get the variable behind the expression
                     </span><span class="kw">let </span>var = <span class="self">self
-                        </span>.compute_expr(global_env, fn_env, arg)<span class="question-mark">?
+                        </span>.compute_expr(fn_env, arg)<span class="question-mark">?
                         </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))<span class="question-mark">?</span>;
 
                     <span class="comment">// we pass variables by values always
-                    </span><span class="kw">let </span>var = var.value(fn_env, global_env);
+                    </span><span class="kw">let </span>var = var.value(fn_env);
 
-                    <span class="kw">let </span>typ = global_env.typed.expr_type(arg).cloned();
+                    <span class="kw">let </span>typ = <span class="self">self</span>.typed.expr_type(arg).cloned();
                     <span class="kw">let </span>mutable = <span class="bool-val">false</span>; <span class="comment">// TODO: mut keyword in arguments?
                     </span><span class="kw">let </span>var_info = VarInfo::new(var, mutable, typ);
 
@@ -2119,7 +1926,7 @@
                 </span><span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
                     <span class="comment">// module::fn_name(args)
                     // ^^^^^^
-                    </span><span class="kw">let </span>module = global_env.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
+                    </span><span class="kw">let </span>module = <span class="self">self</span>.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
                         Error::new(
                             ErrorKind::UndefinedModule(module.value.clone()),
                             module.span,
@@ -2143,17 +1950,17 @@
                 } <span class="kw">else </span>{
                     <span class="comment">// fn_name(args)
                     // ^^^^^^^
-                    </span><span class="kw">let </span>fn_info =
-                        global_env
-                            .typed
-                            .functions
-                            .get(<span class="kw-2">&amp;</span>fn_name.value)
-                            .ok_or_else(|| {
-                                Error::new(
-                                    ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                                    fn_name.span,
-                                )
-                            })<span class="question-mark">?</span>;
+                    </span><span class="kw">let </span>fn_info = <span class="self">self
+                        </span>.typed
+                        .functions
+                        .get(<span class="kw-2">&amp;</span>fn_name.value)
+                        .cloned()
+                        .ok_or_else(|| {
+                            Error::new(
+                                ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                                fn_name.span,
+                            )
+                        })<span class="question-mark">?</span>;
 
                     <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
                         FnKind::BuiltIn(_sig, handle) =&gt; {
@@ -2161,7 +1968,7 @@
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Native(func) =&gt; {
-                            <span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(global_env, <span class="kw-2">&amp;</span>func, vars);
+                            <span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(<span class="kw-2">&amp;</span>func, vars);
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Main(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::RecursiveMain, expr.span)),
@@ -2172,12 +1979,12 @@
             ExprKind::FieldAccess { lhs, rhs } =&gt; {
                 <span class="comment">// get var behind lhs
                 </span><span class="kw">let </span>lhs_var = <span class="self">self
-                    </span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?
+                    </span>.compute_expr(fn_env, lhs)<span class="question-mark">?
                     </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// get struct info behind lhs
-                </span><span class="kw">let </span>lhs_struct = global_env
-                    .typed
+                </span><span class="kw">let </span>lhs_struct = <span class="self">self
+                    </span>.typed
                     .expr_type(lhs)
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))<span class="question-mark">?</span>;
 
@@ -2188,8 +1995,8 @@
                     }
                 };
 
-                <span class="kw">let </span>struct_info = global_env
-                    .typed
+                <span class="kw">let </span>struct_info = <span class="self">self
+                    </span>.typed
                     .struct_info(self_struct)
                     .expect(<span class="string">&quot;struct info not found for custom struct&quot;</span>);
 
@@ -2198,11 +2005,11 @@
                 <span class="kw">let </span><span class="kw-2">mut </span>len = <span class="number">0</span>;
                 <span class="kw">for </span>(field, field_typ) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
                     <span class="kw">if </span>field == <span class="kw-2">&amp;</span>rhs.value {
-                        len = global_env.typed.size_of(field_typ);
+                        len = <span class="self">self</span>.typed.size_of(field_typ);
                         <span class="kw">break</span>;
                     }
 
-                    start += global_env.typed.size_of(field_typ);
+                    start += <span class="self">self</span>.typed.size_of(field_typ);
                 }
 
                 <span class="comment">// narrow the variable to the given range
@@ -2217,25 +2024,27 @@
                 args,
             } =&gt; {
                 <span class="comment">// figure out the name of the custom struct
-                </span><span class="kw">let </span>lhs_typ = global_env
-                    .typed
+                </span><span class="kw">let </span>lhs_typ = <span class="self">self
+                    </span>.typed
                     .expr_type(lhs)
-                    .expect(<span class="string">&quot;method call on what?&quot;</span>);
+                    .expect(<span class="string">&quot;method call on what?&quot;</span>)
+                    .clone();
 
-                <span class="kw">let </span>struct_name = <span class="kw">match </span>lhs_typ {
+                <span class="kw">let </span>struct_name = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs_typ {
                     TyKind::Custom(c) =&gt; c,
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;method call only work on custom types&quot;</span>),
                 };
 
                 <span class="comment">// get var of `self`
                 // (might be `None` if it&#39;s a static method call)
-                </span><span class="kw">let </span>self_var = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>self_var = <span class="self">self</span>.compute_expr(fn_env, lhs)<span class="question-mark">?</span>;
 
                 <span class="comment">// find method info
-                </span><span class="kw">let </span>struct_info = global_env
-                    .typed
+                </span><span class="kw">let </span>struct_info = <span class="self">self
+                    </span>.typed
                     .struct_info(struct_name)
-                    .expect(<span class="string">&quot;could not find struct info&quot;</span>);
+                    .expect(<span class="string">&quot;could not find struct info&quot;</span>)
+                    .clone();
 
                 <span class="kw">let </span>func = struct_info
                     .methods
@@ -2252,7 +2061,7 @@
 
                         <span class="comment">// TODO: for now we pass `self` by value as well
                         </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>;
-                        <span class="kw">let </span>self_var = self_var.value(fn_env, global_env);
+                        <span class="kw">let </span>self_var = self_var.value(fn_env);
 
                         <span class="kw">let </span>self_var_info = VarInfo::new(self_var, mutable, <span class="prelude-val">Some</span>(lhs_typ.clone()));
                         vars.insert(<span class="number">0</span>, self_var_info);
@@ -2264,37 +2073,28 @@
                 <span class="comment">// compute the arguments
                 </span><span class="kw">for </span>arg <span class="kw">in </span>args {
                     <span class="kw">let </span>var = <span class="self">self
-                        </span>.compute_expr(global_env, fn_env, arg)<span class="question-mark">?
+                        </span>.compute_expr(fn_env, arg)<span class="question-mark">?
                         </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))<span class="question-mark">?</span>;
 
                     <span class="comment">// TODO: for now we pass `self` by value as well
                     </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>;
-                    <span class="kw">let </span>var = var.value(fn_env, global_env);
+                    <span class="kw">let </span>var = var.value(fn_env);
 
-                    <span class="kw">let </span>typ = global_env.typed.expr_type(arg).cloned();
+                    <span class="kw">let </span>typ = <span class="self">self</span>.typed.expr_type(arg).cloned();
                     <span class="kw">let </span>var_info = VarInfo::new(var, mutable, typ);
 
                     vars.push(var_info);
                 }
 
                 <span class="comment">// execute method
-                </span><span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(global_env, func, vars);
+                </span><span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(func, vars);
                 res.map(|r| r.map(VarOrRef::Var))
             }
 
             ExprKind::IfElse { cond, then_, else_ } =&gt; {
-                <span class="kw">let </span>cond = <span class="self">self
-                    </span>.compute_expr(global_env, fn_env, cond)<span class="question-mark">?
-                    </span>.unwrap()
-                    .value(fn_env, global_env);
-                <span class="kw">let </span>then_ = <span class="self">self
-                    </span>.compute_expr(global_env, fn_env, then_)<span class="question-mark">?
-                    </span>.unwrap()
-                    .value(fn_env, global_env);
-                <span class="kw">let </span>else_ = <span class="self">self
-                    </span>.compute_expr(global_env, fn_env, else_)<span class="question-mark">?
-                    </span>.unwrap()
-                    .value(fn_env, global_env);
+                <span class="kw">let </span>cond = <span class="self">self</span>.compute_expr(fn_env, cond)<span class="question-mark">?</span>.unwrap().value(fn_env);
+                <span class="kw">let </span>then_ = <span class="self">self</span>.compute_expr(fn_env, then_)<span class="question-mark">?</span>.unwrap().value(fn_env);
+                <span class="kw">let </span>else_ = <span class="self">self</span>.compute_expr(fn_env, else_)<span class="question-mark">?</span>.unwrap().value(fn_env);
 
                 <span class="kw">let </span>res = field::if_else(<span class="self">self</span>, <span class="kw-2">&amp;</span>cond, <span class="kw-2">&amp;</span>then_, <span class="kw-2">&amp;</span>else_, expr.span);
 
@@ -2303,10 +2103,10 @@
 
             ExprKind::Assignment { lhs, rhs } =&gt; {
                 <span class="comment">// figure out the local var  of lhs
-                </span><span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.unwrap();
+                </span><span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(fn_env, lhs)<span class="question-mark">?</span>.unwrap();
 
                 <span class="comment">// figure out the var of what&#39;s on the right
-                </span><span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
+                </span><span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(fn_env, rhs)<span class="question-mark">?</span>.unwrap();
                 <span class="kw">let </span>rhs_var = <span class="kw">match </span>rhs {
                     VarOrRef::Var(var) =&gt; var,
                     VarOrRef::Ref {
@@ -2314,7 +2114,7 @@
                         start,
                         len,
                     } =&gt; {
-                        <span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>var_name);
+                        <span class="kw">let </span>var_info = fn_env.get_var(<span class="kw-2">&amp;</span>var_name);
                         <span class="kw">let </span>cvars = var_info.var.range(start, len).to_vec();
                         Var::new(cvars, var_info.var.span)
                     }
@@ -2336,11 +2136,11 @@
             }
 
             ExprKind::BinaryOp { op, lhs, rhs, .. } =&gt; {
-                <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(global_env, fn_env, lhs)<span class="question-mark">?</span>.unwrap();
-                <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(fn_env, lhs)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
-                <span class="kw">let </span>lhs = lhs.value(fn_env, global_env);
-                <span class="kw">let </span>rhs = rhs.value(fn_env, global_env);
+                <span class="kw">let </span>lhs = lhs.value(fn_env);
+                <span class="kw">let </span>rhs = rhs.value(fn_env);
 
                 <span class="kw">let </span>res = <span class="kw">match </span>op {
                     Op2::Addition =&gt; field::add(<span class="self">self</span>, <span class="kw-2">&amp;</span>lhs[<span class="number">0</span>], <span class="kw-2">&amp;</span>rhs[<span class="number">0</span>], expr.span),
@@ -2356,17 +2156,17 @@
             }
 
             ExprKind::Negated(b) =&gt; {
-                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, b)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, b)<span class="question-mark">?</span>.unwrap();
 
-                <span class="kw">let </span>var = var.value(fn_env, global_env);
+                <span class="kw">let </span>var = var.value(fn_env);
 
                 <span class="macro">todo!</span>()
             }
 
             ExprKind::Not(b) =&gt; {
-                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, b)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, b)<span class="question-mark">?</span>.unwrap();
 
-                <span class="kw">let </span>var = var.value(fn_env, global_env);
+                <span class="kw">let </span>var = var.value(fn_env);
 
                 <span class="kw">let </span>res = boolean::not(<span class="self">self</span>, <span class="kw-2">&amp;</span>var[<span class="number">0</span>], expr.span.merge_with(b.span));
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(VarOrRef::Var(res)))
@@ -2398,7 +2198,7 @@
                     // (most likely what follows is a static method call)
                     </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
                 } <span class="kw">else </span>{
-                    <span class="kw">let </span>var_info = fn_env.get_var(global_env, <span class="kw-2">&amp;</span>name.value);
+                    <span class="kw">let </span>var_info = fn_env.get_var(<span class="kw-2">&amp;</span>name.value);
 
                     <span class="kw">let </span>res = VarOrRef::from_var_info(name.value.clone(), var_info);
                     <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(res))
@@ -2408,12 +2208,12 @@
             ExprKind::ArrayAccess { array, idx } =&gt; {
                 <span class="comment">// retrieve var of array
                 </span><span class="kw">let </span>var = <span class="self">self
-                    </span>.compute_expr(global_env, fn_env, array)<span class="question-mark">?
+                    </span>.compute_expr(fn_env, array)<span class="question-mark">?
                     </span>.expect(<span class="string">&quot;array access on non-array&quot;</span>);
 
                 <span class="comment">// compute the index
                 </span><span class="kw">let </span>idx_var = <span class="self">self
-                    </span>.compute_expr(global_env, fn_env, idx)<span class="question-mark">?
+                    </span>.compute_expr(fn_env, idx)<span class="question-mark">?
                     </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, expr.span))<span class="question-mark">?</span>;
                 <span class="kw">let </span>idx = idx_var
                     .constant()
@@ -2422,8 +2222,8 @@
                 <span class="kw">let </span>idx: usize = idx.try_into().unwrap();
 
                 <span class="comment">// retrieve the type of the elements in the array
-                </span><span class="kw">let </span>array_typ = global_env
-                    .typed
+                </span><span class="kw">let </span>array_typ = <span class="self">self
+                    </span>.typed
                     .expr_type(array)
                     .expect(<span class="string">&quot;cannot find type of array&quot;</span>);
 
@@ -2441,7 +2241,7 @@
                 };
 
                 <span class="comment">// compute the size of each element in the array
-                </span><span class="kw">let </span>len = global_env.typed.size_of(elem_type);
+                </span><span class="kw">let </span>len = <span class="self">self</span>.typed.size_of(elem_type);
 
                 <span class="comment">// compute the real index
                 </span><span class="kw">let </span>start = idx * len;
@@ -2465,8 +2265,8 @@
                 <span class="kw">let </span><span class="kw-2">mut </span>cvars = <span class="macro">vec!</span>[];
 
                 <span class="kw">for </span>item <span class="kw">in </span>items {
-                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, item)<span class="question-mark">?</span>.unwrap();
-                    <span class="kw">let </span>to_extend = var.value(fn_env, global_env).cvars.clone();
+                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, item)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>to_extend = var.value(fn_env).cvars.clone();
                     cvars.extend(to_extend);
                 }
 
@@ -2482,8 +2282,8 @@
                 <span class="comment">// create the struct by just concatenating all of its cvars
                 </span><span class="kw">let </span><span class="kw-2">mut </span>cvars = <span class="macro">vec!</span>[];
                 <span class="kw">for </span>(_field, rhs) <span class="kw">in </span>fields {
-                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(global_env, fn_env, rhs)<span class="question-mark">?</span>.unwrap();
-                    <span class="kw">let </span>to_extend = var.value(fn_env, global_env).cvars.clone();
+                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, rhs)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>to_extend = var.value(fn_env).cvars.clone();
                     cvars.extend(to_extend);
                 }
                 <span class="kw">let </span>var = VarOrRef::Var(Var::new(cvars, expr.span));
@@ -2650,185 +2450,5 @@
         Var::new(cvars, span)
     }
 }
-
-<span class="comment">//
-// Local Environment
-//
-
-</span><span class="doccomment">/// Is used to store functions&#39; scoped variables.
-/// This include inputs and output of the function,  as well as local variables.
-/// You can think of it as a function call stack.
-</span><span class="attribute">#[derive(Default, Debug, Clone)]
-</span><span class="kw">pub struct </span>FnEnv {
-    <span class="doccomment">/// The current nesting level.
-    /// Starting at 0 (top level), and increasing as we go into a block.
-    </span>current_scope: usize,
-
-    <span class="doccomment">/// Used by the private and public inputs,
-    /// and any other external variables created in the circuit
-    /// This needs to be garbage collected when we exit a scope.
-    /// Note: The `usize` is the scope in which the variable was created.
-    </span>vars: HashMap&lt;String, (usize, VarInfo)&gt;,
-}
-
-<span class="doccomment">/// Information about a variable.
-</span><span class="attribute">#[derive(Debug, Clone)]
-</span><span class="kw">pub struct </span>VarInfo {
-    <span class="doccomment">/// The variable.
-    </span><span class="kw">pub </span>var: Var,
-
-    <span class="comment">// TODO: we could also store this on the expression node... but I think this is lighter
-    </span><span class="kw">pub </span>mutable: bool,
-
-    <span class="doccomment">/// We keep track of the type of variables, eventhough we&#39;re not in the typechecker anymore,
-    /// because we need to know the type for method calls.
-    </span><span class="comment">// TODO: why is this an option?
-    </span><span class="kw">pub </span>typ: <span class="prelude-ty">Option</span>&lt;TyKind&gt;,
-}
-
-<span class="kw">impl </span>VarInfo {
-    <span class="kw">pub fn </span>new(var: Var, mutable: bool, typ: <span class="prelude-ty">Option</span>&lt;TyKind&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ var, mutable, typ }
-    }
-
-    <span class="kw">pub fn </span>reassign(<span class="kw-2">&amp;</span><span class="self">self</span>, var: Var) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            var,
-            mutable: <span class="self">self</span>.mutable,
-            typ: <span class="self">self</span>.typ.clone(),
-        }
-    }
-
-    <span class="kw">pub fn </span>reassign_range(<span class="kw-2">&amp;</span><span class="self">self</span>, var: Var, start: usize, len: usize) -&gt; <span class="self">Self </span>{
-        <span class="comment">// sanity check
-        </span><span class="macro">assert_eq!</span>(var.len(), len);
-
-        <span class="comment">// create new cvars by modifying a specific range
-        </span><span class="kw">let </span><span class="kw-2">mut </span>cvars = <span class="self">self</span>.var.cvars.clone();
-        <span class="kw">let </span>cvars_range = <span class="kw-2">&amp;mut </span>cvars[start..start + len];
-        cvars_range.copy_from_slice(<span class="kw-2">&amp;</span>var.cvars);
-
-        <span class="kw">let </span>var = Var::new(cvars, <span class="self">self</span>.var.span);
-
-        <span class="self">Self </span>{
-            var,
-            mutable: <span class="self">self</span>.mutable,
-            typ: <span class="self">self</span>.typ.clone(),
-        }
-    }
-}
-
-<span class="kw">impl </span>FnEnv {
-    <span class="doccomment">/// Creates a new FnEnv
-    </span><span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::default()
-    }
-
-    <span class="doccomment">/// Enters a scoped block.
-    </span><span class="kw">pub fn </span>nest(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.current_scope += <span class="number">1</span>;
-    }
-
-    <span class="doccomment">/// Exits a scoped block.
-    </span><span class="kw">pub fn </span>pop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.current_scope = <span class="self">self</span>.current_scope.checked_sub(<span class="number">1</span>).expect(<span class="string">&quot;scope bug&quot;</span>);
-
-        <span class="comment">// remove variables as we exit the scope
-        // (we don&#39;t need to keep them around to detect shadowing,
-        // as we already did that in type checker)
-        </span><span class="kw">let </span><span class="kw-2">mut </span>to_delete = <span class="macro">vec!</span>[];
-        <span class="kw">for </span>(name, (scope, <span class="kw">_</span>)) <span class="kw">in </span><span class="self">self</span>.vars.iter() {
-            <span class="kw">if </span><span class="kw-2">*</span>scope &gt; <span class="self">self</span>.current_scope {
-                to_delete.push(name.clone());
-            }
-        }
-        <span class="kw">for </span>d <span class="kw">in </span>to_delete {
-            <span class="self">self</span>.vars.remove(<span class="kw-2">&amp;</span>d);
-        }
-    }
-
-    <span class="doccomment">/// Returns true if a scope is a prefix of our scope.
-    </span><span class="kw">pub fn </span>is_in_scope(<span class="kw-2">&amp;</span><span class="self">self</span>, prefix_scope: usize) -&gt; bool {
-        <span class="self">self</span>.current_scope &gt;= prefix_scope
-    }
-
-    <span class="doccomment">/// Stores type information about a local variable.
-    /// Note that we forbid shadowing at all scopes.
-    </span><span class="kw">pub fn </span>add_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, global_env: <span class="kw-2">&amp;</span>GlobalEnv, var_name: String, var_info: VarInfo) {
-        <span class="kw">if </span>global_env.get_constant(<span class="kw-2">&amp;</span>var_name).is_some() {
-            <span class="macro">panic!</span>(<span class="string">&quot;cannot shadow global variable {}&quot;</span>, var_name);
-        }
-
-        <span class="kw">let </span>scope = <span class="self">self</span>.current_scope;
-
-        <span class="kw">if </span><span class="self">self
-            </span>.vars
-            .insert(var_name.clone(), (scope, var_info))
-            .is_some()
-        {
-            <span class="macro">panic!</span>(<span class="string">&quot;type checker error: var {var_name} already exists&quot;</span>);
-        }
-    }
-
-    <span class="doccomment">/// Retrieves type information on a variable, given a name.
-    /// If the variable is not in scope, return false.
-    </span><span class="comment">// TODO: return an error no?
-    </span><span class="kw">pub fn </span>get_var(<span class="kw-2">&amp;</span><span class="self">self</span>, global_env: <span class="kw-2">&amp;</span>GlobalEnv, var_name: <span class="kw-2">&amp;</span>str) -&gt; VarInfo {
-        <span class="comment">// look for global constants first
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(var_info) = global_env.get_constant(var_name) {
-            <span class="kw">return </span>var_info.clone();
-        }
-
-        <span class="comment">// if not found, then look into local variables
-        </span><span class="kw">let </span>(scope, var_info) = <span class="self">self
-            </span>.vars
-            .get(var_name)
-            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable {var_name} not found&quot;</span>));
-        <span class="kw">if </span>!<span class="self">self</span>.is_in_scope(<span class="kw-2">*</span>scope) {
-            <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable not in scope&quot;</span>);
-        }
-
-        var_info.clone()
-    }
-
-    <span class="kw">pub fn </span>reassign_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_name: <span class="kw-2">&amp;</span>str, var: Var) {
-        <span class="comment">// get the scope first, we don&#39;t want to modify that
-        </span><span class="kw">let </span>(scope, var_info) = <span class="self">self
-            </span>.vars
-            .get(var_name)
-            .expect(<span class="string">&quot;type checking bug: local variable for reassigning not found&quot;</span>);
-
-        <span class="kw">if </span>!<span class="self">self</span>.is_in_scope(<span class="kw-2">*</span>scope) {
-            <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable for reassigning not in scope&quot;</span>);
-        }
-
-        <span class="kw">if </span>!var_info.mutable {
-            <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable for reassigning is not mutable&quot;</span>);
-        }
-
-        <span class="kw">let </span>var_info = var_info.reassign(var);
-        <span class="self">self</span>.vars.insert(var_name.to_string(), (<span class="kw-2">*</span>scope, var_info));
-    }
-
-    <span class="doccomment">/// Same as [Self::reassign_var], but only reassigns a specific range of the variable.
-    </span><span class="kw">pub fn </span>reassign_var_range(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_name: <span class="kw-2">&amp;</span>str, var: Var, start: usize, len: usize) {
-        <span class="comment">// get the scope first, we don&#39;t want to modify that
-        </span><span class="kw">let </span>(scope, var_info) = <span class="self">self
-            </span>.vars
-            .get(var_name)
-            .expect(<span class="string">&quot;type checking bug: local variable for reassigning not found&quot;</span>);
-
-        <span class="kw">if </span>!<span class="self">self</span>.is_in_scope(<span class="kw-2">*</span>scope) {
-            <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable for reassigning not in scope&quot;</span>);
-        }
-
-        <span class="kw">if </span>!var_info.mutable {
-            <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable for reassigning is not mutable&quot;</span>);
-        }
-
-        <span class="kw">let </span>var_info = var_info.reassign_range(var, start, len);
-        <span class="self">self</span>.vars.insert(var_name.to_string(), (<span class="kw-2">*</span>scope, var_info));
-    }
-}
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (5c8bff74b 2022-10-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6e95b6da8 2022-10-22)" ></div></body></html>

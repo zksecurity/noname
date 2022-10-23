@@ -265,6 +265,9 @@
 <span id="265">265</span>
 <span id="266">266</span>
 <span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
 </pre><pre class="rust"><code><span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
@@ -317,6 +320,9 @@
 
     <span class="attribute">#[error(<span class="string">&quot;{0} arguments are passed when {1} were expected&quot;</span>)]
     </span>MismatchFunctionArguments(usize, usize),
+
+    <span class="attribute">#[error(<span class="string">&quot;constants must be declared before any structs or functions&quot;</span>)]
+    </span>ConstDeclarationAfterStructOrFunction,
 
     <span class="attribute">#[error(<span class="string">&quot;cannot chain arithmetic operations without using parenthesis&quot;</span>)]
     </span>MissingParenthesis,
@@ -533,4 +539,4 @@
     </span>NoMainFunction,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (5c8bff74b 2022-10-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6e95b6da8 2022-10-22)" ></div></body></html>

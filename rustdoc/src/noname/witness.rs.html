@@ -242,23 +242,17 @@
 <span id="242">242</span>
 <span id="243">243</span>
 <span id="244">244</span>
-<span id="245">245</span>
-<span id="246">246</span>
-<span id="247">247</span>
-</pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Deref};
+</pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>ark_ff::{Field <span class="kw">as _</span>, Zero};
 <span class="kw">use </span>itertools::{chain, Itertools};
 
 <span class="kw">use crate</span>::{
-    boolean,
-    circuit_writer::{CircuitWriter, Gate, GlobalEnv},
+    circuit_writer::{CircuitWriter, Gate},
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     helpers::PrettyField <span class="kw">as _</span>,
-    inputs::{parse_single_input, JsonInputs},
-    parser::TyKind,
-    type_checker::TypeChecker,
+    inputs::JsonInputs,
     var::{CellVar, Value},
 };
 
@@ -314,12 +308,11 @@
 <span class="doccomment">/// The compiled circuit.
 </span><span class="kw">pub struct </span>CompiledCircuit {
     <span class="kw">pub </span>circuit: CircuitWriter,
-    env: GlobalEnv,
 }
 
 <span class="kw">impl </span>CompiledCircuit {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(circuit: CircuitWriter, env: GlobalEnv) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ circuit, env }
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(circuit: CircuitWriter) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ circuit }
     }
 
     <span class="kw">pub fn </span>asm(<span class="kw-2">&amp;</span><span class="self">self</span>, debug: bool) -&gt; String {
@@ -400,7 +393,8 @@
                 })<span class="question-mark">?
             </span>};
 
-            <span class="kw">let </span>fields = parse_single_input(<span class="kw-2">&amp;</span><span class="self">self</span>.env, input, <span class="kw-2">&amp;</span>arg.typ.kind)
+            <span class="kw">let </span>fields = <span class="self">self
+                </span>.parse_single_input(input, <span class="kw-2">&amp;</span>arg.typ.kind)
                 .map_err(|e| Error::new(ErrorKind::ParsingError(e), arg.span))<span class="question-mark">?</span>;
 
             env.add_value(name.clone(), fields.clone());
@@ -493,4 +487,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (5c8bff74b 2022-10-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6e95b6da8 2022-10-22)" ></div></body></html>
