@@ -935,6 +935,7 @@
 <span id="935">935</span>
 <span id="936">936</span>
 <span id="937">937</span>
+<span id="938">938</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Display, Formatter},
     ops::Neg,
@@ -1047,6 +1048,7 @@
             source: code.to_string(),
             main: (main_sig, main_span),
             typed: typed_global_env,
+            double_generic_gate_optimization: <span class="bool-val">false</span>,
             ..<span class="self">Self</span>::default()
         }
     }
