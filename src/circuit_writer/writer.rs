@@ -768,7 +768,12 @@ impl CircuitWriter {
         value: Field,
         span: Span,
     ) -> CellVar {
+        if let Some(cvar) = self.cached_constants.get(&value) {
+            return *cvar;
+        }
+
         let var = self.new_internal_var(Value::Constant(value), span);
+        self.cached_constants.insert(value, var);
 
         let zero = Field::zero();
         self.add_generic_gate(

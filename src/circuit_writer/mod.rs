@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    constants::Span,
+    constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     parser::{AttributeKind, FnArg, FnSig, Function, RootKind, Struct, TyKind},
     type_checker::{TypeChecker, TAST},
@@ -80,6 +80,10 @@ pub struct CircuitWriter {
     /// This is used to implement the double generic gate,
     /// which encodes two generic gates.
     pub(crate) pending_generic_gate: Option<PendingGate>,
+
+    /// We cache the association between a constant and its _constrained_ variable,
+    /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
+    pub(crate) cached_constants: HashMap<Field, CellVar>,
 }
 
 impl CircuitWriter {
