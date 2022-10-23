@@ -51,6 +51,9 @@ pub enum ErrorKind {
     #[error("{0} arguments are passed when {1} were expected")]
     MismatchFunctionArguments(usize, usize),
 
+    #[error("constants must be declared before any structs or functions")]
+    ConstDeclarationAfterStructOrFunction,
+
     #[error("cannot chain arithmetic operations without using parenthesis")]
     MissingParenthesis,
 

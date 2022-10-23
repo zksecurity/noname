@@ -17,7 +17,7 @@ use crate::{
     imports::FnKind,
     parser::{
         AttributeKind, Expr, ExprKind, FnArg, FnSig, Function, Op2, RootKind, Stmt, StmtKind,
-        TyKind,
+        Struct, TyKind,
     },
     syntax::is_type,
     type_checker::{checker::TypeChecker, StructInfo, TAST},
@@ -32,48 +32,6 @@ pub mod fn_env;
 //
 // Data structures
 //
-
-/// The environment of the module/program.
-#[derive(Debug)]
-pub struct GlobalEnv {
-    typed: TypeChecker,
-
-    /// Constants defined in the module/program.
-    constants: HashMap<String, VarInfo>,
-}
-
-impl GlobalEnv {
-    /// Creates a global environment from the one created by the type checker.
-    pub fn new(typed_global_env: TypeChecker) -> Self {
-        Self {
-            typed: typed_global_env,
-            constants: HashMap::new(),
-        }
-    }
-
-    pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
-        self.typed.struct_info(name)
-    }
-
-    /// Stores type information about a local variable.
-    /// Note that we forbid shadowing at all scopes.
-    pub fn add_constant(&mut self, name: String, constant: Field, span: Span) {
-        let var = Var::new_constant(constant, span);
-
-        let var_info = VarInfo::new(var, false, Some(TyKind::Field));
-
-        if self.constants.insert(name.clone(), var_info).is_some() {
-            panic!("constant `{name}` already exists (TODO: better error)");
-        }
-    }
-
-    /// Retrieves type information on a constantiable, given a name.
-    /// If the constantiable is not in scope, return false.
-    // TODO: return an error no?
-    pub fn get_constant(&self, ident: &str) -> Option<&VarInfo> {
-        self.constants.get(ident)
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum GateKind {
@@ -170,7 +128,7 @@ impl VarOrRef {
     /// Returns the value within the variable or pointer.
     /// If it is a pointer, we lose information about the original variable,
     /// thus calling this function is aking to passing the variable by value.
-    pub fn value(self, env: &FnEnv, global_env: &GlobalEnv) -> Var {
+    pub fn value(self, env: &FnEnv) -> Var {
         match self {
             VarOrRef::Var(var) => var,
             VarOrRef::Ref {
@@ -178,7 +136,7 @@ impl VarOrRef {
                 start,
                 len,
             } => {
-                let var_info = env.get_var(global_env, &var_name);
+                let var_info = env.get_var(&var_name);
                 let cvars = var_info.var.range(start, len).to_vec();
                 Var::new(cvars, var_info.var.span)
             }
@@ -257,6 +215,7 @@ pub struct CircuitWriter {
     pub source: String,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
+    // Note: I don't think we need this, but it acts as a nice redundant failsafe.
     pub finalized: bool,
 
     /// This is used to give a distinct number to each variable during circuit generation.
@@ -298,9 +257,54 @@ pub struct CircuitWriter {
     /// Used during the witness generation to check
     /// public and private inputs given by the prover.
     pub main: (FnSig, Span),
+
+    /// The state of the type checker.
+    typed: TypeChecker,
+
+    /// Constants defined in the module/program.
+    constants: HashMap<String, VarInfo>,
 }
 
 impl CircuitWriter {
+    /// Creates a global environment from the one created by the type checker.
+    pub fn new(code: &str, typed_global_env: TypeChecker) -> Self {
+        let (main_sig, main_span) = {
+            let fn_info = typed_global_env.functions.get("main").cloned().unwrap();
+
+            (fn_info.sig().clone(), fn_info.span)
+        };
+
+        Self {
+            source: code.to_string(),
+            main: (main_sig, main_span),
+            typed: typed_global_env,
+            ..Self::default()
+        }
+    }
+
+    pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
+        self.typed.struct_info(name)
+    }
+
+    /// Stores type information about a local variable.
+    /// Note that we forbid shadowing at all scopes.
+    pub fn add_constant_var(&mut self, name: String, constant: Field, span: Span) {
+        let var = Var::new_constant(constant, span);
+
+        let var_info = VarInfo::new(var, false, Some(TyKind::Field));
+
+        if self.constants.insert(name.clone(), var_info).is_some() {
+            panic!("constant `{name}` already exists (TODO: better error)");
+        }
+    }
+
+    /// Retrieves type information on a constantiable, given a name.
+    /// If the constantiable is not in scope, return false.
+    // TODO: return an error no?
+    pub fn get_constant(&self, ident: &str) -> Option<&VarInfo> {
+        self.constants.get(ident)
+    }
+
     pub fn generate_circuit(tast: TAST, code: &str) -> Result<CompiledCircuit> {
         // if there's no main function, then return an error
         let TAST {
@@ -312,24 +316,43 @@ impl CircuitWriter {
             return Err(Error::new(ErrorKind::NoMainFunction, Span::default()));
         }
 
-        let (main_sig, main_span) = {
-            let fn_info = typed_global_env.functions.get("main").cloned().unwrap();
-
-            (fn_info.sig().clone(), fn_info.span)
-        };
-
-        let mut circuit_writer = CircuitWriter {
-            source: code.to_string(),
-            main: (main_sig, main_span),
-            ..CircuitWriter::default()
-        };
+        let mut circuit_writer = CircuitWriter::new(code, typed_global_env);
 
         // make sure we can't call that several times
         if circuit_writer.finalized {
             panic!("circuit already finalized (TODO: return a proper error");
         }
 
-        let mut global_env = GlobalEnv::new(typed_global_env);
+        //
+        // Process constants
+        //
+
+        // we detect struct or function definition
+        let mut func_or_struct = None;
+
+        for root in &ast.0 {
+            match &root.kind {
+                RootKind::Const(cst) => {
+                    // important: no struct or function definition must appear before a constant declaration
+                    if let Some(span) = func_or_struct {
+                        return Err(Error::new(
+                            ErrorKind::ConstDeclarationAfterStructOrFunction,
+                            span,
+                        ));
+                    }
+                    circuit_writer.add_constant_var(cst.name.value.clone(), cst.value, cst.span);
+                }
+
+                RootKind::Function(Function { span, .. })
+                | RootKind::Struct(Struct { span, .. }) => func_or_struct = Some(*span),
+
+                RootKind::Use(_) | RootKind::Comment(_) => (),
+            }
+        }
+
+        //
+        // Generate the circuit
+        //
 
         for root in &ast.0 {
             match &root.kind {
@@ -337,14 +360,15 @@ impl CircuitWriter {
                 RootKind::Use(_path) => (),
 
                 // `const thing = 42;`
-                RootKind::Const(cst) => {
-                    global_env.add_constant(cst.name.value.clone(), cst.value, cst.span);
+                RootKind::Const(_cst) => {
+                    // already took care of it previously
+                    ()
                 }
 
                 // `fn main() { ... }`
                 RootKind::Function(function) => {
                     // create the env
-                    let fn_env = &mut FnEnv::default();
+                    let fn_env = &mut FnEnv::new(&circuit_writer.constants);
 
                     // we only compile the main function
                     if !function.is_main() {
@@ -375,7 +399,7 @@ impl CircuitWriter {
                                 *len as usize
                             }
                             TyKind::Bool => 1,
-                            typ => global_env.typed.size_of(typ),
+                            typ => circuit_writer.typed.size_of(typ),
                         };
 
                         // create the variable
@@ -398,17 +422,12 @@ impl CircuitWriter {
                         // but we are being extra cautious due to attacks
                         // where the prover gives the verifier malformed inputs that look legit.
                         // (See short address attacks in Ethereum.)
-                        circuit_writer.constrain_inputs_to_main(
-                            &global_env,
-                            &var.cvars,
-                            &typ.kind,
-                            typ.span,
-                        );
+                        circuit_writer.constrain_inputs_to_main(&var.cvars, &typ.kind, typ.span);
 
                         // add argument variable to the ast env
                         let mutable = false; // TODO: should we add a mut keyword in arguments as well?
                         let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
-                        fn_env.add_var(&global_env, name.value.clone(), var_info);
+                        fn_env.add_var(name.value.clone(), var_info);
                     }
 
                     // create public output
@@ -422,7 +441,7 @@ impl CircuitWriter {
                     }
 
                     // compile function
-                    circuit_writer.compile_main_function(&global_env, fn_env, function)?;
+                    circuit_writer.compile_main_function(fn_env, function)?;
                 }
 
                 // struct definition (already dealt with in type checker)
@@ -458,7 +477,7 @@ impl CircuitWriter {
         // we finalized!
         circuit_writer.finalized = true;
 
-        Ok(CompiledCircuit::new(circuit_writer, global_env))
+        Ok(CompiledCircuit::new(circuit_writer))
     }
 
     /// Returns the compiled gates of the circuit.
@@ -469,28 +488,23 @@ impl CircuitWriter {
         &self.gates
     }
 
-    fn compile_stmt(
-        &mut self,
-        global_env: &GlobalEnv,
-        fn_env: &mut FnEnv,
-        stmt: &Stmt,
-    ) -> Result<Option<VarOrRef>> {
+    fn compile_stmt(&mut self, fn_env: &mut FnEnv, stmt: &Stmt) -> Result<Option<VarOrRef>> {
         match &stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } => {
                 // compute the rhs
                 let rhs_var = self
-                    .compute_expr(global_env, fn_env, rhs)?
+                    .compute_expr(fn_env, rhs)?
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))?;
 
                 // obtain the actual values
-                let rhs_var = rhs_var.value(fn_env, global_env);
+                let rhs_var = rhs_var.value(fn_env);
 
-                let typ = global_env.typed.expr_type(rhs).cloned();
+                let typ = self.typed.expr_type(rhs).cloned();
                 let var_info = VarInfo::new(rhs_var, *mutable, typ);
 
                 // store the new variable
                 // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
-                fn_env.add_var(global_env, lhs.value.clone(), var_info);
+                fn_env.add_var(lhs.value.clone(), var_info);
             }
 
             StmtKind::ForLoop { var, range, body } => {
@@ -499,23 +513,23 @@ impl CircuitWriter {
 
                     let cst_var = Var::new_constant(ii.into(), var.span);
                     let var_info = VarInfo::new(cst_var, false, Some(TyKind::Field));
-                    fn_env.add_var(global_env, var.value.clone(), var_info);
+                    fn_env.add_var(var.value.clone(), var_info);
 
-                    self.compile_block(global_env, fn_env, body)?;
+                    self.compile_block(fn_env, body)?;
 
                     fn_env.pop();
                 }
             }
             StmtKind::Expr(expr) => {
                 // compute the expression
-                let var = self.compute_expr(global_env, fn_env, expr)?;
+                let var = self.compute_expr(fn_env, expr)?;
 
                 // make sure it does not return any value.
                 assert!(var.is_none());
             }
             StmtKind::Return(expr) => {
                 let var = self
-                    .compute_expr(global_env, fn_env, expr)?
+                    .compute_expr(fn_env, expr)?
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))?;
 
                 // we already checked in type checking that this is not an early return
@@ -528,18 +542,13 @@ impl CircuitWriter {
     }
 
     /// might return something?
-    fn compile_block(
-        &mut self,
-        global_env: &GlobalEnv,
-        fn_env: &mut FnEnv,
-        stmts: &[Stmt],
-    ) -> Result<Option<Var>> {
+    fn compile_block(&mut self, fn_env: &mut FnEnv, stmts: &[Stmt]) -> Result<Option<Var>> {
         fn_env.nest();
         for stmt in stmts {
-            let res = self.compile_stmt(global_env, fn_env, stmt)?;
+            let res = self.compile_stmt(fn_env, stmt)?;
             if let Some(var) = res {
                 // a block doesn't return a pointer, only values
-                let var = var.value(fn_env, global_env);
+                let var = var.value(fn_env);
 
                 // we already checked for early returns in type checking
                 return Ok(Some(var));
@@ -551,33 +560,26 @@ impl CircuitWriter {
 
     fn compile_native_function_call(
         &mut self,
-        global_env: &GlobalEnv,
         function: &Function,
         args: Vec<VarInfo>,
     ) -> Result<Option<Var>> {
         assert!(!function.is_main());
 
         // create new fn_env
-        let fn_env = &mut FnEnv::new();
+        let fn_env = &mut FnEnv::new(&self.constants);
 
         // set arguments
         assert_eq!(function.sig.arguments.len(), args.len());
 
         for (name, var_info) in function.sig.arguments.iter().zip(args) {
-            fn_env.add_var(global_env, name.name.value.clone(), var_info);
+            fn_env.add_var(name.name.value.clone(), var_info);
         }
 
         // compile it and potentially return a return value
-        self.compile_block(global_env, fn_env, &function.body)
+        self.compile_block(fn_env, &function.body)
     }
 
-    fn constrain_inputs_to_main(
-        &mut self,
-        global_env: &GlobalEnv,
-        input: &[ConstOrCell],
-        input_typ: &TyKind,
-        span: Span,
-    ) {
+    fn constrain_inputs_to_main(&mut self, input: &[ConstOrCell], input_typ: &TyKind, span: Span) {
         match input_typ {
             TyKind::Field => (),
             TyKind::Bool => {
@@ -585,20 +587,21 @@ impl CircuitWriter {
                 boolean::check(self, &input[0], span);
             }
             TyKind::Array(tykind, _) => {
-                let el_size = global_env.typed.size_of(tykind);
+                let el_size = self.typed.size_of(tykind);
                 for el in input.chunks(el_size) {
-                    self.constrain_inputs_to_main(global_env, el, tykind, span);
+                    self.constrain_inputs_to_main(el, tykind, span);
                 }
             }
             TyKind::Custom(struct_name) => {
-                let struct_info = global_env
+                let struct_info = self
                     .struct_info(struct_name)
-                    .expect("type-checker bug: couldn't find struct info of input to main");
+                    .expect("type-checker bug: couldn't find struct info of input to main")
+                    .clone();
                 let mut offset = 0;
                 for (_field_name, field_typ) in &struct_info.fields {
-                    let len = global_env.typed.size_of(field_typ);
+                    let len = self.typed.size_of(field_typ);
                     let range = offset..(offset + len);
-                    self.constrain_inputs_to_main(global_env, &input[range], field_typ, span);
+                    self.constrain_inputs_to_main(&input[range], field_typ, span);
                     offset += len;
                 }
             }
@@ -607,16 +610,11 @@ impl CircuitWriter {
     }
 
     /// Compile a function. Used to compile `main()` only for now
-    fn compile_main_function(
-        &mut self,
-        global_env: &GlobalEnv,
-        fn_env: &mut FnEnv,
-        function: &Function,
-    ) -> Result<()> {
+    fn compile_main_function(&mut self, fn_env: &mut FnEnv, function: &Function) -> Result<()> {
         assert!(function.is_main());
 
         // compile the block
-        let returned = self.compile_block(global_env, fn_env, &function.body)?;
+        let returned = self.compile_block(fn_env, &function.body)?;
 
         // we're expecting something returned?
         match (function.sig.return_type.as_ref(), returned) {
@@ -670,12 +668,7 @@ impl CircuitWriter {
         var
     }
 
-    fn compute_expr(
-        &mut self,
-        global_env: &GlobalEnv,
-        fn_env: &mut FnEnv,
-        expr: &Expr,
-    ) -> Result<Option<VarOrRef>> {
+    fn compute_expr(&mut self, fn_env: &mut FnEnv, expr: &Expr) -> Result<Option<VarOrRef>> {
         match &expr.kind {
             // `module::fn_name(args)`
             ExprKind::FnCall {
@@ -690,13 +683,13 @@ impl CircuitWriter {
                 for arg in args {
                     // get the variable behind the expression
                     let var = self
-                        .compute_expr(global_env, fn_env, arg)?
+                        .compute_expr(fn_env, arg)?
                         .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))?;
 
                     // we pass variables by values always
-                    let var = var.value(fn_env, global_env);
+                    let var = var.value(fn_env);
 
-                    let typ = global_env.typed.expr_type(arg).cloned();
+                    let typ = self.typed.expr_type(arg).cloned();
                     let mutable = false; // TODO: mut keyword in arguments?
                     let var_info = VarInfo::new(var, mutable, typ);
 
@@ -707,7 +700,7 @@ impl CircuitWriter {
                 if let Some(module) = module {
                     // module::fn_name(args)
                     // ^^^^^^
-                    let module = global_env.typed.modules.get(&module.value).ok_or_else(|| {
+                    let module = self.typed.modules.get(&module.value).ok_or_else(|| {
                         Error::new(
                             ErrorKind::UndefinedModule(module.value.clone()),
                             module.span,
@@ -731,17 +724,17 @@ impl CircuitWriter {
                 } else {
                     // fn_name(args)
                     // ^^^^^^^
-                    let fn_info =
-                        global_env
-                            .typed
-                            .functions
-                            .get(&fn_name.value)
-                            .ok_or_else(|| {
-                                Error::new(
-                                    ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                                    fn_name.span,
-                                )
-                            })?;
+                    let fn_info = self
+                        .typed
+                        .functions
+                        .get(&fn_name.value)
+                        .cloned()
+                        .ok_or_else(|| {
+                            Error::new(
+                                ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                                fn_name.span,
+                            )
+                        })?;
 
                     match &fn_info.kind {
                         FnKind::BuiltIn(_sig, handle) => {
@@ -749,7 +742,7 @@ impl CircuitWriter {
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Native(func) => {
-                            let res = self.compile_native_function_call(global_env, &func, vars);
+                            let res = self.compile_native_function_call(&func, vars);
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Main(_) => Err(Error::new(ErrorKind::RecursiveMain, expr.span)),
@@ -760,11 +753,11 @@ impl CircuitWriter {
             ExprKind::FieldAccess { lhs, rhs } => {
                 // get var behind lhs
                 let lhs_var = self
-                    .compute_expr(global_env, fn_env, lhs)?
+                    .compute_expr(fn_env, lhs)?
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))?;
 
                 // get struct info behind lhs
-                let lhs_struct = global_env
+                let lhs_struct = self
                     .typed
                     .expr_type(lhs)
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))?;
@@ -776,7 +769,7 @@ impl CircuitWriter {
                     }
                 };
 
-                let struct_info = global_env
+                let struct_info = self
                     .typed
                     .struct_info(self_struct)
                     .expect("struct info not found for custom struct");
@@ -786,11 +779,11 @@ impl CircuitWriter {
                 let mut len = 0;
                 for (field, field_typ) in &struct_info.fields {
                     if field == &rhs.value {
-                        len = global_env.typed.size_of(field_typ);
+                        len = self.typed.size_of(field_typ);
                         break;
                     }
 
-                    start += global_env.typed.size_of(field_typ);
+                    start += self.typed.size_of(field_typ);
                 }
 
                 // narrow the variable to the given range
@@ -805,25 +798,27 @@ impl CircuitWriter {
                 args,
             } => {
                 // figure out the name of the custom struct
-                let lhs_typ = global_env
+                let lhs_typ = self
                     .typed
                     .expr_type(lhs)
-                    .expect("method call on what?");
+                    .expect("method call on what?")
+                    .clone();
 
-                let struct_name = match lhs_typ {
+                let struct_name = match &lhs_typ {
                     TyKind::Custom(c) => c,
                     _ => panic!("method call only work on custom types"),
                 };
 
                 // get var of `self`
                 // (might be `None` if it's a static method call)
-                let self_var = self.compute_expr(global_env, fn_env, lhs)?;
+                let self_var = self.compute_expr(fn_env, lhs)?;
 
                 // find method info
-                let struct_info = global_env
+                let struct_info = self
                     .typed
                     .struct_info(struct_name)
-                    .expect("could not find struct info");
+                    .expect("could not find struct info")
+                    .clone();
 
                 let func = struct_info
                     .methods
@@ -840,7 +835,7 @@ impl CircuitWriter {
 
                         // TODO: for now we pass `self` by value as well
                         let mutable = false;
-                        let self_var = self_var.value(fn_env, global_env);
+                        let self_var = self_var.value(fn_env);
 
                         let self_var_info = VarInfo::new(self_var, mutable, Some(lhs_typ.clone()));
                         vars.insert(0, self_var_info);
@@ -852,37 +847,28 @@ impl CircuitWriter {
                 // compute the arguments
                 for arg in args {
                     let var = self
-                        .compute_expr(global_env, fn_env, arg)?
+                        .compute_expr(fn_env, arg)?
                         .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))?;
 
                     // TODO: for now we pass `self` by value as well
                     let mutable = false;
-                    let var = var.value(fn_env, global_env);
+                    let var = var.value(fn_env);
 
-                    let typ = global_env.typed.expr_type(arg).cloned();
+                    let typ = self.typed.expr_type(arg).cloned();
                     let var_info = VarInfo::new(var, mutable, typ);
 
                     vars.push(var_info);
                 }
 
                 // execute method
-                let res = self.compile_native_function_call(global_env, func, vars);
+                let res = self.compile_native_function_call(func, vars);
                 res.map(|r| r.map(VarOrRef::Var))
             }
 
             ExprKind::IfElse { cond, then_, else_ } => {
-                let cond = self
-                    .compute_expr(global_env, fn_env, cond)?
-                    .unwrap()
-                    .value(fn_env, global_env);
-                let then_ = self
-                    .compute_expr(global_env, fn_env, then_)?
-                    .unwrap()
-                    .value(fn_env, global_env);
-                let else_ = self
-                    .compute_expr(global_env, fn_env, else_)?
-                    .unwrap()
-                    .value(fn_env, global_env);
+                let cond = self.compute_expr(fn_env, cond)?.unwrap().value(fn_env);
+                let then_ = self.compute_expr(fn_env, then_)?.unwrap().value(fn_env);
+                let else_ = self.compute_expr(fn_env, else_)?.unwrap().value(fn_env);
 
                 let res = field::if_else(self, &cond, &then_, &else_, expr.span);
 
@@ -891,10 +877,10 @@ impl CircuitWriter {
 
             ExprKind::Assignment { lhs, rhs } => {
                 // figure out the local var  of lhs
-                let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
+                let lhs = self.compute_expr(fn_env, lhs)?.unwrap();
 
                 // figure out the var of what's on the right
-                let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
+                let rhs = self.compute_expr(fn_env, rhs)?.unwrap();
                 let rhs_var = match rhs {
                     VarOrRef::Var(var) => var,
                     VarOrRef::Ref {
@@ -902,7 +888,7 @@ impl CircuitWriter {
                         start,
                         len,
                     } => {
-                        let var_info = fn_env.get_var(global_env, &var_name);
+                        let var_info = fn_env.get_var(&var_name);
                         let cvars = var_info.var.range(start, len).to_vec();
                         Var::new(cvars, var_info.var.span)
                     }
@@ -924,11 +910,11 @@ impl CircuitWriter {
             }
 
             ExprKind::BinaryOp { op, lhs, rhs, .. } => {
-                let lhs = self.compute_expr(global_env, fn_env, lhs)?.unwrap();
-                let rhs = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
+                let lhs = self.compute_expr(fn_env, lhs)?.unwrap();
+                let rhs = self.compute_expr(fn_env, rhs)?.unwrap();
 
-                let lhs = lhs.value(fn_env, global_env);
-                let rhs = rhs.value(fn_env, global_env);
+                let lhs = lhs.value(fn_env);
+                let rhs = rhs.value(fn_env);
 
                 let res = match op {
                     Op2::Addition => field::add(self, &lhs[0], &rhs[0], expr.span),
@@ -944,17 +930,17 @@ impl CircuitWriter {
             }
 
             ExprKind::Negated(b) => {
-                let var = self.compute_expr(global_env, fn_env, b)?.unwrap();
+                let var = self.compute_expr(fn_env, b)?.unwrap();
 
-                let var = var.value(fn_env, global_env);
+                let var = var.value(fn_env);
 
                 todo!()
             }
 
             ExprKind::Not(b) => {
-                let var = self.compute_expr(global_env, fn_env, b)?.unwrap();
+                let var = self.compute_expr(fn_env, b)?.unwrap();
 
-                let var = var.value(fn_env, global_env);
+                let var = var.value(fn_env);
 
                 let res = boolean::not(self, &var[0], expr.span.merge_with(b.span));
                 Ok(Some(VarOrRef::Var(res)))
@@ -986,7 +972,7 @@ impl CircuitWriter {
                     // (most likely what follows is a static method call)
                     Ok(None)
                 } else {
-                    let var_info = fn_env.get_var(global_env, &name.value);
+                    let var_info = fn_env.get_var(&name.value);
 
                     let res = VarOrRef::from_var_info(name.value.clone(), var_info);
                     Ok(Some(res))
@@ -996,12 +982,12 @@ impl CircuitWriter {
             ExprKind::ArrayAccess { array, idx } => {
                 // retrieve var of array
                 let var = self
-                    .compute_expr(global_env, fn_env, array)?
+                    .compute_expr(fn_env, array)?
                     .expect("array access on non-array");
 
                 // compute the index
                 let idx_var = self
-                    .compute_expr(global_env, fn_env, idx)?
+                    .compute_expr(fn_env, idx)?
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, expr.span))?;
                 let idx = idx_var
                     .constant()
@@ -1010,7 +996,7 @@ impl CircuitWriter {
                 let idx: usize = idx.try_into().unwrap();
 
                 // retrieve the type of the elements in the array
-                let array_typ = global_env
+                let array_typ = self
                     .typed
                     .expr_type(array)
                     .expect("cannot find type of array");
@@ -1029,7 +1015,7 @@ impl CircuitWriter {
                 };
 
                 // compute the size of each element in the array
-                let len = global_env.typed.size_of(elem_type);
+                let len = self.typed.size_of(elem_type);
 
                 // compute the real index
                 let start = idx * len;
@@ -1053,8 +1039,8 @@ impl CircuitWriter {
                 let mut cvars = vec![];
 
                 for item in items {
-                    let var = self.compute_expr(global_env, fn_env, item)?.unwrap();
-                    let to_extend = var.value(fn_env, global_env).cvars.clone();
+                    let var = self.compute_expr(fn_env, item)?.unwrap();
+                    let to_extend = var.value(fn_env).cvars.clone();
                     cvars.extend(to_extend);
                 }
 
@@ -1070,8 +1056,8 @@ impl CircuitWriter {
                 // create the struct by just concatenating all of its cvars
                 let mut cvars = vec![];
                 for (_field, rhs) in fields {
-                    let var = self.compute_expr(global_env, fn_env, rhs)?.unwrap();
-                    let to_extend = var.value(fn_env, global_env).cvars.clone();
+                    let var = self.compute_expr(fn_env, rhs)?.unwrap();
+                    let to_extend = var.value(fn_env).cvars.clone();
                     cvars.extend(to_extend);
                 }
                 let var = VarOrRef::Var(Var::new(cvars, expr.span));

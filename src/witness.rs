@@ -1,17 +1,14 @@
-use std::{collections::HashMap, ops::Deref};
+use std::collections::HashMap;
 
 use ark_ff::{Field as _, Zero};
 use itertools::{chain, Itertools};
 
 use crate::{
-    boolean,
-    circuit_writer::{CircuitWriter, Gate, GlobalEnv},
+    circuit_writer::{CircuitWriter, Gate},
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     helpers::PrettyField as _,
-    inputs::{parse_single_input, JsonInputs},
-    parser::TyKind,
-    type_checker::TypeChecker,
+    inputs::JsonInputs,
     var::{CellVar, Value},
 };
 
@@ -67,12 +64,11 @@ impl Witness {
 /// The compiled circuit.
 pub struct CompiledCircuit {
     pub circuit: CircuitWriter,
-    env: GlobalEnv,
 }
 
 impl CompiledCircuit {
-    pub(crate) fn new(circuit: CircuitWriter, env: GlobalEnv) -> Self {
-        Self { circuit, env }
+    pub(crate) fn new(circuit: CircuitWriter) -> Self {
+        Self { circuit }
     }
 
     pub fn asm(&self, debug: bool) -> String {
@@ -153,7 +149,8 @@ impl CompiledCircuit {
                 })?
             };
 
-            let fields = parse_single_input(&self.env, input, &arg.typ.kind)
+            let fields = self
+                .parse_single_input(input, &arg.typ.kind)
                 .map_err(|e| Error::new(ErrorKind::ParsingError(e), arg.span))?;
 
             env.add_value(name.clone(), fields.clone());

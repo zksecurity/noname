@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{circuit_writer::GlobalEnv, parser::TyKind, var::Var};
+use crate::{parser::TyKind, var::Var};
 
 /// Information about a variable.
 #[derive(Debug, Clone)]
@@ -52,7 +52,7 @@ impl VarInfo {
 /// Is used to store functions' scoped variables.
 /// This include inputs and output of the function,  as well as local variables.
 /// You can think of it as a function call stack.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct FnEnv {
     /// The current nesting level.
     /// Starting at 0 (top level), and increasing as we go into a block.
@@ -67,8 +67,16 @@ pub struct FnEnv {
 
 impl FnEnv {
     /// Creates a new FnEnv
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(constants: &HashMap<String, VarInfo>) -> Self {
+        let vars = constants
+            .iter()
+            .map(|(k, v)| (k.clone(), (0, v.clone())))
+            .collect();
+
+        Self {
+            current_scope: 0,
+            vars,
+        }
     }
 
     /// Enters a scoped block.
@@ -101,11 +109,7 @@ impl FnEnv {
 
     /// Stores type information about a local variable.
     /// Note that we forbid shadowing at all scopes.
-    pub fn add_var(&mut self, global_env: &GlobalEnv, var_name: String, var_info: VarInfo) {
-        if global_env.get_constant(&var_name).is_some() {
-            panic!("cannot shadow global variable {}", var_name);
-        }
-
+    pub fn add_var(&mut self, var_name: String, var_info: VarInfo) {
         let scope = self.current_scope;
 
         if self
@@ -120,12 +124,7 @@ impl FnEnv {
     /// Retrieves type information on a variable, given a name.
     /// If the variable is not in scope, return false.
     // TODO: return an error no?
-    pub fn get_var(&self, global_env: &GlobalEnv, var_name: &str) -> VarInfo {
-        // look for global constants first
-        if let Some(var_info) = global_env.get_constant(var_name) {
-            return var_info.clone();
-        }
-
+    pub fn get_var(&self, var_name: &str) -> VarInfo {
         // if not found, then look into local variables
         let (scope, var_info) = self
             .vars

@@ -29,7 +29,7 @@ impl FnInfo {
 }
 
 /// Keeps track of the signature of a user-defined struct.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct StructInfo {
     pub name: String,
     pub fields: Vec<(String, TyKind)>,

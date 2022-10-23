@@ -7,7 +7,7 @@ use miette::Diagnostic;
 use num_bigint::BigUint;
 use thiserror::Error;
 
-use crate::{circuit_writer::GlobalEnv, constants::Field, parser::TyKind};
+use crate::{constants::Field, parser::TyKind, witness::CompiledCircuit};
 
 //
 // Errors
@@ -46,68 +46,72 @@ pub fn parse_inputs(s: &str) -> Result<JsonInputs, ParsingError> {
 // JSON deserialization of a single input
 //
 
-pub fn parse_single_input(
-    env: &GlobalEnv,
-    input: serde_json::Value,
-    expected_input: &TyKind,
-) -> Result<Vec<Field>, ParsingError> {
-    use serde_json::Value;
+impl CompiledCircuit {
+    pub fn parse_single_input(
+        &self,
+        input: serde_json::Value,
+        expected_input: &TyKind,
+    ) -> Result<Vec<Field>, ParsingError> {
+        use serde_json::Value;
 
-    match (expected_input, input) {
-        (TyKind::BigInt, _) => unreachable!(),
-        (TyKind::Field, Value::String(ss)) => {
-            let cell_value = Field::from_str(&ss).map_err(|_| ParsingError::InvalidField(ss))?;
-            Ok(vec![cell_value])
-        }
-        (TyKind::Bool, Value::Bool(bb)) => {
-            let ff = if bb { Field::one() } else { Field::zero() };
-            Ok(vec![ff])
-        }
-
-        (TyKind::Array(el_typ, size), Value::Array(values)) => {
-            if values.len() != (*size as usize) {
-                panic!("wrong size of array");
+        match (expected_input, input) {
+            (TyKind::BigInt, _) => unreachable!(),
+            (TyKind::Field, Value::String(ss)) => {
+                let cell_value =
+                    Field::from_str(&ss).map_err(|_| ParsingError::InvalidField(ss))?;
+                Ok(vec![cell_value])
             }
-            let mut res = vec![];
-            for value in values {
-                let el = parse_single_input(env, value, el_typ)?;
-                res.extend(el);
+            (TyKind::Bool, Value::Bool(bb)) => {
+                let ff = if bb { Field::one() } else { Field::zero() };
+                Ok(vec![ff])
             }
 
-            Ok(res)
-        }
-        (TyKind::Custom(struct_name), Value::Object(mut map)) => {
-            // get fields of struct
-            let struct_info = env
-                .struct_info(struct_name)
-                .expect("compiler bug: couldn't find struct given as input");
-            let fields = &struct_info.fields;
+            (TyKind::Array(el_typ, size), Value::Array(values)) => {
+                if values.len() != (*size as usize) {
+                    panic!("wrong size of array");
+                }
+                let mut res = vec![];
+                for value in values {
+                    let el = self.parse_single_input(value, el_typ)?;
+                    res.extend(el);
+                }
 
-            // make sure that they're the same length
-            if fields.len() != map.len() {
-                panic!("wrong number of fields in struct (TODO: better error)");
+                Ok(res)
             }
+            (TyKind::Custom(struct_name), Value::Object(mut map)) => {
+                // get fields of struct
+                let struct_info = self
+                    .circuit
+                    .struct_info(struct_name)
+                    .expect("compiler bug: couldn't find struct given as input");
+                let fields = &struct_info.fields;
 
-            // parse each field
-            let mut res = vec![];
-            for (field_name, field_ty) in fields {
-                let value = map
+                // make sure that they're the same length
+                if fields.len() != map.len() {
+                    panic!("wrong number of fields in struct (TODO: better error)");
+                }
+
+                // parse each field
+                let mut res = vec![];
+                for (field_name, field_ty) in fields {
+                    let value = map
                     .remove(field_name)
                     .ok_or_else(|| {
                         format!("couldn't find field `{field_name}` in given JSON input (TODO: better error)")
                     })
                     .unwrap();
-                let parsed = parse_single_input(env, value, field_ty)?;
-                res.extend(parsed);
-            }
+                    let parsed = self.parse_single_input(value, field_ty)?;
+                    res.extend(parsed);
+                }
 
-            Ok(res)
-        }
-        (expected, observed) => {
-            return Err(ParsingError::MismatchJsonArgument(
-                expected.clone(),
-                observed,
-            ));
+                Ok(res)
+            }
+            (expected, observed) => {
+                return Err(ParsingError::MismatchJsonArgument(
+                    expected.clone(),
+                    observed,
+                ));
+            }
         }
     }
 }
