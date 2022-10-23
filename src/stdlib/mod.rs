@@ -132,9 +132,8 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
         // a const and a var
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "constrain var - cst = 0 to check equality",
-                GateKind::DoubleGeneric,
                 vec![Some(*cvar)],
                 vec![
                     Field::one(),
@@ -148,9 +147,8 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // TODO: use permutation to check that
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "constrain lhs - rhs = 0 to assert that they are equal",
-                GateKind::DoubleGeneric,
                 vec![Some(*lhs), Some(*rhs)],
                 vec![Field::one(), Field::one().neg()],
                 span,
@@ -183,9 +181,8 @@ fn assert(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<
             // TODO: use permutation to check that
             let zero = Field::zero();
             let one = Field::one();
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "constrain 1 - X = 0 to assert that X is true",
-                GateKind::DoubleGeneric,
                 vec![None, Some(*cvar)],
                 // use the constant to constrain 1 - X = 0
                 vec![zero, one.neg(), zero, zero, one],

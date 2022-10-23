@@ -81,11 +81,19 @@ pub fn generate_asm(
         }
 
         // gate
-        let coeffs = parse_coeffs(&vars, coeffs);
         write!(res, "{typ:?}").unwrap();
-        res.push('<');
-        res.push_str(&coeffs.join(","));
-        res.push_str(">\n");
+
+        // coeffs
+        {
+            let coeffs = parse_coeffs(&vars, coeffs);
+            if !coeffs.is_empty() {
+                res.push('<');
+                res.push_str(&coeffs.join(","));
+                res.push_str(">");
+            }
+        }
+
+        res.push('\n');
 
         if debug {
             // source
@@ -147,7 +155,7 @@ fn extract_vars_from_coeffs(vars: &mut OrderedHashSet<Field>, coeffs: &[Field]) 
 }
 
 fn parse_coeffs(vars: &OrderedHashSet<Field>, coeffs: &[Field]) -> Vec<String> {
-    coeffs
+    let mut coeffs: Vec<_> = coeffs
         .iter()
         .map(|x| {
             let s = x.pretty();
@@ -158,7 +166,14 @@ fn parse_coeffs(vars: &OrderedHashSet<Field>, coeffs: &[Field]) -> Vec<String> {
                 format!("c{var_idx}")
             }
         })
-        .collect()
+        // trim trailing zeros
+        .rev()
+        .skip_while(|x| x == "0")
+        .collect();
+
+    coeffs.reverse();
+
+    coeffs
 }
 
 fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {

@@ -12,6 +12,8 @@ use crate::{
 pub use fn_env::{FnEnv, VarInfo};
 pub use writer::{Gate, GateKind, Wiring};
 
+use self::writer::PendingGate;
+
 pub mod fn_env;
 pub mod writer;
 
@@ -70,6 +72,14 @@ pub struct CircuitWriter {
 
     /// Constants defined in the module/program.
     pub(crate) constants: HashMap<String, VarInfo>,
+
+    /// If set to false, a single generic gate will be used per double generic gate.
+    /// This can be useful for debugging.
+    pub(crate) double_generic_gate_optimization: bool,
+
+    /// This is used to implement the double generic gate,
+    /// which encodes two generic gates.
+    pub(crate) pending_generic_gate: Option<PendingGate>,
 }
 
 impl CircuitWriter {
@@ -219,6 +229,17 @@ impl CircuitWriter {
                 // TODO: we could actually preserve the comment in the ASM!
                 RootKind::Comment(_comment) => (),
             }
+        }
+
+        // important: there might still be a pending generic gate
+        if let Some(pending) = circuit_writer.pending_generic_gate.take() {
+            circuit_writer.add_gate(
+                pending.label,
+                GateKind::DoubleGeneric,
+                pending.vars,
+                pending.coeffs,
+                pending.span,
+            );
         }
 
         // for sanity check, we make sure that every cellvar created has ended up in a gate

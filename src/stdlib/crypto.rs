@@ -157,7 +157,7 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
     // zero gate to store the result
     compiler.add_gate(
         "uses a zero gate to store the output of poseidon",
-        GateKind::DoubleGeneric,
+        GateKind::Zero,
         final_row.clone(),
         vec![],
         span,

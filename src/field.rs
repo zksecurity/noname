@@ -33,9 +33,8 @@ pub fn add(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
 
             // create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "add a constant with a variable",
-                GateKind::DoubleGeneric,
                 vec![Some(*cvar), None, Some(res)],
                 vec![one, zero, one.neg(), zero, *cst],
                 span,
@@ -54,9 +53,8 @@ pub fn add(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
             );
 
             // create a gate to store the result
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "add two variables together",
-                GateKind::DoubleGeneric,
                 vec![Some(*lhs), Some(*rhs), Some(res)],
                 vec![Field::one(), Field::one(), Field::one().neg()],
                 span,
@@ -85,9 +83,8 @@ pub fn sub(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
             );
 
             // create a gate to store the result
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "constant - variable",
-                GateKind::DoubleGeneric,
                 vec![Some(*cvar), None, Some(res)],
                 // cst - cvar - out = 0
                 vec![one.neg(), zero, one.neg(), zero, *cst],
@@ -113,9 +110,8 @@ pub fn sub(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
 
             // create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "variable - constant",
-                GateKind::DoubleGeneric,
                 vec![Some(*cvar), None, Some(res)],
                 // var - cst - out = 0
                 vec![one, zero, one.neg(), zero, cst.neg()],
@@ -134,9 +130,8 @@ pub fn sub(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
             );
 
             // create a gate to store the result
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "var1 - var2",
-                GateKind::DoubleGeneric,
                 vec![Some(*lhs), Some(*rhs), Some(res)],
                 // lhs - rhs - out = 0
                 vec![one, one.neg(), one.neg()],
@@ -175,9 +170,8 @@ pub fn mul(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
 
             // create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "add a constant with a variable",
-                GateKind::DoubleGeneric,
                 vec![Some(*cvar), None, Some(res)],
                 vec![*cst, zero, one.neg(), zero, *cst],
                 span,
@@ -192,9 +186,8 @@ pub fn mul(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
             let res = compiler.new_internal_var(Value::Mul(*lhs, *rhs), span);
 
             // create a gate to store the result
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "add two variables together",
-                GateKind::DoubleGeneric,
                 vec![Some(*lhs), Some(*rhs), Some(res)],
                 vec![zero, zero, one.neg(), one],
                 span,
@@ -311,9 +304,8 @@ fn equal_cells(
                 span,
             );
 
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "constraint #1 for the equals gadget (x2 - x1 - diff = 0)",
-                GateKind::DoubleGeneric,
                 vec![Some(x2), Some(x1), Some(diff)],
                 // x2 - x1 - diff = 0
                 vec![one, one.neg(), one.neg()],
@@ -324,9 +316,8 @@ fn equal_cells(
             let one_minus_res = compiler
                 .new_internal_var(Value::LinearCombination(vec![(one.neg(), res)], one), span);
 
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "constraint #2 for the equals gadget (one_minus_res + res - 1 = 0)",
-                GateKind::DoubleGeneric,
                 vec![Some(one_minus_res), Some(res)],
                 // we constrain one_minus_res + res - 1 = 0
                 // so that we can encode res and wire it elsewhere
@@ -336,9 +327,8 @@ fn equal_cells(
             );
 
             // 3. res * diff = 0
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "constraint #3 for the equals gadget (res * diff = 0)",
-                GateKind::DoubleGeneric,
                 vec![Some(res), Some(diff)],
                 // res * diff = 0
                 vec![zero, zero, zero, one],
@@ -348,9 +338,8 @@ fn equal_cells(
             // 4. diff_inv * diff = one_minus_res
             let diff_inv = compiler.new_internal_var(Value::Inverse(diff), span);
 
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "constraint #4 for the equals gadget (diff_inv * diff = one_minus_res)",
-                GateKind::DoubleGeneric,
                 vec![Some(diff_inv), Some(diff), Some(one_minus_res)],
                 // diff_inv * diff - one_minus_res = 0
                 vec![zero, zero, one.neg(), one],
@@ -485,9 +474,8 @@ pub fn if_else_inner(
             let zero = Field::zero();
             let one = Field::one();
 
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "constraint for ternary operator: cond * (then - else) = res - else",
-                GateKind::DoubleGeneric,
                 vec![Some(cond_cell), Some(then_m_else), Some(res_m_else)],
                 // cond * (then - else) = res - else
                 vec![zero, zero, one.neg(), one],

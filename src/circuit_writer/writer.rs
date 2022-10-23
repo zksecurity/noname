@@ -4,6 +4,7 @@ use std::{
 };
 
 use ark_ff::{One, Zero};
+use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 use num_bigint::BigUint;
 use num_traits::Num as _;
 
@@ -26,6 +27,7 @@ use crate::{
 
 #[derive(Debug, Clone, Copy)]
 pub enum GateKind {
+    Zero,
     DoubleGeneric,
     Poseidon,
 }
@@ -34,6 +36,7 @@ impl From<GateKind> for kimchi::circuits::gate::GateType {
     fn from(gate_kind: GateKind) -> Self {
         use kimchi::circuits::gate::GateType::*;
         match gate_kind {
+            GateKind::Zero => Zero,
             GateKind::DoubleGeneric => Generic,
             GateKind::Poseidon => Poseidon,
         }
@@ -767,9 +770,8 @@ impl CircuitWriter {
         let var = self.new_internal_var(Value::Constant(value), span);
 
         let zero = Field::zero();
-        self.add_gate(
+        self.add_generic_gate(
             label.unwrap_or("hardcode a constant"),
-            GateKind::DoubleGeneric,
             vec![Some(var)],
             vec![Field::one(), zero, zero, zero, value.neg()],
             span,
@@ -859,9 +861,8 @@ impl CircuitWriter {
             cvars.push(ConstOrCell::Cell(cvar));
 
             // create the associated generic gate
-            self.add_gate(
+            self.add_generic_gate(
                 "add public output",
-                GateKind::DoubleGeneric,
                 vec![Some(cvar)],
                 vec![Field::one()],
                 span,
@@ -886,4 +887,51 @@ impl CircuitWriter {
 
         Var::new(cvars, span)
     }
+
+    pub(crate) fn add_generic_gate(
+        &mut self,
+        label: &'static str,
+        mut vars: Vec<Option<CellVar>>,
+        mut coeffs: Vec<Field>,
+        span: Span,
+    ) {
+        // padding
+        let coeffs_padding = GENERIC_COEFFS.checked_sub(coeffs.len()).unwrap();
+        coeffs.extend(std::iter::repeat(Field::zero()).take(coeffs_padding));
+
+        let vars_padding = GENERIC_REGISTERS.checked_sub(vars.len()).unwrap();
+        vars.extend(std::iter::repeat(None).take(vars_padding));
+
+        // if the double gate optimization is not set, just add the gate
+        if !self.double_generic_gate_optimization {
+            self.add_gate(label, GateKind::DoubleGeneric, vars, coeffs, span);
+            return;
+        }
+
+        // only add a double generic gate if we have two of them
+        if let Some(generic_gate) = self.pending_generic_gate.take() {
+            coeffs.extend(generic_gate.coeffs);
+            vars.extend(generic_gate.vars);
+
+            // TODO: what to do with the label and span?
+
+            self.add_gate(label, GateKind::DoubleGeneric, vars, coeffs, span);
+        } else {
+            // otherwise queue it
+            self.pending_generic_gate = Some(PendingGate {
+                label,
+                coeffs,
+                vars,
+                span,
+            });
+        }
+    }
+}
+
+#[derive(Clone, Default, Debug)]
+pub(crate) struct PendingGate {
+    pub label: &'static str,
+    pub coeffs: Vec<Field>,
+    pub vars: Vec<Option<CellVar>>,
+    pub span: Span,
 }

@@ -20,9 +20,8 @@ pub fn check(compiler: &mut CircuitWriter, xx: &ConstOrCell, span: Span) {
 
     match xx {
         ConstOrCell::Const(ff) => assert!(is_valid(*ff)),
-        ConstOrCell::Cell(var) => compiler.add_gate(
+        ConstOrCell::Cell(var) => compiler.add_generic_gate(
             "constraint to validate a boolean (`x(x-1) = 0`)",
-            GateKind::DoubleGeneric,
             // x^2 - x = 0
             vec![Some(*var), Some(*var), None],
             vec![one.neg(), zero, zero, one],
@@ -54,9 +53,8 @@ pub fn and(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
             // create a gate to constrain the result
             let zero = Field::zero();
             let one = Field::one();
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "constrain the AND as lhs * rhs",
-                GateKind::DoubleGeneric,
                 vec![Some(*lhs), Some(*rhs), Some(res)],
                 vec![zero, zero, one.neg(), one], // mul
                 span,
@@ -90,9 +88,8 @@ pub fn not(compiler: &mut CircuitWriter, var: &ConstOrCell, span: Span) -> Var {
             let res = compiler.new_internal_var(lc, span);
 
             // create a gate to constrain the result
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 "constrain the NOT as 1 - X",
-                GateKind::DoubleGeneric,
                 vec![None, Some(*cvar), Some(res)],
                 // we use the constant to do 1 - X
                 vec![zero, one.neg(), one.neg(), zero, one],

@@ -203,9 +203,11 @@ impl CompiledCircuit {
                     crate::circuit_writer::GateKind::DoubleGeneric => {
                         let c = |i| gate.coeffs.get(i).copied().unwrap_or_else(Field::zero);
                         let w = &witness_row;
-                        let sum =
+                        let sum1 =
                             c(0) * w[0] + c(1) * w[1] + c(2) * w[2] + c(3) * w[0] * w[1] + c(4);
-                        if sum != Field::zero() {
+                        let sum2 =
+                            c(5) * w[3] + c(6) * w[4] + c(7) * w[5] + c(8) * w[3] * w[4] + c(9);
+                        if sum1 != Field::zero() || sum2 != Field::zero() {
                             return Err(Error::new(ErrorKind::InvalidWitness(row), gate.span));
                         }
                     }
