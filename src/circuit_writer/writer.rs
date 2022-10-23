@@ -49,10 +49,6 @@ pub struct Gate {
     /// Type of gate
     pub typ: GateKind,
 
-    /// col -> (row, col)
-    // TODO: do we want to do an external wiring instead?
-    //    wiring: HashMap<u8, (u64, u8)>,
-
     /// Coefficients
     pub coeffs: Vec<Field>,
 
