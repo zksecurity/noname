@@ -1,8 +1,6 @@
 use std::{
-    collections::{HashMap, HashSet},
     fmt::{self, Display, Formatter},
     ops::Neg,
-    vec,
 };
 
 use ark_ff::{One, Zero};
@@ -11,23 +9,16 @@ use num_traits::Num as _;
 
 use crate::{
     asm, boolean,
+    circuit_writer::{CircuitWriter, FnEnv, VarInfo},
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     field,
     imports::FnKind,
-    parser::{
-        AttributeKind, Expr, ExprKind, FnArg, FnSig, Function, Op2, RootKind, Stmt, StmtKind,
-        Struct, TyKind,
-    },
+    parser::{Expr, ExprKind, Function, Op2, Stmt, StmtKind, TyKind},
     syntax::is_type,
-    type_checker::{checker::TypeChecker, StructInfo, TAST},
-    var::{CellVar, ConstOrCell, Value, Var},
-    witness::CompiledCircuit,
+    type_checker::{checker::TypeChecker, StructInfo},
+    var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
 };
-
-pub use fn_env::{FnEnv, VarInfo};
-
-pub mod fn_env;
 
 //
 // Data structures
@@ -99,171 +90,9 @@ pub enum Wiring {
     Wired(Vec<(Cell, Span)>),
 }
 
-/// Represents a variable in the circuit, or a reference to one.
-/// Note that mutable variables are always passed as references,
-/// as one needs to have access to the variable name to be able to reassign it in the environment.
-pub enum VarOrRef {
-    /// A [Var].
-    Var(Var),
-
-    /// A reference to a noname variable in the environment.
-    /// Potentially narrowing it down to a range of cells in that variable.
-    /// For example, `x[2]` would be represented with "x" and the range `(2, 1)`,
-    /// if `x` is an array of `Field` elements.
-    Ref {
-        var_name: String,
-        start: usize,
-        len: usize,
-    },
-}
-
-impl VarOrRef {
-    fn constant(&self) -> Option<Field> {
-        match self {
-            VarOrRef::Var(var) => var.constant(),
-            VarOrRef::Ref { .. } => None,
-        }
-    }
-
-    /// Returns the value within the variable or pointer.
-    /// If it is a pointer, we lose information about the original variable,
-    /// thus calling this function is aking to passing the variable by value.
-    pub fn value(self, env: &FnEnv) -> Var {
-        match self {
-            VarOrRef::Var(var) => var,
-            VarOrRef::Ref {
-                var_name,
-                start,
-                len,
-            } => {
-                let var_info = env.get_var(&var_name);
-                let cvars = var_info.var.range(start, len).to_vec();
-                Var::new(cvars, var_info.var.span)
-            }
-        }
-    }
-
-    pub fn from_var_info(var_name: String, var_info: VarInfo) -> Self {
-        if var_info.mutable {
-            Self::Ref {
-                var_name,
-                start: 0,
-                len: var_info.var.len(),
-            }
-        } else {
-            Self::Var(var_info.var)
-        }
-    }
-
-    fn narrow(&self, start: usize, len: usize) -> Self {
-        match self {
-            VarOrRef::Var(var) => {
-                let cvars = var.range(start, len).to_vec();
-                VarOrRef::Var(Var::new(cvars, var.span))
-            }
-
-            //      old_start
-            //      |
-            //      v
-            // |----[-----------]-----| <-- var.cvars
-            //       <--------->
-            //         old_len
-            //
-            //
-            //          start
-            //          |
-            //          v
-            //      |---[-----]-|
-            //           <--->
-            //            len
-            //
-            VarOrRef::Ref {
-                var_name,
-                start: old_start,
-                len: old_len,
-            } => {
-                // ensure that the new range is contained in the older range
-                assert!(start < *old_len); // lower bound
-                assert!(start + len <= *old_len); // upper bound
-                assert!(len > 0); // empty range not allowed
-
-                Self::Ref {
-                    var_name: var_name.clone(),
-                    start: old_start + start,
-                    len,
-                }
-            }
-        }
-    }
-
-    fn len(&self) -> usize {
-        match self {
-            VarOrRef::Var(var) => var.len(),
-            VarOrRef::Ref { len, .. } => *len,
-        }
-    }
-}
-
 //
 // Circuit Writer (also used by witness generation)
 //
-
-#[derive(Default, Debug)]
-pub struct CircuitWriter {
-    /// The source code that created this circuit.
-    /// Useful for debugging and displaying user errors.
-    pub source: String,
-
-    /// Once this is set, you can generate a witness (and can't modify the circuit?)
-    // Note: I don't think we need this, but it acts as a nice redundant failsafe.
-    pub finalized: bool,
-
-    /// This is used to give a distinct number to each variable during circuit generation.
-    pub next_variable: usize,
-
-    /// This is how you compute the value of each variable during witness generation.
-    /// It is created during circuit generation.
-    pub witness_vars: HashMap<usize, Value>,
-
-    /// The execution trace table with vars as placeholders.
-    /// It is created during circuit generation,
-    /// and used by the witness generator.
-    pub rows_of_vars: Vec<Vec<Option<CellVar>>>,
-
-    /// The gates created by the circuit generation.
-    gates: Vec<Gate>,
-
-    /// The wiring of the circuit.
-    /// It is created during circuit generation.
-    pub wiring: HashMap<usize, Wiring>,
-
-    /// Size of the public input.
-    pub public_input_size: usize,
-
-    /// If a public output is set, this will be used to store its [Var].
-    /// The public output generation works as follows:
-    /// 1. This cvar is created and inserted in the circuit (gates) during compilation of the public input
-    ///    (as the public output is the end of the public input)
-    /// 2. When the `return` statement of the circuit is parsed,
-    ///    it will set this `public_output` variable again to the correct vars.
-    /// 3. During witness generation, the public output computation
-    ///    is delayed until the very end.
-    pub public_output: Option<Var>,
-
-    /// Indexes used by the private inputs
-    /// (this is useful to check that they appear in the circuit)
-    pub private_input_indices: Vec<usize>,
-
-    /// Used during the witness generation to check
-    /// public and private inputs given by the prover.
-    pub main: (FnSig, Span),
-
-    /// The state of the type checker.
-    typed: TypeChecker,
-
-    /// Constants defined in the module/program.
-    constants: HashMap<String, VarInfo>,
-}
 
 impl CircuitWriter {
     /// Creates a global environment from the one created by the type checker.
@@ -303,181 +132,6 @@ impl CircuitWriter {
     // TODO: return an error no?
     pub fn get_constant(&self, ident: &str) -> Option<&VarInfo> {
         self.constants.get(ident)
-    }
-
-    pub fn generate_circuit(tast: TAST, code: &str) -> Result<CompiledCircuit> {
-        // if there's no main function, then return an error
-        let TAST {
-            ast,
-            typed_global_env,
-        } = tast;
-
-        if !typed_global_env.has_main {
-            return Err(Error::new(ErrorKind::NoMainFunction, Span::default()));
-        }
-
-        let mut circuit_writer = CircuitWriter::new(code, typed_global_env);
-
-        // make sure we can't call that several times
-        if circuit_writer.finalized {
-            panic!("circuit already finalized (TODO: return a proper error");
-        }
-
-        //
-        // Process constants
-        //
-
-        // we detect struct or function definition
-        let mut func_or_struct = None;
-
-        for root in &ast.0 {
-            match &root.kind {
-                RootKind::Const(cst) => {
-                    // important: no struct or function definition must appear before a constant declaration
-                    if let Some(span) = func_or_struct {
-                        return Err(Error::new(
-                            ErrorKind::ConstDeclarationAfterStructOrFunction,
-                            span,
-                        ));
-                    }
-                    circuit_writer.add_constant_var(cst.name.value.clone(), cst.value, cst.span);
-                }
-
-                RootKind::Function(Function { span, .. })
-                | RootKind::Struct(Struct { span, .. }) => func_or_struct = Some(*span),
-
-                RootKind::Use(_) | RootKind::Comment(_) => (),
-            }
-        }
-
-        //
-        // Generate the circuit
-        //
-
-        for root in &ast.0 {
-            match &root.kind {
-                // imports (already dealt with in type checker)
-                RootKind::Use(_path) => (),
-
-                // `const thing = 42;`
-                RootKind::Const(_cst) => {
-                    // already took care of it previously
-                    ()
-                }
-
-                // `fn main() { ... }`
-                RootKind::Function(function) => {
-                    // create the env
-                    let fn_env = &mut FnEnv::new(&circuit_writer.constants);
-
-                    // we only compile the main function
-                    if !function.is_main() {
-                        continue;
-                    }
-
-                    // if there are no arguments, return an error
-                    // TODO: should we check this in the type checker?
-                    if function.sig.arguments.is_empty() {
-                        return Err(Error::new(ErrorKind::NoArgsInMain, function.span));
-                    }
-
-                    // create public and private inputs
-                    for FnArg {
-                        attribute,
-                        name,
-                        typ,
-                        ..
-                    } in &function.sig.arguments
-                    {
-                        // get length
-                        let len = match &typ.kind {
-                            TyKind::Field => 1,
-                            TyKind::Array(typ, len) => {
-                                if !matches!(**typ, TyKind::Field) {
-                                    unimplemented!();
-                                }
-                                *len as usize
-                            }
-                            TyKind::Bool => 1,
-                            typ => circuit_writer.typed.size_of(typ),
-                        };
-
-                        // create the variable
-                        let var = if let Some(attr) = attribute {
-                            if !matches!(attr.kind, AttributeKind::Pub) {
-                                return Err(Error::new(
-                                    ErrorKind::InvalidAttribute(attr.kind),
-                                    attr.span,
-                                ));
-                            }
-                            circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
-                        } else {
-                            circuit_writer.add_private_inputs(name.value.clone(), len, name.span)
-                        };
-
-                        // constrain what needs to be constrained
-                        // (for example, booleans need to be constrained to be 0 or 1)
-                        // note: we constrain private inputs as well as public inputs
-                        // in theory we might not need to check the validity of public inputs,
-                        // but we are being extra cautious due to attacks
-                        // where the prover gives the verifier malformed inputs that look legit.
-                        // (See short address attacks in Ethereum.)
-                        circuit_writer.constrain_inputs_to_main(&var.cvars, &typ.kind, typ.span);
-
-                        // add argument variable to the ast env
-                        let mutable = false; // TODO: should we add a mut keyword in arguments as well?
-                        let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
-                        fn_env.add_var(name.value.clone(), var_info);
-                    }
-
-                    // create public output
-                    if let Some(typ) = &function.sig.return_type {
-                        if typ.kind != TyKind::Field {
-                            unimplemented!();
-                        }
-
-                        // create it
-                        circuit_writer.add_public_outputs(1, typ.span);
-                    }
-
-                    // compile function
-                    circuit_writer.compile_main_function(fn_env, function)?;
-                }
-
-                // struct definition (already dealt with in type checker)
-                RootKind::Struct(_struct) => (),
-
-                // ignore comments
-                // TODO: we could actually preserve the comment in the ASM!
-                RootKind::Comment(_comment) => (),
-            }
-        }
-
-        // for sanity check, we make sure that every cellvar created has ended up in a gate
-        let mut written_vars = HashSet::new();
-        for row in &circuit_writer.rows_of_vars {
-            row.iter().flatten().for_each(|cvar| {
-                written_vars.insert(cvar.index);
-            });
-        }
-
-        for var in 0..circuit_writer.next_variable {
-            if !written_vars.contains(&var) {
-                if circuit_writer.private_input_indices.contains(&var) {
-                    return Err(Error::new(
-                        ErrorKind::PrivateInputNotUsed,
-                        circuit_writer.main.1,
-                    ));
-                } else {
-                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
-                }
-            }
-        }
-
-        // we finalized!
-        circuit_writer.finalized = true;
-
-        Ok(CompiledCircuit::new(circuit_writer))
     }
 
     /// Returns the compiled gates of the circuit.
@@ -579,7 +233,12 @@ impl CircuitWriter {
         self.compile_block(fn_env, &function.body)
     }
 
-    fn constrain_inputs_to_main(&mut self, input: &[ConstOrCell], input_typ: &TyKind, span: Span) {
+    pub(crate) fn constrain_inputs_to_main(
+        &mut self,
+        input: &[ConstOrCell],
+        input_typ: &TyKind,
+        span: Span,
+    ) {
         match input_typ {
             TyKind::Field => (),
             TyKind::Bool => {
@@ -610,7 +269,11 @@ impl CircuitWriter {
     }
 
     /// Compile a function. Used to compile `main()` only for now
-    fn compile_main_function(&mut self, fn_env: &mut FnEnv, function: &Function) -> Result<()> {
+    pub(crate) fn compile_main_function(
+        &mut self,
+        fn_env: &mut FnEnv,
+        function: &Function,
+    ) -> Result<()> {
         assert!(function.is_main());
 
         // compile the block

@@ -1,6 +1,7 @@
 use std::vec;
 
 use crate::{
+    circuit_writer::{FnEnv, VarInfo},
     constants::{Field, Span},
     error::Result,
     witness::{CompiledCircuit, WitnessEnv},
@@ -192,5 +193,110 @@ impl std::ops::Index<usize> for Var {
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.cvars[index]
+    }
+}
+
+/// Represents a variable in the circuit, or a reference to one.
+/// Note that mutable variables are always passed as references,
+/// as one needs to have access to the variable name to be able to reassign it in the environment.
+pub enum VarOrRef {
+    /// A [Var].
+    Var(Var),
+
+    /// A reference to a noname variable in the environment.
+    /// Potentially narrowing it down to a range of cells in that variable.
+    /// For example, `x[2]` would be represented with "x" and the range `(2, 1)`,
+    /// if `x` is an array of `Field` elements.
+    Ref {
+        var_name: String,
+        start: usize,
+        len: usize,
+    },
+}
+
+impl VarOrRef {
+    pub(crate) fn constant(&self) -> Option<Field> {
+        match self {
+            VarOrRef::Var(var) => var.constant(),
+            VarOrRef::Ref { .. } => None,
+        }
+    }
+
+    /// Returns the value within the variable or pointer.
+    /// If it is a pointer, we lose information about the original variable,
+    /// thus calling this function is aking to passing the variable by value.
+    pub(crate) fn value(self, fn_env: &FnEnv) -> Var {
+        match self {
+            VarOrRef::Var(var) => var,
+            VarOrRef::Ref {
+                var_name,
+                start,
+                len,
+            } => {
+                let var_info = fn_env.get_var(&var_name);
+                let cvars = var_info.var.range(start, len).to_vec();
+                Var::new(cvars, var_info.var.span)
+            }
+        }
+    }
+
+    pub(crate) fn from_var_info(var_name: String, var_info: VarInfo) -> Self {
+        if var_info.mutable {
+            Self::Ref {
+                var_name,
+                start: 0,
+                len: var_info.var.len(),
+            }
+        } else {
+            Self::Var(var_info.var)
+        }
+    }
+
+    pub(crate) fn narrow(&self, start: usize, len: usize) -> Self {
+        match self {
+            VarOrRef::Var(var) => {
+                let cvars = var.range(start, len).to_vec();
+                VarOrRef::Var(Var::new(cvars, var.span))
+            }
+
+            //      old_start
+            //      |
+            //      v
+            // |----[-----------]-----| <-- var.cvars
+            //       <--------->
+            //         old_len
+            //
+            //
+            //          start
+            //          |
+            //          v
+            //      |---[-----]-|
+            //           <--->
+            //            len
+            //
+            VarOrRef::Ref {
+                var_name,
+                start: old_start,
+                len: old_len,
+            } => {
+                // ensure that the new range is contained in the older range
+                assert!(start < *old_len); // lower bound
+                assert!(start + len <= *old_len); // upper bound
+                assert!(len > 0); // empty range not allowed
+
+                Self::Ref {
+                    var_name: var_name.clone(),
+                    start: old_start + start,
+                    len,
+                }
+            }
+        }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            VarOrRef::Var(var) => var.len(),
+            VarOrRef::Ref { len, .. } => *len,
+        }
     }
 }
