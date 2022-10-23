@@ -1774,8 +1774,9 @@
             cvars.push(ConstOrCell::Cell(cvar));
 
             <span class="comment">// create the associated generic gate
-            </span><span class="self">self</span>.add_generic_gate(
+            </span><span class="self">self</span>.add_gate(
                 <span class="string">&quot;add public input&quot;</span>,
+                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(cvar)],
                 <span class="macro">vec!</span>[Field::one()],
                 span,
@@ -1831,17 +1832,12 @@
         <span class="kw-2">mut </span>coeffs: Vec&lt;Field&gt;,
         span: Span,
     ) {
-        <span class="comment">// sanity check
-        </span><span class="macro">assert!</span>(coeffs.len() &lt;= GENERIC_COEFFS);
-        <span class="macro">assert!</span>(vars.len() &lt;= GENERIC_REGISTERS);
-
         <span class="comment">// padding
-        </span><span class="kw">let </span>coeffs_padding = <span class="macro">vec!</span>[Field::zero(); GENERIC_COEFFS - coeffs.len()];
-        coeffs.extend(coeffs_padding);
-        <span class="kw">let </span>vars_padding = <span class="macro">vec!</span>[<span class="prelude-val">None</span>; GENERIC_REGISTERS - vars.len()];
-        vars.extend(vars_padding);
+        </span><span class="kw">let </span>coeffs_padding = GENERIC_COEFFS.checked_sub(coeffs.len()).unwrap();
+        coeffs.extend(std::iter::repeat(Field::zero()).take(coeffs_padding));
 
-        <span class="macro">dbg!</span>(<span class="self">self</span>.double_generic_gate_optimization);
+        <span class="kw">let </span>vars_padding = GENERIC_REGISTERS.checked_sub(vars.len()).unwrap();
+        vars.extend(std::iter::repeat(<span class="prelude-val">None</span>).take(vars_padding));
 
         <span class="comment">// if the double gate optimization is not set, just add the gate
         </span><span class="kw">if </span>!<span class="self">self</span>.double_generic_gate_optimization {
@@ -1849,13 +1845,17 @@
             <span class="kw">return</span>;
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(generic_gate) = <span class="self">self</span>.pending_generic_gate.take() {
+        <span class="comment">// only add a double generic gate if we have two of them
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(generic_gate) = <span class="self">self</span>.pending_generic_gate.take() {
             coeffs.extend(generic_gate.coeffs);
             vars.extend(generic_gate.vars);
 
-            <span class="self">self</span>.add_gate(label, GateKind::DoubleGeneric, vars, coeffs, span);
+            <span class="comment">// TODO: what to do with the label and span?
+
+            </span><span class="self">self</span>.add_gate(label, GateKind::DoubleGeneric, vars, coeffs, span);
         } <span class="kw">else </span>{
-            <span class="self">self</span>.pending_generic_gate = <span class="prelude-val">Some</span>(PendingGate {
+            <span class="comment">// otherwise queue it
+            </span><span class="self">self</span>.pending_generic_gate = <span class="prelude-val">Some</span>(PendingGate {
                 label,
                 coeffs,
                 vars,
@@ -1866,11 +1866,11 @@
 }
 
 <span class="attribute">#[derive(Clone, Default, Debug)]
-</span><span class="kw">pub struct </span>PendingGate {
-    label: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
-    coeffs: Vec&lt;Field&gt;,
-    vars: Vec&lt;<span class="prelude-ty">Option</span>&lt;CellVar&gt;&gt;,
-    span: Span,
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>PendingGate {
+    <span class="kw">pub </span>label: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+    <span class="kw">pub </span>coeffs: Vec&lt;Field&gt;,
+    <span class="kw">pub </span>vars: Vec&lt;<span class="prelude-ty">Option</span>&lt;CellVar&gt;&gt;,
+    <span class="kw">pub </span>span: Span,
 }
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (6e95b6da8 2022-10-22)" ></div></body></html>

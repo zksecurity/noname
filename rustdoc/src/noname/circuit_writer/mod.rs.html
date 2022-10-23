@@ -258,6 +258,17 @@
 <span id="258">258</span>
 <span id="259">259</span>
 <span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
@@ -489,6 +500,17 @@
                 // TODO: we could actually preserve the comment in the ASM!
                 </span>RootKind::Comment(_comment) =&gt; (),
             }
+        }
+
+        <span class="comment">// important: there might still be a pending generic gate
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(pending) = circuit_writer.pending_generic_gate.take() {
+            circuit_writer.add_gate(
+                pending.label,
+                GateKind::DoubleGeneric,
+                pending.vars,
+                pending.coeffs,
+                pending.span,
+            );
         }
 
         <span class="comment">// for sanity check, we make sure that every cellvar created has ended up in a gate
