@@ -242,6 +242,8 @@
 <span id="242">242</span>
 <span id="243">243</span>
 <span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>ark_ff::{Field <span class="kw">as _</span>, Zero};
@@ -447,9 +449,11 @@
                     </span><span class="kw">crate</span>::circuit_writer::GateKind::DoubleGeneric =&gt; {
                         <span class="kw">let </span>c = |i| gate.coeffs.get(i).copied().unwrap_or_else(Field::zero);
                         <span class="kw">let </span>w = <span class="kw-2">&amp;</span>witness_row;
-                        <span class="kw">let </span>sum =
+                        <span class="kw">let </span>sum1 =
                             c(<span class="number">0</span>) * w[<span class="number">0</span>] + c(<span class="number">1</span>) * w[<span class="number">1</span>] + c(<span class="number">2</span>) * w[<span class="number">2</span>] + c(<span class="number">3</span>) * w[<span class="number">0</span>] * w[<span class="number">1</span>] + c(<span class="number">4</span>);
-                        <span class="kw">if </span>sum != Field::zero() {
+                        <span class="kw">let </span>sum2 =
+                            c(<span class="number">5</span>) * w[<span class="number">3</span>] + c(<span class="number">6</span>) * w[<span class="number">4</span>] + c(<span class="number">7</span>) * w[<span class="number">5</span>] + c(<span class="number">8</span>) * w[<span class="number">3</span>] * w[<span class="number">4</span>] + c(<span class="number">9</span>);
+                        <span class="kw">if </span>sum1 != Field::zero() || sum2 != Field::zero() {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::InvalidWitness(row), gate.span));
                         }
                     }

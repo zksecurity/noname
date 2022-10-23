@@ -193,9 +193,6 @@
 <span id="193">193</span>
 <span id="194">194</span>
 <span id="195">195</span>
-<span id="196">196</span>
-<span id="197">197</span>
-<span id="198">198</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Neg <span class="kw">as _</span>};
 
 <span class="kw">use </span>ark_ff::{One <span class="kw">as _</span>, Zero};
@@ -330,9 +327,8 @@
         <span class="comment">// a const and a var
         </span>(ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) =&gt; {
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 <span class="string">&quot;constrain var - cst = 0 to check equality&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>cvar)],
                 <span class="macro">vec!</span>[
                     Field::one(),
@@ -346,9 +342,8 @@
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) =&gt; {
             <span class="comment">// TODO: use permutation to check that
-            </span>compiler.add_gate(
+            </span>compiler.add_generic_gate(
                 <span class="string">&quot;constrain lhs - rhs = 0 to assert that they are equal&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>lhs), <span class="prelude-val">Some</span>(<span class="kw-2">*</span>rhs)],
                 <span class="macro">vec!</span>[Field::one(), Field::one().neg()],
                 span,
@@ -381,9 +376,8 @@
             <span class="comment">// TODO: use permutation to check that
             </span><span class="kw">let </span>zero = Field::zero();
             <span class="kw">let </span>one = Field::one();
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 <span class="string">&quot;constrain 1 - X = 0 to assert that X is true&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="kw-2">*</span>cvar)],
                 <span class="comment">// use the constant to constrain 1 - X = 0
                 </span><span class="macro">vec!</span>[zero, one.neg(), zero, zero, one],

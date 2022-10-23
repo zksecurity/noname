@@ -268,6 +268,21 @@
 <span id="268">268</span>
 <span id="269">269</span>
 <span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
 </pre><pre class="rust"><code><span class="doccomment">//! ASM-like language:
 //!
 //! ```ignore
@@ -351,11 +366,19 @@
         }
 
         <span class="comment">// gate
-        </span><span class="kw">let </span>coeffs = parse_coeffs(<span class="kw-2">&amp;</span>vars, coeffs);
-        <span class="macro">write!</span>(res, <span class="string">&quot;{typ:?}&quot;</span>).unwrap();
-        res.push(<span class="string">&#39;&lt;&#39;</span>);
-        res.push_str(<span class="kw-2">&amp;</span>coeffs.join(<span class="string">&quot;,&quot;</span>));
-        res.push_str(<span class="string">&quot;&gt;\n&quot;</span>);
+        </span><span class="macro">write!</span>(res, <span class="string">&quot;{typ:?}&quot;</span>).unwrap();
+
+        <span class="comment">// coeffs
+        </span>{
+            <span class="kw">let </span>coeffs = parse_coeffs(<span class="kw-2">&amp;</span>vars, coeffs);
+            <span class="kw">if </span>!coeffs.is_empty() {
+                res.push(<span class="string">&#39;&lt;&#39;</span>);
+                res.push_str(<span class="kw-2">&amp;</span>coeffs.join(<span class="string">&quot;,&quot;</span>));
+                res.push_str(<span class="string">&quot;&gt;&quot;</span>);
+            }
+        }
+
+        res.push(<span class="string">&#39;\n&#39;</span>);
 
         <span class="kw">if </span>debug {
             <span class="comment">// source
@@ -417,7 +440,7 @@
 }
 
 <span class="kw">fn </span>parse_coeffs(vars: <span class="kw-2">&amp;</span>OrderedHashSet&lt;Field&gt;, coeffs: <span class="kw-2">&amp;</span>[Field]) -&gt; Vec&lt;String&gt; {
-    coeffs
+    <span class="kw">let </span><span class="kw-2">mut </span>coeffs: Vec&lt;<span class="kw">_</span>&gt; = coeffs
         .iter()
         .map(|x| {
             <span class="kw">let </span>s = x.pretty();
@@ -428,7 +451,14 @@
                 <span class="macro">format!</span>(<span class="string">&quot;c{var_idx}&quot;</span>)
             }
         })
-        .collect()
+        <span class="comment">// trim trailing zeros
+        </span>.rev()
+        .skip_while(|x| x == <span class="string">&quot;0&quot;</span>)
+        .collect();
+
+    coeffs.reverse();
+
+    coeffs
 }
 
 <span class="kw">fn </span>find_exact_line(source: <span class="kw-2">&amp;</span>str, span: Span) -&gt; (usize, usize, <span class="kw-2">&amp;</span>str) {

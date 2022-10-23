@@ -248,6 +248,16 @@
 <span id="248">248</span>
 <span id="249">249</span>
 <span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
@@ -261,6 +271,8 @@
 
 <span class="kw">pub use </span>fn_env::{FnEnv, VarInfo};
 <span class="kw">pub use </span>writer::{Gate, GateKind, Wiring};
+
+<span class="kw">use </span><span class="self">self</span>::writer::PendingGate;
 
 <span class="kw">pub mod </span>fn_env;
 <span class="kw">pub mod </span>writer;
@@ -320,6 +332,14 @@
 
     <span class="doccomment">/// Constants defined in the module/program.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) constants: HashMap&lt;String, VarInfo&gt;,
+
+    <span class="doccomment">/// If set to false, a single generic gate will be used per double generic gate.
+    /// This can be useful for debugging.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) double_generic_gate_optimization: bool,
+
+    <span class="doccomment">/// This is used to implement the double generic gate,
+    /// which encodes two generic gates.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) pending_generic_gate: <span class="prelude-ty">Option</span>&lt;PendingGate&gt;,
 }
 
 <span class="kw">impl </span>CircuitWriter {

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":[["GateKind",""],["Wiring",""]],"struct":[["Cell",""],["Gate",""]]};
+window.SIDEBAR_ITEMS = {"enum":[["GateKind",""],["Wiring",""]],"struct":[["Cell",""],["Gate",""],["PendingGate",""]]};

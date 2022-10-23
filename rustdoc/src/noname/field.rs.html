@@ -486,18 +486,6 @@
 <span id="486">486</span>
 <span id="487">487</span>
 <span id="488">488</span>
-<span id="489">489</span>
-<span id="490">490</span>
-<span id="491">491</span>
-<span id="492">492</span>
-<span id="493">493</span>
-<span id="494">494</span>
-<span id="495">495</span>
-<span id="496">496</span>
-<span id="497">497</span>
-<span id="498">498</span>
-<span id="499">499</span>
-<span id="500">500</span>
 </pre><pre class="rust"><code><span class="kw">use crate</span>::{
     boolean,
     circuit_writer::{CircuitWriter, GateKind},
@@ -533,9 +521,8 @@
 
             <span class="comment">// create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            </span>compiler.add_gate(
+            </span>compiler.add_generic_gate(
                 <span class="string">&quot;add a constant with a variable&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>cvar), <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(res)],
                 <span class="macro">vec!</span>[one, zero, one.neg(), zero, <span class="kw-2">*</span>cst],
                 span,
@@ -554,9 +541,8 @@
             );
 
             <span class="comment">// create a gate to store the result
-            </span>compiler.add_gate(
+            </span>compiler.add_generic_gate(
                 <span class="string">&quot;add two variables together&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>lhs), <span class="prelude-val">Some</span>(<span class="kw-2">*</span>rhs), <span class="prelude-val">Some</span>(res)],
                 <span class="macro">vec!</span>[Field::one(), Field::one(), Field::one().neg()],
                 span,
@@ -585,9 +571,8 @@
             );
 
             <span class="comment">// create a gate to store the result
-            </span>compiler.add_gate(
+            </span>compiler.add_generic_gate(
                 <span class="string">&quot;constant - variable&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>cvar), <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(res)],
                 <span class="comment">// cst - cvar - out = 0
                 </span><span class="macro">vec!</span>[one.neg(), zero, one.neg(), zero, <span class="kw-2">*</span>cst],
@@ -613,9 +598,8 @@
 
             <span class="comment">// create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            </span>compiler.add_gate(
+            </span>compiler.add_generic_gate(
                 <span class="string">&quot;variable - constant&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>cvar), <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(res)],
                 <span class="comment">// var - cst - out = 0
                 </span><span class="macro">vec!</span>[one, zero, one.neg(), zero, cst.neg()],
@@ -634,9 +618,8 @@
             );
 
             <span class="comment">// create a gate to store the result
-            </span>compiler.add_gate(
+            </span>compiler.add_generic_gate(
                 <span class="string">&quot;var1 - var2&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>lhs), <span class="prelude-val">Some</span>(<span class="kw-2">*</span>rhs), <span class="prelude-val">Some</span>(res)],
                 <span class="comment">// lhs - rhs - out = 0
                 </span><span class="macro">vec!</span>[one, one.neg(), one.neg()],
@@ -675,9 +658,8 @@
 
             <span class="comment">// create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            </span>compiler.add_gate(
+            </span>compiler.add_generic_gate(
                 <span class="string">&quot;add a constant with a variable&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>cvar), <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(res)],
                 <span class="macro">vec!</span>[<span class="kw-2">*</span>cst, zero, one.neg(), zero, <span class="kw-2">*</span>cst],
                 span,
@@ -692,9 +674,8 @@
             </span><span class="kw">let </span>res = compiler.new_internal_var(Value::Mul(<span class="kw-2">*</span>lhs, <span class="kw-2">*</span>rhs), span);
 
             <span class="comment">// create a gate to store the result
-            </span>compiler.add_gate(
+            </span>compiler.add_generic_gate(
                 <span class="string">&quot;add two variables together&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="kw-2">*</span>lhs), <span class="prelude-val">Some</span>(<span class="kw-2">*</span>rhs), <span class="prelude-val">Some</span>(res)],
                 <span class="macro">vec!</span>[zero, zero, one.neg(), one],
                 span,
@@ -811,9 +792,8 @@
                 span,
             );
 
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 <span class="string">&quot;constraint #1 for the equals gadget (x2 - x1 - diff = 0)&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(x2), <span class="prelude-val">Some</span>(x1), <span class="prelude-val">Some</span>(diff)],
                 <span class="comment">// x2 - x1 - diff = 0
                 </span><span class="macro">vec!</span>[one, one.neg(), one.neg()],
@@ -824,9 +804,8 @@
             </span><span class="kw">let </span>one_minus_res = compiler
                 .new_internal_var(Value::LinearCombination(<span class="macro">vec!</span>[(one.neg(), res)], one), span);
 
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 <span class="string">&quot;constraint #2 for the equals gadget (one_minus_res + res - 1 = 0)&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(one_minus_res), <span class="prelude-val">Some</span>(res)],
                 <span class="comment">// we constrain one_minus_res + res - 1 = 0
                 // so that we can encode res and wire it elsewhere
@@ -836,9 +815,8 @@
             );
 
             <span class="comment">// 3. res * diff = 0
-            </span>compiler.add_gate(
+            </span>compiler.add_generic_gate(
                 <span class="string">&quot;constraint #3 for the equals gadget (res * diff = 0)&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(res), <span class="prelude-val">Some</span>(diff)],
                 <span class="comment">// res * diff = 0
                 </span><span class="macro">vec!</span>[zero, zero, zero, one],
@@ -848,9 +826,8 @@
             <span class="comment">// 4. diff_inv * diff = one_minus_res
             </span><span class="kw">let </span>diff_inv = compiler.new_internal_var(Value::Inverse(diff), span);
 
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 <span class="string">&quot;constraint #4 for the equals gadget (diff_inv * diff = one_minus_res)&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(diff_inv), <span class="prelude-val">Some</span>(diff), <span class="prelude-val">Some</span>(one_minus_res)],
                 <span class="comment">// diff_inv * diff - one_minus_res = 0
                 </span><span class="macro">vec!</span>[zero, zero, one.neg(), one],
@@ -985,9 +962,8 @@
             <span class="kw">let </span>zero = Field::zero();
             <span class="kw">let </span>one = Field::one();
 
-            compiler.add_gate(
+            compiler.add_generic_gate(
                 <span class="string">&quot;constraint for ternary operator: cond * (then - else) = res - else&quot;</span>,
-                GateKind::DoubleGeneric,
                 <span class="macro">vec!</span>[<span class="prelude-val">Some</span>(cond_cell), <span class="prelude-val">Some</span>(then_m_else), <span class="prelude-val">Some</span>(res_m_else)],
                 <span class="comment">// cond * (then - else) = res - else
                 </span><span class="macro">vec!</span>[zero, zero, one.neg(), one],
