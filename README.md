@@ -1,6 +1,6 @@
 # Noname
 
-This is **work-in-progress** to implement a high-level (rust-inspired) programming language to write zkapps for [kimchi](https://github.com/o1-labs/proof-systems).
+This is **work-in-progress** to implement a high-level (Rust and Golang-inspired) programming language to write zkapps for [kimchi](https://github.com/o1-labs/proof-systems).
 
 If you don't know what zero-knowledge proofs, zkapps, or kimchi are, check out [that blogpost](https://minaprotocol.com/blog/kimchi-the-latest-update-to-minas-proof-system).
 
