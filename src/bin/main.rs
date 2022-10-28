@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, process};
 
 use clap::Parser as _;
 use miette::{IntoDiagnostic, Result, WrapErr};
@@ -6,32 +6,6 @@ use noname::{
     inputs::{parse_inputs, JsonInputs},
     prover::compile_and_prove,
 };
-
-fn parse(
-    code: &str,
-    public_inputs: JsonInputs,
-    private_inputs: JsonInputs,
-    debug: bool,
-) -> Result<()> {
-    // compile
-    let (prover_index, verifier_index) = compile_and_prove(code)?;
-    println!("successfuly compiled");
-
-    // print ASM
-    let asm = prover_index.asm(debug);
-    println!("{asm}");
-
-    // create proof
-    let (proof, full_public_inputs, _public_output) =
-        prover_index.prove(public_inputs, private_inputs, debug)?;
-    println!("proof created");
-
-    // verify proof
-    verifier_index.verify(full_public_inputs, proof)?;
-    println!("proof verified");
-
-    Ok(())
-}
 
 #[derive(clap::Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -225,4 +199,120 @@ fn cmd_test(args: CmdTest) -> Result<()> {
     };
 
     parse(&code, public_inputs, private_inputs, args.debug).map_err(|e| e.with_source_code(code))
+}
+
+const NONAME_DIRECTORY: &str = ".noname";
+
+const PACKAGE_DIRECTORY: &str = "packages";
+
+#[derive(serde::Deserialize)]
+struct Manifest {
+    package: Package,
+    // no versioning at the moment
+    dependencies: Vec<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct Package {
+    name: String,
+    version: String,
+    description: Option<String>,
+}
+
+/// This retrieves a dependency listed in the manifest file.
+/// It downloads it from github, and stores it under the `deps` directory.
+/// A dependency is expected go be given as "user/repo".
+fn get_dep(user: &str, repo: &str) -> Result<Manifest> {
+    // download the dependency if we don't already have it
+    let path = path_to_package(user, repo);
+
+    if !path.exists() {
+        download_from_github(user, repo)?;
+    }
+
+    // sanity check
+    validate_package(&path)?;
+
+    // read the package manifest file
+    let manifest_file = path.join("Noname.toml");
+    let content = std::fs::read_to_string(&manifest_file)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("could not read file `{}`", path.display()))?;
+
+    // read the package's lib.no file
+    let lib_file = path.join("src").join("lib.no");
+    let lib_content = std::fs::read_to_string(&lib_file)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("could not read file `{}`", path.display()))?;
+    let manifest: Manifest = toml::from_str(&lib_content)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("could not parse file `{}`", path.display()))?;
+
+    Ok(manifest)
+}
+
+fn path_to_package(user: &str, repo: &str) -> PathBuf {
+    let home_dir = dirs::home_dir().expect("could not find home directory of current user");
+    let noname_dir = home_dir.join(NONAME_DIRECTORY);
+    let package_dir = noname_dir.join(PACKAGE_DIRECTORY);
+
+    package_dir.join(user).join(repo)
+}
+
+// download repo from github
+fn download_from_github(user: &str, repo: &str) -> Result<()> {
+    let url = format!("https://github.com/{user}/{repo}.git");
+    let path = path_to_package(user, repo);
+
+    process::Command::new("git")
+        .arg("clone")
+        .arg(url)
+        .arg(path)
+        .output()
+        .expect("failed to git clone the given dependency");
+
+    Ok(())
+}
+
+/// A valid package must have a valid `Noname.toml` as well as a `lib.no` file.
+fn validate_package(path: &PathBuf) -> Result<()> {
+    // check if Noname.toml exists
+    let manifest_path = path.join("Noname.toml");
+    if !manifest_path.exists() {
+        miette::bail!("package `{user}/{repo}` is missing a `Noname.toml` file");
+    }
+
+    // check if lib.no exists
+    let lib_path = path.join("src").join("lib.no");
+    if !lib_path.exists() {
+        miette::bail!("package `{user}/{repo}` is missing a `lib.no` file");
+    }
+
+    Ok(())
+}
+
+fn parse(
+    code: &str,
+    public_inputs: JsonInputs,
+    private_inputs: JsonInputs,
+    debug: bool,
+) -> Result<()> {
+    // compile
+    let (prover_index, verifier_index) = compile_and_prove(code)?;
+    println!("successfuly compiled");
+
+    // print ASM
+    let asm = prover_index.asm(debug);
+    println!("{asm}");
+
+    // create proof
+    let (proof, full_public_inputs, _public_output) =
+        prover_index.prove(public_inputs, private_inputs, debug)?;
+    println!("proof created");
+
+    // verify proof
+    verifier_index.verify(full_public_inputs, proof)?;
+    println!("proof verified");
+
+    Ok(())
 }
