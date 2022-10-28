@@ -42,8 +42,33 @@ struct Cli {
 
 #[derive(clap::Subcommand)]
 enum Commands {
+    /// Create a new noname package
+    New(New),
+    /// Create a new noname package in an existing directory
+    Init,
+    /// Build this package's and its dependencies' documentation
+    Doc,
+    /// Build the current package
+    Build,
+    /// Analyze the current package and report errors, but don't build object files
+    Check,
+    /// Add dependencies to a manifest file
+    Add,
+    /// Remove the target directory
+    Clean,
+
+    /// Run the main function and produce a proof
+    Run,
+
+    /// Verify a proof
+    Verify,
+
+    /// Compile, prove, and verify a noname program (for testing only)
     Test(Test),
 }
+
+#[derive(clap::Parser)]
+struct New {}
 
 #[derive(clap::Parser)]
 struct Test {
@@ -68,27 +93,35 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Test(test) => {
-            let code = std::fs::read_to_string(&test.path)
-                .into_diagnostic()
-                .wrap_err_with(|| "could not read file".to_string())?;
+        Commands::Test(test) => cmd_test(test),
+        Commands::New(_) => todo!(),
+        Commands::Init => todo!(),
+        Commands::Doc => todo!(),
+        Commands::Build => todo!(),
+        Commands::Check => todo!(),
+        Commands::Add => todo!(),
+        Commands::Clean => todo!(),
+        Commands::Run => todo!(),
+        Commands::Verify => todo!(),
+    }
+}
 
-            let public_inputs = if let Some(s) = test.public_inputs {
-                parse_inputs(&s)?
-            } else {
-                JsonInputs::default()
-            };
+fn cmd_test(test: Test) -> Result<()> {
+    let code = std::fs::read_to_string(&test.path)
+        .into_diagnostic()
+        .wrap_err_with(|| "could not read file".to_string())?;
 
-            let private_inputs = if let Some(s) = test.private_inputs {
-                parse_inputs(&s)?
-            } else {
-                JsonInputs::default()
-            };
-
-            parse(&code, public_inputs, private_inputs, test.debug)
-                .map_err(|e| e.with_source_code(code))?;
-        }
+    let public_inputs = if let Some(s) = test.public_inputs {
+        parse_inputs(&s)?
+    } else {
+        JsonInputs::default()
     };
 
-    Ok(())
+    let private_inputs = if let Some(s) = test.private_inputs {
+        parse_inputs(&s)?
+    } else {
+        JsonInputs::default()
+    };
+
+    parse(&code, public_inputs, private_inputs, test.debug).map_err(|e| e.with_source_code(code))
 }
