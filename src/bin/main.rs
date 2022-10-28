@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::Parser as _;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use noname::{
     inputs::{parse_inputs, JsonInputs},
@@ -33,9 +33,20 @@ fn parse(
     Ok(())
 }
 
-#[derive(Parser)]
+#[derive(clap::Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(clap::Subcommand)]
+enum Commands {
+    Test(Test),
+}
+
+#[derive(clap::Parser)]
+struct Test {
     /// path to the .no file
     #[clap(short, long, value_parser)]
     path: PathBuf,
@@ -56,23 +67,28 @@ struct Cli {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let code = std::fs::read_to_string(&cli.path)
-        .into_diagnostic()
-        .wrap_err_with(|| "could not read file".to_string())?;
+    match cli.command {
+        Commands::Test(test) => {
+            let code = std::fs::read_to_string(&test.path)
+                .into_diagnostic()
+                .wrap_err_with(|| "could not read file".to_string())?;
 
-    let public_inputs = if let Some(s) = cli.public_inputs {
-        parse_inputs(&s)?
-    } else {
-        JsonInputs::default()
+            let public_inputs = if let Some(s) = test.public_inputs {
+                parse_inputs(&s)?
+            } else {
+                JsonInputs::default()
+            };
+
+            let private_inputs = if let Some(s) = test.private_inputs {
+                parse_inputs(&s)?
+            } else {
+                JsonInputs::default()
+            };
+
+            parse(&code, public_inputs, private_inputs, test.debug)
+                .map_err(|e| e.with_source_code(code))?;
+        }
     };
-
-    let private_inputs = if let Some(s) = cli.private_inputs {
-        parse_inputs(&s)?
-    } else {
-        JsonInputs::default()
-    };
-
-    parse(&code, public_inputs, private_inputs, cli.debug).map_err(|e| e.with_source_code(code))?;
 
     Ok(())
 }

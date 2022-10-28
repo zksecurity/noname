@@ -11,11 +11,11 @@ use crate::{
     witness::CompiledCircuit,
 };
 
-use clap::once_cell::sync::Lazy;
 use itertools::chain;
 use kimchi::{
     commitment_dlog::commitment::CommitmentCurve, groupmap::GroupMap, proof::ProverProof,
 };
+use once_cell::sync::Lazy;
 
 //
 // aliases
