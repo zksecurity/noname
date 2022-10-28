@@ -1,3 +1,3 @@
 (function() {var implementors = {
-"main":[["impl Parser for <a class=\"struct\" href=\"main/struct.Cli.html\" title=\"struct main::Cli\">Cli</a>"]]
+"main":[["impl Parser for <a class=\"struct\" href=\"main/struct.Cli.html\" title=\"struct main::Cli\">Cli</a>"],["impl Parser for <a class=\"struct\" href=\"main/struct.CmdNew.html\" title=\"struct main::CmdNew\">CmdNew</a>"],["impl Parser for <a class=\"struct\" href=\"main/struct.CmdInit.html\" title=\"struct main::CmdInit\">CmdInit</a>"],["impl Parser for <a class=\"struct\" href=\"main/struct.CmdTest.html\" title=\"struct main::CmdTest\">CmdTest</a>"]]
 };if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

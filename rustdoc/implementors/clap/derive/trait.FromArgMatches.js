@@ -1,3 +1,3 @@
 (function() {var implementors = {
-"main":[["impl FromArgMatches for <a class=\"struct\" href=\"main/struct.Cli.html\" title=\"struct main::Cli\">Cli</a>"]]
+"main":[["impl FromArgMatches for <a class=\"struct\" href=\"main/struct.Cli.html\" title=\"struct main::Cli\">Cli</a>"],["impl FromArgMatches for <a class=\"enum\" href=\"main/enum.Commands.html\" title=\"enum main::Commands\">Commands</a>"],["impl FromArgMatches for <a class=\"struct\" href=\"main/struct.CmdNew.html\" title=\"struct main::CmdNew\">CmdNew</a>"],["impl FromArgMatches for <a class=\"struct\" href=\"main/struct.CmdInit.html\" title=\"struct main::CmdInit\">CmdInit</a>"],["impl FromArgMatches for <a class=\"struct\" href=\"main/struct.CmdTest.html\" title=\"struct main::CmdTest\">CmdTest</a>"]]
 };if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
