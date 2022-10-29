@@ -229,7 +229,7 @@ pub fn get_dep_code(dep: &UserRepo) -> Result<String> {
 }
 
 /// Obtain local path to a package.
-fn path_to_package(dep: &UserRepo) -> PathBuf {
+pub(crate) fn path_to_package(dep: &UserRepo) -> PathBuf {
     let home_dir = dirs::home_dir().expect("could not find home directory of current user");
     let noname_dir = home_dir.join(NONAME_DIRECTORY);
     let package_dir = noname_dir.join(PACKAGE_DIRECTORY);

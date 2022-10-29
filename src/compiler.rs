@@ -20,7 +20,7 @@ pub fn compile(code: &str) -> Result<CompiledCircuit> {
     Ok(circuit)
 }
 
-pub fn get_tast(code: &str) -> Result<TAST> {
+pub fn get_tast(code: &str) -> miette::Result<TAST> {
     // lexer
     let tokens = Token::parse(code)?;
 
