@@ -4,7 +4,9 @@ This is **work-in-progress** to implement a high-level (Rust and Golang-inspired
 
 If you don't know what zero-knowledge proofs, zkapps, or kimchi are, check out [that blogpost](https://minaprotocol.com/blog/kimchi-the-latest-update-to-minas-proof-system).
 
-You can read more about the project on the noname book: https://mimoo.github.io/noname
+You can read more about the project on the noname book: https://mimoo.github.io/noname or my [series of blogposts](https://cryptologie.net/#article_573).
+
+I invite you to try to [install](#installation) and [play](#usage) with noname. Please provide feedback and suggestions via the [issues](https://github.com/mimoo/noname/issues).
 
 ## Examples
 
@@ -25,7 +27,7 @@ fn main(pub public_input: Field, private_input: [Field; 2]) {
 You can compile it with the following command:
 
 ```console
-$ cargo run -- --path examples/example.no --private-inputs '{"private_input": ["1", "1"]}' --public-inputs '{"public_input": "3654913405619483358804575553468071097765421484960111776885779739261304758583"}' --debug
+$ noname test --path examples/example.no --private-inputs '{"private_input": ["1", "1"]}' --public-inputs '{"public_input": "3654913405619483358804575553468071097765421484960111776885779739261304758583"}' --debug
 ```
 
 Which will print the assembly, as well as try to create and verify a proof to make sure everything works. The assembly should look like this:
@@ -108,7 +110,66 @@ and what lines created what wiring:
 If you pass an invalid input it should fail with an error:
 
 ```
-$ cargo run -- --path examples/example.no --private-inputs '{"private_input": ["2", "1"]}' --public-inputs '{"public_input": "3654913405619483358804575553468071097765421484960111776885779739261304758583"}'
+$ noname test --path examples/example.no --private-inputs '{"private_input": ["2", "1"]}' --public-inputs '{"public_input": "3654913405619483358804575553468071097765421484960111776885779739261304758583"}'
 ```
 
 <img width="487" alt="Screen Shot 2022-09-02 at 12 08 41 PM" src="https://user-images.githubusercontent.com/1316043/188221355-4342b99c-3894-45f9-8bad-0f9477d93a63.png">
+
+## Installation
+
+As this is work in progress, you need to install the compiler from source using [cargo](https://rustup.rs/). 
+You can do this by running the following command:
+
+```console
+$ cargo install --path https://www.github.com/mimoo/noname
+```
+
+## Usage
+
+Simply write `noname` in the console to get access to the CLI:
+
+```console
+$ noname
+```
+
+To create a project, use `noname new` to create a project in a new directory, or `noname init` to initialize an existing directory. For example:
+
+```
+$ noname new --path my_project 
+```
+
+This will create a `Noname.toml` manifest file, which contains the name of your project (which must follow a Github `user/repo` format) as well as dependencies you're using (following the same format, as they are retrieved from Github).
+
+This will also create a `src` directory, which contains a `main.no` file, which is the entry point of your program. If you want to create a library, pass the `--lib` flag to the `new` or `init` command of `noname`, and it will create a `lib.no` file instead.
+
+```
+$ tree
+.
+├── Noname.toml
+└── src
+    └── main.no
+```
+
+You can then use the following command to check the correctness of your code (and its dependencies):
+
+```
+$ noname check
+```
+
+or you can test a full run with:
+
+```
+$ noname test
+```
+
+which will attempt to create a proof and verify it. See the [examples](#examples) section to see how to use it.
+
+## Current limitations
+
+Currently there are no commands to compile a program and produce the compiled prover and verifier parameters. There is also no command to produce a serializable proof.
+
+It's not hard, it's just hasn't been prioritized.
+
+You can also not use third-party libraries (eventhough the CLI might suggest that it works). I think it's close to be working though.
+
+In general, there's a large number of missing features. I will prioritize what I think needs to be done, but if you have a feature request, please open an [issue](https://github.com/mimoo/noname/issues).
