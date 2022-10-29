@@ -6,27 +6,10 @@ use std::{
 
 use miette::{Context, IntoDiagnostic, Result};
 
-use super::{manifest::Manifest, NONAME_DIRECTORY, PACKAGE_DIRECTORY};
-
-/// This retrieves a dependency listed in the manifest file.
-/// It downloads it from github, and stores it under the `deps` directory.
-/// A dependency is expected go be given as "user/repo".
-/// Note that this does not download the dependencies of the dependency.
-pub fn get_dep(dep: &Library) -> Result<Manifest> {
-    // download the dependency if we don't already have it
-    let path = path_to_package(dep);
-
-    if !path.exists() {
-        download_from_github(dep)?;
-    }
-
-    // validate and get manifest file
-    let must_be_lib = true;
-    let manifest = validate_package_and_get_manifest(&path, must_be_lib)?;
-
-    //
-    Ok(manifest)
-}
+use super::{
+    manifest::{read_manifest, Manifest},
+    NONAME_DIRECTORY, PACKAGE_DIRECTORY,
+};
 
 /// A dependency is a Github `user/repo` pair.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -34,6 +17,7 @@ pub struct Library {
     user: String,
     repo: String,
 }
+
 impl Library {
     pub(crate) fn new(arg: &str) -> Self {
         let mut args = arg.split("/");
@@ -54,13 +38,13 @@ impl std::fmt::Display for Library {
 pub struct DependencyGraph {
     /// Name of this package.
     /// Useful to make sure the package doesn't depend on itself.
-    this: Library,
+    this: Option<Library>,
     root: Vec<DependencyNode>,
     cached_manifests: HashMap<Library, Vec<Library>>,
 }
 
 impl DependencyGraph {
-    fn new(this: Library) -> Self {
+    pub(crate) fn new(this: Option<Library>) -> Self {
         Self {
             this,
             root: vec![],
@@ -68,7 +52,7 @@ impl DependencyGraph {
         }
     }
 
-    fn new_from_manifest(this: Library, manifest: &Manifest) -> Result<Self> {
+    pub(crate) fn new_from_manifest(this: Option<Library>, manifest: &Manifest) -> Result<Self> {
         let mut dep_graph = Self::new(this);
         let deps = get_deps_of_package(manifest);
         dep_graph.add_deps(deps)?;
@@ -85,7 +69,14 @@ impl DependencyGraph {
 
     fn add_dep(&mut self, dep: Library) -> Result<()> {
         let mut parents = HashSet::new();
-        parents.insert(self.this.clone());
+        if let Some(this) = &self.this {
+            if this == &dep {
+                miette::bail!("this library (`{}`) cannot depend on itself", dep);
+            }
+
+            parents.insert(this.clone());
+        }
+
         let node = self.init_package(&dep, parents.clone())?;
         self.root.push(node);
 
@@ -110,7 +101,18 @@ impl DependencyGraph {
             }
 
             // get manifest
-            let manifest = validate_package_and_get_manifest(&path, true)?;
+            // TODO: if it's garbage, we actually don't delete the repo we just cloned (and this in other places as well)
+            let manifest = validate_package_and_get_manifest(&path, true)
+                .wrap_err(format!("the dependency {package} is invalid."))?;
+
+            // make sure it matches the package `user/repo` format
+            if manifest.package.name != package.to_string() {
+                miette::bail!(
+                    "package `{}` has a different name in its manifest: `{}`",
+                    package,
+                    manifest.package.name
+                );
+            }
 
             // extract dependencies
             get_deps_of_package(&manifest)
@@ -147,10 +149,30 @@ impl DependencyNode {
     }
 }
 
+/// This retrieves a dependency listed in the manifest file.
+/// It downloads it from github, and stores it under the `deps` directory.
+/// A dependency is expected go be given as "user/repo".
+/// Note that this does not download the dependencies of the dependency.
+pub fn get_dep(dep: &Library) -> Result<Manifest> {
+    // download the dependency if we don't already have it
+    let path = path_to_package(dep);
+
+    if !path.exists() {
+        download_from_github(dep)?;
+    }
+
+    // validate and get manifest file
+    let must_be_lib = true;
+    let manifest = validate_package_and_get_manifest(&path, must_be_lib)?;
+
+    //
+    Ok(manifest)
+}
+
 /// Returns the dependencies of a package (given it's manifest).
 pub fn get_deps_of_package(manifest: &Manifest) -> Vec<Library> {
     manifest
-        .dependencies
+        .dependencies()
         .iter()
         .map(|dep| {
             let mut split = dep.split('/');
@@ -195,14 +217,22 @@ pub fn download_from_github(dep: &Library) -> Result<()> {
     );
     let path = path_to_package(dep);
 
-    process::Command::new("git")
+    let output = process::Command::new("git")
         .arg("clone")
         .arg(url)
         .arg(path)
         .output()
-        .expect("failed to git clone the given dependency");
+        .expect("failed to execute git command");
+
+    if !output.status.success() {
+        miette::bail!(format!("could not download package `{dep}`. Are you sure that https://www.github.com/{dep} is a valid package?"));
+    }
 
     Ok(())
+}
+
+pub fn is_lib(path: &PathBuf) -> bool {
+    path.join("src").join("lib.no").exists()
 }
 
 /// A valid package must have a valid `Noname.toml` as well as a `lib.no` file.
@@ -213,15 +243,7 @@ pub fn validate_package_and_get_manifest(path: &PathBuf, must_be_lib: bool) -> R
     }
 
     // parse `NoName.toml`
-    let manifest: Manifest = {
-        let manifest_file = path.join("Noname.toml");
-        let content = std::fs::read_to_string(&manifest_file)
-            .into_diagnostic()
-            .wrap_err_with(|| format!("could not read file `{}`", path.display()))?;
-        toml::from_str(&content)
-            .into_diagnostic()
-            .wrap_err_with(|| format!("could not parse file `{}`", path.display()))?
-    };
+    let manifest: Manifest = read_manifest(path)?;
 
     // check if `lib.no` exists
     let src_path = path.join("src");
@@ -256,7 +278,7 @@ mod tests {
     fn new_dep_graph() -> DependencyGraph {
         // create the main package
         let this = dep(THIS);
-        DependencyGraph::new(this)
+        DependencyGraph::new(Some(this))
     }
 
     fn add_relations(dep_graph: &mut DependencyGraph, relations: &[&str]) {
@@ -350,5 +372,11 @@ mod tests {
         let mut dep_graph = new_dep_graph();
         add_relations(&mut dep_graph, &["0 -> 1", "1 -> 2", "2 -> 3", "3 -> 1"]);
         assert!(add_deps(&mut dep_graph, &["0", "3"]).is_err());
+    }
+
+    #[test]
+    fn test_recursive_main_lib() {
+        let mut dep_graph = new_dep_graph();
+        assert!(add_deps(&mut dep_graph, &[THIS]).is_err());
     }
 }
