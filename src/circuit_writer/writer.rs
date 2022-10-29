@@ -95,64 +95,6 @@ pub enum Wiring {
 //
 
 impl CircuitWriter {
-    pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
-        self.typed.struct_info(name)
-    }
-
-    pub fn size_of(&self, ty: &TyKind) -> Result<usize> {
-        self.typed.size_of(&self.dependencies, ty)
-    }
-
-    pub fn get_fn(&self, module: &Option<Ident>, fn_name: &Ident) -> Result<FnInfo> {
-        if let Some(module) = module {
-            let module = self.typed.modules.get(&module.value).ok_or_else(|| {
-                Error::new(
-                    ErrorKind::UndefinedModule(module.value.clone()),
-                    module.span,
-                )
-            })?;
-
-            self.dependencies.get_fn(module, fn_name)
-        } else {
-            let fn_info = self
-                .typed
-                .functions
-                .get(&fn_name.value)
-                .cloned()
-                .ok_or_else(|| {
-                    Error::new(
-                        ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                        fn_name.span,
-                    )
-                })?;
-            Ok(fn_info)
-        }
-    }
-
-    pub fn get_struct(&self, module: &Option<Ident>, struct_name: &Ident) -> Result<StructInfo> {
-        if let Some(module) = module {
-            let imported_module = self.typed.modules.get(&module.value).ok_or_else(|| {
-                Error::new(
-                    ErrorKind::UndefinedModule(module.value.clone()),
-                    module.span,
-                )
-            })?;
-
-            self.dependencies.get_struct(imported_module, struct_name)
-        } else {
-            let struct_info = self
-                .struct_info(&struct_name.value)
-                .ok_or(Error::new(
-                    ErrorKind::UndefinedStruct(struct_name.value.clone()),
-                    struct_name.span,
-                ))?
-                .clone();
-            Ok(struct_info)
-        }
-    }
-}
-
-impl CircuitWriter {
     /// Creates a global environment from the one created by the type checker.
     pub fn new(code: &str, typed: TypeChecker, dependencies: Dependencies) -> Self {
         Self {
@@ -214,7 +156,7 @@ impl CircuitWriter {
                 // obtain the actual values
                 let rhs_var = rhs_var.value(fn_env);
 
-                let typ = self.typed.expr_type(rhs).cloned();
+                let typ = self.expr_type(rhs).cloned();
                 let var_info = VarInfo::new(rhs_var, *mutable, typ);
 
                 // store the new variable

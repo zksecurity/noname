@@ -9,6 +9,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField as _,
     inputs::JsonInputs,
+    type_checker::FnInfo,
     var::{CellVar, Value},
 };
 
@@ -69,6 +70,10 @@ pub struct CompiledCircuit {
 impl CompiledCircuit {
     pub(crate) fn new(circuit: CircuitWriter) -> Self {
         Self { circuit }
+    }
+
+    pub fn main_info(&self) -> &FnInfo {
+        self.circuit.main_info()
     }
 
     pub fn asm(&self, debug: bool) -> String {
@@ -136,11 +141,7 @@ impl CompiledCircuit {
         let mut env = WitnessEnv::default();
 
         // get info on main
-        let main_info = self
-            .circuit
-            .typed
-            .fn_info("main")
-            .expect("bug in the compiler: main not found");
+        let main_info = self.main_info();
         let main_sig = match &main_info.kind {
             crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
             crate::imports::FnKind::Native(fn_sig) => &fn_sig.sig,
