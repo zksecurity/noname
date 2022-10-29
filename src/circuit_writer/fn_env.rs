@@ -117,7 +117,7 @@ impl FnEnv {
             .insert(var_name.clone(), (scope, var_info))
             .is_some()
         {
-            panic!("type checker error: var {var_name} already exists");
+            panic!("type checker error: var `{var_name}` already exists");
         }
     }
 
@@ -129,9 +129,9 @@ impl FnEnv {
         let (scope, var_info) = self
             .vars
             .get(var_name)
-            .unwrap_or_else(|| panic!("type checking bug: local variable {var_name} not found"));
+            .unwrap_or_else(|| panic!("type checking bug: local variable `{var_name}` not found"));
         if !self.is_in_scope(*scope) {
-            panic!("type checking bug: local variable not in scope");
+            panic!("type checking bug: local variable `{var_name}` not in scope");
         }
 
         var_info.clone()

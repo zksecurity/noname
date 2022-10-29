@@ -421,12 +421,12 @@ impl TypeChecker {
                 } else {
                     // if it's a variable,
                     // check if it's a constant first
-                    let typ = if let Some(typ) = self.constants.get(&name.value) {
+                    let typ = if let Some(cst) = self.constants.get(&name.value) {
                         // if it's a field, we need to convert it to a bigint
-                        if matches!(typ.1.kind, TyKind::Field) {
+                        if matches!(cst.typ.kind, TyKind::Field) {
                             TyKind::BigInt
                         } else {
-                            typ.1.kind.clone()
+                            cst.typ.kind.clone()
                         }
                     } else {
                         // otherwise it's a local variable

@@ -89,6 +89,12 @@ impl Dependencies {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ConstInfo {
+    pub value: Field,
+    pub typ: Ty,
+}
+
 /// The environment we use to type check a noname program.
 #[derive(Default, Debug)]
 pub struct TypeChecker {
@@ -103,7 +109,7 @@ pub struct TypeChecker {
     pub structs: HashMap<String, StructInfo>,
 
     /// Constants declared in this module.
-    pub constants: HashMap<String, (Field, Ty)>,
+    pub constants: HashMap<String, ConstInfo>,
 
     /// Mapping from node id to TyKind.
     /// This can be used by the circuit-writer when it needs type information.
@@ -170,13 +176,13 @@ impl TypeChecker {
 
                     type_checker.constants.insert(
                         cst.name.value.clone(),
-                        (
-                            cst.value,
-                            Ty {
+                        ConstInfo {
+                            value: cst.value,
+                            typ: Ty {
                                 kind: TyKind::Field,
                                 span: cst.span,
                             },
-                        ),
+                        },
                     );
                 }
 

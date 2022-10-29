@@ -213,8 +213,8 @@ impl CircuitWriter {
         let mut circuit_writer = CircuitWriter::new(code, typed, deps);
 
         // Process constants of main module
-        for (name, (value, typ)) in circuit_writer.typed.constants.clone() {
-            circuit_writer.add_constant_var(name, value, typ.span);
+        for (name, cst_info) in circuit_writer.typed.constants.clone() {
+            circuit_writer.add_constant_var(name, cst_info.value, cst_info.typ.span);
         }
 
         // get main function
