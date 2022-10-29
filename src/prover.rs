@@ -87,8 +87,6 @@ pub fn compile_and_prove(code: &str, deps: Dependencies) -> Result<(ProverIndex,
     }
 
     // create constraint system
-    let fp_sponge_params = kimchi::oracle::pasta::fp_kimchi::params();
-
     let cs = kimchi::circuits::constraints::ConstraintSystem::create(gates)
         .public(compiled_circuit.circuit.public_input_size)
         .build()
@@ -103,7 +101,6 @@ pub fn compile_and_prove(code: &str, deps: Dependencies) -> Result<(ProverIndex,
     println!("using an SRS of size {}", srs.g.len());
 
     // create indexes
-    let fq_sponge_params = kimchi::oracle::pasta::fq_kimchi::params();
     let (endo_q, _endo_r) = kimchi::commitment_dlog::srs::endos::<OtherCurve>();
 
     let prover_index = kimchi::prover_index::ProverIndex::<Curve>::create(cs, endo_q, srs);

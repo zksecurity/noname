@@ -317,7 +317,7 @@ impl Ty {
             // ^^^^^^^^^^^^    ^^^^
             TokenKind::Identifier(ty_name) => {
                 let maybe_module = Ident::new(ty_name.clone(), token.span);
-                let (module, name, span) = if is_type(&ty_name) {
+                let (module, name, _span) = if is_type(&ty_name) {
                     // Type
                     // ^^^^
                     (None, maybe_module, token.span)
@@ -776,7 +776,7 @@ impl Expr {
                     | TokenKind::DoubleAmpersand
                     | TokenKind::DoublePipe
                     | TokenKind::Exclamation,
-                span,
+                ..
             }) => {
                 // lhs + rhs
                 //     ^
@@ -1176,7 +1176,7 @@ impl Function {
     ) -> Result<Vec<FnArg>> {
         // (pub arg1: type1, arg2: type2)
         // ^
-        let Token { span, .. } = tokens.bump_expected(ctx, TokenKind::LeftParen)?;
+        tokens.bump_expected(ctx, TokenKind::LeftParen)?;
 
         // (pub arg1: type1, arg2: type2)
         //   ^

@@ -1,27 +1,31 @@
-use std::{path::PathBuf, process};
+use std::path::PathBuf;
 
 use miette::{Context, IntoDiagnostic, NamedSource, Result};
 
 use crate::{
     circuit_writer::CircuitWriter,
-    cli::packages::{get_dep_code, path_to_package},
+    cli::packages::path_to_package,
     compiler::get_tast,
     type_checker::{Dependencies, TypeChecker},
 };
 
-use super::{
-    manifest::Manifest,
-    packages::{
-        get_deps_of_package, is_lib, validate_package_and_get_manifest, DependencyGraph, UserRepo,
-    },
-    NONAME_DIRECTORY, PACKAGE_DIRECTORY,
+use super::packages::{
+    get_deps_of_package, is_lib, validate_package_and_get_manifest, DependencyGraph, UserRepo,
 };
 
 #[derive(clap::Parser)]
 pub struct CmdBuild {
-    /// path to the directory to create
+    /// Path to the directory to create.
     #[clap(short, long, value_parser)]
     path: Option<PathBuf>,
+
+    /// Prints an assembly-like encoding of the circuit.
+    #[clap(short, long)]
+    asm: bool,
+
+    /// Prints a debug version of the assembly. To be used in conjunction with `--asm`.
+    #[clap(short, long)]
+    debug: bool,
 }
 
 pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
@@ -37,7 +41,9 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
         .into_diagnostic()
         .map_err(|e| e.with_source_code(NamedSource::new(curr_dir.to_str().unwrap(), code)))?;
 
-    compiled_circuit.asm(false);
+    if args.asm {
+        println!("{}", compiled_circuit.asm(args.debug));
+    }
 
     // store/cache artifacts
 

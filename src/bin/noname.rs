@@ -1,7 +1,5 @@
-use std::{path::PathBuf, process};
-
 use clap::Parser as _;
-use miette::{IntoDiagnostic, Result, WrapErr};
+use miette::Result;
 use noname::cli::{
     cmd_build, cmd_check, cmd_init, cmd_new, cmd_test, CmdBuild, CmdCheck, CmdInit, CmdNew, CmdTest,
 };
