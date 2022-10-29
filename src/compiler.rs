@@ -19,3 +19,17 @@ pub fn compile(code: &str) -> Result<CompiledCircuit> {
     //
     Ok(circuit)
 }
+
+pub fn get_tast(code: &str) -> Result<TAST> {
+    // lexer
+    let tokens = Token::parse(code)?;
+
+    // AST
+    let ast = AST::parse(tokens)?;
+
+    // TAST
+    let tast = TAST::analyze(ast)?;
+
+    //
+    Ok(tast)
+}

@@ -13,13 +13,13 @@ use super::{
 };
 
 #[derive(clap::Parser)]
-pub struct CmdBuild {
+pub struct CmdCheck {
     /// path to the directory to create
     #[clap(short, long, value_parser)]
     path: Option<PathBuf>,
 }
 
-pub fn cmd_build(args: CmdBuild) -> Result<()> {
+pub fn cmd_check(args: CmdCheck) -> Result<()> {
     let curr_dir = args
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap());
@@ -42,25 +42,11 @@ pub fn cmd_build(args: CmdBuild) -> Result<()> {
     let dep_graph = DependencyGraph::new_from_manifest(this, &manifest)?;
 
     // produce artifacts for each dependency, starting from leaf dependencies
-    let mut tasts = vec![];
     for dep in dep_graph.from_leaves_to_roots() {
         let code = get_dep_code(&dep)?;
-        tasts.push(get_tast(&code)?);
+        let tast = get_tast(&code)?;
+        dbg!(tast);
     }
 
-    // find local `lib.no` or `main.no` file
-    todo!();
-
-    // compile it
-    // let compiled_circuit = compiler::compile(code);
-    todo!();
-
-    // produce indexes
-    todo!();
-
-    // store/cache artifacts
-    todo!();
-
-    //
     Ok(())
 }

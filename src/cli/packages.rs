@@ -13,12 +13,12 @@ use super::{
 
 /// A dependency is a Github `user/repo` pair.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Library {
+pub struct UserRepo {
     user: String,
     repo: String,
 }
 
-impl Library {
+impl UserRepo {
     pub(crate) fn new(arg: &str) -> Self {
         let mut args = arg.split("/");
         let user = args.next().unwrap().to_string();
@@ -28,7 +28,7 @@ impl Library {
     }
 }
 
-impl std::fmt::Display for Library {
+impl std::fmt::Display for UserRepo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}/{}", self.user, self.repo)
     }
@@ -38,13 +38,13 @@ impl std::fmt::Display for Library {
 pub struct DependencyGraph {
     /// Name of this package.
     /// Useful to make sure the package doesn't depend on itself.
-    this: Option<Library>,
+    this: Option<UserRepo>,
     root: Vec<DependencyNode>,
-    cached_manifests: HashMap<Library, Vec<Library>>,
+    cached_manifests: HashMap<UserRepo, Vec<UserRepo>>,
 }
 
 impl DependencyGraph {
-    pub(crate) fn new(this: Option<Library>) -> Self {
+    pub(crate) fn new(this: Option<UserRepo>) -> Self {
         Self {
             this,
             root: vec![],
@@ -52,14 +52,14 @@ impl DependencyGraph {
         }
     }
 
-    pub(crate) fn new_from_manifest(this: Option<Library>, manifest: &Manifest) -> Result<Self> {
+    pub(crate) fn new_from_manifest(this: Option<UserRepo>, manifest: &Manifest) -> Result<Self> {
         let mut dep_graph = Self::new(this);
         let deps = get_deps_of_package(manifest);
         dep_graph.add_deps(deps)?;
         Ok(dep_graph)
     }
 
-    fn add_deps(&mut self, deps: Vec<Library>) -> Result<()> {
+    fn add_deps(&mut self, deps: Vec<UserRepo>) -> Result<()> {
         for dep in deps {
             self.add_dep(dep)?;
         }
@@ -67,7 +67,7 @@ impl DependencyGraph {
         Ok(())
     }
 
-    fn add_dep(&mut self, dep: Library) -> Result<()> {
+    fn add_dep(&mut self, dep: UserRepo) -> Result<()> {
         let mut parents = HashSet::new();
         if let Some(this) = &self.this {
             if this == &dep {
@@ -85,8 +85,8 @@ impl DependencyGraph {
 
     pub fn init_package(
         &mut self,
-        package: &Library,
-        mut parents: HashSet<Library>,
+        package: &UserRepo,
+        mut parents: HashSet<UserRepo>,
     ) -> Result<DependencyNode> {
         // add package to parent
         parents.insert(package.clone());
@@ -135,16 +135,45 @@ impl DependencyGraph {
         let node = DependencyNode::new(package.clone(), deps_nodes);
         Ok(node)
     }
+
+    pub(crate) fn from_leaves_to_roots(&self) -> Vec<UserRepo> {
+        let mut res = vec![];
+
+        for root in &self.root {
+            let mut stack = vec![root];
+            while let Some(node) = stack.pop() {
+                // we already added this package (and its dependencies)
+                if res.contains(&node.dep) {
+                    continue;
+                }
+
+                // we can add this package only if all its deps are already in
+                let can_add = node.deps.iter().all(|dep| res.contains(&dep.dep));
+
+                if can_add {
+                    res.push(node.dep.clone());
+                } else {
+                    stack.push(node); //re-add
+
+                    for dep in &node.deps {
+                        stack.push(dep);
+                    }
+                }
+            }
+        }
+
+        res
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct DependencyNode {
-    dep: Library,
+    dep: UserRepo,
     deps: Vec<DependencyNode>,
 }
 
 impl DependencyNode {
-    fn new(dep: Library, deps: Vec<DependencyNode>) -> Self {
+    fn new(dep: UserRepo, deps: Vec<DependencyNode>) -> Self {
         Self { dep, deps }
     }
 }
@@ -153,7 +182,7 @@ impl DependencyNode {
 /// It downloads it from github, and stores it under the `deps` directory.
 /// A dependency is expected go be given as "user/repo".
 /// Note that this does not download the dependencies of the dependency.
-pub fn get_dep(dep: &Library) -> Result<Manifest> {
+pub fn get_dep(dep: &UserRepo) -> Result<Manifest> {
     // download the dependency if we don't already have it
     let path = path_to_package(dep);
 
@@ -170,7 +199,7 @@ pub fn get_dep(dep: &Library) -> Result<Manifest> {
 }
 
 /// Returns the dependencies of a package (given it's manifest).
-pub fn get_deps_of_package(manifest: &Manifest) -> Vec<Library> {
+pub fn get_deps_of_package(manifest: &Manifest) -> Vec<UserRepo> {
     manifest
         .dependencies()
         .iter()
@@ -182,13 +211,13 @@ pub fn get_deps_of_package(manifest: &Manifest) -> Vec<Library> {
                 split.next().is_none(),
                 "invalid dependency name (expected: user/repo (TODO: better error)"
             );
-            Library { user, repo }
+            UserRepo { user, repo }
         })
         .collect()
 }
 
 // read the package's `lib.no` file
-pub fn get_dep_code(dep: &Library) -> Result<String> {
+pub fn get_dep_code(dep: &UserRepo) -> Result<String> {
     let path = path_to_package(dep);
 
     let lib_file = path.join("src").join("lib.no");
@@ -200,7 +229,7 @@ pub fn get_dep_code(dep: &Library) -> Result<String> {
 }
 
 /// Obtain local path to a package.
-fn path_to_package(dep: &Library) -> PathBuf {
+fn path_to_package(dep: &UserRepo) -> PathBuf {
     let home_dir = dirs::home_dir().expect("could not find home directory of current user");
     let noname_dir = home_dir.join(NONAME_DIRECTORY);
     let package_dir = noname_dir.join(PACKAGE_DIRECTORY);
@@ -209,7 +238,7 @@ fn path_to_package(dep: &Library) -> PathBuf {
 }
 
 /// download package from github
-pub fn download_from_github(dep: &Library) -> Result<()> {
+pub fn download_from_github(dep: &UserRepo) -> Result<()> {
     let url = format!(
         "https://github.com/{user}/{repo}.git",
         user = &dep.user,
@@ -271,8 +300,8 @@ mod tests {
     const USER: &str = "mimoo";
     const THIS: &str = "this";
 
-    fn dep(ii: &str) -> Library {
-        Library::new(&format!("{USER}/dep{ii}"))
+    fn dep(ii: &str) -> UserRepo {
+        UserRepo::new(&format!("{USER}/dep{ii}"))
     }
 
     fn new_dep_graph() -> DependencyGraph {
@@ -325,6 +354,15 @@ mod tests {
         Ok(())
     }
 
+    fn check_from_leaves_to_roots(expected: &str, obtained: Vec<UserRepo>) {
+        let expected: Vec<UserRepo> = expected
+            .split(',')
+            .map(|dep_str| dep(dep_str.trim()))
+            .collect();
+
+        assert_eq!(expected, obtained);
+    }
+
     #[test]
     fn test_simple_dep_graph() {
         let mut dep_graph = new_dep_graph();
@@ -339,6 +377,8 @@ mod tests {
 
         assert_eq!(dep_graph.root[1].dep, dep("1"));
         assert_eq!(dep_graph.root[1].deps.len(), 0);
+
+        check_from_leaves_to_roots("1,0", dep_graph.from_leaves_to_roots());
     }
 
     #[test]
@@ -348,6 +388,8 @@ mod tests {
         assert!(add_deps(&mut dep_graph, &["0"]).is_err());
         assert!(add_deps(&mut dep_graph, &["1"]).is_err());
         add_deps(&mut dep_graph, &["2"]).unwrap();
+
+        check_from_leaves_to_roots("2", dep_graph.from_leaves_to_roots());
     }
 
     #[test]
@@ -365,6 +407,8 @@ mod tests {
         let mut dep_graph = new_dep_graph();
         add_relations(&mut dep_graph, &["0 -> 1", "1 -> 2", "3 -> 4", "4 -> 2"]);
         add_deps(&mut dep_graph, &["0", "3"]).unwrap();
+
+        check_from_leaves_to_roots("2,1,0,4,3", dep_graph.from_leaves_to_roots());
     }
 
     #[test]

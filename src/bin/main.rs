@@ -2,7 +2,9 @@ use std::{path::PathBuf, process};
 
 use clap::Parser as _;
 use miette::{IntoDiagnostic, Result, WrapErr};
-use noname::cli::{cmd_build, cmd_init, cmd_new, cmd_test, CmdBuild, CmdInit, CmdNew, CmdTest};
+use noname::cli::{
+    cmd_build, cmd_check, cmd_init, cmd_new, cmd_test, CmdBuild, CmdCheck, CmdInit, CmdNew, CmdTest,
+};
 
 #[derive(clap::Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -22,7 +24,7 @@ enum Commands {
     /// Build the current package
     Build(CmdBuild),
     /// Analyze the current package and report errors, but don't build object files
-    Check,
+    Check(CmdCheck),
     /// Add dependencies to a manifest file
     Add,
     /// Remove the target directory
@@ -47,7 +49,7 @@ fn main() -> Result<()> {
         Commands::Init(args) => cmd_init(args),
         Commands::Doc => todo!(),
         Commands::Build(args) => cmd_build(args),
-        Commands::Check => todo!(),
+        Commands::Check(args) => cmd_check(args),
         Commands::Add => todo!(),
         Commands::Clean => todo!(),
         Commands::Run => todo!(),
