@@ -124,7 +124,7 @@
             Field,
             PlonkSpongeConstantsKimchi,
         &gt; = kimchi::oracle::poseidon::ArithmeticSponge::new(
-            kimchi::oracle::pasta::fp_kimchi::params(),
+            kimchi::oracle::pasta::fp_kimchi::static_params(),
         );
         sponge.absorb(<span class="kw-2">&amp;</span>input);
         sponge.squeeze()

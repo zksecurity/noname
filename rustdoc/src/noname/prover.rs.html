@@ -191,6 +191,8 @@
 <span id="191">191</span>
 <span id="192">192</span>
 <span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module contains the prover.
 
 </span><span class="kw">use </span>std::iter::once;
@@ -214,11 +216,11 @@
 // aliases
 //
 
-</span><span class="kw">type </span>Curve = kimchi::mina_curves::pasta::vesta::Affine;
-<span class="kw">type </span>OtherCurve = kimchi::mina_curves::pasta::pallas::Affine;
+</span><span class="kw">type </span>Curve = kimchi::mina_curves::pasta::Vesta;
+<span class="kw">type </span>OtherCurve = kimchi::mina_curves::pasta::Pallas;
 <span class="kw">type </span>SpongeParams = kimchi::oracle::constants::PlonkSpongeConstantsKimchi;
 <span class="kw">type </span>BaseSponge = kimchi::oracle::sponge::DefaultFqSponge&lt;
-    kimchi::mina_curves::pasta::vesta::VestaParameters,
+    kimchi::mina_curves::pasta::VestaParameters,
     SpongeParams,
 &gt;;
 <span class="kw">type </span>ScalarSponge = kimchi::oracle::sponge::DefaultFrSponge&lt;Field, SpongeParams&gt;;
@@ -281,7 +283,7 @@
     <span class="comment">// create constraint system
     </span><span class="kw">let </span>fp_sponge_params = kimchi::oracle::pasta::fp_kimchi::params();
 
-    <span class="kw">let </span>cs = kimchi::circuits::constraints::ConstraintSystem::create(gates, fp_sponge_params)
+    <span class="kw">let </span>cs = kimchi::circuits::constraints::ConstraintSystem::create(gates)
         .public(compiled_circuit.circuit.public_input_size)
         .build()
         .map_err(|e| Error::new(e.into(), Span(<span class="number">0</span>, <span class="number">0</span>)))<span class="question-mark">?</span>;
@@ -298,8 +300,7 @@
     </span><span class="kw">let </span>fq_sponge_params = kimchi::oracle::pasta::fq_kimchi::params();
     <span class="kw">let </span>(endo_q, _endo_r) = kimchi::commitment_dlog::srs::endos::&lt;OtherCurve&gt;();
 
-    <span class="kw">let </span>prover_index =
-        kimchi::prover_index::ProverIndex::&lt;Curve&gt;::create(cs, fq_sponge_params, endo_q, srs);
+    <span class="kw">let </span>prover_index = kimchi::prover_index::ProverIndex::&lt;Curve&gt;::create(cs, endo_q, srs);
     <span class="kw">let </span>verifier_index = prover_index.verifier_index();
 
     <span class="comment">// wrap
@@ -356,7 +357,10 @@
 
         <span class="comment">// verify the witness
         </span><span class="kw">if </span>debug {
-            <span class="self">self</span>.index.cs.verify(<span class="kw-2">&amp;</span>witness, <span class="kw-2">&amp;</span>full_public_inputs).unwrap();
+            <span class="self">self</span>.index
+                .cs
+                .verify::&lt;Curve&gt;(<span class="kw-2">&amp;</span>witness, <span class="kw-2">&amp;</span>full_public_inputs)
+                .unwrap();
         }
 
         <span class="comment">// create proof
