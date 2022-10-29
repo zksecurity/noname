@@ -5,6 +5,7 @@
 pub mod asm;
 pub mod boolean;
 pub mod circuit_writer;
+pub mod cli;
 pub mod compiler;
 pub mod constants;
 pub mod error;
