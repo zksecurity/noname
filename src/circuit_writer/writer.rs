@@ -246,10 +246,11 @@ impl CircuitWriter {
 
     pub(crate) fn constrain_inputs_to_main(
         &mut self,
+        deps: &Dependencies,
         input: &[ConstOrCell],
         input_typ: &TyKind,
         span: Span,
-    ) {
+    ) -> Result<()> {
         match input_typ {
             TyKind::Field => (),
             TyKind::Bool => {
@@ -257,29 +258,45 @@ impl CircuitWriter {
                 boolean::check(self, &input[0], span);
             }
             TyKind::Array(tykind, _) => {
-                let el_size = self.typed.size_of(tykind);
+                let el_size = self.typed.size_of(deps, tykind)?;
                 for el in input.chunks(el_size) {
-                    self.constrain_inputs_to_main(el, tykind, span);
+                    self.constrain_inputs_to_main(deps, el, tykind, span);
                 }
             }
             TyKind::Custom {
                 module,
                 name: struct_name,
             } => {
-                let struct_info = self
-                    .struct_info(&struct_name.value)
-                    .expect("type-checker bug: couldn't find struct info of input to main")
-                    .clone();
+                let struct_info = if let Some(module) = module {
+                    let imported_module =
+                        self.typed.modules.get(&module.value).ok_or_else(|| {
+                            Error::new(
+                                ErrorKind::UndefinedModule(module.value.clone()),
+                                module.span,
+                            )
+                        })?;
+
+                    deps.get_struct(imported_module, &struct_name)?
+                } else {
+                    self.struct_info(&struct_name.value)
+                        .ok_or(Error::new(
+                            ErrorKind::UndefinedStruct(struct_name.value.clone()),
+                            struct_name.span,
+                        ))?
+                        .clone()
+                };
+
                 let mut offset = 0;
                 for (_field_name, field_typ) in &struct_info.fields {
-                    let len = self.typed.size_of(field_typ);
+                    let len = self.typed.size_of(deps, field_typ)?;
                     let range = offset..(offset + len);
-                    self.constrain_inputs_to_main(&input[range], field_typ, span);
+                    self.constrain_inputs_to_main(deps, &input[range], field_typ, span)?;
                     offset += len;
                 }
             }
             TyKind::BigInt => unreachable!(),
-        }
+        };
+        Ok(())
     }
 
     /// Compile a function. Used to compile `main()` only for now
@@ -458,11 +475,11 @@ impl CircuitWriter {
                 let mut len = 0;
                 for (field, field_typ) in &struct_info.fields {
                     if field == &rhs.value {
-                        len = self.typed.size_of(field_typ);
+                        len = self.typed.size_of(deps, field_typ)?;
                         break;
                     }
 
-                    start += self.typed.size_of(field_typ);
+                    start += self.typed.size_of(deps, field_typ)?;
                 }
 
                 // narrow the variable to the given range
@@ -483,8 +500,8 @@ impl CircuitWriter {
                     .expect("method call on what?")
                     .clone();
 
-                let struct_name = match &lhs_typ {
-                    TyKind::Custom { module, name } => name,
+                let (module, struct_name) = match &lhs_typ {
+                    TyKind::Custom { module, name } => (module, name),
                     _ => panic!("method call only work on custom types (TODO: better error)"),
                 };
 
@@ -493,11 +510,24 @@ impl CircuitWriter {
                 let self_var = self.compute_expr(fn_env, deps, lhs)?;
 
                 // find method info
-                let struct_info = self
-                    .typed
-                    .struct_info(&struct_name.value)
-                    .expect("could not find struct info")
-                    .clone();
+                let struct_info = if let Some(module) = module {
+                    let imported_module =
+                        self.typed.modules.get(&module.value).ok_or_else(|| {
+                            Error::new(
+                                ErrorKind::UndefinedModule(module.value.clone()),
+                                module.span,
+                            )
+                        })?;
+
+                    deps.get_struct(imported_module, &struct_name)?
+                } else {
+                    self.struct_info(&struct_name.value)
+                        .ok_or(Error::new(
+                            ErrorKind::UndefinedStruct(struct_name.value.clone()),
+                            struct_name.span,
+                        ))?
+                        .clone()
+                };
 
                 let func = struct_info
                     .methods
@@ -703,7 +733,7 @@ impl CircuitWriter {
                 };
 
                 // compute the size of each element in the array
-                let len = self.typed.size_of(elem_type);
+                let len = self.typed.size_of(deps, elem_type)?;
 
                 // compute the real index
                 let start = idx * len;

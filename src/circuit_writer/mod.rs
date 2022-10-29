@@ -186,7 +186,7 @@ impl CircuitWriter {
                                 *len as usize
                             }
                             TyKind::Bool => 1,
-                            typ => circuit_writer.typed.size_of(typ),
+                            typ => circuit_writer.typed.size_of(deps, typ)?,
                         };
 
                         // create the variable
@@ -209,7 +209,8 @@ impl CircuitWriter {
                         // but we are being extra cautious due to attacks
                         // where the prover gives the verifier malformed inputs that look legit.
                         // (See short address attacks in Ethereum.)
-                        circuit_writer.constrain_inputs_to_main(&var.cvars, &typ.kind, typ.span);
+                        circuit_writer
+                            .constrain_inputs_to_main(deps, &var.cvars, &typ.kind, typ.span)?;
 
                         // add argument variable to the ast env
                         let mutable = false; // TODO: should we add a mut keyword in arguments as well?

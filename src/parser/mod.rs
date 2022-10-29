@@ -1724,6 +1724,12 @@ impl From<&UsePath> for UserRepo {
     }
 }
 
+impl Display for UsePath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}::{}", self.module.value, self.submodule.value)
+    }
+}
+
 impl UsePath {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let module = tokens.bump_ident(

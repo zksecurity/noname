@@ -110,23 +110,41 @@ impl TypeChecker {
 
     /// Returns the number of field elements contained in the given type.
     // TODO: might want to memoize that at some point
-    pub fn size_of(&self, typ: &TyKind) -> usize {
-        match typ {
+    pub fn size_of(&self, deps: &Dependencies, typ: &TyKind) -> Result<usize> {
+        let res = match typ {
             TyKind::Field => 1,
             TyKind::Custom { module, name } => {
-                let struct_info = self
-                    .struct_info(&name.value)
-                    .expect("couldn't find struct info of {c}");
-                struct_info
-                    .fields
-                    .iter()
-                    .map(|(_, t)| self.size_of(t))
-                    .sum()
+                let struct_name = &name.value;
+                let struct_info = if let Some(module) = module {
+                    // check module present in the scope
+                    let module_val = &module.value;
+                    let imported_module = self.modules.get(module_val).ok_or_else(|| {
+                        Error::new(ErrorKind::UndefinedModule(module_val.clone()), module.span)
+                    })?;
+
+                    deps.get_struct(imported_module, name)?
+                } else {
+                    self.struct_info(struct_name)
+                        .ok_or(Error::new(
+                            ErrorKind::UndefinedStruct(struct_name.clone()),
+                            name.span,
+                        ))?
+                        .clone()
+                };
+
+                let mut sum = 0;
+
+                for (_, t) in &struct_info.fields {
+                    sum += self.size_of(deps, t)?;
+                }
+
+                sum
             }
             TyKind::BigInt => 1,
-            TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
+            TyKind::Array(typ, len) => (*len as usize) * self.size_of(deps, typ)?,
             TyKind::Bool => 1,
-        }
+        };
+        Ok(res)
     }
 
     pub fn resolve_global_imports(&mut self) -> Result<()> {
