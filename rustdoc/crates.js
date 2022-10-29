@@ -1,1 +1,1 @@
-window.ALL_CRATES = ["main","noname"];
+window.ALL_CRATES = ["noname"];

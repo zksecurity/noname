@@ -50,16 +50,45 @@
 <span id="50">50</span>
 <span id="51">51</span>
 <span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{path::PathBuf, process};
 
-<span class="kw">use </span>miette::{Context, IntoDiagnostic, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span>miette::{Context, IntoDiagnostic, NamedSource, <span class="prelude-ty">Result</span>};
 
 <span class="kw">use crate</span>::{cli::packages::get_dep_code, compiler::get_tast};
 
 <span class="kw">use super</span>::{
     manifest::Manifest,
     packages::{
-        get_deps_of_package, is_lib, validate_package_and_get_manifest, DependencyGraph, UserRepo,
+        get_deps_of_package, is_lib, path_to_package, validate_package_and_get_manifest,
+        DependencyGraph, UserRepo,
     },
     NONAME_DIRECTORY, PACKAGE_DIRECTORY,
 };
@@ -95,11 +124,38 @@
 
     <span class="comment">// produce artifacts for each dependency, starting from leaf dependencies
     </span><span class="kw">for </span>dep <span class="kw">in </span>dep_graph.from_leaves_to_roots() {
-        <span class="kw">let </span>code = get_dep_code(<span class="kw-2">&amp;</span>dep)<span class="question-mark">?</span>;
-        <span class="kw">let </span>tast = get_tast(<span class="kw-2">&amp;</span>code)<span class="question-mark">?</span>;
-        <span class="macro">dbg!</span>(tast);
+        <span class="kw">let </span>path = path_to_package(<span class="kw-2">&amp;</span>dep);
+
+        <span class="kw">let </span>lib_file = path.join(<span class="string">&quot;src&quot;</span>).join(<span class="string">&quot;lib.no&quot;</span>);
+        <span class="kw">let </span>code = std::fs::read_to_string(<span class="kw-2">&amp;</span>lib_file)
+            .into_diagnostic()
+            .wrap_err_with(|| <span class="macro">format!</span>(<span class="string">&quot;could not read file `{}`&quot;</span>, path.display()))<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>_tast = get_tast(<span class="kw-2">&amp;</span>code)
+            .map_err(|e| e.with_source_code(NamedSource::new(lib_file.to_str().unwrap(), code)))<span class="question-mark">?</span>;
     }
 
+    <span class="comment">// produce artifact for this one
+    </span><span class="kw">let </span>src_dir = curr_dir.join(<span class="string">&quot;src&quot;</span>);
+
+    <span class="kw">let </span>lib_file = src_dir.join(<span class="string">&quot;lib.no&quot;</span>);
+    <span class="kw">let </span>main_file = src_dir.join(<span class="string">&quot;main.no&quot;</span>);
+
+    <span class="comment">// assuming that we can&#39;t have both lib.no and main.no
+    </span><span class="kw">let </span>file_path = <span class="kw">if </span>lib_file.exists() {
+        lib_file
+    } <span class="kw">else </span>{
+        main_file
+    };
+
+    <span class="kw">let </span>code = std::fs::read_to_string(<span class="kw-2">&amp;</span>file_path)
+        .into_diagnostic()
+        .wrap_err_with(|| <span class="macro">format!</span>(<span class="string">&quot;could not read file `{}`&quot;</span>, file_path.display()))<span class="question-mark">?</span>;
+
+    get_tast(<span class="kw-2">&amp;</span>code)
+        .map_err(|e| e.with_source_code(NamedSource::new(file_path.to_str().unwrap(), code)))<span class="question-mark">?</span>;
+
+    <span class="macro">println!</span>(<span class="string">&quot;all good!&quot;</span>);
     <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div>
