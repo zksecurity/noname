@@ -25,6 +25,7 @@ pub struct Dependencies {
 }
 
 impl Dependencies {
+    /// Expects the real use_path
     pub fn get_fn(&self, use_path: &UsePath, fn_name: &Ident) -> Result<FnInfo> {
         let user_repo: UserRepo = use_path.into();
 
@@ -52,6 +53,7 @@ impl Dependencies {
         Ok(fn_info.clone())
     }
 
+    /// Expects the real use_path
     pub fn get_struct(&self, use_path: &UsePath, struct_name: &Ident) -> Result<StructInfo> {
         let user_repo: UserRepo = use_path.into();
 

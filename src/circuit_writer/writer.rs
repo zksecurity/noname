@@ -107,8 +107,26 @@ impl CircuitWriter {
         self.dependencies.get_fn(module, fn_name)
     }
 
-    pub fn get_struct(&self, module: &UsePath, struct_name: &Ident) -> Result<StructInfo> {
-        self.dependencies.get_struct(module, struct_name)
+    pub fn get_struct(&self, module: &Option<Ident>, struct_name: &Ident) -> Result<StructInfo> {
+        if let Some(module) = module {
+            let imported_module = self.typed.modules.get(&module.value).ok_or_else(|| {
+                Error::new(
+                    ErrorKind::UndefinedModule(module.value.clone()),
+                    module.span,
+                )
+            })?;
+
+            self.dependencies.get_struct(imported_module, struct_name)
+        } else {
+            let struct_info = self
+                .struct_info(&struct_name.value)
+                .ok_or(Error::new(
+                    ErrorKind::UndefinedStruct(struct_name.value.clone()),
+                    struct_name.span,
+                ))?
+                .clone();
+            Ok(struct_info)
+        }
     }
 }
 
@@ -276,24 +294,7 @@ impl CircuitWriter {
                 module,
                 name: struct_name,
             } => {
-                let struct_info = if let Some(module) = module {
-                    let imported_module =
-                        self.typed.modules.get(&module.value).ok_or_else(|| {
-                            Error::new(
-                                ErrorKind::UndefinedModule(module.value.clone()),
-                                module.span,
-                            )
-                        })?;
-
-                    self.get_struct(imported_module, &struct_name)?
-                } else {
-                    self.struct_info(&struct_name.value)
-                        .ok_or(Error::new(
-                            ErrorKind::UndefinedStruct(struct_name.value.clone()),
-                            struct_name.span,
-                        ))?
-                        .clone()
-                };
+                let struct_info = self.get_struct(module, &struct_name)?;
 
                 let mut offset = 0;
                 for (_field_name, field_typ) in &struct_info.fields {
@@ -516,24 +517,7 @@ impl CircuitWriter {
                 let self_var = self.compute_expr(fn_env, lhs)?;
 
                 // find method info
-                let struct_info = if let Some(module) = module {
-                    let imported_module =
-                        self.typed.modules.get(&module.value).ok_or_else(|| {
-                            Error::new(
-                                ErrorKind::UndefinedModule(module.value.clone()),
-                                module.span,
-                            )
-                        })?;
-
-                    self.get_struct(imported_module, &struct_name)?
-                } else {
-                    self.struct_info(&struct_name.value)
-                        .ok_or(Error::new(
-                            ErrorKind::UndefinedStruct(struct_name.value.clone()),
-                            struct_name.span,
-                        ))?
-                        .clone()
-                };
+                let struct_info = self.get_struct(module, &struct_name)?;
 
                 let func = struct_info
                     .methods
