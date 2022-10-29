@@ -918,15 +918,6 @@
 <span id="918">918</span>
 <span id="919">919</span>
 <span id="920">920</span>
-<span id="921">921</span>
-<span id="922">922</span>
-<span id="923">923</span>
-<span id="924">924</span>
-<span id="925">925</span>
-<span id="926">926</span>
-<span id="927">927</span>
-<span id="928">928</span>
-<span id="929">929</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::HashMap,
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1291,7 +1282,7 @@
                     <span class="comment">// we pass variables by values always
                     </span><span class="kw">let </span>var = var.value(fn_env);
 
-                    <span class="kw">let </span>typ = <span class="self">self</span>.typed.expr_type(arg).cloned();
+                    <span class="kw">let </span>typ = <span class="self">self</span>.expr_type(arg).cloned();
                     <span class="kw">let </span>mutable = <span class="bool-val">false</span>; <span class="comment">// TODO: mut keyword in arguments?
                     </span><span class="kw">let </span>var_info = VarInfo::new(var, mutable, typ);
 
@@ -1344,20 +1335,18 @@
 
                 <span class="comment">// get struct info behind lhs
                 </span><span class="kw">let </span>lhs_struct = <span class="self">self
-                    </span>.typed
-                    .expr_type(lhs)
+                    </span>.expr_type(lhs)
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>self_struct = <span class="kw">match </span>lhs_struct {
-                    TyKind::Custom { module, name } =&gt; name,
+                <span class="kw">let </span>(module, self_struct) = <span class="kw">match </span>lhs_struct {
+                    TyKind::Custom { module, name } =&gt; (module, name),
                     <span class="kw">_ </span>=&gt; {
                         <span class="macro">panic!</span>(<span class="string">&quot;could not figure out struct implementing that method call&quot;</span>)
                     }
                 };
 
                 <span class="kw">let </span>struct_info = <span class="self">self
-                    </span>.typed
-                    .struct_info(<span class="kw-2">&amp;</span>self_struct.value)
+                    </span>.get_struct(module, <span class="kw-2">&amp;</span>self_struct)
                     .expect(<span class="string">&quot;struct info not found for custom struct&quot;</span>);
 
                 <span class="comment">// find range of field
@@ -1384,11 +1373,7 @@
                 args,
             } =&gt; {
                 <span class="comment">// figure out the name of the custom struct
-                </span><span class="kw">let </span>lhs_typ = <span class="self">self
-                    </span>.typed
-                    .expr_type(lhs)
-                    .expect(<span class="string">&quot;method call on what?&quot;</span>)
-                    .clone();
+                </span><span class="kw">let </span>lhs_typ = <span class="self">self</span>.expr_type(lhs).expect(<span class="string">&quot;method call on what?&quot;</span>).clone();
 
                 <span class="kw">let </span>(module, struct_name) = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs_typ {
                     TyKind::Custom { module, name } =&gt; (module, name),
@@ -1436,7 +1421,7 @@
                     </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>;
                     <span class="kw">let </span>var = var.value(fn_env);
 
-                    <span class="kw">let </span>typ = <span class="self">self</span>.typed.expr_type(arg).cloned();
+                    <span class="kw">let </span>typ = <span class="self">self</span>.expr_type(arg).cloned();
                     <span class="kw">let </span>var_info = VarInfo::new(var, mutable, typ);
 
                     vars.push(var_info);
@@ -1578,10 +1563,7 @@
                 <span class="kw">let </span>idx: usize = idx.try_into().unwrap();
 
                 <span class="comment">// retrieve the type of the elements in the array
-                </span><span class="kw">let </span>array_typ = <span class="self">self
-                    </span>.typed
-                    .expr_type(array)
-                    .expect(<span class="string">&quot;cannot find type of array&quot;</span>);
+                </span><span class="kw">let </span>array_typ = <span class="self">self</span>.expr_type(array).expect(<span class="string">&quot;cannot find type of array&quot;</span>);
 
                 <span class="kw">let </span>elem_type = <span class="kw">match </span>array_typ {
                     TyKind::Array(ty, array_len) =&gt; {
