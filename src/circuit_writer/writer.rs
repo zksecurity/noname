@@ -345,7 +345,7 @@ impl CircuitWriter {
                 args,
             } => {
                 // sanity check
-                if &fn_name.value == "main" {
+                if fn_name.value == "main" {
                     return Err(Error::new(ErrorKind::RecursiveMain, expr.span));
                 }
 
@@ -373,6 +373,7 @@ impl CircuitWriter {
                 let fn_info = self.get_fn(module, fn_name)?;
 
                 match &fn_info.kind {
+                    // assert() <-- for example
                     FnKind::BuiltIn(_sig, handle) => {
                         let res = handle(self, &vars, expr.span);
                         res.map(|r| r.map(VarOrRef::Var))
@@ -380,7 +381,22 @@ impl CircuitWriter {
 
                     // module::fn_name(args)
                     // ^^^^^^
-                    FnKind::Native(_) if module.is_some() => todo!(),
+                    FnKind::Native(func) if module.is_some() => {
+                        let prev_current_module = self.current_module.clone();
+                        let module = self.resolve_module(module.as_ref().unwrap())?;
+
+                        //  change the current module
+                        self.current_module = Some(module.into());
+
+                        let res = self.compile_native_function_call(&func, vars);
+                        let res = res.map(|r| r.map(VarOrRef::Var));
+
+                        // revert the current module
+                        self.current_module = prev_current_module;
+
+                        //
+                        res
+                    }
 
                     // fn_name(args)
                     // ^^^^^^^

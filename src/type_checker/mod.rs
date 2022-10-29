@@ -25,6 +25,10 @@ pub struct Dependencies {
 }
 
 impl Dependencies {
+    pub fn get_type_checker(&self, user_repo: &UserRepo) -> Option<&TypeChecker> {
+        self.deps.get(user_repo).map(|(tast, _, _)| tast)
+    }
+
     /// Expects the real use_path
     pub fn get_fn(&self, use_path: &UsePath, fn_name: &Ident) -> Result<FnInfo> {
         let user_repo: UserRepo = use_path.into();

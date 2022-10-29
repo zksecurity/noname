@@ -4,7 +4,9 @@ use crate::{
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    parser::{AttributeKind, Expr, FnArg, FnSig, Function, Ident, RootKind, Struct, TyKind},
+    parser::{
+        AttributeKind, Expr, FnArg, FnSig, Function, Ident, RootKind, Struct, TyKind, UsePath,
+    },
     type_checker::{Dependencies, FnInfo, StructInfo, TypeChecker},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,
@@ -35,6 +37,9 @@ pub struct CircuitWriter {
     dependencies: Dependencies,
 
     /// The current module. If not set, the main module.
+    // Note: this can be an alias that came from a 3rd party library.
+    // For example, a 3rd party library might have written `use a::b as c;`.
+    // For this reason we must store this as a fully-qualified module.
     current_module: Option<UserRepo>,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
@@ -94,45 +99,63 @@ pub struct CircuitWriter {
 }
 
 impl CircuitWriter {
-    pub fn main_info(&self) -> &FnInfo {
-        self.typed
-            .fn_info("main")
-            .expect("bug in the compiler: main not found")
+    /// Retrieves the type checker associated to the current module being parsed.
+    /// It is possible, when we jump to third-party libraries' code,
+    /// that we need access to their type checker state instead of the main module one.
+    pub fn current_type_checker(&self) -> &TypeChecker {
+        if let Some(current_module) = &self.current_module {
+            self.dependencies
+                .get_type_checker(current_module)
+                .expect("bug in the compiler: couldn't find current module")
+        } else {
+            &self.typed
+        }
     }
 
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
-        self.typed.node_types.get(&expr.node_id)
+        let curr_type_checker = self.current_type_checker();
+        curr_type_checker.node_types.get(&expr.node_id)
     }
 
     pub fn node_type(&self, node_id: usize) -> Option<&TyKind> {
-        self.typed.node_types.get(&node_id)
+        let curr_type_checker = self.current_type_checker();
+        curr_type_checker.node_types.get(&node_id)
     }
 
     pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
-        self.typed.struct_info(name)
+        let curr_type_checker = self.current_type_checker();
+        curr_type_checker.struct_info(name)
     }
 
     pub fn fn_info(&self, name: &str) -> Option<&FnInfo> {
-        self.typed.functions.get(name)
+        let curr_type_checker = self.current_type_checker();
+        curr_type_checker.functions.get(name)
     }
 
     pub fn size_of(&self, typ: &TyKind) -> Result<usize> {
-        self.typed.size_of(&self.dependencies, typ)
+        let curr_type_checker = self.current_type_checker();
+        curr_type_checker.size_of(&self.dependencies, typ)
+    }
+
+    pub fn resolve_module(&self, module: &Ident) -> Result<&UsePath> {
+        let curr_type_checker = self.current_type_checker();
+        curr_type_checker.modules.get(&module.value).ok_or_else(|| {
+            Error::new(
+                ErrorKind::UndefinedModule(module.value.clone()),
+                module.span,
+            )
+        })
     }
 
     pub fn get_fn(&self, module: &Option<Ident>, fn_name: &Ident) -> Result<FnInfo> {
         if let Some(module) = module {
-            let module = self.typed.modules.get(&module.value).ok_or_else(|| {
-                Error::new(
-                    ErrorKind::UndefinedModule(module.value.clone()),
-                    module.span,
-                )
-            })?;
-
+            // we may be parsing a function from a 3rd-party library
+            // which might also come from another 3rd-party library
+            let module = self.resolve_module(module)?;
             self.dependencies.get_fn(module, fn_name)
         } else {
-            let fn_info = self
-                .typed
+            let curr_type_checker = self.current_type_checker();
+            let fn_info = curr_type_checker
                 .functions
                 .get(&fn_name.value)
                 .cloned()
@@ -148,16 +171,13 @@ impl CircuitWriter {
 
     pub fn get_struct(&self, module: &Option<Ident>, struct_name: &Ident) -> Result<StructInfo> {
         if let Some(module) = module {
-            let imported_module = self.typed.modules.get(&module.value).ok_or_else(|| {
-                Error::new(
-                    ErrorKind::UndefinedModule(module.value.clone()),
-                    module.span,
-                )
-            })?;
-
-            self.dependencies.get_struct(imported_module, struct_name)
+            // we may be parsing a struct from a 3rd-party library
+            // which might also come from another 3rd-party library
+            let module = self.resolve_module(module)?;
+            self.dependencies.get_struct(module, struct_name)
         } else {
-            let struct_info = self
+            let curr_type_checker = self.current_type_checker();
+            let struct_info = curr_type_checker
                 .struct_info(&struct_name.value)
                 .ok_or(Error::new(
                     ErrorKind::UndefinedStruct(struct_name.value.clone()),
@@ -166,6 +186,15 @@ impl CircuitWriter {
                 .clone();
             Ok(struct_info)
         }
+    }
+
+    /// Retrieves the [FnInfo] for the `main()` function.
+    /// This function should only be called if we know there's a main function,
+    /// if there's no main function it'll panic.
+    pub fn main_info(&self) -> &FnInfo {
+        self.typed
+            .fn_info("main")
+            .expect("bug in the compiler: main not found")
     }
 }
 
