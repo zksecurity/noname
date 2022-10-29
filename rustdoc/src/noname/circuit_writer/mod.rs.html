@@ -278,6 +278,7 @@
 <span id="278">278</span>
 <span id="279">279</span>
 <span id="280">280</span>
+<span id="281">281</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
@@ -466,7 +467,7 @@
                                 <span class="kw-2">*</span>len <span class="kw">as </span>usize
                             }
                             TyKind::Bool =&gt; <span class="number">1</span>,
-                            typ =&gt; circuit_writer.typed.size_of(typ),
+                            typ =&gt; circuit_writer.typed.size_of(deps, typ)<span class="question-mark">?</span>,
                         };
 
                         <span class="comment">// create the variable
@@ -489,7 +490,8 @@
                         // but we are being extra cautious due to attacks
                         // where the prover gives the verifier malformed inputs that look legit.
                         // (See short address attacks in Ethereum.)
-                        </span>circuit_writer.constrain_inputs_to_main(<span class="kw-2">&amp;</span>var.cvars, <span class="kw-2">&amp;</span>typ.kind, typ.span);
+                        </span>circuit_writer
+                            .constrain_inputs_to_main(deps, <span class="kw-2">&amp;</span>var.cvars, <span class="kw-2">&amp;</span>typ.kind, typ.span)<span class="question-mark">?</span>;
 
                         <span class="comment">// add argument variable to the ast env
                         </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>; <span class="comment">// TODO: should we add a mut keyword in arguments as well?

@@ -775,6 +775,24 @@
 <span id="775">775</span>
 <span id="776">776</span>
 <span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -887,23 +905,41 @@
 
     <span class="doccomment">/// Returns the number of field elements contained in the given type.
     </span><span class="comment">// TODO: might want to memoize that at some point
-    </span><span class="kw">pub fn </span>size_of(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>TyKind) -&gt; usize {
-        <span class="kw">match </span>typ {
+    </span><span class="kw">pub fn </span>size_of(<span class="kw-2">&amp;</span><span class="self">self</span>, deps: <span class="kw-2">&amp;</span>Dependencies, typ: <span class="kw-2">&amp;</span>TyKind) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+        <span class="kw">let </span>res = <span class="kw">match </span>typ {
             TyKind::Field =&gt; <span class="number">1</span>,
             TyKind::Custom { module, name } =&gt; {
-                <span class="kw">let </span>struct_info = <span class="self">self
-                    </span>.struct_info(<span class="kw-2">&amp;</span>name.value)
-                    .expect(<span class="string">&quot;couldn&#39;t find struct info of {c}&quot;</span>);
-                struct_info
-                    .fields
-                    .iter()
-                    .map(|(<span class="kw">_</span>, t)| <span class="self">self</span>.size_of(t))
-                    .sum()
+                <span class="kw">let </span>struct_name = <span class="kw-2">&amp;</span>name.value;
+                <span class="kw">let </span>struct_info = <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                    <span class="comment">// check module present in the scope
+                    </span><span class="kw">let </span>module_val = <span class="kw-2">&amp;</span>module.value;
+                    <span class="kw">let </span>imported_module = <span class="self">self</span>.modules.get(module_val).ok_or_else(|| {
+                        Error::new(ErrorKind::UndefinedModule(module_val.clone()), module.span)
+                    })<span class="question-mark">?</span>;
+
+                    deps.get_struct(imported_module, name)<span class="question-mark">?
+                </span>} <span class="kw">else </span>{
+                    <span class="self">self</span>.struct_info(struct_name)
+                        .ok_or(Error::new(
+                            ErrorKind::UndefinedStruct(struct_name.clone()),
+                            name.span,
+                        ))<span class="question-mark">?
+                        </span>.clone()
+                };
+
+                <span class="kw">let </span><span class="kw-2">mut </span>sum = <span class="number">0</span>;
+
+                <span class="kw">for </span>(<span class="kw">_</span>, t) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
+                    sum += <span class="self">self</span>.size_of(deps, t)<span class="question-mark">?</span>;
+                }
+
+                sum
             }
             TyKind::BigInt =&gt; <span class="number">1</span>,
-            TyKind::Array(typ, len) =&gt; (<span class="kw-2">*</span>len <span class="kw">as </span>usize) * <span class="self">self</span>.size_of(typ),
+            TyKind::Array(typ, len) =&gt; (<span class="kw-2">*</span>len <span class="kw">as </span>usize) * <span class="self">self</span>.size_of(deps, typ)<span class="question-mark">?</span>,
             TyKind::Bool =&gt; <span class="number">1</span>,
-        }
+        };
+        <span class="prelude-val">Ok</span>(res)
     }
 
     <span class="kw">pub fn </span>resolve_global_imports(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {

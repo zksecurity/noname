@@ -962,6 +962,36 @@
 <span id="962">962</span>
 <span id="963">963</span>
 <span id="964">964</span>
+<span id="965">965</span>
+<span id="966">966</span>
+<span id="967">967</span>
+<span id="968">968</span>
+<span id="969">969</span>
+<span id="970">970</span>
+<span id="971">971</span>
+<span id="972">972</span>
+<span id="973">973</span>
+<span id="974">974</span>
+<span id="975">975</span>
+<span id="976">976</span>
+<span id="977">977</span>
+<span id="978">978</span>
+<span id="979">979</span>
+<span id="980">980</span>
+<span id="981">981</span>
+<span id="982">982</span>
+<span id="983">983</span>
+<span id="984">984</span>
+<span id="985">985</span>
+<span id="986">986</span>
+<span id="987">987</span>
+<span id="988">988</span>
+<span id="989">989</span>
+<span id="990">990</span>
+<span id="991">991</span>
+<span id="992">992</span>
+<span id="993">993</span>
+<span id="994">994</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Display, Formatter},
     ops::Neg,
@@ -1210,10 +1240,11 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>constrain_inputs_to_main(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
         input: <span class="kw-2">&amp;</span>[ConstOrCell],
         input_typ: <span class="kw-2">&amp;</span>TyKind,
         span: Span,
-    ) {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">match </span>input_typ {
             TyKind::Field =&gt; (),
             TyKind::Bool =&gt; {
@@ -1221,29 +1252,45 @@
                 boolean::check(<span class="self">self</span>, <span class="kw-2">&amp;</span>input[<span class="number">0</span>], span);
             }
             TyKind::Array(tykind, <span class="kw">_</span>) =&gt; {
-                <span class="kw">let </span>el_size = <span class="self">self</span>.typed.size_of(tykind);
+                <span class="kw">let </span>el_size = <span class="self">self</span>.typed.size_of(deps, tykind)<span class="question-mark">?</span>;
                 <span class="kw">for </span>el <span class="kw">in </span>input.chunks(el_size) {
-                    <span class="self">self</span>.constrain_inputs_to_main(el, tykind, span);
+                    <span class="self">self</span>.constrain_inputs_to_main(deps, el, tykind, span);
                 }
             }
             TyKind::Custom {
                 module,
                 name: struct_name,
             } =&gt; {
-                <span class="kw">let </span>struct_info = <span class="self">self
-                    </span>.struct_info(<span class="kw-2">&amp;</span>struct_name.value)
-                    .expect(<span class="string">&quot;type-checker bug: couldn&#39;t find struct info of input to main&quot;</span>)
-                    .clone();
+                <span class="kw">let </span>struct_info = <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                    <span class="kw">let </span>imported_module =
+                        <span class="self">self</span>.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
+                            Error::new(
+                                ErrorKind::UndefinedModule(module.value.clone()),
+                                module.span,
+                            )
+                        })<span class="question-mark">?</span>;
+
+                    deps.get_struct(imported_module, <span class="kw-2">&amp;</span>struct_name)<span class="question-mark">?
+                </span>} <span class="kw">else </span>{
+                    <span class="self">self</span>.struct_info(<span class="kw-2">&amp;</span>struct_name.value)
+                        .ok_or(Error::new(
+                            ErrorKind::UndefinedStruct(struct_name.value.clone()),
+                            struct_name.span,
+                        ))<span class="question-mark">?
+                        </span>.clone()
+                };
+
                 <span class="kw">let </span><span class="kw-2">mut </span>offset = <span class="number">0</span>;
                 <span class="kw">for </span>(_field_name, field_typ) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
-                    <span class="kw">let </span>len = <span class="self">self</span>.typed.size_of(field_typ);
+                    <span class="kw">let </span>len = <span class="self">self</span>.typed.size_of(deps, field_typ)<span class="question-mark">?</span>;
                     <span class="kw">let </span>range = offset..(offset + len);
-                    <span class="self">self</span>.constrain_inputs_to_main(<span class="kw-2">&amp;</span>input[range], field_typ, span);
+                    <span class="self">self</span>.constrain_inputs_to_main(deps, <span class="kw-2">&amp;</span>input[range], field_typ, span)<span class="question-mark">?</span>;
                     offset += len;
                 }
             }
             TyKind::BigInt =&gt; <span class="macro">unreachable!</span>(),
-        }
+        };
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Compile a function. Used to compile `main()` only for now
@@ -1422,11 +1469,11 @@
                 <span class="kw">let </span><span class="kw-2">mut </span>len = <span class="number">0</span>;
                 <span class="kw">for </span>(field, field_typ) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
                     <span class="kw">if </span>field == <span class="kw-2">&amp;</span>rhs.value {
-                        len = <span class="self">self</span>.typed.size_of(field_typ);
+                        len = <span class="self">self</span>.typed.size_of(deps, field_typ)<span class="question-mark">?</span>;
                         <span class="kw">break</span>;
                     }
 
-                    start += <span class="self">self</span>.typed.size_of(field_typ);
+                    start += <span class="self">self</span>.typed.size_of(deps, field_typ)<span class="question-mark">?</span>;
                 }
 
                 <span class="comment">// narrow the variable to the given range
@@ -1447,8 +1494,8 @@
                     .expect(<span class="string">&quot;method call on what?&quot;</span>)
                     .clone();
 
-                <span class="kw">let </span>struct_name = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs_typ {
-                    TyKind::Custom { module, name } =&gt; name,
+                <span class="kw">let </span>(module, struct_name) = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs_typ {
+                    TyKind::Custom { module, name } =&gt; (module, name),
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;method call only work on custom types (TODO: better error)&quot;</span>),
                 };
 
@@ -1457,11 +1504,24 @@
                 </span><span class="kw">let </span>self_var = <span class="self">self</span>.compute_expr(fn_env, deps, lhs)<span class="question-mark">?</span>;
 
                 <span class="comment">// find method info
-                </span><span class="kw">let </span>struct_info = <span class="self">self
-                    </span>.typed
-                    .struct_info(<span class="kw-2">&amp;</span>struct_name.value)
-                    .expect(<span class="string">&quot;could not find struct info&quot;</span>)
-                    .clone();
+                </span><span class="kw">let </span>struct_info = <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                    <span class="kw">let </span>imported_module =
+                        <span class="self">self</span>.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
+                            Error::new(
+                                ErrorKind::UndefinedModule(module.value.clone()),
+                                module.span,
+                            )
+                        })<span class="question-mark">?</span>;
+
+                    deps.get_struct(imported_module, <span class="kw-2">&amp;</span>struct_name)<span class="question-mark">?
+                </span>} <span class="kw">else </span>{
+                    <span class="self">self</span>.struct_info(<span class="kw-2">&amp;</span>struct_name.value)
+                        .ok_or(Error::new(
+                            ErrorKind::UndefinedStruct(struct_name.value.clone()),
+                            struct_name.span,
+                        ))<span class="question-mark">?
+                        </span>.clone()
+                };
 
                 <span class="kw">let </span>func = struct_info
                     .methods
@@ -1667,7 +1727,7 @@
                 };
 
                 <span class="comment">// compute the size of each element in the array
-                </span><span class="kw">let </span>len = <span class="self">self</span>.typed.size_of(elem_type);
+                </span><span class="kw">let </span>len = <span class="self">self</span>.typed.size_of(deps, elem_type)<span class="question-mark">?</span>;
 
                 <span class="comment">// compute the real index
                 </span><span class="kw">let </span>start = idx * len;
