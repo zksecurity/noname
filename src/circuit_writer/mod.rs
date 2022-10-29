@@ -113,9 +113,7 @@ impl CircuitWriter {
     }
 
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
-        dbg!("calling expr_type for", expr);
         let curr_type_checker = self.current_type_checker();
-        dbg!("current type checker used from", &self.current_module);
         curr_type_checker.node_types.get(&expr.node_id)
     }
 
