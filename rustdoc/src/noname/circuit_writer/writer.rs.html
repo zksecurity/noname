@@ -918,6 +918,34 @@
 <span id="918">918</span>
 <span id="919">919</span>
 <span id="920">920</span>
+<span id="921">921</span>
+<span id="922">922</span>
+<span id="923">923</span>
+<span id="924">924</span>
+<span id="925">925</span>
+<span id="926">926</span>
+<span id="927">927</span>
+<span id="928">928</span>
+<span id="929">929</span>
+<span id="930">930</span>
+<span id="931">931</span>
+<span id="932">932</span>
+<span id="933">933</span>
+<span id="934">934</span>
+<span id="935">935</span>
+<span id="936">936</span>
+<span id="937">937</span>
+<span id="938">938</span>
+<span id="939">939</span>
+<span id="940">940</span>
+<span id="941">941</span>
+<span id="942">942</span>
+<span id="943">943</span>
+<span id="944">944</span>
+<span id="945">945</span>
+<span id="946">946</span>
+<span id="947">947</span>
+<span id="948">948</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::HashMap,
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1162,6 +1190,8 @@
         input_typ: <span class="kw-2">&amp;</span>TyKind,
         span: Span,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="macro">assert!</span>(<span class="self">self</span>.current_module.is_none());
+
         <span class="kw">match </span>input_typ {
             TyKind::Field =&gt; (),
             TyKind::Bool =&gt; {
@@ -1171,7 +1201,7 @@
             TyKind::Array(tykind, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>el_size = <span class="self">self</span>.size_of(tykind)<span class="question-mark">?</span>;
                 <span class="kw">for </span>el <span class="kw">in </span>input.chunks(el_size) {
-                    <span class="self">self</span>.constrain_inputs_to_main(el, tykind, span);
+                    <span class="self">self</span>.constrain_inputs_to_main(el, tykind, span)<span class="question-mark">?</span>;
                 }
             }
             TyKind::Custom {
@@ -1269,6 +1299,19 @@
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::RecursiveMain, expr.span));
                 }
 
+                <span class="comment">// module::fn_name(args)
+                // ^^^^^^
+                </span><span class="kw">let </span>prev_current_module = <span class="self">self</span>.current_module.clone();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                    <span class="comment">// TODO: find more elegant way to avoid std/crypto
+                    </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
+                        <span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
+
+                        <span class="comment">// change the current module
+                        </span><span class="self">self</span>.current_module = <span class="prelude-val">Some</span>(module.into());
+                    }
+                }
+
                 <span class="comment">// compute the arguments
                 // module::fn_name(args)
                 //                 ^^^^
@@ -1292,30 +1335,11 @@
                 <span class="comment">// retrieve the function in the env
                 </span><span class="kw">let </span>fn_info = <span class="self">self</span>.get_fn(module, fn_name)<span class="question-mark">?</span>;
 
-                <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
+                <span class="kw">let </span>res = <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
                     <span class="comment">// assert() &lt;-- for example
                     </span>FnKind::BuiltIn(_sig, handle) =&gt; {
                         <span class="kw">let </span>res = handle(<span class="self">self</span>, <span class="kw-2">&amp;</span>vars, expr.span);
                         res.map(|r| r.map(VarOrRef::Var))
-                    }
-
-                    <span class="comment">// module::fn_name(args)
-                    // ^^^^^^
-                    </span>FnKind::Native(func) <span class="kw">if </span>module.is_some() =&gt; {
-                        <span class="kw">let </span>prev_current_module = <span class="self">self</span>.current_module.clone();
-                        <span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module.as_ref().unwrap())<span class="question-mark">?</span>;
-
-                        <span class="comment">//  change the current module
-                        </span><span class="self">self</span>.current_module = <span class="prelude-val">Some</span>(module.into());
-
-                        <span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(<span class="kw-2">&amp;</span>func, vars);
-                        <span class="kw">let </span>res = res.map(|r| r.map(VarOrRef::Var));
-
-                        <span class="comment">// revert the current module
-                        </span><span class="self">self</span>.current_module = prev_current_module;
-
-                        <span class="comment">//
-                        </span>res
                     }
 
                     <span class="comment">// fn_name(args)
@@ -1324,7 +1348,18 @@
                         <span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(<span class="kw-2">&amp;</span>func, vars);
                         res.map(|r| r.map(VarOrRef::Var))
                     }
+                };
+
+                <span class="comment">// revert the current module
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                    <span class="comment">// TODO: find more elegant way to avoid std/crypto
+                    </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
+                        <span class="self">self</span>.current_module = prev_current_module;
+                    }
                 }
+
+                <span class="comment">//
+                </span>res
             }
 
             ExprKind::FieldAccess { lhs, rhs } =&gt; {
@@ -1386,11 +1421,20 @@
 
                 <span class="comment">// find method info
                 </span><span class="kw">let </span>struct_info = <span class="self">self</span>.get_struct(module, <span class="kw-2">&amp;</span>struct_name)<span class="question-mark">?</span>;
-
                 <span class="kw">let </span>func = struct_info
                     .methods
                     .get(<span class="kw-2">&amp;</span>method_name.value)
                     .expect(<span class="string">&quot;could not find method&quot;</span>);
+
+                <span class="comment">// potentially modify the module we&#39;re in to process this function
+                </span><span class="kw">let </span>prev_current_module = <span class="self">self</span>.current_module.clone();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                    <span class="comment">// TODO: find more elegant way to avoid std/crypto
+                    </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
+                        <span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
+                        <span class="self">self</span>.current_module = <span class="prelude-val">Some</span>(module.into());
+                    }
+                }
 
                 <span class="comment">// if method has a `self` argument, manually add it to the list of argument
                 </span><span class="kw">let </span><span class="kw-2">mut </span>vars = <span class="macro">vec!</span>[];
@@ -1428,8 +1472,20 @@
                 }
 
                 <span class="comment">// execute method
-                </span><span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(func, vars);
-                res.map(|r| r.map(VarOrRef::Var))
+                </span><span class="kw">let </span>res = <span class="self">self
+                    </span>.compile_native_function_call(func, vars)
+                    .map(|r| r.map(VarOrRef::Var));
+
+                <span class="comment">// revert the current module
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                    <span class="comment">// TODO: find more elegant way to avoid std/crypto
+                    </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
+                        <span class="self">self</span>.current_module = prev_current_module;
+                    }
+                }
+
+                <span class="comment">//
+                </span>res
             }
 
             ExprKind::IfElse { cond, then_, else_ } =&gt; {
