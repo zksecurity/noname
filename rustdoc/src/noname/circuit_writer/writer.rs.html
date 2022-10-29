@@ -935,17 +935,6 @@
 <span id="935">935</span>
 <span id="936">936</span>
 <span id="937">937</span>
-<span id="938">938</span>
-<span id="939">939</span>
-<span id="940">940</span>
-<span id="941">941</span>
-<span id="942">942</span>
-<span id="943">943</span>
-<span id="944">944</span>
-<span id="945">945</span>
-<span id="946">946</span>
-<span id="947">947</span>
-<span id="948">948</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::HashMap,
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -1059,30 +1048,10 @@
             public_input_size: <span class="number">0</span>,
             public_output: <span class="prelude-val">None</span>,
             private_input_indices: <span class="macro">vec!</span>[],
-            constants: HashMap::new(),
             double_generic_gate_optimization: <span class="bool-val">false</span>,
             pending_generic_gate: <span class="prelude-val">None</span>,
             cached_constants: HashMap::new(),
         }
-    }
-
-    <span class="doccomment">/// Stores type information about a local variable.
-    /// Note that we forbid shadowing at all scopes.
-    </span><span class="kw">pub fn </span>add_constant_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, constant: Field, span: Span) {
-        <span class="kw">let </span>var = Var::new_constant(constant, span);
-
-        <span class="kw">let </span>var_info = VarInfo::new(var, <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(TyKind::Field));
-
-        <span class="kw">if </span><span class="self">self</span>.constants.insert(name.clone(), var_info).is_some() {
-            <span class="macro">panic!</span>(<span class="string">&quot;constant `{name}` already exists (TODO: better error)&quot;</span>);
-        }
-    }
-
-    <span class="doccomment">/// Retrieves type information on a constantiable, given a name.
-    /// If the constantiable is not in scope, return false.
-    </span><span class="comment">// TODO: return an error no?
-    </span><span class="kw">pub fn </span>get_constant(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>VarInfo&gt; {
-        <span class="self">self</span>.constants.get(ident)
     }
 
     <span class="doccomment">/// Returns the compiled gates of the circuit.
@@ -1102,14 +1071,14 @@
                     </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// obtain the actual values
-                </span><span class="kw">let </span>rhs_var = rhs_var.value(fn_env);
+                </span><span class="kw">let </span>rhs_var = rhs_var.value(<span class="self">self</span>, fn_env);
 
                 <span class="kw">let </span>typ = <span class="self">self</span>.expr_type(rhs).cloned();
                 <span class="kw">let </span>var_info = VarInfo::new(rhs_var, <span class="kw-2">*</span>mutable, typ);
 
                 <span class="comment">// store the new variable
                 // TODO: do we really need to store that in the scope? That&#39;s not an actual var in the scope that&#39;s an internal var...
-                </span>fn_env.add_var(lhs.value.clone(), var_info);
+                </span><span class="self">self</span>.add_local_var(fn_env, lhs.value.clone(), var_info);
             }
 
             StmtKind::ForLoop { var, range, body } =&gt; {
@@ -1118,7 +1087,7 @@
 
                     <span class="kw">let </span>cst_var = Var::new_constant(ii.into(), var.span);
                     <span class="kw">let </span>var_info = VarInfo::new(cst_var, <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(TyKind::Field));
-                    fn_env.add_var(var.value.clone(), var_info);
+                    <span class="self">self</span>.add_local_var(fn_env, var.value.clone(), var_info);
 
                     <span class="self">self</span>.compile_block(fn_env, body)<span class="question-mark">?</span>;
 
@@ -1153,7 +1122,7 @@
             <span class="kw">let </span>res = <span class="self">self</span>.compile_stmt(fn_env, stmt)<span class="question-mark">?</span>;
             <span class="kw">if let </span><span class="prelude-val">Some</span>(var) = res {
                 <span class="comment">// a block doesn&#39;t return a pointer, only values
-                </span><span class="kw">let </span>var = var.value(fn_env);
+                </span><span class="kw">let </span>var = var.value(<span class="self">self</span>, fn_env);
 
                 <span class="comment">// we already checked for early returns in type checking
                 </span><span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var));
@@ -1171,13 +1140,13 @@
         <span class="macro">assert!</span>(!function.is_main());
 
         <span class="comment">// create new fn_env
-        </span><span class="kw">let </span>fn_env = <span class="kw-2">&amp;mut </span>FnEnv::new(<span class="kw-2">&amp;</span><span class="self">self</span>.constants);
+        </span><span class="kw">let </span>fn_env = <span class="kw-2">&amp;mut </span>FnEnv::new();
 
         <span class="comment">// set arguments
         </span><span class="macro">assert_eq!</span>(function.sig.arguments.len(), args.len());
 
         <span class="kw">for </span>(name, var_info) <span class="kw">in </span>function.sig.arguments.iter().zip(args) {
-            fn_env.add_var(name.name.value.clone(), var_info);
+            <span class="self">self</span>.add_local_var(fn_env, name.name.value.clone(), var_info);
         }
 
         <span class="comment">// compile it and potentially return a return value
@@ -1323,7 +1292,7 @@
                         </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))<span class="question-mark">?</span>;
 
                     <span class="comment">// we pass variables by values always
-                    </span><span class="kw">let </span>var = var.value(fn_env);
+                    </span><span class="kw">let </span>var = var.value(<span class="self">self</span>, fn_env);
 
                     <span class="kw">let </span>typ = <span class="self">self</span>.expr_type(arg).cloned();
                     <span class="kw">let </span>mutable = <span class="bool-val">false</span>; <span class="comment">// TODO: mut keyword in arguments?
@@ -1446,7 +1415,7 @@
 
                         <span class="comment">// TODO: for now we pass `self` by value as well
                         </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>;
-                        <span class="kw">let </span>self_var = self_var.value(fn_env);
+                        <span class="kw">let </span>self_var = self_var.value(<span class="self">self</span>, fn_env);
 
                         <span class="kw">let </span>self_var_info = VarInfo::new(self_var, mutable, <span class="prelude-val">Some</span>(lhs_typ.clone()));
                         vars.insert(<span class="number">0</span>, self_var_info);
@@ -1463,7 +1432,7 @@
 
                     <span class="comment">// TODO: for now we pass `self` by value as well
                     </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>;
-                    <span class="kw">let </span>var = var.value(fn_env);
+                    <span class="kw">let </span>var = var.value(<span class="self">self</span>, fn_env);
 
                     <span class="kw">let </span>typ = <span class="self">self</span>.expr_type(arg).cloned();
                     <span class="kw">let </span>var_info = VarInfo::new(var, mutable, typ);
@@ -1489,9 +1458,18 @@
             }
 
             ExprKind::IfElse { cond, then_, else_ } =&gt; {
-                <span class="kw">let </span>cond = <span class="self">self</span>.compute_expr(fn_env, cond)<span class="question-mark">?</span>.unwrap().value(fn_env);
-                <span class="kw">let </span>then_ = <span class="self">self</span>.compute_expr(fn_env, then_)<span class="question-mark">?</span>.unwrap().value(fn_env);
-                <span class="kw">let </span>else_ = <span class="self">self</span>.compute_expr(fn_env, else_)<span class="question-mark">?</span>.unwrap().value(fn_env);
+                <span class="kw">let </span>cond = <span class="self">self
+                    </span>.compute_expr(fn_env, cond)<span class="question-mark">?
+                    </span>.unwrap()
+                    .value(<span class="self">self</span>, fn_env);
+                <span class="kw">let </span>then_ = <span class="self">self
+                    </span>.compute_expr(fn_env, then_)<span class="question-mark">?
+                    </span>.unwrap()
+                    .value(<span class="self">self</span>, fn_env);
+                <span class="kw">let </span>else_ = <span class="self">self
+                    </span>.compute_expr(fn_env, else_)<span class="question-mark">?
+                    </span>.unwrap()
+                    .value(<span class="self">self</span>, fn_env);
 
                 <span class="kw">let </span>res = field::if_else(<span class="self">self</span>, <span class="kw-2">&amp;</span>cond, <span class="kw-2">&amp;</span>then_, <span class="kw-2">&amp;</span>else_, expr.span);
 
@@ -1511,7 +1489,7 @@
                         start,
                         len,
                     } =&gt; {
-                        <span class="kw">let </span>var_info = fn_env.get_var(<span class="kw-2">&amp;</span>var_name);
+                        <span class="kw">let </span>var_info = <span class="self">self</span>.get_local_var(fn_env, <span class="kw-2">&amp;</span>var_name);
                         <span class="kw">let </span>cvars = var_info.var.range(start, len).to_vec();
                         Var::new(cvars, var_info.var.span)
                     }
@@ -1536,8 +1514,8 @@
                 <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(fn_env, lhs)<span class="question-mark">?</span>.unwrap();
                 <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(fn_env, rhs)<span class="question-mark">?</span>.unwrap();
 
-                <span class="kw">let </span>lhs = lhs.value(fn_env);
-                <span class="kw">let </span>rhs = rhs.value(fn_env);
+                <span class="kw">let </span>lhs = lhs.value(<span class="self">self</span>, fn_env);
+                <span class="kw">let </span>rhs = rhs.value(<span class="self">self</span>, fn_env);
 
                 <span class="kw">let </span>res = <span class="kw">match </span>op {
                     Op2::Addition =&gt; field::add(<span class="self">self</span>, <span class="kw-2">&amp;</span>lhs[<span class="number">0</span>], <span class="kw-2">&amp;</span>rhs[<span class="number">0</span>], expr.span),
@@ -1555,7 +1533,7 @@
             ExprKind::Negated(b) =&gt; {
                 <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, b)<span class="question-mark">?</span>.unwrap();
 
-                <span class="kw">let </span>var = var.value(fn_env);
+                <span class="kw">let </span>var = var.value(<span class="self">self</span>, fn_env);
 
                 <span class="macro">todo!</span>()
             }
@@ -1563,7 +1541,7 @@
             ExprKind::Not(b) =&gt; {
                 <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, b)<span class="question-mark">?</span>.unwrap();
 
-                <span class="kw">let </span>var = var.value(fn_env);
+                <span class="kw">let </span>var = var.value(<span class="self">self</span>, fn_env);
 
                 <span class="kw">let </span>res = boolean::not(<span class="self">self</span>, <span class="kw-2">&amp;</span>var[<span class="number">0</span>], expr.span.merge_with(b.span));
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(VarOrRef::Var(res)))
@@ -1595,7 +1573,7 @@
                     // (most likely what follows is a static method call)
                     </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
                 } <span class="kw">else </span>{
-                    <span class="kw">let </span>var_info = fn_env.get_var(<span class="kw-2">&amp;</span>name.value);
+                    <span class="kw">let </span>var_info = <span class="self">self</span>.get_local_var(fn_env, <span class="kw-2">&amp;</span>name.value);
 
                     <span class="kw">let </span>res = VarOrRef::from_var_info(name.value.clone(), var_info);
                     <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(res))
@@ -1660,7 +1638,7 @@
 
                 <span class="kw">for </span>item <span class="kw">in </span>items {
                     <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, item)<span class="question-mark">?</span>.unwrap();
-                    <span class="kw">let </span>to_extend = var.value(fn_env).cvars.clone();
+                    <span class="kw">let </span>to_extend = var.value(<span class="self">self</span>, fn_env).cvars.clone();
                     cvars.extend(to_extend);
                 }
 
@@ -1677,7 +1655,7 @@
                 </span><span class="kw">let </span><span class="kw-2">mut </span>cvars = <span class="macro">vec!</span>[];
                 <span class="kw">for </span>(_field, rhs) <span class="kw">in </span>fields {
                     <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, rhs)<span class="question-mark">?</span>.unwrap();
-                    <span class="kw">let </span>to_extend = var.value(fn_env).cvars.clone();
+                    <span class="kw">let </span>to_extend = var.value(<span class="self">self</span>, fn_env).cvars.clone();
                     cvars.extend(to_extend);
                 }
                 <span class="kw">let </span>var = VarOrRef::Var(Var::new(cvars, expr.span));

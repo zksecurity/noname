@@ -168,14 +168,6 @@
 <span id="168">168</span>
 <span id="169">169</span>
 <span id="170">170</span>
-<span id="171">171</span>
-<span id="172">172</span>
-<span id="173">173</span>
-<span id="174">174</span>
-<span id="175">175</span>
-<span id="176">176</span>
-<span id="177">177</span>
-<span id="178">178</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{parser::TyKind, var::Var};
@@ -230,7 +222,7 @@
 <span class="doccomment">/// Is used to store functions&#39; scoped variables.
 /// This include inputs and output of the function,  as well as local variables.
 /// You can think of it as a function call stack.
-</span><span class="attribute">#[derive(Debug, Clone)]
+</span><span class="attribute">#[derive(Default, Debug, Clone)]
 </span><span class="kw">pub struct </span>FnEnv {
     <span class="doccomment">/// The current nesting level.
     /// Starting at 0 (top level), and increasing as we go into a block.
@@ -245,16 +237,8 @@
 
 <span class="kw">impl </span>FnEnv {
     <span class="doccomment">/// Creates a new FnEnv
-    </span><span class="kw">pub fn </span>new(constants: <span class="kw-2">&amp;</span>HashMap&lt;String, VarInfo&gt;) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>vars = constants
-            .iter()
-            .map(|(k, v)| (k.clone(), (<span class="number">0</span>, v.clone())))
-            .collect();
-
-        <span class="self">Self </span>{
-            current_scope: <span class="number">0</span>,
-            vars,
-        }
+    </span><span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::default()
     }
 
     <span class="doccomment">/// Enters a scoped block.
@@ -281,13 +265,13 @@
     }
 
     <span class="doccomment">/// Returns true if a scope is a prefix of our scope.
-    </span><span class="kw">pub fn </span>is_in_scope(<span class="kw-2">&amp;</span><span class="self">self</span>, prefix_scope: usize) -&gt; bool {
+    </span><span class="kw">fn </span>is_in_scope(<span class="kw-2">&amp;</span><span class="self">self</span>, prefix_scope: usize) -&gt; bool {
         <span class="self">self</span>.current_scope &gt;= prefix_scope
     }
 
     <span class="doccomment">/// Stores type information about a local variable.
     /// Note that we forbid shadowing at all scopes.
-    </span><span class="kw">pub fn </span>add_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_name: String, var_info: VarInfo) {
+    </span><span class="kw">pub fn </span>add_local_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_name: String, var_info: VarInfo) {
         <span class="kw">let </span>scope = <span class="self">self</span>.current_scope;
 
         <span class="kw">if </span><span class="self">self
@@ -302,7 +286,7 @@
     <span class="doccomment">/// Retrieves type information on a variable, given a name.
     /// If the variable is not in scope, return false.
     </span><span class="comment">// TODO: return an error no?
-    </span><span class="kw">pub fn </span>get_var(<span class="kw-2">&amp;</span><span class="self">self</span>, var_name: <span class="kw-2">&amp;</span>str) -&gt; VarInfo {
+    </span><span class="kw">pub fn </span>get_local_var(<span class="kw-2">&amp;</span><span class="self">self</span>, var_name: <span class="kw-2">&amp;</span>str) -&gt; VarInfo {
         <span class="comment">// if not found, then look into local variables
         </span><span class="kw">let </span>(scope, var_info) = <span class="self">self
             </span>.vars
@@ -315,7 +299,7 @@
         var_info.clone()
     }
 
-    <span class="kw">pub fn </span>reassign_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_name: <span class="kw-2">&amp;</span>str, var: Var) {
+    <span class="kw">pub fn </span>reassign_local_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_name: <span class="kw-2">&amp;</span>str, var: Var) {
         <span class="comment">// get the scope first, we don&#39;t want to modify that
         </span><span class="kw">let </span>(scope, var_info) = <span class="self">self
             </span>.vars

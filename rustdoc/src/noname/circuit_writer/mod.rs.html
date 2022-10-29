@@ -337,6 +337,23 @@
 <span id="337">337</span>
 <span id="338">338</span>
 <span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
@@ -420,9 +437,6 @@
     <span class="doccomment">/// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) private_input_indices: Vec&lt;usize&gt;,
-
-    <span class="doccomment">/// Constants defined in the module/program.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) constants: HashMap&lt;String, VarInfo&gt;,
 
     <span class="doccomment">/// If set to false, a single generic gate will be used per double generic gate.
     /// This can be useful for debugging.
@@ -532,6 +546,31 @@
         }
     }
 
+    <span class="kw">pub fn </span>add_local_var(<span class="kw-2">&amp;</span><span class="self">self</span>, fn_env: <span class="kw-2">&amp;mut </span>FnEnv, var_name: String, var_info: VarInfo) {
+        <span class="comment">// check for consts first
+        </span><span class="kw">let </span>type_checker = <span class="self">self</span>.current_type_checker();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(_cst_info) = type_checker.constants.get(<span class="kw-2">&amp;</span>var_name) {
+            <span class="macro">panic!</span>(
+                <span class="string">&quot;type checker bug: we already have a constant with the same name (`{var_name}`)!&quot;
+            </span>);
+        }
+
+        <span class="comment">//
+        </span>fn_env.add_local_var(var_name, var_info)
+    }
+
+    <span class="kw">pub fn </span>get_local_var(<span class="kw-2">&amp;</span><span class="self">self</span>, fn_env: <span class="kw-2">&amp;</span>FnEnv, var_name: <span class="kw-2">&amp;</span>str) -&gt; VarInfo {
+        <span class="comment">// check for consts first
+        </span><span class="kw">let </span>type_checker = <span class="self">self</span>.current_type_checker();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(cst_info) = type_checker.constants.get(var_name) {
+            <span class="kw">let </span>var = Var::new_constant(cst_info.value, cst_info.typ.span);
+            <span class="kw">return </span>VarInfo::new(var, <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(TyKind::Field));
+        }
+
+        <span class="comment">// then check for local variables
+        </span>fn_env.get_local_var(var_name)
+    }
+
     <span class="doccomment">/// Retrieves the [FnInfo] for the `main()` function.
     /// This function should only be called if we know there&#39;s a main function,
     /// if there&#39;s no main function it&#39;ll panic.
@@ -551,11 +590,6 @@
         <span class="comment">// create circuit writer
         </span><span class="kw">let </span><span class="kw-2">mut </span>circuit_writer = CircuitWriter::new(code, typed, deps);
 
-        <span class="comment">// Process constants of main module
-        </span><span class="kw">for </span>(name, cst_info) <span class="kw">in </span>circuit_writer.typed.constants.clone() {
-            circuit_writer.add_constant_var(name, cst_info.value, cst_info.typ.span);
-        }
-
         <span class="comment">// get main function
         </span><span class="kw">let </span>main_fn_info = circuit_writer
             .typed
@@ -569,7 +603,7 @@
         };
 
         <span class="comment">// create the main env
-        </span><span class="kw">let </span>fn_env = <span class="kw-2">&amp;mut </span>FnEnv::new(<span class="kw-2">&amp;</span>circuit_writer.constants);
+        </span><span class="kw">let </span>fn_env = <span class="kw-2">&amp;mut </span>FnEnv::new();
 
         <span class="comment">// create public and private inputs
         </span><span class="kw">for </span>FnArg {
@@ -617,7 +651,7 @@
             <span class="comment">// add argument variable to the ast env
             </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>; <span class="comment">// TODO: should we add a mut keyword in arguments as well?
             </span><span class="kw">let </span>var_info = VarInfo::new(var, mutable, <span class="prelude-val">Some</span>(typ.kind.clone()));
-            fn_env.add_var(name.value.clone(), var_info);
+            circuit_writer.add_local_var(fn_env, name.value.clone(), var_info);
         }
 
         <span class="comment">// create public output
