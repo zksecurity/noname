@@ -103,8 +103,30 @@ impl CircuitWriter {
         self.typed.size_of(&self.dependencies, ty)
     }
 
-    pub fn get_fn(&self, module: &UsePath, fn_name: &Ident) -> Result<FnInfo> {
-        self.dependencies.get_fn(module, fn_name)
+    pub fn get_fn(&self, module: &Option<Ident>, fn_name: &Ident) -> Result<FnInfo> {
+        if let Some(module) = module {
+            let module = self.typed.modules.get(&module.value).ok_or_else(|| {
+                Error::new(
+                    ErrorKind::UndefinedModule(module.value.clone()),
+                    module.span,
+                )
+            })?;
+
+            self.dependencies.get_fn(module, fn_name)
+        } else {
+            let fn_info = self
+                .typed
+                .functions
+                .get(&fn_name.value)
+                .cloned()
+                .ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                        fn_name.span,
+                    )
+                })?;
+            Ok(fn_info)
+        }
     }
 
     pub fn get_struct(&self, module: &Option<Ident>, struct_name: &Ident) -> Result<StructInfo> {
@@ -406,49 +428,23 @@ impl CircuitWriter {
                 }
 
                 // retrieve the function in the env
-                if let Some(module) = module {
+                let fn_info = self.get_fn(module, fn_name)?;
+
+                match &fn_info.kind {
+                    FnKind::BuiltIn(_sig, handle) => {
+                        let res = handle(self, &vars, expr.span);
+                        res.map(|r| r.map(VarOrRef::Var))
+                    }
+
                     // module::fn_name(args)
                     // ^^^^^^
-                    let module = self.typed.modules.get(&module.value).ok_or_else(|| {
-                        Error::new(
-                            ErrorKind::UndefinedModule(module.value.clone()),
-                            module.span,
-                        )
-                    })?;
+                    FnKind::Native(_) if module.is_some() => todo!(),
 
-                    let fn_info = self.get_fn(module, fn_name)?;
-
-                    match &fn_info.kind {
-                        FnKind::BuiltIn(_, handle) => {
-                            let res = handle(self, &vars, expr.span);
-                            res.map(|r| r.map(VarOrRef::Var))
-                        }
-                        FnKind::Native(_) => todo!(),
-                    }
-                } else {
                     // fn_name(args)
                     // ^^^^^^^
-                    let fn_info = self
-                        .typed
-                        .functions
-                        .get(&fn_name.value)
-                        .cloned()
-                        .ok_or_else(|| {
-                            Error::new(
-                                ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                                fn_name.span,
-                            )
-                        })?;
-
-                    match &fn_info.kind {
-                        FnKind::BuiltIn(_sig, handle) => {
-                            let res = handle(self, &vars, expr.span);
-                            res.map(|r| r.map(VarOrRef::Var))
-                        }
-                        FnKind::Native(func) => {
-                            let res = self.compile_native_function_call(&func, vars);
-                            res.map(|r| r.map(VarOrRef::Var))
-                        }
+                    FnKind::Native(func) => {
+                        let res = self.compile_native_function_call(&func, vars);
+                        res.map(|r| r.map(VarOrRef::Var))
                     }
                 }
             }
