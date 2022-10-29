@@ -21,11 +21,11 @@ use once_cell::sync::Lazy;
 // aliases
 //
 
-type Curve = kimchi::mina_curves::pasta::vesta::Affine;
-type OtherCurve = kimchi::mina_curves::pasta::pallas::Affine;
+type Curve = kimchi::mina_curves::pasta::Vesta;
+type OtherCurve = kimchi::mina_curves::pasta::Pallas;
 type SpongeParams = kimchi::oracle::constants::PlonkSpongeConstantsKimchi;
 type BaseSponge = kimchi::oracle::sponge::DefaultFqSponge<
-    kimchi::mina_curves::pasta::vesta::VestaParameters,
+    kimchi::mina_curves::pasta::VestaParameters,
     SpongeParams,
 >;
 type ScalarSponge = kimchi::oracle::sponge::DefaultFrSponge<Field, SpongeParams>;
@@ -88,7 +88,7 @@ pub fn compile_and_prove(code: &str) -> Result<(ProverIndex, VerifierIndex)> {
     // create constraint system
     let fp_sponge_params = kimchi::oracle::pasta::fp_kimchi::params();
 
-    let cs = kimchi::circuits::constraints::ConstraintSystem::create(gates, fp_sponge_params)
+    let cs = kimchi::circuits::constraints::ConstraintSystem::create(gates)
         .public(compiled_circuit.circuit.public_input_size)
         .build()
         .map_err(|e| Error::new(e.into(), Span(0, 0)))?;
@@ -105,8 +105,7 @@ pub fn compile_and_prove(code: &str) -> Result<(ProverIndex, VerifierIndex)> {
     let fq_sponge_params = kimchi::oracle::pasta::fq_kimchi::params();
     let (endo_q, _endo_r) = kimchi::commitment_dlog::srs::endos::<OtherCurve>();
 
-    let prover_index =
-        kimchi::prover_index::ProverIndex::<Curve>::create(cs, fq_sponge_params, endo_q, srs);
+    let prover_index = kimchi::prover_index::ProverIndex::<Curve>::create(cs, endo_q, srs);
     let verifier_index = prover_index.verifier_index();
 
     // wrap
@@ -163,7 +162,10 @@ impl ProverIndex {
 
         // verify the witness
         if debug {
-            self.index.cs.verify(&witness, &full_public_inputs).unwrap();
+            self.index
+                .cs
+                .verify::<Curve>(&witness, &full_public_inputs)
+                .unwrap();
         }
 
         // create proof

@@ -141,12 +141,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "array-init"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfb6d71005dc22a708c7496eee5c8dc0300ee47355de6256c3b35b12b5fef596"
-
-[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -221,7 +215,7 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 [[package]]
 name = "cairo"
 version = "0.1.0"
-source = "git+https://github.com/o1-labs/proof-systems#e578b08f4c450eca627402c5986ac9c4c10daf5b"
+source = "git+https://github.com/o1-labs/proof-systems?rev=b9589626f834f9dbf9d587e73fd8176171231e90#b9589626f834f9dbf9d587e73fd8176171231e90"
 dependencies = [
  "ark-ff",
  "hex",
@@ -280,18 +274,18 @@ dependencies = [
 [[package]]
 name = "commitment_dlog"
 version = "0.1.0"
-source = "git+https://github.com/o1-labs/proof-systems#e578b08f4c450eca627402c5986ac9c4c10daf5b"
+source = "git+https://github.com/o1-labs/proof-systems?rev=b9589626f834f9dbf9d587e73fd8176171231e90#b9589626f834f9dbf9d587e73fd8176171231e90"
 dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-poly",
  "ark-serialize",
- "array-init",
  "blake2",
  "groupmap",
  "itertools",
  "mina-curves",
  "o1-utils",
+ "once_cell",
  "oracle",
  "rand",
  "rand_core",
@@ -452,6 +446,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "disjoint-set"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d102f1a462fdcdddce88d6d46c06c074a2d2749b262230333726b06c52bb7585"
+
+[[package]]
 name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -502,7 +502,7 @@ checksum = "78cc372d058dcf6d5ecd98510e7fbc9e5aec4d21de70f65fea8fecebcd881bd4"
 [[package]]
 name = "groupmap"
 version = "0.1.0"
-source = "git+https://github.com/o1-labs/proof-systems#e578b08f4c450eca627402c5986ac9c4c10daf5b"
+source = "git+https://github.com/o1-labs/proof-systems?rev=b9589626f834f9dbf9d587e73fd8176171231e90#b9589626f834f9dbf9d587e73fd8176171231e90"
 dependencies = [
  "ark-ec",
  "ark-ff",
@@ -569,16 +569,16 @@ checksum = "6c8af84674fe1f223a982c933a0ee1086ac4d4052aa0fb8060c12c6ad838e754"
 [[package]]
 name = "kimchi"
 version = "0.1.0"
-source = "git+https://github.com/o1-labs/proof-systems#e578b08f4c450eca627402c5986ac9c4c10daf5b"
+source = "git+https://github.com/o1-labs/proof-systems?rev=b9589626f834f9dbf9d587e73fd8176171231e90#b9589626f834f9dbf9d587e73fd8176171231e90"
 dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-poly",
  "ark-serialize",
- "array-init",
  "blake2",
  "cairo",
  "commitment_dlog",
+ "disjoint-set",
  "groupmap",
  "hex",
  "itertools",
@@ -664,7 +664,7 @@ dependencies = [
 [[package]]
 name = "mina-curves"
 version = "0.1.0"
-source = "git+https://github.com/o1-labs/proof-systems#e578b08f4c450eca627402c5986ac9c4c10daf5b"
+source = "git+https://github.com/o1-labs/proof-systems?rev=b9589626f834f9dbf9d587e73fd8176171231e90#b9589626f834f9dbf9d587e73fd8176171231e90"
 dependencies = [
  "ark-ec",
  "ark-ff",
@@ -710,6 +710,7 @@ dependencies = [
  "autocfg",
  "num-integer",
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -755,7 +756,7 @@ dependencies = [
 [[package]]
 name = "o1-utils"
 version = "0.1.0"
-source = "git+https://github.com/o1-labs/proof-systems#e578b08f4c450eca627402c5986ac9c4c10daf5b"
+source = "git+https://github.com/o1-labs/proof-systems?rev=b9589626f834f9dbf9d587e73fd8176171231e90#b9589626f834f9dbf9d587e73fd8176171231e90"
 dependencies = [
  "ark-ec",
  "ark-ff",
@@ -789,13 +790,14 @@ checksum = "e82dad04139b71a90c080c8463fe0dc7902db5192d939bd0950f074d014339e1"
 [[package]]
 name = "oracle"
 version = "0.1.0"
-source = "git+https://github.com/o1-labs/proof-systems#e578b08f4c450eca627402c5986ac9c4c10daf5b"
+source = "git+https://github.com/o1-labs/proof-systems?rev=b9589626f834f9dbf9d587e73fd8176171231e90#b9589626f834f9dbf9d587e73fd8176171231e90"
 dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-poly",
  "mina-curves",
  "o1-utils",
+ "once_cell",
  "rand",
  "rayon",
  "serde",

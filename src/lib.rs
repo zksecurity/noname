@@ -58,7 +58,7 @@ pub mod helpers {
             Field,
             PlonkSpongeConstantsKimchi,
         > = kimchi::oracle::poseidon::ArithmeticSponge::new(
-            kimchi::oracle::pasta::fp_kimchi::params(),
+            kimchi::oracle::pasta::fp_kimchi::static_params(),
         );
         sponge.absorb(&input);
         sponge.squeeze()
