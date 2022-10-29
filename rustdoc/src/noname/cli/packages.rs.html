@@ -380,6 +380,50 @@
 <span id="380">380</span>
 <span id="381">381</span>
 <span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
@@ -395,12 +439,12 @@
 
 <span class="doccomment">/// A dependency is a Github `user/repo` pair.
 </span><span class="attribute">#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-</span><span class="kw">pub struct </span>Library {
+</span><span class="kw">pub struct </span>UserRepo {
     user: String,
     repo: String,
 }
 
-<span class="kw">impl </span>Library {
+<span class="kw">impl </span>UserRepo {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(arg: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>args = arg.split(<span class="string">&quot;/&quot;</span>);
         <span class="kw">let </span>user = args.next().unwrap().to_string();
@@ -410,7 +454,7 @@
     }
 }
 
-<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Library {
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>UserRepo {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
         <span class="macro">write!</span>(f, <span class="string">&quot;{}/{}&quot;</span>, <span class="self">self</span>.user, <span class="self">self</span>.repo)
     }
@@ -420,13 +464,13 @@
 </span><span class="kw">pub struct </span>DependencyGraph {
     <span class="doccomment">/// Name of this package.
     /// Useful to make sure the package doesn&#39;t depend on itself.
-    </span>this: <span class="prelude-ty">Option</span>&lt;Library&gt;,
+    </span>this: <span class="prelude-ty">Option</span>&lt;UserRepo&gt;,
     root: Vec&lt;DependencyNode&gt;,
-    cached_manifests: HashMap&lt;Library, Vec&lt;Library&gt;&gt;,
+    cached_manifests: HashMap&lt;UserRepo, Vec&lt;UserRepo&gt;&gt;,
 }
 
 <span class="kw">impl </span>DependencyGraph {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(this: <span class="prelude-ty">Option</span>&lt;Library&gt;) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(this: <span class="prelude-ty">Option</span>&lt;UserRepo&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             this,
             root: <span class="macro">vec!</span>[],
@@ -434,14 +478,14 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_from_manifest(this: <span class="prelude-ty">Option</span>&lt;Library&gt;, manifest: <span class="kw-2">&amp;</span>Manifest) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_from_manifest(this: <span class="prelude-ty">Option</span>&lt;UserRepo&gt;, manifest: <span class="kw-2">&amp;</span>Manifest) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>dep_graph = <span class="self">Self</span>::new(this);
         <span class="kw">let </span>deps = get_deps_of_package(manifest);
         dep_graph.add_deps(deps)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(dep_graph)
     }
 
-    <span class="kw">fn </span>add_deps(<span class="kw-2">&amp;mut </span><span class="self">self</span>, deps: Vec&lt;Library&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">fn </span>add_deps(<span class="kw-2">&amp;mut </span><span class="self">self</span>, deps: Vec&lt;UserRepo&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">for </span>dep <span class="kw">in </span>deps {
             <span class="self">self</span>.add_dep(dep)<span class="question-mark">?</span>;
         }
@@ -449,7 +493,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>add_dep(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dep: Library) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">fn </span>add_dep(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dep: UserRepo) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>parents = HashSet::new();
         <span class="kw">if let </span><span class="prelude-val">Some</span>(this) = <span class="kw-2">&amp;</span><span class="self">self</span>.this {
             <span class="kw">if </span>this == <span class="kw-2">&amp;</span>dep {
@@ -467,8 +511,8 @@
 
     <span class="kw">pub fn </span>init_package(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        package: <span class="kw-2">&amp;</span>Library,
-        <span class="kw-2">mut </span>parents: HashSet&lt;Library&gt;,
+        package: <span class="kw-2">&amp;</span>UserRepo,
+        <span class="kw-2">mut </span>parents: HashSet&lt;UserRepo&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;DependencyNode&gt; {
         <span class="comment">// add package to parent
         </span>parents.insert(package.clone());
@@ -517,16 +561,45 @@
         </span><span class="kw">let </span>node = DependencyNode::new(package.clone(), deps_nodes);
         <span class="prelude-val">Ok</span>(node)
     }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_leaves_to_roots(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;UserRepo&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[];
+
+        <span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.root {
+            <span class="kw">let </span><span class="kw-2">mut </span>stack = <span class="macro">vec!</span>[root];
+            <span class="kw">while let </span><span class="prelude-val">Some</span>(node) = stack.pop() {
+                <span class="comment">// we already added this package (and its dependencies)
+                </span><span class="kw">if </span>res.contains(<span class="kw-2">&amp;</span>node.dep) {
+                    <span class="kw">continue</span>;
+                }
+
+                <span class="comment">// we can add this package only if all its deps are already in
+                </span><span class="kw">let </span>can_add = node.deps.iter().all(|dep| res.contains(<span class="kw-2">&amp;</span>dep.dep));
+
+                <span class="kw">if </span>can_add {
+                    res.push(node.dep.clone());
+                } <span class="kw">else </span>{
+                    stack.push(node); <span class="comment">//re-add
+
+                    </span><span class="kw">for </span>dep <span class="kw">in </span><span class="kw-2">&amp;</span>node.deps {
+                        stack.push(dep);
+                    }
+                }
+            }
+        }
+
+        res
+    }
 }
 
 <span class="attribute">#[derive(Clone, Debug)]
 </span><span class="kw">pub struct </span>DependencyNode {
-    dep: Library,
+    dep: UserRepo,
     deps: Vec&lt;DependencyNode&gt;,
 }
 
 <span class="kw">impl </span>DependencyNode {
-    <span class="kw">fn </span>new(dep: Library, deps: Vec&lt;DependencyNode&gt;) -&gt; <span class="self">Self </span>{
+    <span class="kw">fn </span>new(dep: UserRepo, deps: Vec&lt;DependencyNode&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ dep, deps }
     }
 }
@@ -535,7 +608,7 @@
 /// It downloads it from github, and stores it under the `deps` directory.
 /// A dependency is expected go be given as &quot;user/repo&quot;.
 /// Note that this does not download the dependencies of the dependency.
-</span><span class="kw">pub fn </span>get_dep(dep: <span class="kw-2">&amp;</span>Library) -&gt; <span class="prelude-ty">Result</span>&lt;Manifest&gt; {
+</span><span class="kw">pub fn </span>get_dep(dep: <span class="kw-2">&amp;</span>UserRepo) -&gt; <span class="prelude-ty">Result</span>&lt;Manifest&gt; {
     <span class="comment">// download the dependency if we don&#39;t already have it
     </span><span class="kw">let </span>path = path_to_package(dep);
 
@@ -552,7 +625,7 @@
 }
 
 <span class="doccomment">/// Returns the dependencies of a package (given it&#39;s manifest).
-</span><span class="kw">pub fn </span>get_deps_of_package(manifest: <span class="kw-2">&amp;</span>Manifest) -&gt; Vec&lt;Library&gt; {
+</span><span class="kw">pub fn </span>get_deps_of_package(manifest: <span class="kw-2">&amp;</span>Manifest) -&gt; Vec&lt;UserRepo&gt; {
     manifest
         .dependencies()
         .iter()
@@ -564,13 +637,13 @@
                 split.next().is_none(),
                 <span class="string">&quot;invalid dependency name (expected: user/repo (TODO: better error)&quot;
             </span>);
-            Library { user, repo }
+            UserRepo { user, repo }
         })
         .collect()
 }
 
 <span class="comment">// read the package&#39;s `lib.no` file
-</span><span class="kw">pub fn </span>get_dep_code(dep: <span class="kw-2">&amp;</span>Library) -&gt; <span class="prelude-ty">Result</span>&lt;String&gt; {
+</span><span class="kw">pub fn </span>get_dep_code(dep: <span class="kw-2">&amp;</span>UserRepo) -&gt; <span class="prelude-ty">Result</span>&lt;String&gt; {
     <span class="kw">let </span>path = path_to_package(dep);
 
     <span class="kw">let </span>lib_file = path.join(<span class="string">&quot;src&quot;</span>).join(<span class="string">&quot;lib.no&quot;</span>);
@@ -582,7 +655,7 @@
 }
 
 <span class="doccomment">/// Obtain local path to a package.
-</span><span class="kw">fn </span>path_to_package(dep: <span class="kw-2">&amp;</span>Library) -&gt; PathBuf {
+</span><span class="kw">fn </span>path_to_package(dep: <span class="kw-2">&amp;</span>UserRepo) -&gt; PathBuf {
     <span class="kw">let </span>home_dir = dirs::home_dir().expect(<span class="string">&quot;could not find home directory of current user&quot;</span>);
     <span class="kw">let </span>noname_dir = home_dir.join(NONAME_DIRECTORY);
     <span class="kw">let </span>package_dir = noname_dir.join(PACKAGE_DIRECTORY);
@@ -591,7 +664,7 @@
 }
 
 <span class="doccomment">/// download package from github
-</span><span class="kw">pub fn </span>download_from_github(dep: <span class="kw-2">&amp;</span>Library) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+</span><span class="kw">pub fn </span>download_from_github(dep: <span class="kw-2">&amp;</span>UserRepo) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="kw">let </span>url = <span class="macro">format!</span>(
         <span class="string">&quot;https://github.com/{user}/{repo}.git&quot;</span>,
         user = <span class="kw-2">&amp;</span>dep.user,
@@ -653,8 +726,8 @@
     <span class="kw">const </span>USER: <span class="kw-2">&amp;</span>str = <span class="string">&quot;mimoo&quot;</span>;
     <span class="kw">const </span>THIS: <span class="kw-2">&amp;</span>str = <span class="string">&quot;this&quot;</span>;
 
-    <span class="kw">fn </span>dep(ii: <span class="kw-2">&amp;</span>str) -&gt; Library {
-        Library::new(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{USER}/dep{ii}&quot;</span>))
+    <span class="kw">fn </span>dep(ii: <span class="kw-2">&amp;</span>str) -&gt; UserRepo {
+        UserRepo::new(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{USER}/dep{ii}&quot;</span>))
     }
 
     <span class="kw">fn </span>new_dep_graph() -&gt; DependencyGraph {
@@ -707,6 +780,15 @@
         <span class="prelude-val">Ok</span>(())
     }
 
+    <span class="kw">fn </span>check_from_leaves_to_roots(expected: <span class="kw-2">&amp;</span>str, obtained: Vec&lt;UserRepo&gt;) {
+        <span class="kw">let </span>expected: Vec&lt;UserRepo&gt; = expected
+            .split(<span class="string">&#39;,&#39;</span>)
+            .map(|dep_str| dep(dep_str.trim()))
+            .collect();
+
+        <span class="macro">assert_eq!</span>(expected, obtained);
+    }
+
     <span class="attribute">#[test]
     </span><span class="kw">fn </span>test_simple_dep_graph() {
         <span class="kw">let </span><span class="kw-2">mut </span>dep_graph = new_dep_graph();
@@ -721,6 +803,8 @@
 
         <span class="macro">assert_eq!</span>(dep_graph.root[<span class="number">1</span>].dep, dep(<span class="string">&quot;1&quot;</span>));
         <span class="macro">assert_eq!</span>(dep_graph.root[<span class="number">1</span>].deps.len(), <span class="number">0</span>);
+
+        check_from_leaves_to_roots(<span class="string">&quot;1,0&quot;</span>, dep_graph.from_leaves_to_roots());
     }
 
     <span class="attribute">#[test]
@@ -730,6 +814,8 @@
         <span class="macro">assert!</span>(add_deps(<span class="kw-2">&amp;mut </span>dep_graph, <span class="kw-2">&amp;</span>[<span class="string">&quot;0&quot;</span>]).is_err());
         <span class="macro">assert!</span>(add_deps(<span class="kw-2">&amp;mut </span>dep_graph, <span class="kw-2">&amp;</span>[<span class="string">&quot;1&quot;</span>]).is_err());
         add_deps(<span class="kw-2">&amp;mut </span>dep_graph, <span class="kw-2">&amp;</span>[<span class="string">&quot;2&quot;</span>]).unwrap();
+
+        check_from_leaves_to_roots(<span class="string">&quot;2&quot;</span>, dep_graph.from_leaves_to_roots());
     }
 
     <span class="attribute">#[test]
@@ -747,6 +833,8 @@
         <span class="kw">let </span><span class="kw-2">mut </span>dep_graph = new_dep_graph();
         add_relations(<span class="kw-2">&amp;mut </span>dep_graph, <span class="kw-2">&amp;</span>[<span class="string">&quot;0 -&gt; 1&quot;</span>, <span class="string">&quot;1 -&gt; 2&quot;</span>, <span class="string">&quot;3 -&gt; 4&quot;</span>, <span class="string">&quot;4 -&gt; 2&quot;</span>]);
         add_deps(<span class="kw-2">&amp;mut </span>dep_graph, <span class="kw-2">&amp;</span>[<span class="string">&quot;0&quot;</span>, <span class="string">&quot;3&quot;</span>]).unwrap();
+
+        check_from_leaves_to_roots(<span class="string">&quot;2,1,0,4,3&quot;</span>, dep_graph.from_leaves_to_roots());
     }
 
     <span class="attribute">#[test]

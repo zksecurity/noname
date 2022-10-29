@@ -54,11 +54,15 @@
 <span id="54">54</span>
 <span id="55">55</span>
 <span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{path::PathBuf, process};
 
 <span class="kw">use </span>clap::Parser <span class="kw">as _</span>;
 <span class="kw">use </span>miette::{IntoDiagnostic, <span class="prelude-ty">Result</span>, WrapErr};
-<span class="kw">use </span>noname::cli::{cmd_build, cmd_init, cmd_new, cmd_test, CmdBuild, CmdInit, CmdNew, CmdTest};
+<span class="kw">use </span>noname::cli::{
+    cmd_build, cmd_check, cmd_init, cmd_new, cmd_test, CmdBuild, CmdCheck, CmdInit, CmdNew, CmdTest,
+};
 
 <span class="attribute">#[derive(clap::Parser)]
 #[clap(author, version, about, long_about = <span class="prelude-val">None</span>)]
@@ -78,7 +82,7 @@
     <span class="doccomment">/// Build the current package
     </span>Build(CmdBuild),
     <span class="doccomment">/// Analyze the current package and report errors, but don&#39;t build object files
-    </span>Check,
+    </span>Check(CmdCheck),
     <span class="doccomment">/// Add dependencies to a manifest file
     </span>Add,
     <span class="doccomment">/// Remove the target directory
@@ -103,7 +107,7 @@
         Commands::Init(args) =&gt; cmd_init(args),
         Commands::Doc =&gt; <span class="macro">todo!</span>(),
         Commands::Build(args) =&gt; cmd_build(args),
-        Commands::Check =&gt; <span class="macro">todo!</span>(),
+        Commands::Check(args) =&gt; cmd_check(args),
         Commands::Add =&gt; <span class="macro">todo!</span>(),
         Commands::Clean =&gt; <span class="macro">todo!</span>(),
         Commands::Run =&gt; <span class="macro">todo!</span>(),
