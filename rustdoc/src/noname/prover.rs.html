@@ -191,9 +191,6 @@
 <span id="191">191</span>
 <span id="192">192</span>
 <span id="193">193</span>
-<span id="194">194</span>
-<span id="195">195</span>
-<span id="196">196</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module contains the prover.
 
 </span><span class="kw">use </span>std::iter::once;
@@ -283,9 +280,7 @@
     }
 
     <span class="comment">// create constraint system
-    </span><span class="kw">let </span>fp_sponge_params = kimchi::oracle::pasta::fp_kimchi::params();
-
-    <span class="kw">let </span>cs = kimchi::circuits::constraints::ConstraintSystem::create(gates)
+    </span><span class="kw">let </span>cs = kimchi::circuits::constraints::ConstraintSystem::create(gates)
         .public(compiled_circuit.circuit.public_input_size)
         .build()
         .map_err(|e| Error::new(e.into(), Span(<span class="number">0</span>, <span class="number">0</span>)))<span class="question-mark">?</span>;
@@ -299,8 +294,7 @@
     <span class="macro">println!</span>(<span class="string">&quot;using an SRS of size {}&quot;</span>, srs.g.len());
 
     <span class="comment">// create indexes
-    </span><span class="kw">let </span>fq_sponge_params = kimchi::oracle::pasta::fq_kimchi::params();
-    <span class="kw">let </span>(endo_q, _endo_r) = kimchi::commitment_dlog::srs::endos::&lt;OtherCurve&gt;();
+    </span><span class="kw">let </span>(endo_q, _endo_r) = kimchi::commitment_dlog::srs::endos::&lt;OtherCurve&gt;();
 
     <span class="kw">let </span>prover_index = kimchi::prover_index::ProverIndex::&lt;Curve&gt;::create(cs, endo_q, srs);
     <span class="kw">let </span>verifier_index = prover_index.verifier_index();

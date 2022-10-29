@@ -123,30 +123,40 @@
 <span id="123">123</span>
 <span id="124">124</span>
 <span id="125">125</span>
-</pre><pre class="rust"><code><span class="kw">use </span>std::{path::PathBuf, process};
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+</pre><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use </span>miette::{Context, IntoDiagnostic, NamedSource, <span class="prelude-ty">Result</span>};
 
 <span class="kw">use crate</span>::{
     circuit_writer::CircuitWriter,
-    cli::packages::{get_dep_code, path_to_package},
+    cli::packages::path_to_package,
     compiler::get_tast,
     type_checker::{Dependencies, TypeChecker},
 };
 
-<span class="kw">use super</span>::{
-    manifest::Manifest,
-    packages::{
-        get_deps_of_package, is_lib, validate_package_and_get_manifest, DependencyGraph, UserRepo,
-    },
-    NONAME_DIRECTORY, PACKAGE_DIRECTORY,
+<span class="kw">use </span><span class="kw">super</span>::packages::{
+    get_deps_of_package, is_lib, validate_package_and_get_manifest, DependencyGraph, UserRepo,
 };
 
 <span class="attribute">#[derive(clap::Parser)]
 </span><span class="kw">pub struct </span>CmdBuild {
-    <span class="doccomment">/// path to the directory to create
+    <span class="doccomment">/// Path to the directory to create.
     </span><span class="attribute">#[clap(short, long, value_parser)]
     </span>path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+
+    <span class="doccomment">/// Prints an assembly-like encoding of the circuit.
+    </span><span class="attribute">#[clap(short, long)]
+    </span>asm: bool,
+
+    <span class="doccomment">/// Prints a debug version of the assembly. To be used in conjunction with `--asm`.
+    </span><span class="attribute">#[clap(short, long)]
+    </span>debug: bool,
 }
 
 <span class="kw">pub fn </span>cmd_build(args: CmdBuild) -&gt; miette::Result&lt;()&gt; {
@@ -162,7 +172,9 @@
         .into_diagnostic()
         .map_err(|e| e.with_source_code(NamedSource::new(curr_dir.to_str().unwrap(), code)))<span class="question-mark">?</span>;
 
-    compiled_circuit.asm(<span class="bool-val">false</span>);
+    <span class="kw">if </span>args.asm {
+        <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, compiled_circuit.asm(args.debug));
+    }
 
     <span class="comment">// store/cache artifacts
 

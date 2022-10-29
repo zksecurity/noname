@@ -2381,7 +2381,7 @@
             // ^^^^^^^^^^^^    ^^^^
             </span>TokenKind::Identifier(ty_name) =&gt; {
                 <span class="kw">let </span>maybe_module = Ident::new(ty_name.clone(), token.span);
-                <span class="kw">let </span>(module, name, span) = <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>ty_name) {
+                <span class="kw">let </span>(module, name, _span) = <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>ty_name) {
                     <span class="comment">// Type
                     // ^^^^
                     </span>(<span class="prelude-val">None</span>, maybe_module, token.span)
@@ -2840,7 +2840,7 @@
                     | TokenKind::DoubleAmpersand
                     | TokenKind::DoublePipe
                     | TokenKind::Exclamation,
-                span,
+                ..
             }) =&gt; {
                 <span class="comment">// lhs + rhs
                 //     ^
@@ -3240,7 +3240,7 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FnArg&gt;&gt; {
         <span class="comment">// (pub arg1: type1, arg2: type2)
         // ^
-        </span><span class="kw">let </span>Token { span, .. } = tokens.bump_expected(ctx, TokenKind::LeftParen)<span class="question-mark">?</span>;
+        </span>tokens.bump_expected(ctx, TokenKind::LeftParen)<span class="question-mark">?</span>;
 
         <span class="comment">// (pub arg1: type1, arg2: type2)
         //   ^
