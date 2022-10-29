@@ -362,7 +362,7 @@ impl CircuitWriter {
                     // we pass variables by values always
                     let var = var.value(fn_env);
 
-                    let typ = self.typed.expr_type(arg).cloned();
+                    let typ = self.expr_type(arg).cloned();
                     let mutable = false; // TODO: mut keyword in arguments?
                     let var_info = VarInfo::new(var, mutable, typ);
 
@@ -415,20 +415,18 @@ impl CircuitWriter {
 
                 // get struct info behind lhs
                 let lhs_struct = self
-                    .typed
                     .expr_type(lhs)
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))?;
 
-                let self_struct = match lhs_struct {
-                    TyKind::Custom { module, name } => name,
+                let (module, self_struct) = match lhs_struct {
+                    TyKind::Custom { module, name } => (module, name),
                     _ => {
                         panic!("could not figure out struct implementing that method call")
                     }
                 };
 
                 let struct_info = self
-                    .typed
-                    .struct_info(&self_struct.value)
+                    .get_struct(module, &self_struct)
                     .expect("struct info not found for custom struct");
 
                 // find range of field
@@ -455,11 +453,7 @@ impl CircuitWriter {
                 args,
             } => {
                 // figure out the name of the custom struct
-                let lhs_typ = self
-                    .typed
-                    .expr_type(lhs)
-                    .expect("method call on what?")
-                    .clone();
+                let lhs_typ = self.expr_type(lhs).expect("method call on what?").clone();
 
                 let (module, struct_name) = match &lhs_typ {
                     TyKind::Custom { module, name } => (module, name),
@@ -507,7 +501,7 @@ impl CircuitWriter {
                     let mutable = false;
                     let var = var.value(fn_env);
 
-                    let typ = self.typed.expr_type(arg).cloned();
+                    let typ = self.expr_type(arg).cloned();
                     let var_info = VarInfo::new(var, mutable, typ);
 
                     vars.push(var_info);
@@ -649,10 +643,7 @@ impl CircuitWriter {
                 let idx: usize = idx.try_into().unwrap();
 
                 // retrieve the type of the elements in the array
-                let array_typ = self
-                    .typed
-                    .expr_type(array)
-                    .expect("cannot find type of array");
+                let array_typ = self.expr_type(array).expect("cannot find type of array");
 
                 let elem_type = match array_typ {
                     TyKind::Array(ty, array_len) => {
