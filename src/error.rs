@@ -63,7 +63,12 @@ pub enum ErrorKind {
     MismatchFunctionArguments(usize, usize),
 
     #[error("constants must be declared before any structs or functions")]
-    ConstDeclarationAfterStructOrFunction,
+    OrderOfConstDeclaration,
+
+    #[error(
+        "the `use` keyword must be used before anything else (consts, structs, functions, etc.)"
+    )]
+    OrderOfUseDeclaration,
 
     #[error("cannot chain arithmetic operations without using parenthesis")]
     MissingParenthesis,

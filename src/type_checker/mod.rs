@@ -140,12 +140,9 @@ impl TypeChecker {
             match &root.kind {
                 // `use crypto::poseidon;`
                 RootKind::Use(path) => {
-                    // important: no struct or function definition must appear before a constant declaration
+                    // important: no struct or function definition must appear before a use declaration
                     if let Some(span) = abort {
-                        return Err(Error::new(
-                            ErrorKind::ConstDeclarationAfterStructOrFunction,
-                            span,
-                        ));
+                        return Err(Error::new(ErrorKind::OrderOfUseDeclaration, span));
                     }
                     type_checker.import(path)?
                 }
@@ -168,10 +165,7 @@ impl TypeChecker {
                 RootKind::Const(cst) => {
                     // important: no struct or function definition must appear before a constant declaration
                     if let Some(span) = abort {
-                        return Err(Error::new(
-                            ErrorKind::ConstDeclarationAfterStructOrFunction,
-                            span,
-                        ));
+                        return Err(Error::new(ErrorKind::OrderOfConstDeclaration, span));
                     }
 
                     if type_checker
