@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":[["cmd_test",""]],"struct":[["CmdTest",""]]};

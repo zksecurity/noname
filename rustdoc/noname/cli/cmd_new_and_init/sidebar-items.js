@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":[["cmd_init",""],["cmd_new",""]],"struct":[["CmdInit",""],["CmdNew",""]]};
