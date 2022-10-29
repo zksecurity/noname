@@ -197,11 +197,9 @@
 
 <span class="kw">use crate</span>::{
     circuit_writer::Wiring,
-    compiler,
     constants::{Field, Span},
     error::{Error, <span class="prelude-ty">Result</span>},
     inputs::JsonInputs,
-    type_checker::Dependencies,
     witness::CompiledCircuit,
 };
 
@@ -210,6 +208,7 @@
     commitment_dlog::commitment::CommitmentCurve, groupmap::GroupMap, proof::ProverProof,
 };
 <span class="kw">use </span>once_cell::sync::Lazy;
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="comment">//
 // aliases
@@ -235,12 +234,14 @@
 // Data Structures
 //
 
+//#[derive(Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>ProverIndex {
     index: kimchi::prover_index::ProverIndex&lt;Curve&gt;,
     compiled_circuit: CompiledCircuit,
 }
 
-<span class="kw">pub struct </span>VerifierIndex {
+<span class="attribute">#[derive(Serialize, Deserialize)]
+</span><span class="kw">pub struct </span>VerifierIndex {
     index: kimchi::verifier_index::VerifierIndex&lt;Curve&gt;,
 }
 
@@ -248,9 +249,9 @@
 // Setup
 //
 
-</span><span class="kw">pub fn </span>compile_and_prove(code: <span class="kw-2">&amp;</span>str, deps: Dependencies) -&gt; <span class="prelude-ty">Result</span>&lt;(ProverIndex, VerifierIndex)&gt; {
-    <span class="kw">let </span>compiled_circuit = compiler::compile(code, deps)<span class="question-mark">?</span>;
-
+</span><span class="kw">pub fn </span>compile_to_indexes(
+    compiled_circuit: CompiledCircuit,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(ProverIndex, VerifierIndex)&gt; {
     <span class="comment">// convert gates to kimchi gates
     </span><span class="kw">let </span><span class="kw-2">mut </span>gates: Vec&lt;<span class="kw">_</span>&gt; = compiled_circuit
         .compiled_gates()
@@ -286,7 +287,6 @@
         .map_err(|e| Error::new(e.into(), Span(<span class="number">0</span>, <span class="number">0</span>)))<span class="question-mark">?</span>;
 
     <span class="comment">// create SRS (for vesta, as the circuit is in Fp)
-
     </span><span class="kw">let </span><span class="kw-2">mut </span>srs = kimchi::commitment_dlog::srs::SRS::&lt;Curve&gt;::create(cs.domain.d1.size <span class="kw">as </span>usize);
     srs.add_lagrange_basis(cs.domain.d1);
     <span class="kw">let </span>srs = std::sync::Arc::new(srs);

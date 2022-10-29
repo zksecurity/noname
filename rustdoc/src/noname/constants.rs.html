@@ -43,11 +43,17 @@
 <span id="43">43</span>
 <span id="44">44</span>
 <span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
 </pre><pre class="rust"><code><span class="comment">//
 // Constants
 //
 
-</span><span class="doccomment">/// We use the scalar field of Vesta as our circuit field.
+</span><span class="kw">use </span>serde::{Deserialize, Serialize};
+
+<span class="doccomment">/// We use the scalar field of Vesta as our circuit field.
 </span><span class="kw">pub type </span>Field = kimchi::mina_curves::pasta::Fp;
 
 <span class="doccomment">/// Number of columns in the execution trace.
@@ -57,7 +63,9 @@
 // Aliases
 //
 
-</span><span class="attribute">#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+</span><span class="attribute">#[derive(
+    Default, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize,
+)]
 </span><span class="kw">pub struct </span>Span(<span class="kw">pub </span>usize, <span class="kw">pub </span>usize);
 
 <span class="kw">impl </span>Span {

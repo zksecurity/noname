@@ -2062,7 +2062,11 @@
 <span id="2062">2062</span>
 <span id="2063">2063</span>
 <span id="2064">2064</span>
+<span id="2065">2065</span>
+<span id="2066">2066</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use crate</span>::{
     cli::packages::UserRepo,
@@ -2258,13 +2262,13 @@
 //~ numeric ::= /[0-9]+/
 //~
 
-</span><span class="attribute">#[derive(Debug, Clone)]
+</span><span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Ty {
     <span class="kw">pub </span>kind: TyKind,
     <span class="kw">pub </span>span: Span,
 }
 
-<span class="attribute">#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+<span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 </span><span class="kw">pub enum </span>TyKind {
     <span class="doccomment">/// The main primitive type. &#39;Nuf said.
     </span><span class="comment">// TODO: Field { constant: bool },
@@ -2480,7 +2484,7 @@
 //~ array_access ::= ident &quot;[&quot; expr &quot;]&quot;
 //~
 
-</span><span class="attribute">#[derive(Debug, Clone)]
+</span><span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Expr {
     <span class="kw">pub </span>node_id: usize,
     <span class="kw">pub </span>kind: ExprKind,
@@ -2498,7 +2502,7 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone)]
+<span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>ExprKind {
     <span class="doccomment">/// `lhs(args)`
     </span>FnCall {
@@ -2567,7 +2571,7 @@
     },
 }
 
-<span class="attribute">#[derive(Debug, Clone)]
+<span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>Op2 {
     Addition,
     Subtraction,
@@ -3053,7 +3057,7 @@
 //~ param ::= { &quot;pub&quot; } ident &quot;:&quot; type
 //~
 
-</span><span class="attribute">#[derive(Debug, Default, Clone)]
+</span><span class="attribute">#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>FnSig {
     <span class="kw">pub </span>name: FnNameDef,
 
@@ -3080,7 +3084,7 @@
 }
 
 <span class="doccomment">/// Any kind of text that can represent a type, a variable, a function name, etc.
-</span><span class="attribute">#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+</span><span class="attribute">#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Ident {
     <span class="kw">pub </span>value: String,
     <span class="kw">pub </span>span: Span,
@@ -3107,7 +3111,7 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone, Copy)]
+<span class="attribute">#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>AttributeKind {
     Pub,
     Const,
@@ -3123,7 +3127,7 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone)]
+<span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Attribute {
     <span class="kw">pub </span>kind: AttributeKind,
     <span class="kw">pub </span>span: Span,
@@ -3139,7 +3143,7 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone)]
+<span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Function {
     <span class="kw">pub </span>sig: FnSig,
 
@@ -3148,7 +3152,7 @@
     <span class="kw">pub </span>span: Span,
 }
 
-<span class="attribute">#[derive(Debug, Clone)]
+<span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>FnArg {
     <span class="kw">pub </span>name: Ident,
     <span class="kw">pub </span>typ: Ty,
@@ -3173,7 +3177,7 @@
 }
 
 <span class="doccomment">/// Represents the name of a function.
-</span><span class="attribute">#[derive(Debug, Clone, Default)]
+</span><span class="attribute">#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>FnNameDef {
     <span class="doccomment">/// The name of the type that this function is implemented on.
     </span><span class="kw">pub </span>self_name: <span class="prelude-ty">Option</span>&lt;Ident&gt;,
@@ -3507,7 +3511,7 @@
 //~ path ::= ident { &quot;::&quot; ident }
 //~
 
-</span><span class="attribute">#[derive(Debug, Clone)]
+</span><span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Range {
     <span class="kw">pub </span>start: u32,
     <span class="kw">pub </span>end: u32,
@@ -3520,13 +3524,13 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone)]
+<span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Stmt {
     <span class="kw">pub </span>kind: StmtKind,
     <span class="kw">pub </span>span: Span,
 }
 
-<span class="attribute">#[derive(Debug, Clone)]
+<span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>StmtKind {
     Assign {
         mutable: bool,
@@ -3772,7 +3776,7 @@
     <span class="kw">pub </span>span: Span,
 }
 
-<span class="attribute">#[derive(Clone, Debug)]
+<span class="attribute">#[derive(Clone, Debug, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>UsePath {
     <span class="kw">pub </span>module: Ident,
     <span class="kw">pub </span>submodule: Ident,

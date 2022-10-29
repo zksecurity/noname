@@ -300,7 +300,20 @@
 <span id="300">300</span>
 <span id="301">301</span>
 <span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::vec;
+
+<span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="kw">use </span>serde_with::serde_as;
 
 <span class="kw">use crate</span>::{
     circuit_writer::{CircuitWriter, FnEnv, VarInfo},
@@ -318,7 +331,7 @@
 ///
 /// As the final step of the compilation,
 /// we double check that all cellvars have appeared in the rows at some point.
-</span><span class="attribute">#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+</span><span class="attribute">#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>CellVar {
     <span class="kw">pub </span>index: usize,
     <span class="kw">pub </span>span: Span,
@@ -334,20 +347,26 @@
 </span><span class="kw">pub type </span>HintFn = <span class="kw">dyn </span>Fn(<span class="kw-2">&amp;</span>CompiledCircuit, <span class="kw-2">&amp;mut </span>WitnessEnv) -&gt; <span class="prelude-ty">Result</span>&lt;Field&gt;;
 
 <span class="doccomment">/// A variable&#39;s actual value in the witness can be computed in different ways.
+</span><span class="attribute">#[derive(Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>Value {
     <span class="doccomment">/// Either it&#39;s a hint and can be computed from the outside.
+    </span><span class="attribute">#[serde(skip)]
+    </span><span class="comment">// TODO: outch, remove hints? or https://docs.rs/serde_closure/latest/serde_closure/ ?
     </span>Hint(Box&lt;HintFn&gt;),
 
     <span class="doccomment">/// Or it&#39;s a constant (for example, I wrote `2` in the code).
+    </span><span class="attribute">#[serde(skip)]
     </span>Constant(Field),
 
     <span class="doccomment">/// Or it&#39;s a linear combination of internal circuit variables (+ a constant).
     </span><span class="comment">// TODO: probably values of internal variables should be cached somewhere
+    </span><span class="attribute">#[serde(skip)]
     </span>LinearCombination(Vec&lt;(Field, CellVar)&gt;, Field <span class="comment">/* cst */</span>),
 
     Mul(CellVar, CellVar),
 
-    Scale(Field, CellVar),
+    <span class="attribute">#[serde(skip)]
+    </span>Scale(Field, CellVar),
 
     <span class="doccomment">/// Returns the inverse of the given variable.
     /// Note that it will potentially return 0 if the given variable is 0.
@@ -384,9 +403,10 @@
 }
 
 <span class="doccomment">/// Represents a cell in the execution trace.
-</span><span class="attribute">#[derive(Debug, Clone, Copy)]
+</span><span class="attribute">#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>ConstOrCell {
     <span class="doccomment">/// A constant value.
+    </span><span class="attribute">#[serde(skip)]
     </span>Const(Field),
 
     <span class="doccomment">/// A cell in the execution trace.
@@ -421,7 +441,7 @@
 }
 
 <span class="doccomment">/// Represents a variable in the noname language, or an anonymous variable during computation of expressions.
-</span><span class="attribute">#[derive(Debug, Clone)]
+</span><span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Var {
     <span class="doccomment">/// The type of variable.
     </span><span class="kw">pub </span>cvars: Vec&lt;ConstOrCell&gt;,

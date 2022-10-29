@@ -256,10 +256,13 @@
 <span id="256">256</span>
 <span id="257">257</span>
 <span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>ark_ff::{Field <span class="kw">as _</span>, Zero};
 <span class="kw">use </span>itertools::{chain, Itertools};
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use crate</span>::{
     circuit_writer::{CircuitWriter, Gate},
@@ -321,6 +324,7 @@
 }
 
 <span class="doccomment">/// The compiled circuit.
+</span><span class="comment">//#[derive(Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>CompiledCircuit {
     <span class="kw">pub </span>circuit: CircuitWriter,
 }

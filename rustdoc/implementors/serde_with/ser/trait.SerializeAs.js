@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"noname":[["impl&lt;T&gt; <a class=\"trait\" href=\"https://docs.rs/serde_with/2.0.1/serde_with/ser/trait.SerializeAs.html\" title=\"trait serde_with::ser::SerializeAs\">SerializeAs</a>&lt;T&gt; for <a class=\"struct\" href=\"noname/serialization/struct.SerdeAs.html\" title=\"struct noname::serialization::SerdeAs\">SerdeAs</a><span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: CanonicalSerialize,</span>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

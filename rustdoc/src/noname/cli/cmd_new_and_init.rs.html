@@ -153,16 +153,8 @@
 <span id="153">153</span>
 <span id="154">154</span>
 <span id="155">155</span>
-<span id="156">156</span>
-<span id="157">157</span>
-<span id="158">158</span>
-<span id="159">159</span>
-<span id="160">160</span>
-<span id="161">161</span>
-<span id="162">162</span>
-<span id="163">163</span>
-</pre><pre class="rust"><code><span class="kw">use </span>miette::{IntoDiagnostic, <span class="prelude-ty">Result</span>, WrapErr};
-<span class="kw">use </span>std::path::PathBuf;
+</pre><pre class="rust"><code><span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
+<span class="kw">use </span>miette::{IntoDiagnostic, <span class="prelude-ty">Result</span>, WrapErr};
 
 <span class="kw">const </span>MAIN_CONTENT: <span class="kw-2">&amp;</span>str = <span class="string">r#&quot;fn main(pub xx: Field, yy: Field) {
     let zz = yy + 1;
@@ -219,15 +211,15 @@
 }
 
 <span class="kw">pub fn </span>cmd_init(args: CmdInit) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">let </span>path = args.path.unwrap_or(std::env::current_dir().unwrap());
+    <span class="kw">let </span>path = args
+        .path
+        .unwrap_or(std::env::current_dir().unwrap().try_into().unwrap());
 
     <span class="comment">// for now, the package name is the same as the path
     </span><span class="kw">let </span>package_name = path
         .file_name()
         .ok_or(<span class="macro">miette::miette!</span>(<span class="string">&quot;invalid path given in argument to CLI&quot;</span>))<span class="question-mark">?
-        </span>.to_str()
-        .expect(<span class="string">&quot;couldn&#39;t parse the path as a string&quot;</span>)
-        .to_owned();
+        </span>.to_string();
 
     <span class="kw">if </span>!path.exists() {
         <span class="macro">miette::bail!</span>(<span class="string">&quot;path `{path}` doesn&#39;t exists. Use `noname new` to create a new package in an non-existing directory&quot;</span>);
@@ -256,31 +248,26 @@ dependencies = []
     <span class="kw">let </span>manifest_file = path.join(<span class="string">&quot;Noname.toml&quot;</span>);
 
     <span class="kw">if </span>manifest_file.exists() {
-        <span class="macro">miette::bail!</span>(
-            <span class="string">&quot;manifest file already exists at `{}`&quot;</span>,
-            manifest_file.display()
-        );
+        <span class="macro">miette::bail!</span>(<span class="string">&quot;manifest file already exists at `{manifest_file}`&quot;</span>);
     }
 
     std::fs::write(<span class="kw-2">&amp;</span>manifest_file, content)
         .into_diagnostic()
         .wrap_err(<span class="macro">format!</span>(
-            <span class="string">&quot;cannot create Noname.toml file at given path: `{}`&quot;</span>,
-            manifest_file.display()
-        ))<span class="question-mark">?</span>;
+            <span class="string">&quot;cannot create Noname.toml file at given path: `{manifest_file}`&quot;
+        </span>))<span class="question-mark">?</span>;
 
     <span class="kw">let </span>src_path = path.join(<span class="string">&quot;src&quot;</span>);
 
     <span class="kw">if </span>src_path.exists() {
-        <span class="macro">miette::bail!</span>(<span class="string">&quot;src directory already exists at `{}`&quot;</span>, src_path.display());
+        <span class="macro">miette::bail!</span>(<span class="string">&quot;src directory already exists at `{src_path}`&quot;</span>);
     }
 
     std::fs::create_dir(<span class="kw-2">&amp;</span>src_path)
         .into_diagnostic()
         .wrap_err(<span class="macro">format!</span>(
-            <span class="string">&quot;cannot create src directory at given path: `{}`&quot;</span>,
-            src_path.display()
-        ))<span class="question-mark">?</span>;
+            <span class="string">&quot;cannot create src directory at given path: `{src_path}`&quot;
+        </span>))<span class="question-mark">?</span>;
 
     <span class="kw">let </span>(content, file_name) = <span class="kw">if </span>is_lib {
         (LIB_CONTENT, <span class="string">&quot;lib.no&quot;</span>)
@@ -291,18 +278,15 @@ dependencies = []
     <span class="kw">let </span>file_path = src_path.join(file_name);
 
     <span class="kw">if </span>file_path.exists() {
-        <span class="macro">miette::bail!</span>(<span class="string">&quot;file already exists at `{}`&quot;</span>, file_path.display());
+        <span class="macro">miette::bail!</span>(<span class="string">&quot;file already exists at `{file_path}`&quot;</span>);
     }
 
     std::fs::write(<span class="kw-2">&amp;</span>file_path, content)
         .into_diagnostic()
-        .wrap_err(<span class="macro">format!</span>(
-            <span class="string">&quot;cannot create file at given path: `{}`&quot;</span>,
-            file_path.display()
-        ))<span class="question-mark">?</span>;
+        .wrap_err(<span class="macro">format!</span>(<span class="string">&quot;cannot create file at given path: `{file_path}`&quot;</span>))<span class="question-mark">?</span>;
 
     <span class="comment">// success msg
-    </span><span class="macro">println!</span>(<span class="string">&quot;created new package at `{}`&quot;</span>, path.display());
+    </span><span class="macro">println!</span>(<span class="string">&quot;created new package at `{path}`&quot;</span>);
 
     <span class="prelude-val">Ok</span>(())
 }

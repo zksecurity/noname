@@ -424,13 +424,18 @@
 <span id="424">424</span>
 <span id="425">425</span>
 <span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
     process,
 };
 
+<span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
 <span class="kw">use </span>miette::{Context, IntoDiagnostic, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use super</span>::{
     manifest::{read_manifest, Manifest},
@@ -438,7 +443,7 @@
 };
 
 <span class="doccomment">/// A dependency is a Github `user/repo` pair.
-</span><span class="attribute">#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+</span><span class="attribute">#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>UserRepo {
     <span class="kw">pub </span>user: String,
     <span class="kw">pub </span>repo: String,
@@ -649,14 +654,17 @@
     <span class="kw">let </span>lib_file = path.join(<span class="string">&quot;src&quot;</span>).join(<span class="string">&quot;lib.no&quot;</span>);
     <span class="kw">let </span>lib_content = std::fs::read_to_string(<span class="kw-2">&amp;</span>lib_file)
         .into_diagnostic()
-        .wrap_err_with(|| <span class="macro">format!</span>(<span class="string">&quot;could not read file `{}`&quot;</span>, path.display()))<span class="question-mark">?</span>;
+        .wrap_err_with(|| <span class="macro">format!</span>(<span class="string">&quot;could not read file `{path}`&quot;</span>))<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(lib_content)
 }
 
 <span class="doccomment">/// Obtain local path to a package.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>path_to_package(dep: <span class="kw-2">&amp;</span>UserRepo) -&gt; PathBuf {
-    <span class="kw">let </span>home_dir = dirs::home_dir().expect(<span class="string">&quot;could not find home directory of current user&quot;</span>);
+    <span class="kw">let </span>home_dir: PathBuf = dirs::home_dir()
+        .expect(<span class="string">&quot;could not find home directory of current user&quot;</span>)
+        .try_into()
+        .expect(<span class="string">&quot;invalid UTF8 path&quot;</span>);
     <span class="kw">let </span>noname_dir = home_dir.join(NONAME_DIRECTORY);
     <span class="kw">let </span>package_dir = noname_dir.join(PACKAGE_DIRECTORY);
 
@@ -694,7 +702,7 @@
 </span><span class="kw">pub fn </span>validate_package_and_get_manifest(path: <span class="kw-2">&amp;</span>PathBuf, must_be_lib: bool) -&gt; <span class="prelude-ty">Result</span>&lt;Manifest&gt; {
     <span class="comment">// check if folder exists
     </span><span class="kw">if </span>!path.exists() {
-        <span class="macro">miette::bail!</span>(<span class="macro">format!</span>(<span class="string">&quot;path `{path}` doesn&#39;t exists. Use `noname new` to create a new package in an non-existing directory&quot;</span>, path=path.display()));
+        <span class="macro">miette::bail!</span>(<span class="macro">format!</span>(<span class="string">&quot;path `{path}` doesn&#39;t exists. Use `noname new` to create a new package in an non-existing directory&quot;</span>));
     }
 
     <span class="comment">// parse `NoName.toml`

@@ -72,7 +72,12 @@
 <span id="72">72</span>
 <span id="73">73</span>
 <span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fmt};
+
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use crate</span>::{
     circuit_writer::{CircuitWriter, VarInfo},
@@ -128,9 +133,10 @@ impl std::fmt::Debug for BuiltinModule {
 </span><span class="kw">pub type </span>FnHandle = <span class="kw">fn</span>(<span class="kw-2">&amp;mut </span>CircuitWriter, <span class="kw-2">&amp;</span>[VarInfo], Span) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt;;
 
 <span class="doccomment">/// The different types of a noname function.
-</span><span class="attribute">#[derive(Clone)]
+</span><span class="attribute">#[derive(Clone, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>FnKind {
     <span class="doccomment">/// A built-in is just a handle to a function written in Rust.
+    </span><span class="attribute">#[serde(skip)]
     </span>BuiltIn(FnSig, FnHandle),
 
     <span class="doccomment">/// A native function is represented as an AST.

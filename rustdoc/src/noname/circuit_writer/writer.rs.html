@@ -935,6 +935,9 @@
 <span id="935">935</span>
 <span id="936">936</span>
 <span id="937">937</span>
+<span id="938">938</span>
+<span id="939">939</span>
+<span id="940">940</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::HashMap,
     fmt::{<span class="self">self</span>, Display, Formatter},
@@ -945,6 +948,7 @@
 <span class="kw">use </span>kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 <span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>num_traits::Num <span class="kw">as _</span>;
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use crate</span>::{
     asm, boolean,
@@ -963,7 +967,7 @@
 // Data structures
 //
 
-</span><span class="attribute">#[derive(Debug, Clone, Copy)]
+</span><span class="attribute">#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>GateKind {
     Zero,
     DoubleGeneric,
@@ -982,12 +986,13 @@
 }
 
 <span class="comment">// TODO: this could also contain the span that defined the gate!
-</span><span class="attribute">#[derive(Debug)]
+</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Gate {
     <span class="doccomment">/// Type of gate
     </span><span class="kw">pub </span>typ: GateKind,
 
     <span class="doccomment">/// Coefficients
+    </span><span class="attribute">#[serde(skip)]
     </span><span class="kw">pub </span>coeffs: Vec&lt;Field&gt;,
 
     <span class="doccomment">/// The place in the original source code that created that gate.
@@ -1007,7 +1012,7 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+<span class="attribute">#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Cell {
     <span class="kw">pub </span>row: usize,
     <span class="kw">pub </span>col: usize,
@@ -1019,7 +1024,7 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone)]
+<span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>Wiring {
     <span class="doccomment">/// Not yet wired (just indicates the position of the cell itself)
     </span>NotWired(Cell),
@@ -1865,10 +1870,11 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Default, Debug)]
+<span class="attribute">#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>PendingGate {
     <span class="kw">pub </span>label: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
-    <span class="kw">pub </span>coeffs: Vec&lt;Field&gt;,
+    <span class="attribute">#[serde(skip)]
+    </span><span class="kw">pub </span>coeffs: Vec&lt;Field&gt;,
     <span class="kw">pub </span>vars: Vec&lt;<span class="prelude-ty">Option</span>&lt;CellVar&gt;&gt;,
     <span class="kw">pub </span>span: Span,
 }

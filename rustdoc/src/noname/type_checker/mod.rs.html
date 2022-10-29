@@ -347,6 +347,10 @@
 <span id="347">347</span>
 <span id="348">348</span>
 <span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -360,6 +364,8 @@
 
 <span class="kw">pub use </span>checker::{FnInfo, StructInfo};
 <span class="kw">pub use </span>fn_env::{TypeInfo, TypedFnEnv};
+<span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="kw">use </span>serde_with::serde_as;
 
 <span class="kw">pub mod </span>checker;
 <span class="kw">pub mod </span>fn_env;
@@ -367,7 +373,7 @@
 <span class="kw">const </span>RESERVED_ARGS: [<span class="kw-2">&amp;</span>str; <span class="number">1</span>] = [<span class="string">&quot;public_output&quot;</span>];
 
 <span class="doccomment">/// Contains metadata from other dependencies that might be use in this module.
-</span><span class="attribute">#[derive(Default, Debug)]
+</span><span class="attribute">#[derive(Default, Debug, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Dependencies {
     <span class="doccomment">/// Maps each `user/repo` to their type checker and source.
     </span><span class="kw">pub </span>deps: HashMap&lt;UserRepo, (TypeChecker, String, String)&gt;,
@@ -438,14 +444,16 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone)]
+<span class="attribute">#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>ConstInfo {
-    <span class="kw">pub </span>value: Field,
+    <span class="attribute">#[serde_as(<span class="kw">as </span>= <span class="string">&quot;crate::serialization::SerdeAs&quot;</span>)]
+    </span><span class="kw">pub </span>value: Field,
     <span class="kw">pub </span>typ: Ty,
 }
 
 <span class="doccomment">/// The environment we use to type check a noname program.
-</span><span class="attribute">#[derive(Default, Debug)]
+</span><span class="attribute">#[derive(Default, Debug, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>TypeChecker {
     <span class="doccomment">/// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)

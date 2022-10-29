@@ -358,23 +358,23 @@
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
-    parser::{
-        AttributeKind, Expr, FnArg, FnSig, Function, Ident, RootKind, Struct, TyKind, UsePath,
-    },
+    parser::{AttributeKind, Expr, FnArg, Ident, TyKind, UsePath},
     type_checker::{Dependencies, FnInfo, StructInfo, TypeChecker},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,
 };
 
 <span class="kw">pub use </span>fn_env::{FnEnv, VarInfo};
-<span class="kw">pub use </span>writer::{Gate, GateKind, Wiring};
+<span class="comment">//use serde::{Deserialize, Serialize};
+</span><span class="kw">pub use </span>writer::{Gate, GateKind, Wiring};
 
 <span class="kw">use </span><span class="self">self</span>::writer::PendingGate;
 
 <span class="kw">pub mod </span>fn_env;
 <span class="kw">pub mod </span>writer;
 
-<span class="attribute">#[derive(Debug)]
+<span class="comment">//#[derive(Debug, Serialize, Deserialize)]
+</span><span class="attribute">#[derive(Debug)]
 </span><span class="kw">pub struct </span>CircuitWriter {
     <span class="doccomment">/// The source code of this module.
     /// Useful for debugging and displaying user errors.

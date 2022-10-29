@@ -767,7 +767,11 @@
 <span id="767">767</span>
 <span id="768">768</span>
 <span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use crate</span>::{
     cli::packages::UserRepo,
@@ -781,7 +785,7 @@
 <span class="kw">use super</span>::{Dependencies, TypeChecker, TypeInfo, TypedFnEnv};
 
 <span class="doccomment">/// Keeps track of the signature of a user-defined function.
-</span><span class="attribute">#[derive(Debug, Clone)]
+</span><span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>FnInfo {
     <span class="kw">pub </span>kind: FnKind,
     <span class="kw">pub </span>span: Span,
@@ -797,7 +801,7 @@
 }
 
 <span class="doccomment">/// Keeps track of the signature of a user-defined struct.
-</span><span class="attribute">#[derive(Default, Debug, Clone)]
+</span><span class="attribute">#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 </span><span class="kw">pub struct </span>StructInfo {
     <span class="kw">pub </span>name: String,
     <span class="kw">pub </span>fields: Vec&lt;(String, TyKind)&gt;,
