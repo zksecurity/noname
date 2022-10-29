@@ -1,7 +1,7 @@
 use std::vec;
 
 use crate::{
-    circuit_writer::{FnEnv, VarInfo},
+    circuit_writer::{CircuitWriter, FnEnv, VarInfo},
     constants::{Field, Span},
     error::Result,
     witness::{CompiledCircuit, WitnessEnv},
@@ -225,7 +225,7 @@ impl VarOrRef {
     /// Returns the value within the variable or pointer.
     /// If it is a pointer, we lose information about the original variable,
     /// thus calling this function is aking to passing the variable by value.
-    pub(crate) fn value(self, fn_env: &FnEnv) -> Var {
+    pub(crate) fn value(self, circuit_writer: &CircuitWriter, fn_env: &FnEnv) -> Var {
         match self {
             VarOrRef::Var(var) => var,
             VarOrRef::Ref {
@@ -233,7 +233,7 @@ impl VarOrRef {
                 start,
                 len,
             } => {
-                let var_info = fn_env.get_var(&var_name);
+                let var_info = circuit_writer.get_local_var(fn_env, &var_name);
                 let cvars = var_info.var.range(start, len).to_vec();
                 Var::new(cvars, var_info.var.span)
             }

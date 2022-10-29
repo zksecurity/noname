@@ -82,9 +82,6 @@ pub struct CircuitWriter {
     /// (this is useful to check that they appear in the circuit)
     pub(crate) private_input_indices: Vec<usize>,
 
-    /// Constants defined in the module/program.
-    pub(crate) constants: HashMap<String, VarInfo>,
-
     /// If set to false, a single generic gate will be used per double generic gate.
     /// This can be useful for debugging.
     pub(crate) double_generic_gate_optimization: bool,
@@ -193,6 +190,31 @@ impl CircuitWriter {
         }
     }
 
+    pub fn add_local_var(&self, fn_env: &mut FnEnv, var_name: String, var_info: VarInfo) {
+        // check for consts first
+        let type_checker = self.current_type_checker();
+        if let Some(_cst_info) = type_checker.constants.get(&var_name) {
+            panic!(
+                "type checker bug: we already have a constant with the same name (`{var_name}`)!"
+            );
+        }
+
+        //
+        fn_env.add_local_var(var_name, var_info)
+    }
+
+    pub fn get_local_var(&self, fn_env: &FnEnv, var_name: &str) -> VarInfo {
+        // check for consts first
+        let type_checker = self.current_type_checker();
+        if let Some(cst_info) = type_checker.constants.get(var_name) {
+            let var = Var::new_constant(cst_info.value, cst_info.typ.span);
+            return VarInfo::new(var, false, Some(TyKind::Field));
+        }
+
+        // then check for local variables
+        fn_env.get_local_var(var_name)
+    }
+
     /// Retrieves the [FnInfo] for the `main()` function.
     /// This function should only be called if we know there's a main function,
     /// if there's no main function it'll panic.
@@ -212,11 +234,6 @@ impl CircuitWriter {
         // create circuit writer
         let mut circuit_writer = CircuitWriter::new(code, typed, deps);
 
-        // Process constants of main module
-        for (name, cst_info) in circuit_writer.typed.constants.clone() {
-            circuit_writer.add_constant_var(name, cst_info.value, cst_info.typ.span);
-        }
-
         // get main function
         let main_fn_info = circuit_writer
             .typed
@@ -230,7 +247,7 @@ impl CircuitWriter {
         };
 
         // create the main env
-        let fn_env = &mut FnEnv::new(&circuit_writer.constants);
+        let fn_env = &mut FnEnv::new();
 
         // create public and private inputs
         for FnArg {
@@ -278,7 +295,7 @@ impl CircuitWriter {
             // add argument variable to the ast env
             let mutable = false; // TODO: should we add a mut keyword in arguments as well?
             let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
-            fn_env.add_var(name.value.clone(), var_info);
+            circuit_writer.add_local_var(fn_env, name.value.clone(), var_info);
         }
 
         // create public output

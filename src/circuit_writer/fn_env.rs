@@ -52,7 +52,7 @@ impl VarInfo {
 /// Is used to store functions' scoped variables.
 /// This include inputs and output of the function,  as well as local variables.
 /// You can think of it as a function call stack.
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct FnEnv {
     /// The current nesting level.
     /// Starting at 0 (top level), and increasing as we go into a block.
@@ -67,16 +67,8 @@ pub struct FnEnv {
 
 impl FnEnv {
     /// Creates a new FnEnv
-    pub fn new(constants: &HashMap<String, VarInfo>) -> Self {
-        let vars = constants
-            .iter()
-            .map(|(k, v)| (k.clone(), (0, v.clone())))
-            .collect();
-
-        Self {
-            current_scope: 0,
-            vars,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Enters a scoped block.
@@ -103,13 +95,13 @@ impl FnEnv {
     }
 
     /// Returns true if a scope is a prefix of our scope.
-    pub fn is_in_scope(&self, prefix_scope: usize) -> bool {
+    fn is_in_scope(&self, prefix_scope: usize) -> bool {
         self.current_scope >= prefix_scope
     }
 
     /// Stores type information about a local variable.
     /// Note that we forbid shadowing at all scopes.
-    pub fn add_var(&mut self, var_name: String, var_info: VarInfo) {
+    pub fn add_local_var(&mut self, var_name: String, var_info: VarInfo) {
         let scope = self.current_scope;
 
         if self
@@ -124,7 +116,7 @@ impl FnEnv {
     /// Retrieves type information on a variable, given a name.
     /// If the variable is not in scope, return false.
     // TODO: return an error no?
-    pub fn get_var(&self, var_name: &str) -> VarInfo {
+    pub fn get_local_var(&self, var_name: &str) -> VarInfo {
         // if not found, then look into local variables
         let (scope, var_info) = self
             .vars
@@ -137,7 +129,7 @@ impl FnEnv {
         var_info.clone()
     }
 
-    pub fn reassign_var(&mut self, var_name: &str, var: Var) {
+    pub fn reassign_local_var(&mut self, var_name: &str, var: Var) {
         // get the scope first, we don't want to modify that
         let (scope, var_info) = self
             .vars
