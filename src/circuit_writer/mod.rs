@@ -106,14 +106,19 @@ impl CircuitWriter {
         if let Some(current_module) = &self.current_module {
             self.dependencies
                 .get_type_checker(current_module)
-                .expect("bug in the compiler: couldn't find current module")
+                .expect(&format!(
+                    "bug in the compiler: couldn't find current module: {:?}",
+                    current_module
+                ))
         } else {
             &self.typed
         }
     }
 
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
+        dbg!("calling expr_type for", expr);
         let curr_type_checker = self.current_type_checker();
+        dbg!("current type checker used from", &self.current_module);
         curr_type_checker.node_types.get(&expr.node_id)
     }
 

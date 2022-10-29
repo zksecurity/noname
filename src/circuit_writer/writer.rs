@@ -242,6 +242,8 @@ impl CircuitWriter {
         input_typ: &TyKind,
         span: Span,
     ) -> Result<()> {
+        assert!(self.current_module.is_none());
+
         match input_typ {
             TyKind::Field => (),
             TyKind::Bool => {
@@ -251,7 +253,7 @@ impl CircuitWriter {
             TyKind::Array(tykind, _) => {
                 let el_size = self.size_of(tykind)?;
                 for el in input.chunks(el_size) {
-                    self.constrain_inputs_to_main(el, tykind, span);
+                    self.constrain_inputs_to_main(el, tykind, span)?;
                 }
             }
             TyKind::Custom {
@@ -349,6 +351,19 @@ impl CircuitWriter {
                     return Err(Error::new(ErrorKind::RecursiveMain, expr.span));
                 }
 
+                // module::fn_name(args)
+                // ^^^^^^
+                let prev_current_module = self.current_module.clone();
+                if let Some(module) = module {
+                    // TODO: find more elegant way to avoid std/crypto
+                    if module.value != "crypto" {
+                        let module = self.resolve_module(module)?;
+
+                        // change the current module
+                        self.current_module = Some(module.into());
+                    }
+                }
+
                 // compute the arguments
                 // module::fn_name(args)
                 //                 ^^^^
@@ -372,30 +387,11 @@ impl CircuitWriter {
                 // retrieve the function in the env
                 let fn_info = self.get_fn(module, fn_name)?;
 
-                match &fn_info.kind {
+                let res = match &fn_info.kind {
                     // assert() <-- for example
                     FnKind::BuiltIn(_sig, handle) => {
                         let res = handle(self, &vars, expr.span);
                         res.map(|r| r.map(VarOrRef::Var))
-                    }
-
-                    // module::fn_name(args)
-                    // ^^^^^^
-                    FnKind::Native(func) if module.is_some() => {
-                        let prev_current_module = self.current_module.clone();
-                        let module = self.resolve_module(module.as_ref().unwrap())?;
-
-                        //  change the current module
-                        self.current_module = Some(module.into());
-
-                        let res = self.compile_native_function_call(&func, vars);
-                        let res = res.map(|r| r.map(VarOrRef::Var));
-
-                        // revert the current module
-                        self.current_module = prev_current_module;
-
-                        //
-                        res
                     }
 
                     // fn_name(args)
@@ -404,7 +400,18 @@ impl CircuitWriter {
                         let res = self.compile_native_function_call(&func, vars);
                         res.map(|r| r.map(VarOrRef::Var))
                     }
+                };
+
+                // revert the current module
+                if let Some(module) = module {
+                    // TODO: find more elegant way to avoid std/crypto
+                    if module.value != "crypto" {
+                        self.current_module = prev_current_module;
+                    }
                 }
+
+                //
+                res
             }
 
             ExprKind::FieldAccess { lhs, rhs } => {
@@ -466,11 +473,20 @@ impl CircuitWriter {
 
                 // find method info
                 let struct_info = self.get_struct(module, &struct_name)?;
-
                 let func = struct_info
                     .methods
                     .get(&method_name.value)
                     .expect("could not find method");
+
+                // potentially modify the module we're in to process this function
+                let prev_current_module = self.current_module.clone();
+                if let Some(module) = module {
+                    // TODO: find more elegant way to avoid std/crypto
+                    if module.value != "crypto" {
+                        let module = self.resolve_module(module)?;
+                        self.current_module = Some(module.into());
+                    }
+                }
 
                 // if method has a `self` argument, manually add it to the list of argument
                 let mut vars = vec![];
@@ -508,8 +524,20 @@ impl CircuitWriter {
                 }
 
                 // execute method
-                let res = self.compile_native_function_call(func, vars);
-                res.map(|r| r.map(VarOrRef::Var))
+                let res = self
+                    .compile_native_function_call(func, vars)
+                    .map(|r| r.map(VarOrRef::Var));
+
+                // revert the current module
+                if let Some(module) = module {
+                    // TODO: find more elegant way to avoid std/crypto
+                    if module.value != "crypto" {
+                        self.current_module = prev_current_module;
+                    }
+                }
+
+                //
+                res
             }
 
             ExprKind::IfElse { cond, then_, else_ } => {
