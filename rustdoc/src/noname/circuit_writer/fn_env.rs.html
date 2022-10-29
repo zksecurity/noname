@@ -295,7 +295,7 @@
             .insert(var_name.clone(), (scope, var_info))
             .is_some()
         {
-            <span class="macro">panic!</span>(<span class="string">&quot;type checker error: var {var_name} already exists&quot;</span>);
+            <span class="macro">panic!</span>(<span class="string">&quot;type checker error: var `{var_name}` already exists&quot;</span>);
         }
     }
 
@@ -307,9 +307,9 @@
         </span><span class="kw">let </span>(scope, var_info) = <span class="self">self
             </span>.vars
             .get(var_name)
-            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable {var_name} not found&quot;</span>));
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable `{var_name}` not found&quot;</span>));
         <span class="kw">if </span>!<span class="self">self</span>.is_in_scope(<span class="kw-2">*</span>scope) {
-            <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable not in scope&quot;</span>);
+            <span class="macro">panic!</span>(<span class="string">&quot;type checking bug: local variable `{var_name}` not in scope&quot;</span>);
         }
 
         var_info.clone()

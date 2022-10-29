@@ -338,6 +338,12 @@
 <span id="338">338</span>
 <span id="339">339</span>
 <span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -429,6 +435,12 @@
     }
 }
 
+<span class="attribute">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>ConstInfo {
+    <span class="kw">pub </span>value: Field,
+    <span class="kw">pub </span>typ: Ty,
+}
+
 <span class="doccomment">/// The environment we use to type check a noname program.
 </span><span class="attribute">#[derive(Default, Debug)]
 </span><span class="kw">pub struct </span>TypeChecker {
@@ -443,7 +455,7 @@
     </span><span class="kw">pub </span>structs: HashMap&lt;String, StructInfo&gt;,
 
     <span class="doccomment">/// Constants declared in this module.
-    </span><span class="kw">pub </span>constants: HashMap&lt;String, (Field, Ty)&gt;,
+    </span><span class="kw">pub </span>constants: HashMap&lt;String, ConstInfo&gt;,
 
     <span class="doccomment">/// Mapping from node id to TyKind.
     /// This can be used by the circuit-writer when it needs type information.
@@ -510,13 +522,13 @@
 
                     type_checker.constants.insert(
                         cst.name.value.clone(),
-                        (
-                            cst.value,
-                            Ty {
+                        ConstInfo {
+                            value: cst.value,
+                            typ: Ty {
                                 kind: TyKind::Field,
                                 span: cst.span,
                             },
-                        ),
+                        },
                     );
                 }
 
