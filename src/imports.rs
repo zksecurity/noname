@@ -1,14 +1,48 @@
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 use crate::{
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
     error::Result,
     parser::{FnSig, Function, UsePath},
-    stdlib::{self, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
-    type_checker::FnInfo,
+    stdlib::{self, parse_fn_sigs, BUILTIN_FNS},
+    type_checker::{FnInfo, TAST},
     var::Var,
 };
+
+#[derive(Debug)]
+pub struct Module {
+    pub name: String,
+    pub kind: ModuleKind,
+}
+
+#[derive(Debug)]
+pub enum ModuleKind {
+    /// A module that contains only built-in functions.
+    BuiltIn(BuiltinModule),
+
+    /// A module that contains both built-in functions and native functions.
+    Native(TAST),
+}
+
+#[derive(Debug, Clone)]
+pub struct BuiltinModule {
+    pub functions: HashMap<String, FnInfo>,
+}
+
+/*
+impl std::fmt::Debug for BuiltinModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ImportedModule {{ name: {:?}, functions: {:?}, span: {:?} }}",
+            self.name,
+            self.functions.keys(),
+            self.span
+        )
+    }
+}
+*/
 
 /// An actual handle to the internal function to call to resolve a built-in function call.
 ///
@@ -38,15 +72,6 @@ impl fmt::Debug for FnKind {
     }
 }
 
-pub fn resolve_builtin_functions() -> Vec<FnInfo> {
+pub fn resolve_builtin_functions() -> HashMap<String, FnInfo> {
     parse_fn_sigs(&BUILTIN_FNS)
-}
-
-pub fn resolve_imports(path: &UsePath) -> Result<ImportedModule> {
-    if path.module.value == "std" {
-        stdlib::parse_std_import(&path.submodule.value, path.span)
-    } else {
-        // we only support std root module for now
-        unimplemented!()
-    }
 }

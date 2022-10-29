@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
 use crate::{
+    cli::packages::UserRepo,
     constants::Span,
     error::{Error, ErrorKind, Result},
-    imports::{resolve_builtin_functions, resolve_imports, FnKind},
+    imports::{resolve_builtin_functions, FnKind, Module},
     parser::{Expr, ExprKind, FnSig, Function, Op2, Stmt, StmtKind, Ty, TyKind, UsePath},
-    stdlib::ImportedModule,
     syntax::is_type,
 };
 
-use super::{TypeInfo, TypedFnEnv};
+use super::{Dependencies, TypeInfo, TypedFnEnv};
 
 /// Keeps track of the signature of a user-defined function.
 #[derive(Debug, Clone)]
@@ -73,8 +73,8 @@ pub struct TypeChecker {
     /// contains at least the set of builtin functions (like assert_eq)
     pub functions: HashMap<String, FnInfo>,
 
-    /// stores the imported modules
-    pub modules: HashMap<String, ImportedModule>,
+    /// maps `module` to its original `use a::module`
+    pub modules: HashMap<String, UsePath>,
 
     /// If there's a main function in this module, then this is true
     /// (in other words, it's not a library)
@@ -104,14 +104,18 @@ impl TypeChecker {
         self.structs.get(name)
     }
 
+    pub fn fn_info(&self, name: &str) -> Option<&FnInfo> {
+        self.functions.get(name)
+    }
+
     /// Returns the number of field elements contained in the given type.
     // TODO: might want to memoize that at some point
     pub fn size_of(&self, typ: &TyKind) -> usize {
         match typ {
             TyKind::Field => 1,
-            TyKind::Custom(c) => {
+            TyKind::Custom { module, name } => {
                 let struct_info = self
-                    .struct_info(c)
+                    .struct_info(&name.value)
                     .expect("couldn't find struct info of {c}");
                 struct_info
                     .fields
@@ -127,12 +131,8 @@ impl TypeChecker {
 
     pub fn resolve_global_imports(&mut self) -> Result<()> {
         let builtin_functions = resolve_builtin_functions();
-        for fn_info in builtin_functions {
-            if self
-                .functions
-                .insert(fn_info.sig().name.name.value.clone(), fn_info)
-                .is_some()
-            {
+        for (fn_name, fn_info) in builtin_functions {
+            if self.functions.insert(fn_name, fn_info).is_some() {
                 panic!("global imports conflict (TODO: better error)");
             }
         }
@@ -141,16 +141,14 @@ impl TypeChecker {
     }
 
     pub fn import(&mut self, path: &UsePath) -> Result<()> {
-        let module = resolve_imports(path)?;
-
         if self
             .modules
-            .insert(module.name.clone(), module.clone())
+            .insert(path.submodule.value.clone(), path.clone())
             .is_some()
         {
             return Err(Error::new(
-                ErrorKind::DuplicateModule(module.name.clone()),
-                module.span,
+                ErrorKind::DuplicateModule(path.submodule.value.clone()),
+                path.submodule.span,
             ));
         }
 
@@ -161,23 +159,24 @@ impl TypeChecker {
         &mut self,
         expr: &Expr,
         typed_fn_env: &mut TypedFnEnv,
+        deps: &Dependencies,
     ) -> Result<Option<ExprTyInfo>> {
         let typ: Option<ExprTyInfo> = match &expr.kind {
             ExprKind::FieldAccess { lhs, rhs } => {
                 // compute type of left-hand side
                 let lhs_node = self
-                    .compute_type(lhs, typed_fn_env)?
+                    .compute_type(lhs, typed_fn_env, deps)?
                     .expect("type-checker bug: field access on an empty var");
 
                 // obtain the type of the field
                 let struct_name = match lhs_node.typ {
-                    TyKind::Custom(name) => name,
+                    TyKind::Custom { module, name } => name,
                     _ => panic!("field access must be done on a custom struct"),
                 };
 
                 // get struct info
                 let struct_info = self
-                    .struct_info(&struct_name)
+                    .struct_info(&struct_name.value)
                     .expect("this struct is not defined");
 
                 // find field type
@@ -204,16 +203,9 @@ impl TypeChecker {
                     let imported_module = self.modules.get(module_val).ok_or_else(|| {
                         Error::new(ErrorKind::UndefinedModule(module_val.clone()), module.span)
                     })?;
-                    let fn_info =
-                        imported_module
-                            .functions
-                            .get(&fn_name.value)
-                            .ok_or_else(|| {
-                                Error::new(
-                                    ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                                    fn_name.span,
-                                )
-                            })?;
+
+                    let fn_info = deps.get_fn(imported_module, fn_name)?;
+
                     fn_info.sig().clone()
                 } else {
                     // functions present in the scope
@@ -228,7 +220,8 @@ impl TypeChecker {
 
                 // type check the function call
                 let method_call = false;
-                let res = self.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)?;
+                let res =
+                    self.check_fn_call(typed_fn_env, deps, method_call, fn_sig, args, expr.span)?;
 
                 res.map(ExprTyInfo::new_anon)
             }
@@ -240,9 +233,9 @@ impl TypeChecker {
                 args,
             } => {
                 // retrieve struct name on the lhs
-                let lhs_type = self.compute_type(lhs, typed_fn_env)?;
-                let struct_name = match lhs_type.map(|t| t.typ) {
-                    Some(TyKind::Custom(name)) => name,
+                let lhs_type = self.compute_type(lhs, typed_fn_env, deps)?;
+                let (module, struct_name) = match lhs_type.map(|t| t.typ) {
+                    Some(TyKind::Custom { module, name }) => (module, name),
                     _ => {
                         return Err(Error::new(
                             ErrorKind::MethodCallOnNonCustomStruct,
@@ -252,10 +245,23 @@ impl TypeChecker {
                 };
 
                 // get struct info
-                let struct_info = self
-                    .structs
-                    .get(&struct_name)
-                    .expect("could not find struct in scope (TODO: better error)");
+                let struct_info = if let Some(module) = module {
+                    let imported_module = self.modules.get(&module.value).ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::UndefinedModule(module.value.clone()),
+                            module.span,
+                        )
+                    })?;
+
+                    deps.get_struct(imported_module, &struct_name)?
+                } else {
+                    self.struct_info(&struct_name.value)
+                        .ok_or(Error::new(
+                            ErrorKind::UndefinedStruct(struct_name.value.clone()),
+                            struct_name.span,
+                        ))?
+                        .clone()
+                };
 
                 // get method info
                 let method_type = struct_info
@@ -267,6 +273,7 @@ impl TypeChecker {
                 let method_call = true;
                 let res = self.check_fn_call(
                     typed_fn_env,
+                    deps,
                     method_call,
                     method_type.sig.clone(),
                     args,
@@ -279,7 +286,7 @@ impl TypeChecker {
             ExprKind::Assignment { lhs, rhs } => {
                 // compute type of lhs
                 let lhs_node = self
-                    .compute_type(lhs, typed_fn_env)?
+                    .compute_type(lhs, typed_fn_env, deps)?
                     .expect("type-checker bug: lhs access on an empty var");
 
                 // lhs can be a local variable or a path to an array
@@ -297,7 +304,7 @@ impl TypeChecker {
                     ExprKind::ArrayAccess { array, idx } => {
                         // get variable behind array
                         let array_node = self
-                            .compute_type(array, typed_fn_env)?
+                            .compute_type(array, typed_fn_env, deps)?
                             .expect("type-checker bug: array access on an empty var");
 
                         array_node
@@ -309,7 +316,7 @@ impl TypeChecker {
                     ExprKind::FieldAccess { lhs, rhs } => {
                         // get variable behind lhs
                         let lhs_node = self
-                            .compute_type(lhs, typed_fn_env)?
+                            .compute_type(lhs, typed_fn_env, deps)?
                             .expect("type-checker bug: lhs access on an empty var");
 
                         lhs_node
@@ -334,7 +341,7 @@ impl TypeChecker {
                 }
 
                 // and is of the same type as the rhs
-                let rhs_typ = self.compute_type(rhs, typed_fn_env)?.unwrap();
+                let rhs_typ = self.compute_type(rhs, typed_fn_env, deps)?.unwrap();
 
                 if !rhs_typ.typ.match_expected(&lhs_node.typ) {
                     panic!("lhs type doesn't match rhs type (TODO: replace with error)");
@@ -345,10 +352,10 @@ impl TypeChecker {
 
             ExprKind::BinaryOp { op, lhs, rhs, .. } => {
                 let lhs_node = self
-                    .compute_type(lhs, typed_fn_env)?
+                    .compute_type(lhs, typed_fn_env, deps)?
                     .expect("type-checker bug");
                 let rhs_node = self
-                    .compute_type(rhs, typed_fn_env)?
+                    .compute_type(rhs, typed_fn_env, deps)?
                     .expect("type-checker bug");
 
                 if lhs_node.typ != rhs_node.typ {
@@ -378,7 +385,7 @@ impl TypeChecker {
             }
 
             ExprKind::Negated(inner) => {
-                let inner_typ = self.compute_type(inner, typed_fn_env)?.unwrap();
+                let inner_typ = self.compute_type(inner, typed_fn_env, deps)?.unwrap();
                 if !matches!(inner_typ.typ, TyKind::Field | TyKind::BigInt) {
                     return Err(Error::new(
                         ErrorKind::MismatchType(TyKind::Field, inner_typ.typ),
@@ -390,7 +397,7 @@ impl TypeChecker {
             }
 
             ExprKind::Not(inner) => {
-                let inner_typ = self.compute_type(inner, typed_fn_env)?.unwrap();
+                let inner_typ = self.compute_type(inner, typed_fn_env, deps)?.unwrap();
                 if !matches!(inner_typ.typ, TyKind::Bool) {
                     return Err(Error::new(
                         ErrorKind::MismatchType(TyKind::Bool, inner_typ.typ),
@@ -407,11 +414,6 @@ impl TypeChecker {
 
             // mod::path.of.var
             ExprKind::Variable { module, name } => {
-                // sanitize
-                if module.is_some() {
-                    panic!("we don't support module variables for now");
-                }
-
                 if is_type(&name.value) {
                     // if it's a type, make sure it exists
                     let _struct_info = self
@@ -419,7 +421,10 @@ impl TypeChecker {
                         .expect("custom type does not exist");
 
                     // and return its type
-                    let res = ExprTyInfo::new_anon(TyKind::Custom(name.value.clone()));
+                    let res = ExprTyInfo::new_anon(TyKind::Custom {
+                        module: module.clone(),
+                        name: name.clone(),
+                    });
                     Some(res)
                 } else {
                     // if it's a variable,
@@ -452,7 +457,7 @@ impl TypeChecker {
 
             ExprKind::ArrayAccess { array, idx } => {
                 // get type of lhs
-                let typ = self.compute_type(array, typed_fn_env)?.unwrap();
+                let typ = self.compute_type(array, typed_fn_env, deps)?.unwrap();
 
                 // check that it is an array
                 if !matches!(typ.typ, TyKind::Array(..)) {
@@ -460,7 +465,7 @@ impl TypeChecker {
                 }
 
                 // check that expression is a bigint
-                let idx_typ = self.compute_type(idx, typed_fn_env)?;
+                let idx_typ = self.compute_type(idx, typed_fn_env, deps)?;
                 match idx_typ.map(|t| t.typ) {
                     Some(TyKind::BigInt) => (),
                     _ => return Err(Error::new(ErrorKind::ExpectedConstant, expr.span)),
@@ -483,11 +488,11 @@ impl TypeChecker {
 
                 for item in items {
                     let item_typ = self
-                        .compute_type(item, typed_fn_env)?
+                        .compute_type(item, typed_fn_env, deps)?
                         .expect("expected a value");
 
                     if let Some(tykind) = &tykind {
-                        if tykind != &item_typ.typ {
+                        if !tykind.same_as(&item_typ.typ) {
                             return Err(Error::new(
                                 ErrorKind::MismatchType(tykind.clone(), item_typ.typ),
                                 expr.span,
@@ -507,7 +512,7 @@ impl TypeChecker {
             ExprKind::IfElse { cond, then_, else_ } => {
                 // cond can only be a boolean
                 let cond_node = self
-                    .compute_type(cond, typed_fn_env)?
+                    .compute_type(cond, typed_fn_env, deps)?
                     .expect("can't compute type of condition");
                 if !matches!(cond_node.typ, TyKind::Bool) {
                     panic!("`if` must be followed by a boolean");
@@ -534,10 +539,10 @@ impl TypeChecker {
 
                 // compute type of if/else branches
                 let then_node = self
-                    .compute_type(then_, typed_fn_env)?
+                    .compute_type(then_, typed_fn_env, deps)?
                     .expect("can't compute type of first branch of `if/else`");
                 let else_node = self
-                    .compute_type(else_, typed_fn_env)?
+                    .compute_type(else_, typed_fn_env, deps)?
                     .expect("can't compute type of first branch of `if/else`");
 
                 // make sure that the type of then_ and else_ match
@@ -550,10 +555,10 @@ impl TypeChecker {
             }
 
             ExprKind::CustomTypeDeclaration {
-                struct_name: name,
+                struct_name,
                 fields,
             } => {
-                let name = &name.value;
+                let name = &struct_name.value;
                 let struct_info = self.structs.get(name).ok_or_else(|| {
                     Error::new(ErrorKind::UndefinedStruct(name.clone()), expr.span)
                 })?;
@@ -579,7 +584,7 @@ impl TypeChecker {
                     }
 
                     let observed_typ = self
-                        .compute_type(&observed.1, typed_fn_env)?
+                        .compute_type(&observed.1, typed_fn_env, deps)?
                         .expect("expected a value (TODO: better error)");
 
                     if !observed_typ.typ.match_expected(&defined.1) {
@@ -590,7 +595,10 @@ impl TypeChecker {
                     }
                 }
 
-                let res = ExprTyInfo::new_anon(TyKind::Custom(name.clone()));
+                let res = ExprTyInfo::new_anon(TyKind::Custom {
+                    module: None,
+                    name: struct_name.clone(),
+                });
                 Some(res)
             }
         };
@@ -607,6 +615,7 @@ impl TypeChecker {
     pub fn check_block(
         &mut self,
         typed_fn_env: &mut TypedFnEnv,
+        deps: &Dependencies,
         stmts: &[Stmt],
         expected_return: Option<&Ty>,
     ) -> Result<()> {
@@ -620,7 +629,7 @@ impl TypeChecker {
                 panic!("early return detected: we don't allow that for now (TODO: return error");
             }
 
-            return_typ = self.check_stmt(typed_fn_env, stmt)?;
+            return_typ = self.check_stmt(typed_fn_env, deps, stmt)?;
         }
 
         // check the return
@@ -654,6 +663,7 @@ impl TypeChecker {
     pub fn check_stmt(
         &mut self,
         typed_fn_env: &mut TypedFnEnv,
+        deps: &Dependencies,
         stmt: &Stmt,
     ) -> Result<Option<TyKind>> {
         match &stmt.kind {
@@ -661,7 +671,7 @@ impl TypeChecker {
                 // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
 
                 // but first we need to compute the type of the rhs expression
-                let node = self.compute_type(rhs, typed_fn_env)?.unwrap();
+                let node = self.compute_type(rhs, typed_fn_env, deps)?.unwrap();
 
                 let type_info = if *mutable {
                     TypeInfo::new_mut(node.typ, lhs.span)
@@ -686,7 +696,7 @@ impl TypeChecker {
                 }
 
                 // check block
-                self.check_block(typed_fn_env, body, None)?;
+                self.check_block(typed_fn_env, deps, body, None)?;
 
                 // exit the scope
                 typed_fn_env.pop();
@@ -695,13 +705,13 @@ impl TypeChecker {
                 // make sure the expression does not return any type
                 // (it's a statement expression, it should only work via side effect)
 
-                let typ = self.compute_type(expr, typed_fn_env)?;
+                let typ = self.compute_type(expr, typed_fn_env, deps)?;
                 if typ.is_some() {
                     return Err(Error::new(ErrorKind::UnusedReturnValue, expr.span));
                 }
             }
             StmtKind::Return(res) => {
-                let node = self.compute_type(res, typed_fn_env)?.unwrap();
+                let node = self.compute_type(res, typed_fn_env, deps)?.unwrap();
 
                 return Ok(Some(node.typ));
             }
@@ -716,6 +726,7 @@ impl TypeChecker {
     pub fn check_fn_call(
         &mut self,
         typed_fn_env: &mut TypedFnEnv,
+        deps: &Dependencies,
         method_call: bool, // indicates if it's a fn call or a method call
         fn_sig: FnSig,
         args: &[Expr],
@@ -735,7 +746,7 @@ impl TypeChecker {
         // compute the observed arguments types
         let mut observed = Vec::with_capacity(args.len());
         for arg in args {
-            if let Some(node) = self.compute_type(arg, typed_fn_env)? {
+            if let Some(node) = self.compute_type(arg, typed_fn_env, deps)? {
                 observed.push((node.typ.clone(), arg.span));
             } else {
                 return Err(Error::new(ErrorKind::CannotComputeExpression, arg.span));

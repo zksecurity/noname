@@ -4,6 +4,7 @@ use crate::{
     constants::Field,
     inputs::{parse_inputs, ExtField},
     prover::compile_and_prove,
+    type_checker::Dependencies,
 };
 
 fn test_file(
@@ -19,7 +20,8 @@ fn test_file(
     let code = std::fs::read_to_string(prefix.clone().join(format!("{file_name}.no"))).unwrap();
 
     // compile
-    let (prover_index, verifier_index) = compile_and_prove(&code).unwrap();
+    let (prover_index, verifier_index) =
+        compile_and_prove(&code, &Dependencies::default()).unwrap();
 
     // check compiled ASM only if it's not too large
     if prover_index.len() < 100 {

@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
+    cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind},
@@ -199,13 +200,14 @@ pub struct Ty {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TyKind {
     /// The main primitive type. 'Nuf said.
+    // TODO: Field { constant: bool },
     Field,
 
     /// Custom / user-defined types
-    Custom(String),
+    Custom { module: Option<Ident>, name: Ident },
 
     /// This could be the same as Field, but we use this to also track the fact that it's a constant.
     // TODO: get rid of this type tho no?
@@ -231,6 +233,43 @@ impl TyKind {
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
+            (
+                TyKind::Custom { module, name },
+                TyKind::Custom {
+                    module: expected_module,
+                    name: expected_name,
+                },
+            ) => {
+                module
+                    .as_ref()
+                    .zip(expected_module.as_ref())
+                    .map_or(true, |(a, b)| a == b)
+                    && name.value == expected_name.value
+            }
+            (x, y) if x == y => true,
+            _ => false,
+        }
+    }
+
+    pub fn same_as(&self, other: &TyKind) -> bool {
+        match (self, other) {
+            (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => true,
+            (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
+                lhs_size == rhs_size && lhs.match_expected(rhs)
+            }
+            (
+                TyKind::Custom { module, name },
+                TyKind::Custom {
+                    module: expected_module,
+                    name: expected_name,
+                },
+            ) => {
+                module
+                    .as_ref()
+                    .zip(expected_module.as_ref())
+                    .map_or(true, |(a, b)| a == b)
+                    && name.value == expected_name.value
+            }
             (x, y) if x == y => true,
             _ => false,
         }
@@ -240,7 +279,17 @@ impl TyKind {
 impl Display for TyKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TyKind::Custom(name) => write!(f, "a `{}` struct", name),
+            TyKind::Custom { module, name } => {
+                if let Some(module) = module {
+                    write!(
+                        f,
+                        "a `{}` struct from module `{}`",
+                        name.value, module.value
+                    )
+                } else {
+                    write!(f, "a `{}` struct", name.value)
+                }
+            }
             TyKind::Field => write!(f, "Field"),
             TyKind::BigInt => write!(f, "BigInt"),
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
@@ -250,24 +299,50 @@ impl Display for TyKind {
 }
 
 impl Ty {
-    pub fn reserved_types(ty_name: &str) -> TyKind {
-        match ty_name {
+    pub fn reserved_types(module: Option<Ident>, name: Ident) -> TyKind {
+        match name.value.as_ref() {
+            "Field" | "Bool" if module.is_some() => {
+                panic!("reserved types cannot be in a module (TODO: better error)")
+            }
             "Field" => TyKind::Field,
             "Bool" => TyKind::Bool,
-            _ => TyKind::Custom(ty_name.to_string()),
+            _ => TyKind::Custom { module, name },
         }
     }
 
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
         match token.kind {
-            // struct name
-            TokenKind::Identifier(name) => {
-                if !is_type(&name) {
-                    panic!("bad name for a type (TODO: better error)");
-                }
+            // module::Type or Type
+            // ^^^^^^^^^^^^    ^^^^
+            TokenKind::Identifier(ty_name) => {
+                let maybe_module = Ident::new(ty_name.clone(), token.span);
+                let (module, name, span) = if is_type(&ty_name) {
+                    // Type
+                    // ^^^^
+                    (None, maybe_module, token.span)
+                } else {
+                    // module::Type
+                    //       ^^
+                    tokens.bump_expected(ctx, TokenKind::DoubleColon)?;
 
-                let ty_kind = Self::reserved_types(&name);
+                    // module::Type
+                    //         ^^^^
+                    let (name, span) = match tokens.bump(ctx) {
+                        Some(Token {
+                            kind: TokenKind::Identifier(name),
+                            span,
+                        }) => (name, span),
+                        _ => return Err(Error::new(ErrorKind::MissingType, ctx.last_span())),
+                    };
+                    let name = Ident::new(name, span);
+                    let span = token.span.merge_with(span);
+
+                    (Some(maybe_module), name, span)
+                };
+
+                let ty_kind = Self::reserved_types(module, name);
+
                 Ok(Self {
                     kind: ty_kind,
                     span: token.span,
@@ -941,13 +1016,17 @@ impl FnSig {
 }
 
 /// Any kind of text that can represent a type, a variable, a function name, etc.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Ident {
     pub value: String,
     pub span: Span,
 }
 
 impl Ident {
+    pub fn new(value: String, span: Span) -> Self {
+        Self { value, span }
+    }
+
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let token = tokens.bump_err(ctx, ErrorKind::MissingToken)?;
         match token.kind {
@@ -1170,7 +1249,10 @@ impl Function {
                 }
 
                 Ty {
-                    kind: TyKind::Custom(self_name.value.clone()),
+                    kind: TyKind::Custom {
+                        module: None,
+                        name: Ident::new(self_name.value.clone(), self_name.span),
+                    },
                     span: self_name.span,
                 }
             } else {
@@ -1626,11 +1708,20 @@ pub struct Root {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct UsePath {
     pub module: Ident,
     pub submodule: Ident,
     pub span: Span,
+}
+
+impl From<&UsePath> for UserRepo {
+    fn from(path: &UsePath) -> Self {
+        UserRepo {
+            user: path.module.value.clone(),
+            repo: path.submodule.value.clone(),
+        }
+    }
 }
 
 impl UsePath {
@@ -1739,7 +1830,7 @@ impl Struct {
         // struct Foo { a: Field, b: Field }
         //        ^^^
 
-        let name = parse_type(ctx, tokens)?;
+        let name = CustomType::parse(ctx, tokens)?;
 
         // struct Foo { a: Field, b: Field }
         //            ^
@@ -1904,26 +1995,30 @@ pub struct CustomType {
     pub span: Span,
 }
 
-// TODO: implement as impl CustomType
-pub fn parse_type(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<CustomType> {
-    let ty_name = tokens.bump_ident(ctx, ErrorKind::InvalidType)?;
+impl CustomType {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        let ty_name = tokens.bump_ident(ctx, ErrorKind::InvalidType)?;
 
-    if !is_type(&ty_name.value) {
-        panic!("type name should start with uppercase letter (TODO: better error");
+        if !is_type(&ty_name.value) {
+            panic!("type name should start with uppercase letter (TODO: better error");
+        }
+
+        // make sure that this type is allowed
+        if !matches!(
+            Ty::reserved_types(None, ty_name.clone()),
+            TyKind::Custom { .. }
+        ) {
+            return Err(Error::new(
+                ErrorKind::ReservedType(ty_name.value),
+                ty_name.span,
+            ));
+        }
+
+        Ok(Self {
+            value: ty_name.value,
+            span: ty_name.span,
+        })
     }
-
-    // make sure that this type is allowed
-    if !matches!(Ty::reserved_types(&ty_name.value), TyKind::Custom(_)) {
-        return Err(Error::new(
-            ErrorKind::ReservedType(ty_name.value),
-            ty_name.span,
-        ));
-    }
-
-    Ok(CustomType {
-        value: ty_name.value,
-        span: ty_name.span,
-    })
 }
 
 //

@@ -78,11 +78,17 @@ impl CompiledCircuit {
 
                 Ok(res)
             }
-            (TyKind::Custom(struct_name), Value::Object(mut map)) => {
+            (
+                TyKind::Custom {
+                    module,
+                    name: struct_name,
+                },
+                Value::Object(mut map),
+            ) => {
                 // get fields of struct
                 let struct_info = self
                     .circuit
-                    .struct_info(struct_name)
+                    .struct_info(&struct_name.value)
                     .expect("compiler bug: couldn't find struct given as input");
                 let fields = &struct_info.fields;
 

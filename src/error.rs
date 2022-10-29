@@ -36,6 +36,17 @@ pub enum ErrorKind {
     #[error("variable is not mutable. You must set the `mut` keyword to make it mutable")]
     AssignmentToImmutableVariable,
 
+    #[error(
+        "the dependency `{0}` does not appear to be listed in your manifest file `Noname.toml`"
+    )]
+    UnknownDependency(String),
+
+    #[error("the function `{1}` does not exist in the module `{0}`")]
+    UnknownExternalFn(String, String),
+
+    #[error("the struct `{1}` does not exist in the module `{0}`")]
+    UnknownExternalStruct(String, String),
+
     #[error(transparent)]
     ParsingError(#[from] ParsingError),
 
@@ -137,7 +148,7 @@ pub enum ErrorKind {
     #[error("cannot compute the expression")]
     CannotComputeExpression,
 
-    #[error("type {0} and {1} are not compatible")]
+    #[error("type '{0}' and '{1}' are not compatible")]
     MismatchType(TyKind, TyKind),
 
     #[error("variable used is not defined anywhere")]
@@ -174,7 +185,7 @@ pub enum ErrorKind {
     UnexpectedReturn,
 
     #[error("error while importing std path: {0}")]
-    StdImport(&'static str),
+    StdImport(String),
 
     #[error("tried to import the same module `{0}` twice")]
     DuplicateModule(String),
@@ -182,10 +193,10 @@ pub enum ErrorKind {
     #[error("`{0}` is a reserved argument name")]
     PublicOutputReserved(String),
 
-    #[error("function `{0}` not present in scope")]
+    #[error("function `{0}` not present in scope (did you misspell it?)")]
     UndefinedFunction(String),
 
-    #[error("module `{0}` not present in scope")]
+    #[error("module `{0}` not present in scope (are you sure you imported it?)")]
     UndefinedModule(String),
 
     #[error("attribute not recognized: `{0:?}`")]

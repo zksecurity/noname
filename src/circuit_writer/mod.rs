@@ -4,7 +4,7 @@ use crate::{
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     parser::{AttributeKind, FnArg, FnSig, Function, RootKind, Struct, TyKind},
-    type_checker::{TypeChecker, TAST},
+    type_checker::{Dependencies, TypeChecker, TAST},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,
 };
@@ -21,6 +21,7 @@ pub mod writer;
 pub struct CircuitWriter {
     /// The source code that created this circuit.
     /// Useful for debugging and displaying user errors.
+    // TODO: why is this here? probably doesn't need to be
     pub(crate) source: String,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
@@ -87,7 +88,11 @@ pub struct CircuitWriter {
 }
 
 impl CircuitWriter {
-    pub fn generate_circuit(tast: TAST, code: &str) -> Result<CompiledCircuit> {
+    pub fn generate_circuit(
+        tast: TAST,
+        deps: &Dependencies,
+        code: &str,
+    ) -> Result<CompiledCircuit> {
         // if there's no main function, then return an error
         let TAST {
             ast,
@@ -223,7 +228,7 @@ impl CircuitWriter {
                     }
 
                     // compile function
-                    circuit_writer.compile_main_function(fn_env, function)?;
+                    circuit_writer.compile_main_function(fn_env, deps, function)?;
                 }
 
                 // struct definition (already dealt with in type checker)

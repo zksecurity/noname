@@ -18,6 +18,7 @@
 - [Methods](./methods.md)
 - [Literals and the `const` keyword](./literals.md)
 - [Expressions](./expressions.md)
+- [Modules](./modules.md)
 
 # Circuit Generation
 

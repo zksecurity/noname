@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use crate::{
+    cli::packages::UserRepo,
     error::{Error, ErrorKind, Result},
     imports::FnKind,
-    parser::{RootKind, Struct, Ty, TyKind, AST},
+    parser::{Ident, RootKind, Struct, Ty, TyKind, UsePath, AST},
+    stdlib::get_std_fn,
 };
 
 pub use checker::{FnInfo, StructInfo, TypeChecker};
@@ -21,11 +23,81 @@ pub struct TAST {
     pub typed_global_env: TypeChecker,
 }
 
+/// Contains metadata from other dependencies that might be use in this module.
+#[derive(Default)]
+pub struct Dependencies {
+    /// Maps each `user/repo` to their TAST.
+    pub deps: HashMap<UserRepo, TAST>,
+}
+
+impl Dependencies {
+    pub fn get_fn(&self, use_path: &UsePath, fn_name: &Ident) -> Result<FnInfo> {
+        let user_repo: UserRepo = use_path.into();
+
+        // hijack builtins (only std for now)
+        if user_repo.user == "std" {
+            return get_std_fn(&user_repo.repo, &fn_name.value, use_path.span);
+        }
+
+        // then check in imported dependencies
+        let tast = self.deps.get(&user_repo).ok_or_else(|| {
+            Error::new(
+                ErrorKind::UnknownDependency(user_repo.to_string()),
+                use_path.span,
+            )
+        })?;
+
+        // we found the module, now let's find the function
+        let fn_info = tast
+            .typed_global_env
+            .fn_info(&fn_name.value)
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::UnknownExternalFn(user_repo.to_string(), fn_name.value.to_string()),
+                    fn_name.span,
+                )
+            })?;
+
+        Ok(fn_info.clone())
+    }
+
+    pub fn get_struct(&self, use_path: &UsePath, struct_name: &Ident) -> Result<StructInfo> {
+        let user_repo: UserRepo = use_path.into();
+
+        // first check in std
+        if user_repo.user == "std" {
+            todo!();
+        }
+
+        // then check in imported dependencies
+        let tast = self.deps.get(&user_repo).ok_or_else(|| {
+            Error::new(
+                ErrorKind::UnknownDependency(user_repo.to_string()),
+                use_path.span,
+            )
+        })?;
+
+        // we found the module, now let's find the function
+        tast.typed_global_env
+            .struct_info(&struct_name.value)
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::UnknownExternalStruct(
+                        user_repo.to_string(),
+                        struct_name.value.to_string(),
+                    ),
+                    struct_name.span,
+                )
+            })
+            .cloned()
+    }
+}
+
 impl TAST {
     /// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    pub fn analyze(ast: AST) -> Result<TAST> {
+    pub fn analyze(ast: AST, deps: &Dependencies) -> Result<TAST> {
         //
         // inject some utility builtin functions in the scope
         //
@@ -198,6 +270,7 @@ impl TAST {
                     // type system pass
                     typed_global_env.check_block(
                         &mut typed_fn_env,
+                        deps,
                         &function.body,
                         function.sig.return_type.as_ref(),
                     )?;

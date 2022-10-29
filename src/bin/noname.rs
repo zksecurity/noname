@@ -36,7 +36,9 @@ enum Commands {
     /// Verify a proof
     Verify,
 
-    /// Compile, prove, and verify a noname program (for testing only)
+    /// Compile, prove, and verify a noname program (for testing only).
+    /// It only supports single `main.no` files without dependencies.
+    /// Warning: This will be deprecated.
     Test(CmdTest),
 }
 

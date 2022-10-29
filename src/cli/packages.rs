@@ -14,8 +14,8 @@ use super::{
 /// A dependency is a Github `user/repo` pair.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct UserRepo {
-    user: String,
-    repo: String,
+    pub user: String,
+    pub repo: String,
 }
 
 impl UserRepo {

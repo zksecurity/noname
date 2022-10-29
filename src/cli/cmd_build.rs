@@ -42,11 +42,7 @@ pub fn cmd_build(args: CmdBuild) -> Result<()> {
     let dep_graph = DependencyGraph::new_from_manifest(this, &manifest)?;
 
     // produce artifacts for each dependency, starting from leaf dependencies
-    let mut tasts = vec![];
-    for dep in dep_graph.from_leaves_to_roots() {
-        let code = get_dep_code(&dep)?;
-        tasts.push(get_tast(&code)?);
-    }
+    todo!();
 
     // find local `lib.no` or `main.no` file
     todo!();

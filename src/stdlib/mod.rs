@@ -1,12 +1,13 @@
 use std::{collections::HashMap, ops::Neg as _};
 
 use ark_ff::{One as _, Zero};
+use once_cell::sync::Lazy;
 
 use crate::{
-    circuit_writer::{CircuitWriter, GateKind, VarInfo},
+    circuit_writer::{CircuitWriter, VarInfo},
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    imports::{FnHandle, FnKind},
+    imports::{BuiltinModule, FnHandle, FnKind, Module, ModuleKind},
     lexer::Token,
     parser::{FnSig, ParserCtx, TyKind},
     type_checker::FnInfo,
@@ -17,53 +18,34 @@ use self::crypto::CRYPTO_FNS;
 
 pub mod crypto;
 
-#[derive(Clone)]
-pub struct ImportedModule {
-    pub name: String,
-    pub functions: HashMap<String, FnInfo>,
-    // TODO: delete?
-    pub span: Span,
-}
+static CRYPTO_MODULE: Lazy<BuiltinModule> = Lazy::new(|| {
+    let functions = parse_fn_sigs(&CRYPTO_FNS);
+    BuiltinModule { functions }
+});
 
-impl std::fmt::Debug for ImportedModule {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "ImportedModule {{ name: {:?}, functions: {:?}, span: {:?} }}",
-            self.name,
-            self.functions.keys(),
-            self.span
-        )
-    }
-}
-
-/// Parses the rest of a `use std::` statement. Returns a list of functions to import in the scope.
-pub fn parse_std_import(submodule: &str, span: Span) -> Result<ImportedModule> {
-    let mut res = ImportedModule {
-        name: submodule.to_string(),
-        functions: HashMap::new(),
-        span,
-    };
-
-    // TODO: make sure we're not importing the same module twice no?
+pub fn get_std_fn(submodule: &str, fn_name: &str, span: Span) -> Result<FnInfo> {
     match submodule {
-        "crypto" => {
-            let crypto_functions = parse_fn_sigs(&CRYPTO_FNS);
-            for func in crypto_functions {
-                res.functions
-                    .insert(func.sig().name.name.value.clone(), func);
-            }
-        }
-        _ => return Err(Error::new(ErrorKind::StdImport("unknown module"), span)),
+        "crypto" => CRYPTO_MODULE
+            .functions
+            .get(fn_name)
+            .cloned()
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::UnknownExternalFn(submodule.to_string(), fn_name.to_string()),
+                    span,
+                )
+            }),
+        _ => Err(Error::new(
+            ErrorKind::StdImport(submodule.to_string()),
+            span,
+        )),
     }
-
-    Ok(res)
 }
 
 /// Takes a list of function signatures (as strings) and their associated function pointer,
 /// returns the same list but with the parsed functions (as [FunctionSig]).
-pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> Vec<FnInfo> {
-    let mut functions: Vec<FnInfo> = vec![];
+pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> HashMap<String, FnInfo> {
+    let mut functions = HashMap::new();
     let ctx = &mut ParserCtx::default();
 
     for (sig, fn_ptr) in fn_sigs {
@@ -71,10 +53,13 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> Vec<FnInfo> {
 
         let sig = FnSig::parse(ctx, &mut tokens).unwrap();
 
-        functions.push(FnInfo {
-            kind: FnKind::BuiltIn(sig, *fn_ptr),
-            span: Span::default(),
-        });
+        functions.insert(
+            sig.name.name.value.clone(),
+            FnInfo {
+                kind: FnKind::BuiltIn(sig, *fn_ptr),
+                span: Span::default(),
+            },
+        );
     }
 
     functions

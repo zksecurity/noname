@@ -2,7 +2,7 @@ use std::{path::PathBuf, process};
 
 use miette::{Context, IntoDiagnostic, NamedSource, Result};
 
-use crate::{cli::packages::get_dep_code, compiler::get_tast};
+use crate::{cli::packages::get_dep_code, compiler::get_tast, type_checker::Dependencies};
 
 use super::{
     manifest::Manifest,
@@ -43,6 +43,7 @@ pub fn cmd_check(args: CmdCheck) -> Result<()> {
     let dep_graph = DependencyGraph::new_from_manifest(this, &manifest)?;
 
     // produce artifacts for each dependency, starting from leaf dependencies
+    let mut deps_tasts = Dependencies::default();
     for dep in dep_graph.from_leaves_to_roots() {
         let path = path_to_package(&dep);
 
@@ -51,8 +52,9 @@ pub fn cmd_check(args: CmdCheck) -> Result<()> {
             .into_diagnostic()
             .wrap_err_with(|| format!("could not read file `{}`", path.display()))?;
 
-        let _tast = get_tast(&code)
+        let tast = get_tast(&code, &deps_tasts)
             .map_err(|e| e.with_source_code(NamedSource::new(lib_file.to_str().unwrap(), code)))?;
+        deps_tasts.deps.insert(dep, tast);
     }
 
     // produce artifact for this one
@@ -72,7 +74,7 @@ pub fn cmd_check(args: CmdCheck) -> Result<()> {
         .into_diagnostic()
         .wrap_err_with(|| format!("could not read file `{}`", file_path.display()))?;
 
-    get_tast(&code)
+    get_tast(&code, &deps_tasts)
         .map_err(|e| e.with_source_code(NamedSource::new(file_path.to_str().unwrap(), code)))?;
 
     println!("all good!");

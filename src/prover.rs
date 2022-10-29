@@ -8,6 +8,7 @@ use crate::{
     constants::{Field, Span},
     error::{Error, Result},
     inputs::JsonInputs,
+    type_checker::Dependencies,
     witness::CompiledCircuit,
 };
 
@@ -54,8 +55,8 @@ pub struct VerifierIndex {
 // Setup
 //
 
-pub fn compile_and_prove(code: &str) -> Result<(ProverIndex, VerifierIndex)> {
-    let compiled_circuit = compiler::compile(code)?;
+pub fn compile_and_prove(code: &str, deps: &Dependencies) -> Result<(ProverIndex, VerifierIndex)> {
+    let compiled_circuit = compiler::compile(code, &deps)?;
 
     // convert gates to kimchi gates
     let mut gates: Vec<_> = compiled_circuit
