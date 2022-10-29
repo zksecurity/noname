@@ -255,6 +255,7 @@
 <span id="255">255</span>
 <span id="256">256</span>
 <span id="257">257</span>
+<span id="258">258</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>ark_ff::{Field <span class="kw">as _</span>, Zero};
@@ -266,6 +267,7 @@
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     helpers::PrettyField <span class="kw">as _</span>,
     inputs::JsonInputs,
+    type_checker::FnInfo,
     var::{CellVar, Value},
 };
 
@@ -326,6 +328,10 @@
 <span class="kw">impl </span>CompiledCircuit {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(circuit: CircuitWriter) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ circuit }
+    }
+
+    <span class="kw">pub fn </span>main_info(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>FnInfo {
+        <span class="self">self</span>.circuit.main_info()
     }
 
     <span class="kw">pub fn </span>asm(<span class="kw-2">&amp;</span><span class="self">self</span>, debug: bool) -&gt; String {
@@ -393,11 +399,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>env = WitnessEnv::default();
 
         <span class="comment">// get info on main
-        </span><span class="kw">let </span>main_info = <span class="self">self
-            </span>.circuit
-            .typed
-            .fn_info(<span class="string">&quot;main&quot;</span>)
-            .expect(<span class="string">&quot;bug in the compiler: main not found&quot;</span>);
+        </span><span class="kw">let </span>main_info = <span class="self">self</span>.main_info();
         <span class="kw">let </span>main_sig = <span class="kw">match </span><span class="kw-2">&amp;</span>main_info.kind {
             <span class="kw">crate</span>::imports::FnKind::BuiltIn(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
             <span class="kw">crate</span>::imports::FnKind::Native(fn_sig) =&gt; <span class="kw-2">&amp;</span>fn_sig.sig,
