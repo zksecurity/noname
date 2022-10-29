@@ -193,6 +193,7 @@
 <span id="193">193</span>
 <span id="194">194</span>
 <span id="195">195</span>
+<span id="196">196</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module contains the prover.
 
 </span><span class="kw">use </span>std::iter::once;
@@ -203,6 +204,7 @@
     constants::{Field, Span},
     error::{Error, <span class="prelude-ty">Result</span>},
     inputs::JsonInputs,
+    type_checker::Dependencies,
     witness::CompiledCircuit,
 };
 
@@ -249,8 +251,8 @@
 // Setup
 //
 
-</span><span class="kw">pub fn </span>compile_and_prove(code: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(ProverIndex, VerifierIndex)&gt; {
-    <span class="kw">let </span>compiled_circuit = compiler::compile(code)<span class="question-mark">?</span>;
+</span><span class="kw">pub fn </span>compile_and_prove(code: <span class="kw-2">&amp;</span>str, deps: <span class="kw-2">&amp;</span>Dependencies) -&gt; <span class="prelude-ty">Result</span>&lt;(ProverIndex, VerifierIndex)&gt; {
+    <span class="kw">let </span>compiled_circuit = compiler::compile(code, <span class="kw-2">&amp;</span>deps)<span class="question-mark">?</span>;
 
     <span class="comment">// convert gates to kimchi gates
     </span><span class="kw">let </span><span class="kw-2">mut </span>gates: Vec&lt;<span class="kw">_</span>&gt; = compiled_circuit

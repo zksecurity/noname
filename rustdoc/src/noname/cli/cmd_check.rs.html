@@ -78,11 +78,13 @@
 <span id="78">78</span>
 <span id="79">79</span>
 <span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{path::PathBuf, process};
 
 <span class="kw">use </span>miette::{Context, IntoDiagnostic, NamedSource, <span class="prelude-ty">Result</span>};
 
-<span class="kw">use crate</span>::{cli::packages::get_dep_code, compiler::get_tast};
+<span class="kw">use crate</span>::{cli::packages::get_dep_code, compiler::get_tast, type_checker::Dependencies};
 
 <span class="kw">use super</span>::{
     manifest::Manifest,
@@ -123,7 +125,8 @@
     <span class="kw">let </span>dep_graph = DependencyGraph::new_from_manifest(this, <span class="kw-2">&amp;</span>manifest)<span class="question-mark">?</span>;
 
     <span class="comment">// produce artifacts for each dependency, starting from leaf dependencies
-    </span><span class="kw">for </span>dep <span class="kw">in </span>dep_graph.from_leaves_to_roots() {
+    </span><span class="kw">let </span><span class="kw-2">mut </span>deps_tasts = Dependencies::default();
+    <span class="kw">for </span>dep <span class="kw">in </span>dep_graph.from_leaves_to_roots() {
         <span class="kw">let </span>path = path_to_package(<span class="kw-2">&amp;</span>dep);
 
         <span class="kw">let </span>lib_file = path.join(<span class="string">&quot;src&quot;</span>).join(<span class="string">&quot;lib.no&quot;</span>);
@@ -131,8 +134,9 @@
             .into_diagnostic()
             .wrap_err_with(|| <span class="macro">format!</span>(<span class="string">&quot;could not read file `{}`&quot;</span>, path.display()))<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>_tast = get_tast(<span class="kw-2">&amp;</span>code)
+        <span class="kw">let </span>tast = get_tast(<span class="kw-2">&amp;</span>code, <span class="kw-2">&amp;</span>deps_tasts)
             .map_err(|e| e.with_source_code(NamedSource::new(lib_file.to_str().unwrap(), code)))<span class="question-mark">?</span>;
+        deps_tasts.deps.insert(dep, tast);
     }
 
     <span class="comment">// produce artifact for this one
@@ -152,7 +156,7 @@
         .into_diagnostic()
         .wrap_err_with(|| <span class="macro">format!</span>(<span class="string">&quot;could not read file `{}`&quot;</span>, file_path.display()))<span class="question-mark">?</span>;
 
-    get_tast(<span class="kw-2">&amp;</span>code)
+    get_tast(<span class="kw-2">&amp;</span>code, <span class="kw-2">&amp;</span>deps_tasts)
         .map_err(|e| e.with_source_code(NamedSource::new(file_path.to_str().unwrap(), code)))<span class="question-mark">?</span>;
 
     <span class="macro">println!</span>(<span class="string">&quot;all good!&quot;</span>);

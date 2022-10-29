@@ -764,18 +764,29 @@
 <span id="764">764</span>
 <span id="765">765</span>
 <span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
+    cli::packages::UserRepo,
     constants::Span,
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
-    imports::{resolve_builtin_functions, resolve_imports, FnKind},
+    imports::{resolve_builtin_functions, FnKind, Module},
     parser::{Expr, ExprKind, FnSig, Function, Op2, Stmt, StmtKind, Ty, TyKind, UsePath},
-    stdlib::ImportedModule,
     syntax::is_type,
 };
 
-<span class="kw">use super</span>::{TypeInfo, TypedFnEnv};
+<span class="kw">use super</span>::{Dependencies, TypeInfo, TypedFnEnv};
 
 <span class="doccomment">/// Keeps track of the signature of a user-defined function.
 </span><span class="attribute">#[derive(Debug, Clone)]
@@ -839,8 +850,8 @@
     /// contains at least the set of builtin functions (like assert_eq)
     </span><span class="kw">pub </span>functions: HashMap&lt;String, FnInfo&gt;,
 
-    <span class="doccomment">/// stores the imported modules
-    </span><span class="kw">pub </span>modules: HashMap&lt;String, ImportedModule&gt;,
+    <span class="doccomment">/// maps `module` to its original `use a::module`
+    </span><span class="kw">pub </span>modules: HashMap&lt;String, UsePath&gt;,
 
     <span class="doccomment">/// If there&#39;s a main function in this module, then this is true
     /// (in other words, it&#39;s not a library)
@@ -870,14 +881,18 @@
         <span class="self">self</span>.structs.get(name)
     }
 
+    <span class="kw">pub fn </span>fn_info(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>FnInfo&gt; {
+        <span class="self">self</span>.functions.get(name)
+    }
+
     <span class="doccomment">/// Returns the number of field elements contained in the given type.
     </span><span class="comment">// TODO: might want to memoize that at some point
     </span><span class="kw">pub fn </span>size_of(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>TyKind) -&gt; usize {
         <span class="kw">match </span>typ {
             TyKind::Field =&gt; <span class="number">1</span>,
-            TyKind::Custom(c) =&gt; {
+            TyKind::Custom { module, name } =&gt; {
                 <span class="kw">let </span>struct_info = <span class="self">self
-                    </span>.struct_info(c)
+                    </span>.struct_info(<span class="kw-2">&amp;</span>name.value)
                     .expect(<span class="string">&quot;couldn&#39;t find struct info of {c}&quot;</span>);
                 struct_info
                     .fields
@@ -893,12 +908,8 @@
 
     <span class="kw">pub fn </span>resolve_global_imports(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>builtin_functions = resolve_builtin_functions();
-        <span class="kw">for </span>fn_info <span class="kw">in </span>builtin_functions {
-            <span class="kw">if </span><span class="self">self
-                </span>.functions
-                .insert(fn_info.sig().name.name.value.clone(), fn_info)
-                .is_some()
-            {
+        <span class="kw">for </span>(fn_name, fn_info) <span class="kw">in </span>builtin_functions {
+            <span class="kw">if </span><span class="self">self</span>.functions.insert(fn_name, fn_info).is_some() {
                 <span class="macro">panic!</span>(<span class="string">&quot;global imports conflict (TODO: better error)&quot;</span>);
             }
         }
@@ -907,16 +918,14 @@
     }
 
     <span class="kw">pub fn </span>import(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>UsePath) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>module = resolve_imports(path)<span class="question-mark">?</span>;
-
         <span class="kw">if </span><span class="self">self
             </span>.modules
-            .insert(module.name.clone(), module.clone())
+            .insert(path.submodule.value.clone(), path.clone())
             .is_some()
         {
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                ErrorKind::DuplicateModule(module.name.clone()),
-                module.span,
+                ErrorKind::DuplicateModule(path.submodule.value.clone()),
+                path.submodule.span,
             ));
         }
 
@@ -927,23 +936,24 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         expr: <span class="kw-2">&amp;</span>Expr,
         typed_fn_env: <span class="kw-2">&amp;mut </span>TypedFnEnv,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;ExprTyInfo&gt;&gt; {
         <span class="kw">let </span>typ: <span class="prelude-ty">Option</span>&lt;ExprTyInfo&gt; = <span class="kw">match </span><span class="kw-2">&amp;</span>expr.kind {
             ExprKind::FieldAccess { lhs, rhs } =&gt; {
                 <span class="comment">// compute type of left-hand side
                 </span><span class="kw">let </span>lhs_node = <span class="self">self
-                    </span>.compute_type(lhs, typed_fn_env)<span class="question-mark">?
+                    </span>.compute_type(lhs, typed_fn_env, deps)<span class="question-mark">?
                     </span>.expect(<span class="string">&quot;type-checker bug: field access on an empty var&quot;</span>);
 
                 <span class="comment">// obtain the type of the field
                 </span><span class="kw">let </span>struct_name = <span class="kw">match </span>lhs_node.typ {
-                    TyKind::Custom(name) =&gt; name,
+                    TyKind::Custom { module, name } =&gt; name,
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;field access must be done on a custom struct&quot;</span>),
                 };
 
                 <span class="comment">// get struct info
                 </span><span class="kw">let </span>struct_info = <span class="self">self
-                    </span>.struct_info(<span class="kw-2">&amp;</span>struct_name)
+                    </span>.struct_info(<span class="kw-2">&amp;</span>struct_name.value)
                     .expect(<span class="string">&quot;this struct is not defined&quot;</span>);
 
                 <span class="comment">// find field type
@@ -970,16 +980,9 @@
                     <span class="kw">let </span>imported_module = <span class="self">self</span>.modules.get(module_val).ok_or_else(|| {
                         Error::new(ErrorKind::UndefinedModule(module_val.clone()), module.span)
                     })<span class="question-mark">?</span>;
-                    <span class="kw">let </span>fn_info =
-                        imported_module
-                            .functions
-                            .get(<span class="kw-2">&amp;</span>fn_name.value)
-                            .ok_or_else(|| {
-                                Error::new(
-                                    ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                                    fn_name.span,
-                                )
-                            })<span class="question-mark">?</span>;
+
+                    <span class="kw">let </span>fn_info = deps.get_fn(imported_module, fn_name)<span class="question-mark">?</span>;
+
                     fn_info.sig().clone()
                 } <span class="kw">else </span>{
                     <span class="comment">// functions present in the scope
@@ -994,7 +997,8 @@
 
                 <span class="comment">// type check the function call
                 </span><span class="kw">let </span>method_call = <span class="bool-val">false</span>;
-                <span class="kw">let </span>res = <span class="self">self</span>.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)<span class="question-mark">?</span>;
+                <span class="kw">let </span>res =
+                    <span class="self">self</span>.check_fn_call(typed_fn_env, deps, method_call, fn_sig, args, expr.span)<span class="question-mark">?</span>;
 
                 res.map(ExprTyInfo::new_anon)
             }
@@ -1006,9 +1010,9 @@
                 args,
             } =&gt; {
                 <span class="comment">// retrieve struct name on the lhs
-                </span><span class="kw">let </span>lhs_type = <span class="self">self</span>.compute_type(lhs, typed_fn_env)<span class="question-mark">?</span>;
-                <span class="kw">let </span>struct_name = <span class="kw">match </span>lhs_type.map(|t| t.typ) {
-                    <span class="prelude-val">Some</span>(TyKind::Custom(name)) =&gt; name,
+                </span><span class="kw">let </span>lhs_type = <span class="self">self</span>.compute_type(lhs, typed_fn_env, deps)<span class="question-mark">?</span>;
+                <span class="kw">let </span>(module, struct_name) = <span class="kw">match </span>lhs_type.map(|t| t.typ) {
+                    <span class="prelude-val">Some</span>(TyKind::Custom { module, name }) =&gt; (module, name),
                     <span class="kw">_ </span>=&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
                             ErrorKind::MethodCallOnNonCustomStruct,
@@ -1018,10 +1022,23 @@
                 };
 
                 <span class="comment">// get struct info
-                </span><span class="kw">let </span>struct_info = <span class="self">self
-                    </span>.structs
-                    .get(<span class="kw-2">&amp;</span>struct_name)
-                    .expect(<span class="string">&quot;could not find struct in scope (TODO: better error)&quot;</span>);
+                </span><span class="kw">let </span>struct_info = <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                    <span class="kw">let </span>imported_module = <span class="self">self</span>.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::UndefinedModule(module.value.clone()),
+                            module.span,
+                        )
+                    })<span class="question-mark">?</span>;
+
+                    deps.get_struct(imported_module, <span class="kw-2">&amp;</span>struct_name)<span class="question-mark">?
+                </span>} <span class="kw">else </span>{
+                    <span class="self">self</span>.struct_info(<span class="kw-2">&amp;</span>struct_name.value)
+                        .ok_or(Error::new(
+                            ErrorKind::UndefinedStruct(struct_name.value.clone()),
+                            struct_name.span,
+                        ))<span class="question-mark">?
+                        </span>.clone()
+                };
 
                 <span class="comment">// get method info
                 </span><span class="kw">let </span>method_type = struct_info
@@ -1033,6 +1050,7 @@
                 </span><span class="kw">let </span>method_call = <span class="bool-val">true</span>;
                 <span class="kw">let </span>res = <span class="self">self</span>.check_fn_call(
                     typed_fn_env,
+                    deps,
                     method_call,
                     method_type.sig.clone(),
                     args,
@@ -1045,7 +1063,7 @@
             ExprKind::Assignment { lhs, rhs } =&gt; {
                 <span class="comment">// compute type of lhs
                 </span><span class="kw">let </span>lhs_node = <span class="self">self
-                    </span>.compute_type(lhs, typed_fn_env)<span class="question-mark">?
+                    </span>.compute_type(lhs, typed_fn_env, deps)<span class="question-mark">?
                     </span>.expect(<span class="string">&quot;type-checker bug: lhs access on an empty var&quot;</span>);
 
                 <span class="comment">// lhs can be a local variable or a path to an array
@@ -1063,7 +1081,7 @@
                     </span>ExprKind::ArrayAccess { array, idx } =&gt; {
                         <span class="comment">// get variable behind array
                         </span><span class="kw">let </span>array_node = <span class="self">self
-                            </span>.compute_type(array, typed_fn_env)<span class="question-mark">?
+                            </span>.compute_type(array, typed_fn_env, deps)<span class="question-mark">?
                             </span>.expect(<span class="string">&quot;type-checker bug: array access on an empty var&quot;</span>);
 
                         array_node
@@ -1075,7 +1093,7 @@
                     </span>ExprKind::FieldAccess { lhs, rhs } =&gt; {
                         <span class="comment">// get variable behind lhs
                         </span><span class="kw">let </span>lhs_node = <span class="self">self
-                            </span>.compute_type(lhs, typed_fn_env)<span class="question-mark">?
+                            </span>.compute_type(lhs, typed_fn_env, deps)<span class="question-mark">?
                             </span>.expect(<span class="string">&quot;type-checker bug: lhs access on an empty var&quot;</span>);
 
                         lhs_node
@@ -1100,7 +1118,7 @@
                 }
 
                 <span class="comment">// and is of the same type as the rhs
-                </span><span class="kw">let </span>rhs_typ = <span class="self">self</span>.compute_type(rhs, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                </span><span class="kw">let </span>rhs_typ = <span class="self">self</span>.compute_type(rhs, typed_fn_env, deps)<span class="question-mark">?</span>.unwrap();
 
                 <span class="kw">if </span>!rhs_typ.typ.match_expected(<span class="kw-2">&amp;</span>lhs_node.typ) {
                     <span class="macro">panic!</span>(<span class="string">&quot;lhs type doesn&#39;t match rhs type (TODO: replace with error)&quot;</span>);
@@ -1111,10 +1129,10 @@
 
             ExprKind::BinaryOp { op, lhs, rhs, .. } =&gt; {
                 <span class="kw">let </span>lhs_node = <span class="self">self
-                    </span>.compute_type(lhs, typed_fn_env)<span class="question-mark">?
+                    </span>.compute_type(lhs, typed_fn_env, deps)<span class="question-mark">?
                     </span>.expect(<span class="string">&quot;type-checker bug&quot;</span>);
                 <span class="kw">let </span>rhs_node = <span class="self">self
-                    </span>.compute_type(rhs, typed_fn_env)<span class="question-mark">?
+                    </span>.compute_type(rhs, typed_fn_env, deps)<span class="question-mark">?
                     </span>.expect(<span class="string">&quot;type-checker bug&quot;</span>);
 
                 <span class="kw">if </span>lhs_node.typ != rhs_node.typ {
@@ -1144,7 +1162,7 @@
             }
 
             ExprKind::Negated(inner) =&gt; {
-                <span class="kw">let </span>inner_typ = <span class="self">self</span>.compute_type(inner, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>inner_typ = <span class="self">self</span>.compute_type(inner, typed_fn_env, deps)<span class="question-mark">?</span>.unwrap();
                 <span class="kw">if </span>!<span class="macro">matches!</span>(inner_typ.typ, TyKind::Field | TyKind::BigInt) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
                         ErrorKind::MismatchType(TyKind::Field, inner_typ.typ),
@@ -1156,7 +1174,7 @@
             }
 
             ExprKind::Not(inner) =&gt; {
-                <span class="kw">let </span>inner_typ = <span class="self">self</span>.compute_type(inner, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>inner_typ = <span class="self">self</span>.compute_type(inner, typed_fn_env, deps)<span class="question-mark">?</span>.unwrap();
                 <span class="kw">if </span>!<span class="macro">matches!</span>(inner_typ.typ, TyKind::Bool) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
                         ErrorKind::MismatchType(TyKind::Bool, inner_typ.typ),
@@ -1173,11 +1191,6 @@
 
             <span class="comment">// mod::path.of.var
             </span>ExprKind::Variable { module, name } =&gt; {
-                <span class="comment">// sanitize
-                </span><span class="kw">if </span>module.is_some() {
-                    <span class="macro">panic!</span>(<span class="string">&quot;we don&#39;t support module variables for now&quot;</span>);
-                }
-
                 <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>name.value) {
                     <span class="comment">// if it&#39;s a type, make sure it exists
                     </span><span class="kw">let </span>_struct_info = <span class="self">self
@@ -1185,7 +1198,10 @@
                         .expect(<span class="string">&quot;custom type does not exist&quot;</span>);
 
                     <span class="comment">// and return its type
-                    </span><span class="kw">let </span>res = ExprTyInfo::new_anon(TyKind::Custom(name.value.clone()));
+                    </span><span class="kw">let </span>res = ExprTyInfo::new_anon(TyKind::Custom {
+                        module: module.clone(),
+                        name: name.clone(),
+                    });
                     <span class="prelude-val">Some</span>(res)
                 } <span class="kw">else </span>{
                     <span class="comment">// if it&#39;s a variable,
@@ -1218,7 +1234,7 @@
 
             ExprKind::ArrayAccess { array, idx } =&gt; {
                 <span class="comment">// get type of lhs
-                </span><span class="kw">let </span>typ = <span class="self">self</span>.compute_type(array, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                </span><span class="kw">let </span>typ = <span class="self">self</span>.compute_type(array, typed_fn_env, deps)<span class="question-mark">?</span>.unwrap();
 
                 <span class="comment">// check that it is an array
                 </span><span class="kw">if </span>!<span class="macro">matches!</span>(typ.typ, TyKind::Array(..)) {
@@ -1226,7 +1242,7 @@
                 }
 
                 <span class="comment">// check that expression is a bigint
-                </span><span class="kw">let </span>idx_typ = <span class="self">self</span>.compute_type(idx, typed_fn_env)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>idx_typ = <span class="self">self</span>.compute_type(idx, typed_fn_env, deps)<span class="question-mark">?</span>;
                 <span class="kw">match </span>idx_typ.map(|t| t.typ) {
                     <span class="prelude-val">Some</span>(TyKind::BigInt) =&gt; (),
                     <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::ExpectedConstant, expr.span)),
@@ -1249,11 +1265,11 @@
 
                 <span class="kw">for </span>item <span class="kw">in </span>items {
                     <span class="kw">let </span>item_typ = <span class="self">self
-                        </span>.compute_type(item, typed_fn_env)<span class="question-mark">?
+                        </span>.compute_type(item, typed_fn_env, deps)<span class="question-mark">?
                         </span>.expect(<span class="string">&quot;expected a value&quot;</span>);
 
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(tykind) = <span class="kw-2">&amp;</span>tykind {
-                        <span class="kw">if </span>tykind != <span class="kw-2">&amp;</span>item_typ.typ {
+                        <span class="kw">if </span>!tykind.same_as(<span class="kw-2">&amp;</span>item_typ.typ) {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
                                 ErrorKind::MismatchType(tykind.clone(), item_typ.typ),
                                 expr.span,
@@ -1273,7 +1289,7 @@
             ExprKind::IfElse { cond, then_, else_ } =&gt; {
                 <span class="comment">// cond can only be a boolean
                 </span><span class="kw">let </span>cond_node = <span class="self">self
-                    </span>.compute_type(cond, typed_fn_env)<span class="question-mark">?
+                    </span>.compute_type(cond, typed_fn_env, deps)<span class="question-mark">?
                     </span>.expect(<span class="string">&quot;can&#39;t compute type of condition&quot;</span>);
                 <span class="kw">if </span>!<span class="macro">matches!</span>(cond_node.typ, TyKind::Bool) {
                     <span class="macro">panic!</span>(<span class="string">&quot;`if` must be followed by a boolean&quot;</span>);
@@ -1300,10 +1316,10 @@
 
                 <span class="comment">// compute type of if/else branches
                 </span><span class="kw">let </span>then_node = <span class="self">self
-                    </span>.compute_type(then_, typed_fn_env)<span class="question-mark">?
+                    </span>.compute_type(then_, typed_fn_env, deps)<span class="question-mark">?
                     </span>.expect(<span class="string">&quot;can&#39;t compute type of first branch of `if/else`&quot;</span>);
                 <span class="kw">let </span>else_node = <span class="self">self
-                    </span>.compute_type(else_, typed_fn_env)<span class="question-mark">?
+                    </span>.compute_type(else_, typed_fn_env, deps)<span class="question-mark">?
                     </span>.expect(<span class="string">&quot;can&#39;t compute type of first branch of `if/else`&quot;</span>);
 
                 <span class="comment">// make sure that the type of then_ and else_ match
@@ -1316,10 +1332,10 @@
             }
 
             ExprKind::CustomTypeDeclaration {
-                struct_name: name,
+                struct_name,
                 fields,
             } =&gt; {
-                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>name.value;
+                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>struct_name.value;
                 <span class="kw">let </span>struct_info = <span class="self">self</span>.structs.get(name).ok_or_else(|| {
                     Error::new(ErrorKind::UndefinedStruct(name.clone()), expr.span)
                 })<span class="question-mark">?</span>;
@@ -1345,7 +1361,7 @@
                     }
 
                     <span class="kw">let </span>observed_typ = <span class="self">self
-                        </span>.compute_type(<span class="kw-2">&amp;</span>observed.<span class="number">1</span>, typed_fn_env)<span class="question-mark">?
+                        </span>.compute_type(<span class="kw-2">&amp;</span>observed.<span class="number">1</span>, typed_fn_env, deps)<span class="question-mark">?
                         </span>.expect(<span class="string">&quot;expected a value (TODO: better error)&quot;</span>);
 
                     <span class="kw">if </span>!observed_typ.typ.match_expected(<span class="kw-2">&amp;</span>defined.<span class="number">1</span>) {
@@ -1356,7 +1372,10 @@
                     }
                 }
 
-                <span class="kw">let </span>res = ExprTyInfo::new_anon(TyKind::Custom(name.clone()));
+                <span class="kw">let </span>res = ExprTyInfo::new_anon(TyKind::Custom {
+                    module: <span class="prelude-val">None</span>,
+                    name: struct_name.clone(),
+                });
                 <span class="prelude-val">Some</span>(res)
             }
         };
@@ -1373,6 +1392,7 @@
     <span class="kw">pub fn </span>check_block(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typed_fn_env: <span class="kw-2">&amp;mut </span>TypedFnEnv,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
         stmts: <span class="kw-2">&amp;</span>[Stmt],
         expected_return: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Ty&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
@@ -1386,7 +1406,7 @@
                 <span class="macro">panic!</span>(<span class="string">&quot;early return detected: we don&#39;t allow that for now (TODO: return error&quot;</span>);
             }
 
-            return_typ = <span class="self">self</span>.check_stmt(typed_fn_env, stmt)<span class="question-mark">?</span>;
+            return_typ = <span class="self">self</span>.check_stmt(typed_fn_env, deps, stmt)<span class="question-mark">?</span>;
         }
 
         <span class="comment">// check the return
@@ -1420,6 +1440,7 @@
     <span class="kw">pub fn </span>check_stmt(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typed_fn_env: <span class="kw-2">&amp;mut </span>TypedFnEnv,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
         stmt: <span class="kw-2">&amp;</span>Stmt,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TyKind&gt;&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span>stmt.kind {
@@ -1427,7 +1448,7 @@
                 <span class="comment">// inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
 
                 // but first we need to compute the type of the rhs expression
-                </span><span class="kw">let </span>node = <span class="self">self</span>.compute_type(rhs, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                </span><span class="kw">let </span>node = <span class="self">self</span>.compute_type(rhs, typed_fn_env, deps)<span class="question-mark">?</span>.unwrap();
 
                 <span class="kw">let </span>type_info = <span class="kw">if </span><span class="kw-2">*</span>mutable {
                     TypeInfo::new_mut(node.typ, lhs.span)
@@ -1452,7 +1473,7 @@
                 }
 
                 <span class="comment">// check block
-                </span><span class="self">self</span>.check_block(typed_fn_env, body, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+                </span><span class="self">self</span>.check_block(typed_fn_env, deps, body, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
 
                 <span class="comment">// exit the scope
                 </span>typed_fn_env.pop();
@@ -1461,13 +1482,13 @@
                 <span class="comment">// make sure the expression does not return any type
                 // (it&#39;s a statement expression, it should only work via side effect)
 
-                </span><span class="kw">let </span>typ = <span class="self">self</span>.compute_type(expr, typed_fn_env)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>typ = <span class="self">self</span>.compute_type(expr, typed_fn_env, deps)<span class="question-mark">?</span>;
                 <span class="kw">if </span>typ.is_some() {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::UnusedReturnValue, expr.span));
                 }
             }
             StmtKind::Return(res) =&gt; {
-                <span class="kw">let </span>node = <span class="self">self</span>.compute_type(res, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>node = <span class="self">self</span>.compute_type(res, typed_fn_env, deps)<span class="question-mark">?</span>.unwrap();
 
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(node.typ));
             }
@@ -1482,6 +1503,7 @@
     </span><span class="kw">pub fn </span>check_fn_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typed_fn_env: <span class="kw-2">&amp;mut </span>TypedFnEnv,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
         method_call: bool, <span class="comment">// indicates if it&#39;s a fn call or a method call
         </span>fn_sig: FnSig,
         args: <span class="kw-2">&amp;</span>[Expr],
@@ -1501,7 +1523,7 @@
         <span class="comment">// compute the observed arguments types
         </span><span class="kw">let </span><span class="kw-2">mut </span>observed = Vec::with_capacity(args.len());
         <span class="kw">for </span>arg <span class="kw">in </span>args {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(node) = <span class="self">self</span>.compute_type(arg, typed_fn_env)<span class="question-mark">? </span>{
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(node) = <span class="self">self</span>.compute_type(arg, typed_fn_env, deps)<span class="question-mark">? </span>{
                 observed.push((node.typ.clone(), arg.span));
             } <span class="kw">else </span>{
                 <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::CannotComputeExpression, arg.span));

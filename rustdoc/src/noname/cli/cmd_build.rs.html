@@ -60,10 +60,6 @@
 <span id="60">60</span>
 <span id="61">61</span>
 <span id="62">62</span>
-<span id="63">63</span>
-<span id="64">64</span>
-<span id="65">65</span>
-<span id="66">66</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{path::PathBuf, process};
 
 <span class="kw">use </span>miette::{Context, IntoDiagnostic, <span class="prelude-ty">Result</span>};
@@ -108,11 +104,7 @@
     <span class="kw">let </span>dep_graph = DependencyGraph::new_from_manifest(this, <span class="kw-2">&amp;</span>manifest)<span class="question-mark">?</span>;
 
     <span class="comment">// produce artifacts for each dependency, starting from leaf dependencies
-    </span><span class="kw">let </span><span class="kw-2">mut </span>tasts = <span class="macro">vec!</span>[];
-    <span class="kw">for </span>dep <span class="kw">in </span>dep_graph.from_leaves_to_roots() {
-        <span class="kw">let </span>code = get_dep_code(<span class="kw-2">&amp;</span>dep)<span class="question-mark">?</span>;
-        tasts.push(get_tast(<span class="kw-2">&amp;</span>code)<span class="question-mark">?</span>);
-    }
+    </span><span class="macro">todo!</span>();
 
     <span class="comment">// find local `lib.no` or `main.no` file
     </span><span class="macro">todo!</span>();

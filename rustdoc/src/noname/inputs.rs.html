@@ -141,6 +141,12 @@
 <span id="141">141</span>
 <span id="142">142</span>
 <span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Used to parse public and private inputs to a program.
 
 </span><span class="kw">use </span>std::{collections::HashMap, str::FromStr};
@@ -221,11 +227,17 @@
 
                 <span class="prelude-val">Ok</span>(res)
             }
-            (TyKind::Custom(struct_name), Value::Object(<span class="kw-2">mut </span>map)) =&gt; {
+            (
+                TyKind::Custom {
+                    module,
+                    name: struct_name,
+                },
+                Value::Object(<span class="kw-2">mut </span>map),
+            ) =&gt; {
                 <span class="comment">// get fields of struct
                 </span><span class="kw">let </span>struct_info = <span class="self">self
                     </span>.circuit
-                    .struct_info(struct_name)
+                    .struct_info(<span class="kw-2">&amp;</span>struct_name.value)
                     .expect(<span class="string">&quot;compiler bug: couldn&#39;t find struct given as input&quot;</span>);
                 <span class="kw">let </span>fields = <span class="kw-2">&amp;</span>struct_info.fields;
 

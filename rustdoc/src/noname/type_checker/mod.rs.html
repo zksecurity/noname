@@ -216,12 +216,87 @@
 <span id="216">216</span>
 <span id="217">217</span>
 <span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
+    cli::packages::UserRepo,
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     imports::FnKind,
-    parser::{RootKind, Struct, Ty, TyKind, AST},
+    parser::{Ident, RootKind, Struct, Ty, TyKind, UsePath, AST},
+    stdlib::get_std_fn,
 };
 
 <span class="kw">pub use </span>checker::{FnInfo, StructInfo, TypeChecker};
@@ -239,11 +314,81 @@
     <span class="kw">pub </span>typed_global_env: TypeChecker,
 }
 
+<span class="doccomment">/// Contains metadata from other dependencies that might be use in this module.
+</span><span class="attribute">#[derive(Default)]
+</span><span class="kw">pub struct </span>Dependencies {
+    <span class="doccomment">/// Maps each `user/repo` to their TAST.
+    </span><span class="kw">pub </span>deps: HashMap&lt;UserRepo, TAST&gt;,
+}
+
+<span class="kw">impl </span>Dependencies {
+    <span class="kw">pub fn </span>get_fn(<span class="kw-2">&amp;</span><span class="self">self</span>, use_path: <span class="kw-2">&amp;</span>UsePath, fn_name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Result</span>&lt;FnInfo&gt; {
+        <span class="kw">let </span>user_repo: UserRepo = use_path.into();
+
+        <span class="comment">// hijack builtins (only std for now)
+        </span><span class="kw">if </span>user_repo.user == <span class="string">&quot;std&quot; </span>{
+            <span class="kw">return </span>get_std_fn(<span class="kw-2">&amp;</span>user_repo.repo, <span class="kw-2">&amp;</span>fn_name.value, use_path.span);
+        }
+
+        <span class="comment">// then check in imported dependencies
+        </span><span class="kw">let </span>tast = <span class="self">self</span>.deps.get(<span class="kw-2">&amp;</span>user_repo).ok_or_else(|| {
+            Error::new(
+                ErrorKind::UnknownDependency(user_repo.to_string()),
+                use_path.span,
+            )
+        })<span class="question-mark">?</span>;
+
+        <span class="comment">// we found the module, now let&#39;s find the function
+        </span><span class="kw">let </span>fn_info = tast
+            .typed_global_env
+            .fn_info(<span class="kw-2">&amp;</span>fn_name.value)
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::UnknownExternalFn(user_repo.to_string(), fn_name.value.to_string()),
+                    fn_name.span,
+                )
+            })<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(fn_info.clone())
+    }
+
+    <span class="kw">pub fn </span>get_struct(<span class="kw-2">&amp;</span><span class="self">self</span>, use_path: <span class="kw-2">&amp;</span>UsePath, struct_name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Result</span>&lt;StructInfo&gt; {
+        <span class="kw">let </span>user_repo: UserRepo = use_path.into();
+
+        <span class="comment">// first check in std
+        </span><span class="kw">if </span>user_repo.user == <span class="string">&quot;std&quot; </span>{
+            <span class="macro">todo!</span>();
+        }
+
+        <span class="comment">// then check in imported dependencies
+        </span><span class="kw">let </span>tast = <span class="self">self</span>.deps.get(<span class="kw-2">&amp;</span>user_repo).ok_or_else(|| {
+            Error::new(
+                ErrorKind::UnknownDependency(user_repo.to_string()),
+                use_path.span,
+            )
+        })<span class="question-mark">?</span>;
+
+        <span class="comment">// we found the module, now let&#39;s find the function
+        </span>tast.typed_global_env
+            .struct_info(<span class="kw-2">&amp;</span>struct_name.value)
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::UnknownExternalStruct(
+                        user_repo.to_string(),
+                        struct_name.value.to_string(),
+                    ),
+                    struct_name.span,
+                )
+            })
+            .cloned()
+    }
+}
+
 <span class="kw">impl </span>TAST {
     <span class="doccomment">/// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    </span><span class="kw">pub fn </span>analyze(ast: AST) -&gt; <span class="prelude-ty">Result</span>&lt;TAST&gt; {
+    </span><span class="kw">pub fn </span>analyze(ast: AST, deps: <span class="kw-2">&amp;</span>Dependencies) -&gt; <span class="prelude-ty">Result</span>&lt;TAST&gt; {
         <span class="comment">//
         // inject some utility builtin functions in the scope
         //
@@ -416,6 +561,7 @@
                     <span class="comment">// type system pass
                     </span>typed_global_env.check_block(
                         <span class="kw-2">&amp;mut </span>typed_fn_env,
+                        deps,
                         <span class="kw-2">&amp;</span>function.body,
                         function.sig.return_type.as_ref(),
                     )<span class="question-mark">?</span>;

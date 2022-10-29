@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded "><a href="literals.html"><strong aria-hidden="true">11.</strong> Literals and the const keyword</a></li><li class="chapter-item expanded "><a href="expressions.html"><strong aria-hidden="true">12.</strong> Expressions</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">13.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">14.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">15.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">16.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">17.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">18.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">19.</strong> Witness Generation</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded "><a href="literals.html"><strong aria-hidden="true">11.</strong> Literals and the const keyword</a></li><li class="chapter-item expanded "><a href="expressions.html"><strong aria-hidden="true">12.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="modules.html"><strong aria-hidden="true">13.</strong> Modules</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">14.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">15.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">16.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">17.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">18.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">19.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">20.</strong> Witness Generation</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -930,6 +930,60 @@ This way, if there is a bug in the type checker, this will turn unsafe code into
 <p>Implementing solution 1. means bubbling up the variable name, in addition to the type, associated to an expression node.</p>
 <p>Implementing solution 2. means bubbling up the mutability instead.</p>
 <p>As it is possible that we might want to retrieve additional information in the future, we chose to implement solution 1. and carry the variable name in addition to type information when parsing the AST in the type checker.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="modules"><a class="header" href="#modules">Modules</a></h1>
+<p>In noname, the concept of a module is basically a file. A project either is a binary (<code>main.no</code>) or a library (<code>lib.no</code>). That’s it.</p>
+<p>A binary or a library can use other libraries by importing them. To do that, a binary or library’s manifest file <code>Noname.toml</code> must contain a <code>dependencies</code> key listing all the other libraries as Github handles like <code>user/repo</code> (e.g. <code>mimoo/sudoku</code>).
+Libraries will then be retrieved from Github. </p>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="modules.html#admonition-note"></a></p>
+</div>
+<div>
+<p>Currently there is no versioning. Not because it’s not important, but because I haven’t had the time to implement it.</p>
+</div>
+</div>
+<p>Each library can be imported in code with the following command:</p>
+<pre><code>use module::lib;
+</code></pre>
+<p>For example, currently you automatically have access to the <code>std</code> module:</p>
+<pre><code>use std::crypto;
+
+fn main(pub digest: [Field; 2]) {
+    let expected_digest = crypto::poseidon([1, 2]);
+    assert_eq(expected_digest, digest);
+}
+</code></pre>
+<p>Each library is seen as a module, and different modules might have the same name:</p>
+<pre><code>use a::some_lib;
+use b::some_lib;
+</code></pre>
+<p>There is currently no solution to this problem.</p>
+<div id="admonition-note-1" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="modules.html#admonition-note-1"></a></p>
+</div>
+<div>
+<p>This is a problem that does not exist in Rust, as there’s a single namespace that everyone shares, but that exists in Golang.
+The current proposed solution is to introduce an <code>as</code> keyword, like in Rust, to be able to alias imports (e.g. <code>use a::some_lib as a_some_lib;</code>).</p>
+</div>
+</div>
+<h2 id="dependency-graph-and-type-checking"><a class="header" href="#dependency-graph-and-type-checking">Dependency graph and type checking</a></h2>
+<p>During building, a dependency graph of all dependencies is formed (and dependencies are retrieved from Github at the same time). This must be done to detect <a href="https://en.wikipedia.org/wiki/Circular_dependency">dependency cyles</a>.</p>
+<p>Once this is done, a list of dependencies from leaves to roots is computed, and each dependency is analyzed in this order.
+Dependencies are not compiled! As the circuit-writer is not ran. Things stop at the type checker.
+For every new dependency analyzed, all TAST (typed AST) previously computed on previous dependencies are passed as argument.
+This way, if a dependency A uses a dependency B, it has access to the TAST of B to perform type checking correctly.</p>
+<p>As such, it is important that <code>a::some_lib</code> and <code>b::some_lib</code> are seen as two independent modules.
+For this reason, we store imported modules as their fully qualified path, in the set of TASTs that we pass to the type checker.
+But in the current module, we store them as their alias, so that we can use them in the code.</p>
+<pre><code>TASTs: HashMap&lt;a::some_lib, TAST&gt;
+TAST: contains &lt;some_lib -&gt; a::some_lib&gt;
+</code></pre>
+<h2 id="compilation-and-circuit-generation"><a class="header" href="#compilation-and-circuit-generation">Compilation and circuit generation</a></h2>
+<p>Once type checking is done, the circuit writer is given access to all of the dependencies’ TAST (which also contain their AST). 
+This way, it can jump from AST to AST to generate an unrolled circuit.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="cellvar"><a class="header" href="#cellvar">CellVar</a></h1>
 <p>A <a href="https://mimoo.github.io/noname/rustdoc/var/struct.CellVar.html"><code>CellVar</code></a> type is a type that represents an internal variable. Importantly, it is named after the fact that it relates to a specific cell, or even multiple cells if they will have the same value (using some wiring), in the execution trace.</p>
 <p>A <code>CellVar</code> looks like this:</p>

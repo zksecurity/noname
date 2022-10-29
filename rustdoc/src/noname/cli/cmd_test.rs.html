@@ -70,12 +70,21 @@
 <span id="70">70</span>
 <span id="71">71</span>
 <span id="72">72</span>
-</pre><pre class="rust"><code><span class="kw">use </span>miette::{IntoDiagnostic, <span class="prelude-ty">Result</span>, WrapErr};
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+</pre><pre class="rust"><code><span class="kw">use </span>miette::{IntoDiagnostic, NamedSource, <span class="prelude-ty">Result</span>, WrapErr};
 <span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use crate</span>::{
     inputs::{parse_inputs, JsonInputs},
     prover::compile_and_prove,
+    type_checker::Dependencies,
 };
 
 <span class="attribute">#[derive(clap::Parser)]
@@ -100,7 +109,12 @@
 <span class="kw">pub fn </span>cmd_test(args: CmdTest) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="kw">let </span>code = std::fs::read_to_string(<span class="kw-2">&amp;</span>args.path)
         .into_diagnostic()
-        .wrap_err_with(|| <span class="string">&quot;could not read file&quot;</span>.to_string())<span class="question-mark">?</span>;
+        .wrap_err_with(|| {
+            <span class="macro">format!</span>(
+                <span class="string">&quot;could not read file: `{}` (are you sure it exists?)&quot;</span>,
+                args.path.display()
+            )
+        })<span class="question-mark">?</span>;
 
     <span class="kw">let </span>public_inputs = <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = args.public_inputs {
         parse_inputs(<span class="kw-2">&amp;</span>s)<span class="question-mark">?
@@ -114,7 +128,8 @@
         JsonInputs::default()
     };
 
-    parse(<span class="kw-2">&amp;</span>code, public_inputs, private_inputs, args.debug).map_err(|e| e.with_source_code(code))
+    parse(<span class="kw-2">&amp;</span>code, public_inputs, private_inputs, args.debug)
+        .map_err(|e| e.with_source_code(NamedSource::new(args.path.to_str().unwrap(), code)))
 }
 
 <span class="kw">fn </span>parse(
@@ -124,7 +139,8 @@
     debug: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="comment">// compile
-    </span><span class="kw">let </span>(prover_index, verifier_index) = compile_and_prove(code)<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>deps_asts = Dependencies::default();
+    <span class="kw">let </span>(prover_index, verifier_index) = compile_and_prove(code, <span class="kw-2">&amp;</span>deps_asts)<span class="question-mark">?</span>;
     <span class="macro">println!</span>(<span class="string">&quot;successfuly compiled&quot;</span>);
 
     <span class="comment">// print ASM

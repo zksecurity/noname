@@ -273,13 +273,18 @@
 <span id="273">273</span>
 <span id="274">274</span>
 <span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
     constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     parser::{AttributeKind, FnArg, FnSig, Function, RootKind, Struct, TyKind},
-    type_checker::{TypeChecker, TAST},
+    type_checker::{Dependencies, TypeChecker, TAST},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,
 };
@@ -296,6 +301,7 @@
 </span><span class="kw">pub struct </span>CircuitWriter {
     <span class="doccomment">/// The source code that created this circuit.
     /// Useful for debugging and displaying user errors.
+    </span><span class="comment">// TODO: why is this here? probably doesn&#39;t need to be
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) source: String,
 
     <span class="doccomment">/// Once this is set, you can generate a witness (and can&#39;t modify the circuit?)
@@ -362,7 +368,11 @@
 }
 
 <span class="kw">impl </span>CircuitWriter {
-    <span class="kw">pub fn </span>generate_circuit(tast: TAST, code: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledCircuit&gt; {
+    <span class="kw">pub fn </span>generate_circuit(
+        tast: TAST,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
+        code: <span class="kw-2">&amp;</span>str,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledCircuit&gt; {
         <span class="comment">// if there&#39;s no main function, then return an error
         </span><span class="kw">let </span>TAST {
             ast,
@@ -498,7 +508,7 @@
                     }
 
                     <span class="comment">// compile function
-                    </span>circuit_writer.compile_main_function(fn_env, function)<span class="question-mark">?</span>;
+                    </span>circuit_writer.compile_main_function(fn_env, deps, function)<span class="question-mark">?</span>;
                 }
 
                 <span class="comment">// struct definition (already dealt with in type checker)

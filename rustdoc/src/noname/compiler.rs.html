@@ -33,12 +33,20 @@
 <span id="33">33</span>
 <span id="34">34</span>
 <span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
 </pre><pre class="rust"><code><span class="kw">use crate</span>::{
-    circuit_writer::CircuitWriter, error::Result, lexer::Token, parser::AST, type_checker::TAST,
+    circuit_writer::CircuitWriter,
+    error::Result,
+    lexer::Token,
+    parser::AST,
+    type_checker::{Dependencies, TAST},
     witness::CompiledCircuit,
 };
 
-<span class="kw">pub fn </span>compile(code: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledCircuit&gt; {
+<span class="kw">pub fn </span>compile(code: <span class="kw-2">&amp;</span>str, deps: <span class="kw-2">&amp;</span>Dependencies) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledCircuit&gt; {
     <span class="comment">// lexer
     </span><span class="kw">let </span>tokens = Token::parse(code)<span class="question-mark">?</span>;
 
@@ -46,16 +54,16 @@
     </span><span class="kw">let </span>ast = AST::parse(tokens)<span class="question-mark">?</span>;
 
     <span class="comment">// TAST
-    </span><span class="kw">let </span>tast = TAST::analyze(ast)<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>tast = TAST::analyze(ast, deps)<span class="question-mark">?</span>;
 
     <span class="comment">// type checker + compiler
-    </span><span class="kw">let </span>circuit = CircuitWriter::generate_circuit(tast, code)<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>circuit = CircuitWriter::generate_circuit(tast, deps, code)<span class="question-mark">?</span>;
 
     <span class="comment">//
     </span><span class="prelude-val">Ok</span>(circuit)
 }
 
-<span class="kw">pub fn </span>get_tast(code: <span class="kw-2">&amp;</span>str) -&gt; miette::Result&lt;TAST&gt; {
+<span class="kw">pub fn </span>get_tast(code: <span class="kw-2">&amp;</span>str, deps: <span class="kw-2">&amp;</span>Dependencies) -&gt; miette::Result&lt;TAST&gt; {
     <span class="comment">// lexer
     </span><span class="kw">let </span>tokens = Token::parse(code)<span class="question-mark">?</span>;
 
@@ -63,7 +71,7 @@
     </span><span class="kw">let </span>ast = AST::parse(tokens)<span class="question-mark">?</span>;
 
     <span class="comment">// TAST
-    </span><span class="kw">let </span>tast = TAST::analyze(ast)<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>tast = TAST::analyze(ast, deps)<span class="question-mark">?</span>;
 
     <span class="comment">//
     </span><span class="prelude-val">Ok</span>(tast)

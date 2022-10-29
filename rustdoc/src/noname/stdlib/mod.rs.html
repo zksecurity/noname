@@ -178,30 +178,16 @@
 <span id="178">178</span>
 <span id="179">179</span>
 <span id="180">180</span>
-<span id="181">181</span>
-<span id="182">182</span>
-<span id="183">183</span>
-<span id="184">184</span>
-<span id="185">185</span>
-<span id="186">186</span>
-<span id="187">187</span>
-<span id="188">188</span>
-<span id="189">189</span>
-<span id="190">190</span>
-<span id="191">191</span>
-<span id="192">192</span>
-<span id="193">193</span>
-<span id="194">194</span>
-<span id="195">195</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Neg <span class="kw">as _</span>};
 
 <span class="kw">use </span>ark_ff::{One <span class="kw">as _</span>, Zero};
+<span class="kw">use </span>once_cell::sync::Lazy;
 
 <span class="kw">use crate</span>::{
-    circuit_writer::{CircuitWriter, GateKind, VarInfo},
+    circuit_writer::{CircuitWriter, VarInfo},
     constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
-    imports::{FnHandle, FnKind},
+    imports::{BuiltinModule, FnHandle, FnKind, Module, ModuleKind},
     lexer::Token,
     parser::{FnSig, ParserCtx, TyKind},
     type_checker::FnInfo,
@@ -212,53 +198,34 @@
 
 <span class="kw">pub mod </span>crypto;
 
-<span class="attribute">#[derive(Clone)]
-</span><span class="kw">pub struct </span>ImportedModule {
-    <span class="kw">pub </span>name: String,
-    <span class="kw">pub </span>functions: HashMap&lt;String, FnInfo&gt;,
-    <span class="comment">// TODO: delete?
-    </span><span class="kw">pub </span>span: Span,
-}
+<span class="kw">static </span>CRYPTO_MODULE: Lazy&lt;BuiltinModule&gt; = Lazy::new(|| {
+    <span class="kw">let </span>functions = parse_fn_sigs(<span class="kw-2">&amp;</span>CRYPTO_FNS);
+    BuiltinModule { functions }
+});
 
-<span class="kw">impl </span>std::fmt::Debug <span class="kw">for </span>ImportedModule {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
-        <span class="macro">write!</span>(
-            f,
-            <span class="string">&quot;ImportedModule {{ name: {:?}, functions: {:?}, span: {:?} }}&quot;</span>,
-            <span class="self">self</span>.name,
-            <span class="self">self</span>.functions.keys(),
-            <span class="self">self</span>.span
-        )
+<span class="kw">pub fn </span>get_std_fn(submodule: <span class="kw-2">&amp;</span>str, fn_name: <span class="kw-2">&amp;</span>str, span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;FnInfo&gt; {
+    <span class="kw">match </span>submodule {
+        <span class="string">&quot;crypto&quot; </span>=&gt; CRYPTO_MODULE
+            .functions
+            .get(fn_name)
+            .cloned()
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::UnknownExternalFn(submodule.to_string(), fn_name.to_string()),
+                    span,
+                )
+            }),
+        <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(
+            ErrorKind::StdImport(submodule.to_string()),
+            span,
+        )),
     }
-}
-
-<span class="doccomment">/// Parses the rest of a `use std::` statement. Returns a list of functions to import in the scope.
-</span><span class="kw">pub fn </span>parse_std_import(submodule: <span class="kw-2">&amp;</span>str, span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;ImportedModule&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>res = ImportedModule {
-        name: submodule.to_string(),
-        functions: HashMap::new(),
-        span,
-    };
-
-    <span class="comment">// TODO: make sure we&#39;re not importing the same module twice no?
-    </span><span class="kw">match </span>submodule {
-        <span class="string">&quot;crypto&quot; </span>=&gt; {
-            <span class="kw">let </span>crypto_functions = parse_fn_sigs(<span class="kw-2">&amp;</span>CRYPTO_FNS);
-            <span class="kw">for </span>func <span class="kw">in </span>crypto_functions {
-                res.functions
-                    .insert(func.sig().name.name.value.clone(), func);
-            }
-        }
-        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::StdImport(<span class="string">&quot;unknown module&quot;</span>), span)),
-    }
-
-    <span class="prelude-val">Ok</span>(res)
 }
 
 <span class="doccomment">/// Takes a list of function signatures (as strings) and their associated function pointer,
 /// returns the same list but with the parsed functions (as [FunctionSig]).
-</span><span class="kw">pub fn </span>parse_fn_sigs(fn_sigs: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, FnHandle)]) -&gt; Vec&lt;FnInfo&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>functions: Vec&lt;FnInfo&gt; = <span class="macro">vec!</span>[];
+</span><span class="kw">pub fn </span>parse_fn_sigs(fn_sigs: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, FnHandle)]) -&gt; HashMap&lt;String, FnInfo&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>functions = HashMap::new();
     <span class="kw">let </span>ctx = <span class="kw-2">&amp;mut </span>ParserCtx::default();
 
     <span class="kw">for </span>(sig, fn_ptr) <span class="kw">in </span>fn_sigs {
@@ -266,10 +233,13 @@
 
         <span class="kw">let </span>sig = FnSig::parse(ctx, <span class="kw-2">&amp;mut </span>tokens).unwrap();
 
-        functions.push(FnInfo {
-            kind: FnKind::BuiltIn(sig, <span class="kw-2">*</span>fn_ptr),
-            span: Span::default(),
-        });
+        functions.insert(
+            sig.name.name.value.clone(),
+            FnInfo {
+                kind: FnKind::BuiltIn(sig, <span class="kw-2">*</span>fn_ptr),
+                span: Span::default(),
+            },
+        );
     }
 
     functions

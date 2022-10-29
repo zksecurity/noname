@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Public Outputs - noname</title>
+        <title>Modules - noname</title>
 
 
         <!-- Custom HTML head -->
@@ -82,7 +82,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded "><a href="literals.html"><strong aria-hidden="true">11.</strong> Literals and the const keyword</a></li><li class="chapter-item expanded "><a href="expressions.html"><strong aria-hidden="true">12.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="modules.html"><strong aria-hidden="true">13.</strong> Modules</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">14.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">15.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">16.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">17.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">18.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html" class="active"><strong aria-hidden="true">19.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">20.</strong> Witness Generation</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded "><a href="literals.html"><strong aria-hidden="true">11.</strong> Literals and the const keyword</a></li><li class="chapter-item expanded "><a href="expressions.html"><strong aria-hidden="true">12.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="modules.html" class="active"><strong aria-hidden="true">13.</strong> Modules</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">14.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">15.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">16.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">17.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">18.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">19.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">20.</strong> Witness Generation</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -146,77 +146,70 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="public-outputs"><a class="header" href="#public-outputs">Public Outputs</a></h1>
-<p>Public outputs are usually part of the public inputs in Plonk.</p>
-<p>In noname, public ouputs are treated differently than the public inputs for one reason: unlike (real) public inputs they cannot be computed directly during witness generation (proving).</p>
-<p>This is because public inputs are listed first in the circuit. During witness generation, we go through each rows and evaluate the values of the cells to construct the execution trace. 
-When we reach the public output part of the public input, we do not yet have enough information to construct the values.
-Thus, we ignore them, and fill them later on.</p>
-<p>During the compilation, we create <code>CellVars</code> to keep track of the public output:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct Compiler {
-    // ...
+                        <h1 id="modules"><a class="header" href="#modules">Modules</a></h1>
+<p>In noname, the concept of a module is basically a file. A project either is a binary (<code>main.no</code>) or a library (<code>lib.no</code>). That’s it.</p>
+<p>A binary or a library can use other libraries by importing them. To do that, a binary or library’s manifest file <code>Noname.toml</code> must contain a <code>dependencies</code> key listing all the other libraries as Github handles like <code>user/repo</code> (e.g. <code>mimoo/sudoku</code>).
+Libraries will then be retrieved from Github. </p>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<div>
+<p>Currently there is no versioning. Not because it’s not important, but because I haven’t had the time to implement it.</p>
+</div>
+</div>
+<p>Each library can be imported in code with the following command:</p>
+<pre><code>use module::lib;
+</code></pre>
+<p>For example, currently you automatically have access to the <code>std</code> module:</p>
+<pre><code>use std::crypto;
 
-    /// If a public output is set, this will be used to store its [CircuitVar] (cvar).
-    /// The public output generation works as follows:
-    /// 1. This cvar is created and inserted in the circuit (gates) during compilation of the public input
-    ///    (as the public output is the end of the public input)
-    /// 2. When the `return` statement of the circuit is parsed,
-    ///    it will set this `public_output` variable again to the correct vars.
-    /// 3. During witness generation, the public output computation
-    ///    is delayed until the very end.
-    pub public_output: Option&lt;CellVars&gt;,
+fn main(pub digest: [Field; 2]) {
+    let expected_digest = crypto::poseidon([1, 2]);
+    assert_eq(expected_digest, digest);
 }
-<span class="boring">}
-</span></code></pre></pre>
-<p>During witness generation (see the <a href="./witness-generation.html">Witness Generation chapter</a>), we indeed defer computation the first time we go through the public output rows:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let val = if let Some(var) = var {
-    // if it's a public output, defer it's computation
-    if matches!(self.witness_vars[&amp;var], Value::PublicOutput(_)) {
-        public_outputs_vars.push((row, *var));
-        Field::zero()
-    } else {
-        self.compute_var(&amp;mut env, *var)?
-    }
-} else {
-    Field::zero()
-};
-witness_row[col] = val;
-<span class="boring">}
-</span></code></pre></pre>
-<p>and at the end we go back to them:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// compute public output at last
-let mut public_output = vec![];
-
-for (row, var) in public_outputs_vars {
-    let val = self.compute_var(&amp;mut env, var)?;
-    witness[row][0] = val;
-    public_output.push(val);
-}
-<span class="boring">}
-</span></code></pre></pre>
-<p>and finally we return the public output to the prover so that they can send it to the verifier, as well as the “full public input” which is the concatenation of the public input and the public output (needed to finalized the proof):</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// return the public output separately as well
-Ok((Witness(witness), full_public_inputs, public_output))
-<span class="boring">}
-</span></code></pre></pre>
+</code></pre>
+<p>Each library is seen as a module, and different modules might have the same name:</p>
+<pre><code>use a::some_lib;
+use b::some_lib;
+</code></pre>
+<p>There is currently no solution to this problem.</p>
+<div id="admonition-note-1" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note-1"></a></p>
+</div>
+<div>
+<p>This is a problem that does not exist in Rust, as there’s a single namespace that everyone shares, but that exists in Golang.
+The current proposed solution is to introduce an <code>as</code> keyword, like in Rust, to be able to alias imports (e.g. <code>use a::some_lib as a_some_lib;</code>).</p>
+</div>
+</div>
+<h2 id="dependency-graph-and-type-checking"><a class="header" href="#dependency-graph-and-type-checking">Dependency graph and type checking</a></h2>
+<p>During building, a dependency graph of all dependencies is formed (and dependencies are retrieved from Github at the same time). This must be done to detect <a href="https://en.wikipedia.org/wiki/Circular_dependency">dependency cyles</a>.</p>
+<p>Once this is done, a list of dependencies from leaves to roots is computed, and each dependency is analyzed in this order.
+Dependencies are not compiled! As the circuit-writer is not ran. Things stop at the type checker.
+For every new dependency analyzed, all TAST (typed AST) previously computed on previous dependencies are passed as argument.
+This way, if a dependency A uses a dependency B, it has access to the TAST of B to perform type checking correctly.</p>
+<p>As such, it is important that <code>a::some_lib</code> and <code>b::some_lib</code> are seen as two independent modules.
+For this reason, we store imported modules as their fully qualified path, in the set of TASTs that we pass to the type checker.
+But in the current module, we store them as their alias, so that we can use them in the code.</p>
+<pre><code>TASTs: HashMap&lt;a::some_lib, TAST&gt;
+TAST: contains &lt;some_lib -&gt; a::some_lib&gt;
+</code></pre>
+<h2 id="compilation-and-circuit-generation"><a class="header" href="#compilation-and-circuit-generation">Compilation and circuit generation</a></h2>
+<p>Once type checking is done, the circuit writer is given access to all of the dependencies’ TAST (which also contain their AST). 
+This way, it can jump from AST to AST to generate an unrolled circuit.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="scope.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="expressions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="witness-generation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="cellvar.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -226,11 +219,11 @@ Ok((Witness(witness), full_public_inputs, public_output))
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="scope.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="expressions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="witness-generation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="cellvar.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

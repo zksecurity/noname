@@ -937,6 +937,31 @@
 <span id="937">937</span>
 <span id="938">938</span>
 <span id="939">939</span>
+<span id="940">940</span>
+<span id="941">941</span>
+<span id="942">942</span>
+<span id="943">943</span>
+<span id="944">944</span>
+<span id="945">945</span>
+<span id="946">946</span>
+<span id="947">947</span>
+<span id="948">948</span>
+<span id="949">949</span>
+<span id="950">950</span>
+<span id="951">951</span>
+<span id="952">952</span>
+<span id="953">953</span>
+<span id="954">954</span>
+<span id="955">955</span>
+<span id="956">956</span>
+<span id="957">957</span>
+<span id="958">958</span>
+<span id="959">959</span>
+<span id="960">960</span>
+<span id="961">961</span>
+<span id="962">962</span>
+<span id="963">963</span>
+<span id="964">964</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Display, Formatter},
     ops::Neg,
@@ -956,7 +981,7 @@
     imports::FnKind,
     parser::{Expr, ExprKind, Function, Op2, Stmt, StmtKind, TyKind},
     syntax::is_type,
-    type_checker::{checker::TypeChecker, StructInfo},
+    type_checker::{checker::TypeChecker, Dependencies, StructInfo},
     var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
 };
 
@@ -1081,12 +1106,17 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.gates
     }
 
-    <span class="kw">fn </span>compile_stmt(<span class="kw-2">&amp;mut </span><span class="self">self</span>, fn_env: <span class="kw-2">&amp;mut </span>FnEnv, stmt: <span class="kw-2">&amp;</span>Stmt) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;VarOrRef&gt;&gt; {
+    <span class="kw">fn </span>compile_stmt(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
+        stmt: <span class="kw-2">&amp;</span>Stmt,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;VarOrRef&gt;&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span>stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } =&gt; {
                 <span class="comment">// compute the rhs
                 </span><span class="kw">let </span>rhs_var = <span class="self">self
-                    </span>.compute_expr(fn_env, rhs)<span class="question-mark">?
+                    </span>.compute_expr(fn_env, deps, rhs)<span class="question-mark">?
                     </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// obtain the actual values
@@ -1108,21 +1138,21 @@
                     <span class="kw">let </span>var_info = VarInfo::new(cst_var, <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(TyKind::Field));
                     fn_env.add_var(var.value.clone(), var_info);
 
-                    <span class="self">self</span>.compile_block(fn_env, body)<span class="question-mark">?</span>;
+                    <span class="self">self</span>.compile_block(fn_env, deps, body)<span class="question-mark">?</span>;
 
                     fn_env.pop();
                 }
             }
             StmtKind::Expr(expr) =&gt; {
                 <span class="comment">// compute the expression
-                </span><span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, expr)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, deps, expr)<span class="question-mark">?</span>;
 
                 <span class="comment">// make sure it does not return any value.
                 </span><span class="macro">assert!</span>(var.is_none());
             }
             StmtKind::Return(expr) =&gt; {
                 <span class="kw">let </span>var = <span class="self">self
-                    </span>.compute_expr(fn_env, expr)<span class="question-mark">?
+                    </span>.compute_expr(fn_env, deps, expr)<span class="question-mark">?
                     </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// we already checked in type checking that this is not an early return
@@ -1135,10 +1165,15 @@
     }
 
     <span class="doccomment">/// might return something?
-    </span><span class="kw">fn </span>compile_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, fn_env: <span class="kw-2">&amp;mut </span>FnEnv, stmts: <span class="kw-2">&amp;</span>[Stmt]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
+    </span><span class="kw">fn </span>compile_block(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
+        stmts: <span class="kw-2">&amp;</span>[Stmt],
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
         fn_env.nest();
         <span class="kw">for </span>stmt <span class="kw">in </span>stmts {
-            <span class="kw">let </span>res = <span class="self">self</span>.compile_stmt(fn_env, stmt)<span class="question-mark">?</span>;
+            <span class="kw">let </span>res = <span class="self">self</span>.compile_stmt(fn_env, deps, stmt)<span class="question-mark">?</span>;
             <span class="kw">if let </span><span class="prelude-val">Some</span>(var) = res {
                 <span class="comment">// a block doesn&#39;t return a pointer, only values
                 </span><span class="kw">let </span>var = var.value(fn_env);
@@ -1153,6 +1188,7 @@
 
     <span class="kw">fn </span>compile_native_function_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
         function: <span class="kw-2">&amp;</span>Function,
         args: Vec&lt;VarInfo&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
@@ -1169,7 +1205,7 @@
         }
 
         <span class="comment">// compile it and potentially return a return value
-        </span><span class="self">self</span>.compile_block(fn_env, <span class="kw-2">&amp;</span>function.body)
+        </span><span class="self">self</span>.compile_block(fn_env, deps, <span class="kw-2">&amp;</span>function.body)
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>constrain_inputs_to_main(
@@ -1190,9 +1226,12 @@
                     <span class="self">self</span>.constrain_inputs_to_main(el, tykind, span);
                 }
             }
-            TyKind::Custom(struct_name) =&gt; {
+            TyKind::Custom {
+                module,
+                name: struct_name,
+            } =&gt; {
                 <span class="kw">let </span>struct_info = <span class="self">self
-                    </span>.struct_info(struct_name)
+                    </span>.struct_info(<span class="kw-2">&amp;</span>struct_name.value)
                     .expect(<span class="string">&quot;type-checker bug: couldn&#39;t find struct info of input to main&quot;</span>)
                     .clone();
                 <span class="kw">let </span><span class="kw-2">mut </span>offset = <span class="number">0</span>;
@@ -1211,12 +1250,13 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile_main_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
         function: <span class="kw-2">&amp;</span>Function,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="macro">assert!</span>(function.is_main());
 
         <span class="comment">// compile the block
-        </span><span class="kw">let </span>returned = <span class="self">self</span>.compile_block(fn_env, <span class="kw-2">&amp;</span>function.body)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>returned = <span class="self">self</span>.compile_block(fn_env, deps, <span class="kw-2">&amp;</span>function.body)<span class="question-mark">?</span>;
 
         <span class="comment">// we&#39;re expecting something returned?
         </span><span class="kw">match </span>(function.sig.return_type.as_ref(), returned) {
@@ -1270,7 +1310,12 @@
         var
     }
 
-    <span class="kw">fn </span>compute_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, fn_env: <span class="kw-2">&amp;mut </span>FnEnv, expr: <span class="kw-2">&amp;</span>Expr) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;VarOrRef&gt;&gt; {
+    <span class="kw">fn </span>compute_expr(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
+        expr: <span class="kw-2">&amp;</span>Expr,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;VarOrRef&gt;&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span>expr.kind {
             <span class="comment">// `module::fn_name(args)`
             </span>ExprKind::FnCall {
@@ -1285,7 +1330,7 @@
                 <span class="kw">for </span>arg <span class="kw">in </span>args {
                     <span class="comment">// get the variable behind the expression
                     </span><span class="kw">let </span>var = <span class="self">self
-                        </span>.compute_expr(fn_env, arg)<span class="question-mark">?
+                        </span>.compute_expr(fn_env, deps, arg)<span class="question-mark">?
                         </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))<span class="question-mark">?</span>;
 
                     <span class="comment">// we pass variables by values always
@@ -1308,12 +1353,8 @@
                             module.span,
                         )
                     })<span class="question-mark">?</span>;
-                    <span class="kw">let </span>fn_info = module.functions.get(<span class="kw-2">&amp;</span>fn_name.value).ok_or_else(|| {
-                        Error::new(
-                            ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                            fn_name.span,
-                        )
-                    })<span class="question-mark">?</span>;
+
+                    <span class="kw">let </span>fn_info = deps.get_fn(module, fn_name)<span class="question-mark">?</span>;
 
                     <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
                         FnKind::BuiltIn(<span class="kw">_</span>, handle) =&gt; {
@@ -1344,7 +1385,7 @@
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Native(func) =&gt; {
-                            <span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(<span class="kw-2">&amp;</span>func, vars);
+                            <span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(deps, <span class="kw-2">&amp;</span>func, vars);
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Main(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::RecursiveMain, expr.span)),
@@ -1355,7 +1396,7 @@
             ExprKind::FieldAccess { lhs, rhs } =&gt; {
                 <span class="comment">// get var behind lhs
                 </span><span class="kw">let </span>lhs_var = <span class="self">self
-                    </span>.compute_expr(fn_env, lhs)<span class="question-mark">?
+                    </span>.compute_expr(fn_env, deps, lhs)<span class="question-mark">?
                     </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// get struct info behind lhs
@@ -1365,7 +1406,7 @@
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>self_struct = <span class="kw">match </span>lhs_struct {
-                    TyKind::Custom(s) =&gt; s,
+                    TyKind::Custom { module, name } =&gt; name,
                     <span class="kw">_ </span>=&gt; {
                         <span class="macro">panic!</span>(<span class="string">&quot;could not figure out struct implementing that method call&quot;</span>)
                     }
@@ -1373,7 +1414,7 @@
 
                 <span class="kw">let </span>struct_info = <span class="self">self
                     </span>.typed
-                    .struct_info(self_struct)
+                    .struct_info(<span class="kw-2">&amp;</span>self_struct.value)
                     .expect(<span class="string">&quot;struct info not found for custom struct&quot;</span>);
 
                 <span class="comment">// find range of field
@@ -1407,18 +1448,18 @@
                     .clone();
 
                 <span class="kw">let </span>struct_name = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs_typ {
-                    TyKind::Custom(c) =&gt; c,
-                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;method call only work on custom types&quot;</span>),
+                    TyKind::Custom { module, name } =&gt; name,
+                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;method call only work on custom types (TODO: better error)&quot;</span>),
                 };
 
                 <span class="comment">// get var of `self`
                 // (might be `None` if it&#39;s a static method call)
-                </span><span class="kw">let </span>self_var = <span class="self">self</span>.compute_expr(fn_env, lhs)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>self_var = <span class="self">self</span>.compute_expr(fn_env, deps, lhs)<span class="question-mark">?</span>;
 
                 <span class="comment">// find method info
                 </span><span class="kw">let </span>struct_info = <span class="self">self
                     </span>.typed
-                    .struct_info(struct_name)
+                    .struct_info(<span class="kw-2">&amp;</span>struct_name.value)
                     .expect(<span class="string">&quot;could not find struct info&quot;</span>)
                     .clone();
 
@@ -1449,7 +1490,7 @@
                 <span class="comment">// compute the arguments
                 </span><span class="kw">for </span>arg <span class="kw">in </span>args {
                     <span class="kw">let </span>var = <span class="self">self
-                        </span>.compute_expr(fn_env, arg)<span class="question-mark">?
+                        </span>.compute_expr(fn_env, deps, arg)<span class="question-mark">?
                         </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))<span class="question-mark">?</span>;
 
                     <span class="comment">// TODO: for now we pass `self` by value as well
@@ -1463,14 +1504,23 @@
                 }
 
                 <span class="comment">// execute method
-                </span><span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(func, vars);
+                </span><span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(deps, func, vars);
                 res.map(|r| r.map(VarOrRef::Var))
             }
 
             ExprKind::IfElse { cond, then_, else_ } =&gt; {
-                <span class="kw">let </span>cond = <span class="self">self</span>.compute_expr(fn_env, cond)<span class="question-mark">?</span>.unwrap().value(fn_env);
-                <span class="kw">let </span>then_ = <span class="self">self</span>.compute_expr(fn_env, then_)<span class="question-mark">?</span>.unwrap().value(fn_env);
-                <span class="kw">let </span>else_ = <span class="self">self</span>.compute_expr(fn_env, else_)<span class="question-mark">?</span>.unwrap().value(fn_env);
+                <span class="kw">let </span>cond = <span class="self">self
+                    </span>.compute_expr(fn_env, deps, cond)<span class="question-mark">?
+                    </span>.unwrap()
+                    .value(fn_env);
+                <span class="kw">let </span>then_ = <span class="self">self
+                    </span>.compute_expr(fn_env, deps, then_)<span class="question-mark">?
+                    </span>.unwrap()
+                    .value(fn_env);
+                <span class="kw">let </span>else_ = <span class="self">self
+                    </span>.compute_expr(fn_env, deps, else_)<span class="question-mark">?
+                    </span>.unwrap()
+                    .value(fn_env);
 
                 <span class="kw">let </span>res = field::if_else(<span class="self">self</span>, <span class="kw-2">&amp;</span>cond, <span class="kw-2">&amp;</span>then_, <span class="kw-2">&amp;</span>else_, expr.span);
 
@@ -1479,10 +1529,10 @@
 
             ExprKind::Assignment { lhs, rhs } =&gt; {
                 <span class="comment">// figure out the local var  of lhs
-                </span><span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(fn_env, lhs)<span class="question-mark">?</span>.unwrap();
+                </span><span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(fn_env, deps, lhs)<span class="question-mark">?</span>.unwrap();
 
                 <span class="comment">// figure out the var of what&#39;s on the right
-                </span><span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(fn_env, rhs)<span class="question-mark">?</span>.unwrap();
+                </span><span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(fn_env, deps, rhs)<span class="question-mark">?</span>.unwrap();
                 <span class="kw">let </span>rhs_var = <span class="kw">match </span>rhs {
                     VarOrRef::Var(var) =&gt; var,
                     VarOrRef::Ref {
@@ -1512,8 +1562,8 @@
             }
 
             ExprKind::BinaryOp { op, lhs, rhs, .. } =&gt; {
-                <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(fn_env, lhs)<span class="question-mark">?</span>.unwrap();
-                <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(fn_env, rhs)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>lhs = <span class="self">self</span>.compute_expr(fn_env, deps, lhs)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>rhs = <span class="self">self</span>.compute_expr(fn_env, deps, rhs)<span class="question-mark">?</span>.unwrap();
 
                 <span class="kw">let </span>lhs = lhs.value(fn_env);
                 <span class="kw">let </span>rhs = rhs.value(fn_env);
@@ -1532,7 +1582,7 @@
             }
 
             ExprKind::Negated(b) =&gt; {
-                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, b)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, deps, b)<span class="question-mark">?</span>.unwrap();
 
                 <span class="kw">let </span>var = var.value(fn_env);
 
@@ -1540,7 +1590,7 @@
             }
 
             ExprKind::Not(b) =&gt; {
-                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, b)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, deps, b)<span class="question-mark">?</span>.unwrap();
 
                 <span class="kw">let </span>var = var.value(fn_env);
 
@@ -1584,12 +1634,12 @@
             ExprKind::ArrayAccess { array, idx } =&gt; {
                 <span class="comment">// retrieve var of array
                 </span><span class="kw">let </span>var = <span class="self">self
-                    </span>.compute_expr(fn_env, array)<span class="question-mark">?
+                    </span>.compute_expr(fn_env, deps, array)<span class="question-mark">?
                     </span>.expect(<span class="string">&quot;array access on non-array&quot;</span>);
 
                 <span class="comment">// compute the index
                 </span><span class="kw">let </span>idx_var = <span class="self">self
-                    </span>.compute_expr(fn_env, idx)<span class="question-mark">?
+                    </span>.compute_expr(fn_env, deps, idx)<span class="question-mark">?
                     </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, expr.span))<span class="question-mark">?</span>;
                 <span class="kw">let </span>idx = idx_var
                     .constant()
@@ -1641,7 +1691,7 @@
                 <span class="kw">let </span><span class="kw-2">mut </span>cvars = <span class="macro">vec!</span>[];
 
                 <span class="kw">for </span>item <span class="kw">in </span>items {
-                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, item)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, deps, item)<span class="question-mark">?</span>.unwrap();
                     <span class="kw">let </span>to_extend = var.value(fn_env).cvars.clone();
                     cvars.extend(to_extend);
                 }
@@ -1658,7 +1708,7 @@
                 <span class="comment">// create the struct by just concatenating all of its cvars
                 </span><span class="kw">let </span><span class="kw-2">mut </span>cvars = <span class="macro">vec!</span>[];
                 <span class="kw">for </span>(_field, rhs) <span class="kw">in </span>fields {
-                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, rhs)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, deps, rhs)<span class="question-mark">?</span>.unwrap();
                     <span class="kw">let </span>to_extend = var.value(fn_env).cvars.clone();
                     cvars.extend(to_extend);
                 }

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":[["FnKind","The different types of a noname function."]],"fn":[["resolve_builtin_functions",""],["resolve_imports",""]],"type":[["FnHandle","An actual handle to the internal function to call to resolve a built-in function call."]]};
+window.SIDEBAR_ITEMS = {"enum":[["FnKind","The different types of a noname function."],["ModuleKind",""]],"fn":[["resolve_builtin_functions",""]],"struct":[["BuiltinModule",""],["Module",""]],"type":[["FnHandle","An actual handle to the internal function to call to resolve a built-in function call."]]};

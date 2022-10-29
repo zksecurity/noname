@@ -50,19 +50,78 @@
 <span id="50">50</span>
 <span id="51">51</span>
 <span id="52">52</span>
-</pre><pre class="rust"><code><span class="kw">use </span>std::fmt;
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+</pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fmt};
 
 <span class="kw">use crate</span>::{
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
     error::Result,
     parser::{FnSig, Function, UsePath},
-    stdlib::{<span class="self">self</span>, parse_fn_sigs, ImportedModule, BUILTIN_FNS},
-    type_checker::FnInfo,
+    stdlib::{<span class="self">self</span>, parse_fn_sigs, BUILTIN_FNS},
+    type_checker::{FnInfo, TAST},
     var::Var,
 };
 
-<span class="doccomment">/// An actual handle to the internal function to call to resolve a built-in function call.
+<span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub struct </span>Module {
+    <span class="kw">pub </span>name: String,
+    <span class="kw">pub </span>kind: ModuleKind,
+}
+
+<span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub enum </span>ModuleKind {
+    <span class="doccomment">/// A module that contains only built-in functions.
+    </span>BuiltIn(BuiltinModule),
+
+    <span class="doccomment">/// A module that contains both built-in functions and native functions.
+    </span>Native(TAST),
+}
+
+<span class="attribute">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>BuiltinModule {
+    <span class="kw">pub </span>functions: HashMap&lt;String, FnInfo&gt;,
+}
+
+<span class="comment">/*
+impl std::fmt::Debug for BuiltinModule {
+    fn fmt(&amp;self, f: &amp;mut std::fmt::Formatter&lt;&#39;_&gt;) -&gt; std::fmt::Result {
+        write!(
+            f,
+            &quot;ImportedModule {{ name: {:?}, functions: {:?}, span: {:?} }}&quot;,
+            self.name,
+            self.functions.keys(),
+            self.span
+        )
+    }
+}
+*/
+
+</span><span class="doccomment">/// An actual handle to the internal function to call to resolve a built-in function call.
 ///
 /// Note that the signature of a `FnHandle` is designed to:
 /// * `&amp;mut CircuitWriter`: take a mutable reference to the circuit writer, this is because built-ins need to be able to register new variables and add gates to the circuit
@@ -90,17 +149,8 @@
     }
 }
 
-<span class="kw">pub fn </span>resolve_builtin_functions() -&gt; Vec&lt;FnInfo&gt; {
+<span class="kw">pub fn </span>resolve_builtin_functions() -&gt; HashMap&lt;String, FnInfo&gt; {
     parse_fn_sigs(<span class="kw-2">&amp;</span>BUILTIN_FNS)
-}
-
-<span class="kw">pub fn </span>resolve_imports(path: <span class="kw-2">&amp;</span>UsePath) -&gt; <span class="prelude-ty">Result</span>&lt;ImportedModule&gt; {
-    <span class="kw">if </span>path.module.value == <span class="string">&quot;std&quot; </span>{
-        stdlib::parse_std_import(<span class="kw-2">&amp;</span>path.submodule.value, path.span)
-    } <span class="kw">else </span>{
-        <span class="comment">// we only support std root module for now
-        </span><span class="macro">unimplemented!</span>()
-    }
 }
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9565dfeb4 2022-10-28)" ></div></body></html>
