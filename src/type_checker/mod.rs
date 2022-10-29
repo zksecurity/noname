@@ -174,16 +174,25 @@ impl TypeChecker {
                         ));
                     }
 
-                    type_checker.constants.insert(
-                        cst.name.value.clone(),
-                        ConstInfo {
-                            value: cst.value,
-                            typ: Ty {
-                                kind: TyKind::Field,
-                                span: cst.span,
+                    if type_checker
+                        .constants
+                        .insert(
+                            cst.name.value.clone(),
+                            ConstInfo {
+                                value: cst.value,
+                                typ: Ty {
+                                    kind: TyKind::Field,
+                                    span: cst.span,
+                                },
                             },
-                        },
-                    );
+                        )
+                        .is_some()
+                    {
+                        return Err(Error::new(
+                            ErrorKind::DuplicateDefinition(cst.name.value.clone()),
+                            cst.name.span,
+                        ));
+                    }
                 }
 
                 RootKind::Function(Function { span, .. })
