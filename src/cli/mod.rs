@@ -1,12 +1,10 @@
 pub mod cmd_build_and_check;
 pub mod cmd_new_and_init;
-pub mod cmd_test;
 pub mod manifest;
 pub mod packages;
 
 pub use cmd_build_and_check::{cmd_build, cmd_check, CmdBuild, CmdCheck};
 pub use cmd_new_and_init::{cmd_init, cmd_new, CmdInit, CmdNew};
-pub use cmd_test::{cmd_test, CmdTest};
 
 /// The directory under the user home directory containing all noname-related files.
 pub const NONAME_DIRECTORY: &str = ".noname";

@@ -1,8 +1,6 @@
 use clap::Parser as _;
 use miette::Result;
-use noname::cli::{
-    cmd_build, cmd_check, cmd_init, cmd_new, cmd_test, CmdBuild, CmdCheck, CmdInit, CmdNew, CmdTest,
-};
+use noname::cli::{cmd_build, cmd_check, cmd_init, cmd_new, CmdBuild, CmdCheck, CmdInit, CmdNew};
 
 #[derive(clap::Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -33,18 +31,12 @@ enum Commands {
 
     /// Verify a proof
     Verify,
-
-    /// Compile, prove, and verify a noname program (for testing only).
-    /// It only supports single `main.no` files without dependencies.
-    /// Warning: This will be deprecated.
-    Test(CmdTest),
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Test(args) => cmd_test(args),
         Commands::New(args) => cmd_new(args),
         Commands::Init(args) => cmd_init(args),
         Commands::Doc => todo!(),

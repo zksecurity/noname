@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     cli::packages::UserRepo,
     constants::Span,
@@ -12,7 +14,7 @@ use crate::{
 use super::{Dependencies, TypeChecker, TypeInfo, TypedFnEnv};
 
 /// Keeps track of the signature of a user-defined function.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FnInfo {
     pub kind: FnKind,
     pub span: Span,
@@ -28,7 +30,7 @@ impl FnInfo {
 }
 
 /// Keeps track of the signature of a user-defined struct.
-#[derive(Default, Debug, Clone)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct StructInfo {
     pub name: String,
     pub fields: Vec<(String, TyKind)>,

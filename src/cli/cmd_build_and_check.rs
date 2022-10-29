@@ -1,17 +1,19 @@
-use std::path::PathBuf;
-
+use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic, NamedSource, Result};
 
 use crate::{
     circuit_writer::CircuitWriter,
     cli::packages::path_to_package,
     compiler::get_tast,
+    prover::compile_to_indexes,
     type_checker::{Dependencies, TypeChecker},
 };
 
 use super::packages::{
     get_deps_of_package, is_lib, validate_package_and_get_manifest, DependencyGraph, UserRepo,
 };
+
+const COMPILED_DIR: &str = "compiled";
 
 #[derive(clap::Parser)]
 pub struct CmdBuild {
@@ -26,12 +28,24 @@ pub struct CmdBuild {
     /// Prints a debug version of the assembly. To be used in conjunction with `--asm`.
     #[clap(short, long)]
     debug: bool,
+
+    /// In case the path points to a binary,
+    /// outputs the prover parameters to the given file.
+    /// Defaults to `prover.nope`
+    #[clap(short, long, value_parser)]
+    prover_params: Option<PathBuf>,
+
+    /// In case the path points to a binary,
+    /// outputs the verifier parameters to the given file.
+    /// Defaults to `verifier.nope`
+    #[clap(short, long, value_parser)]
+    verifier_params: Option<PathBuf>,
 }
 
 pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
     let curr_dir = args
         .path
-        .unwrap_or_else(|| std::env::current_dir().unwrap());
+        .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
     // produce all TASTs
     let (code, tast, deps_tasts) = produce_all_asts(&curr_dir)?;
@@ -39,13 +53,54 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
     // produce indexes
     let compiled_circuit = CircuitWriter::generate_circuit(tast, deps_tasts, &code)
         .into_diagnostic()
-        .map_err(|e| e.with_source_code(NamedSource::new(curr_dir.to_str().unwrap(), code)))?;
+        .map_err(|e| e.with_source_code(NamedSource::new(curr_dir.to_string(), code)))?;
 
+    // asm
     if args.asm {
         println!("{}", compiled_circuit.asm(args.debug));
     }
 
-    // store/cache artifacts
+    // TODO: cache artifacts
+
+    // produce indexes
+    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
+
+    // create COMPILED_DIR
+    let compiled_path = curr_dir.join(COMPILED_DIR);
+    if compiled_path.is_dir() {
+        miette::bail!("There's a filename called `{compiled_path}` which collides with noname. Please delete that file first." );
+    }
+
+    if args.prover_params.is_none() && args.verifier_params.is_none() && !compiled_path.exists() {
+        std::fs::create_dir(&compiled_path)
+            .into_diagnostic()
+            .wrap_err(format!("could not create dir at `{compiled_path}`"))?;
+    }
+
+    // write prover
+    let prover_params = args
+        .prover_params
+        .unwrap_or(compiled_path.join("prover.nope"));
+    /*
+    std::fs::write(&prover_params, rmp_serde::to_vec(&prover_index).unwrap())
+        .into_diagnostic()
+        .wrap_err(format!(
+            "could not write prover params to `{prover_params}`"
+        ))?;
+        */
+
+    // write verifier
+    let verifier_params = args
+        .verifier_params
+        .unwrap_or(compiled_path.join("verifier.nope"));
+    std::fs::write(
+        &verifier_params,
+        rmp_serde::to_vec(&verifier_index).unwrap(),
+    )
+    .into_diagnostic()
+    .wrap_err(format!(
+        "could not write prover params to `{prover_params}`"
+    ))?;
 
     //
     Ok(())
@@ -61,7 +116,7 @@ pub struct CmdCheck {
 pub fn cmd_check(args: CmdCheck) -> Result<()> {
     let curr_dir = args
         .path
-        .unwrap_or_else(|| std::env::current_dir().unwrap());
+        .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
     // produce all TASTs and stop here
     produce_all_asts(&curr_dir)?;
@@ -96,14 +151,12 @@ fn produce_all_asts(path: &PathBuf) -> Result<(String, TypeChecker, Dependencies
         let lib_file = path.join("src").join("lib.no");
         let code = std::fs::read_to_string(&lib_file)
             .into_diagnostic()
-            .wrap_err_with(|| format!("could not read file `{}`", path.display()))?;
+            .wrap_err_with(|| format!("could not read file `{path}`"))?;
 
-        let lib_file_str = lib_file.to_str().unwrap();
+        let lib_file_str = lib_file.to_string();
         let tast = get_tast(&code, &deps_tasts)
-            .map_err(|e| e.with_source_code(NamedSource::new(lib_file_str, code.clone())))?;
-        deps_tasts
-            .deps
-            .insert(dep, (tast, lib_file_str.to_string(), code));
+            .map_err(|e| e.with_source_code(NamedSource::new(&lib_file_str, code.clone())))?;
+        deps_tasts.deps.insert(dep, (tast, lib_file_str, code));
     }
 
     // produce artifact for this one
@@ -121,11 +174,10 @@ fn produce_all_asts(path: &PathBuf) -> Result<(String, TypeChecker, Dependencies
 
     let code = std::fs::read_to_string(&file_path)
         .into_diagnostic()
-        .wrap_err_with(|| format!("could not read file `{}`", file_path.display()))?;
+        .wrap_err_with(|| format!("could not read file `{file_path}`"))?;
 
-    let tast = get_tast(&code, &deps_tasts).map_err(|e| {
-        e.with_source_code(NamedSource::new(file_path.to_str().unwrap(), code.clone()))
-    })?;
+    let tast = get_tast(&code, &deps_tasts)
+        .map_err(|e| e.with_source_code(NamedSource::new(file_path.to_string(), code.clone())))?;
 
     Ok((code, tast, deps_tasts))
 }

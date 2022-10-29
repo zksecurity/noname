@@ -1,9 +1,10 @@
 use std::path::Path;
 
 use crate::{
+    compiler,
     constants::Field,
     inputs::{parse_inputs, ExtField},
-    prover::compile_and_prove,
+    prover::compile_to_indexes,
     type_checker::Dependencies,
 };
 
@@ -20,7 +21,8 @@ fn test_file(
     let code = std::fs::read_to_string(prefix.clone().join(format!("{file_name}.no"))).unwrap();
 
     // compile
-    let (prover_index, verifier_index) = compile_and_prove(&code, Dependencies::default()).unwrap();
+    let compiled_circuit = compiler::compile(&code, Dependencies::default()).unwrap();
+    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit).unwrap();
 
     // check compiled ASM only if it's not too large
     if prover_index.len() < 100 {

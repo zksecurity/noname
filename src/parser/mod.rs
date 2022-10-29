@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     cli::packages::UserRepo,
     constants::{Field, Span},
@@ -194,13 +196,13 @@ pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<(V
 //~ numeric ::= /[0-9]+/
 //~
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ty {
     pub kind: TyKind,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum TyKind {
     /// The main primitive type. 'Nuf said.
     // TODO: Field { constant: bool },
@@ -416,7 +418,7 @@ impl Ty {
 //~ array_access ::= ident "[" expr "]"
 //~
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Expr {
     pub node_id: usize,
     pub kind: ExprKind,
@@ -434,7 +436,7 @@ impl Expr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExprKind {
     /// `lhs(args)`
     FnCall {
@@ -503,7 +505,7 @@ pub enum ExprKind {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Op2 {
     Addition,
     Subtraction,
@@ -989,7 +991,7 @@ impl Expr {
 //~ param ::= { "pub" } ident ":" type
 //~
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct FnSig {
     pub name: FnNameDef,
 
@@ -1016,7 +1018,7 @@ impl FnSig {
 }
 
 /// Any kind of text that can represent a type, a variable, a function name, etc.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Ident {
     pub value: String,
     pub span: Span,
@@ -1043,7 +1045,7 @@ impl Ident {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum AttributeKind {
     Pub,
     Const,
@@ -1059,7 +1061,7 @@ impl AttributeKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Attribute {
     pub kind: AttributeKind,
     pub span: Span,
@@ -1075,7 +1077,7 @@ impl Attribute {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Function {
     pub sig: FnSig,
 
@@ -1084,7 +1086,7 @@ pub struct Function {
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FnArg {
     pub name: Ident,
     pub typ: Ty,
@@ -1109,7 +1111,7 @@ impl FnArg {
 }
 
 /// Represents the name of a function.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FnNameDef {
     /// The name of the type that this function is implemented on.
     pub self_name: Option<Ident>,
@@ -1443,7 +1445,7 @@ pub fn is_valid_fn_type(name: &str) -> bool {
 //~ path ::= ident { "::" ident }
 //~
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Range {
     pub start: u32,
     pub end: u32,
@@ -1456,13 +1458,13 @@ impl Range {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StmtKind {
     Assign {
         mutable: bool,
@@ -1708,7 +1710,7 @@ pub struct Root {
     pub span: Span,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UsePath {
     pub module: Ident,
     pub submodule: Ident,

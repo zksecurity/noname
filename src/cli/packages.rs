@@ -1,10 +1,11 @@
 use std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
     process,
 };
 
+use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic, Result};
+use serde::{Deserialize, Serialize};
 
 use super::{
     manifest::{read_manifest, Manifest},
@@ -12,7 +13,7 @@ use super::{
 };
 
 /// A dependency is a Github `user/repo` pair.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct UserRepo {
     pub user: String,
     pub repo: String,
@@ -223,14 +224,17 @@ pub fn get_dep_code(dep: &UserRepo) -> Result<String> {
     let lib_file = path.join("src").join("lib.no");
     let lib_content = std::fs::read_to_string(&lib_file)
         .into_diagnostic()
-        .wrap_err_with(|| format!("could not read file `{}`", path.display()))?;
+        .wrap_err_with(|| format!("could not read file `{path}`"))?;
 
     Ok(lib_content)
 }
 
 /// Obtain local path to a package.
 pub(crate) fn path_to_package(dep: &UserRepo) -> PathBuf {
-    let home_dir = dirs::home_dir().expect("could not find home directory of current user");
+    let home_dir: PathBuf = dirs::home_dir()
+        .expect("could not find home directory of current user")
+        .try_into()
+        .expect("invalid UTF8 path");
     let noname_dir = home_dir.join(NONAME_DIRECTORY);
     let package_dir = noname_dir.join(PACKAGE_DIRECTORY);
 
@@ -268,7 +272,7 @@ pub fn is_lib(path: &PathBuf) -> bool {
 pub fn validate_package_and_get_manifest(path: &PathBuf, must_be_lib: bool) -> Result<Manifest> {
     // check if folder exists
     if !path.exists() {
-        miette::bail!(format!("path `{path}` doesn't exists. Use `noname new` to create a new package in an non-existing directory", path=path.display()));
+        miette::bail!(format!("path `{path}` doesn't exists. Use `noname new` to create a new package in an non-existing directory"));
     }
 
     // parse `NoName.toml`

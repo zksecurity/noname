@@ -4,15 +4,14 @@ use crate::{
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    parser::{
-        AttributeKind, Expr, FnArg, FnSig, Function, Ident, RootKind, Struct, TyKind, UsePath,
-    },
+    parser::{AttributeKind, Expr, FnArg, Ident, TyKind, UsePath},
     type_checker::{Dependencies, FnInfo, StructInfo, TypeChecker},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,
 };
 
 pub use fn_env::{FnEnv, VarInfo};
+//use serde::{Deserialize, Serialize};
 pub use writer::{Gate, GateKind, Wiring};
 
 use self::writer::PendingGate;
@@ -20,6 +19,7 @@ use self::writer::PendingGate;
 pub mod fn_env;
 pub mod writer;
 
+//#[derive(Debug, Serialize, Deserialize)]
 #[derive(Debug)]
 pub struct CircuitWriter {
     /// The source code of this module.

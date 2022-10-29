@@ -2,6 +2,8 @@
 // Constants
 //
 
+use serde::{Deserialize, Serialize};
+
 /// We use the scalar field of Vesta as our circuit field.
 pub type Field = kimchi::mina_curves::pasta::Fp;
 
@@ -12,7 +14,9 @@ pub const NUM_REGISTERS: usize = kimchi::circuits::wires::COLUMNS;
 // Aliases
 //
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Default, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize,
+)]
 pub struct Span(pub usize, pub usize);
 
 impl Span {

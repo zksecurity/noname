@@ -11,6 +11,8 @@ use crate::{
 
 pub use checker::{FnInfo, StructInfo};
 pub use fn_env::{TypeInfo, TypedFnEnv};
+use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 
 pub mod checker;
 pub mod fn_env;
@@ -18,7 +20,7 @@ pub mod fn_env;
 const RESERVED_ARGS: [&str; 1] = ["public_output"];
 
 /// Contains metadata from other dependencies that might be use in this module.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Dependencies {
     /// Maps each `user/repo` to their type checker and source.
     pub deps: HashMap<UserRepo, (TypeChecker, String, String)>,
@@ -89,14 +91,16 @@ impl Dependencies {
     }
 }
 
-#[derive(Debug, Clone)]
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConstInfo {
+    #[serde_as(as = "crate::serialization::SerdeAs")]
     pub value: Field,
     pub typ: Ty,
 }
 
 /// The environment we use to type check a noname program.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct TypeChecker {
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)

@@ -1,5 +1,4 @@
-use std::path::PathBuf;
-
+use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic, Result};
 use regex::Regex;
 
@@ -36,11 +35,11 @@ pub fn read_manifest(path: &PathBuf) -> Result<Manifest> {
     let manifest_file = path.join("Noname.toml");
     let content = std::fs::read_to_string(&manifest_file)
         .into_diagnostic()
-        .wrap_err_with(|| format!("could not find manifest file `{}`", manifest_file.display()))?;
+        .wrap_err_with(|| format!("could not find manifest file `{manifest_file}`"))?;
 
     let manifest: Manifest = toml::from_str(&content)
         .into_diagnostic()
-        .wrap_err_with(|| format!("could not parse file `{}`", manifest_file.display()))?;
+        .wrap_err_with(|| format!("could not parse file `{manifest_file}`"))?;
 
     // ensure the package name is correctly formatted
     let re = Regex::new(r"^[a-z0-9_-]+/[a-z0-9_-]+$").unwrap();

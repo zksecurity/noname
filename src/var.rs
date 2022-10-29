@@ -1,5 +1,8 @@
 use std::vec;
 
+use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
+
 use crate::{
     circuit_writer::{CircuitWriter, FnEnv, VarInfo},
     constants::{Field, Span},
@@ -16,7 +19,7 @@ use crate::{
 ///
 /// As the final step of the compilation,
 /// we double check that all cellvars have appeared in the rows at some point.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CellVar {
     pub index: usize,
     pub span: Span,
@@ -32,19 +35,25 @@ impl CellVar {
 pub type HintFn = dyn Fn(&CompiledCircuit, &mut WitnessEnv) -> Result<Field>;
 
 /// A variable's actual value in the witness can be computed in different ways.
+#[derive(Serialize, Deserialize)]
 pub enum Value {
     /// Either it's a hint and can be computed from the outside.
+    #[serde(skip)]
+    // TODO: outch, remove hints? or https://docs.rs/serde_closure/latest/serde_closure/ ?
     Hint(Box<HintFn>),
 
     /// Or it's a constant (for example, I wrote `2` in the code).
+    #[serde(skip)]
     Constant(Field),
 
     /// Or it's a linear combination of internal circuit variables (+ a constant).
     // TODO: probably values of internal variables should be cached somewhere
+    #[serde(skip)]
     LinearCombination(Vec<(Field, CellVar)>, Field /* cst */),
 
     Mul(CellVar, CellVar),
 
+    #[serde(skip)]
     Scale(Field, CellVar),
 
     /// Returns the inverse of the given variable.
@@ -82,9 +91,10 @@ impl std::fmt::Debug for Value {
 }
 
 /// Represents a cell in the execution trace.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ConstOrCell {
     /// A constant value.
+    #[serde(skip)]
     Const(Field),
 
     /// A cell in the execution trace.
@@ -119,7 +129,7 @@ impl ConstOrCell {
 }
 
 /// Represents a variable in the noname language, or an anonymous variable during computation of expressions.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Var {
     /// The type of variable.
     pub cvars: Vec<ConstOrCell>,

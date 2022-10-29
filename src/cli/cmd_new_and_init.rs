@@ -1,5 +1,5 @@
+use camino::Utf8PathBuf as PathBuf;
 use miette::{IntoDiagnostic, Result, WrapErr};
-use std::path::PathBuf;
 
 const MAIN_CONTENT: &str = r#"fn main(pub xx: Field, yy: Field) {
     let zz = yy + 1;
@@ -56,15 +56,15 @@ pub fn cmd_new(args: CmdNew) -> Result<()> {
 }
 
 pub fn cmd_init(args: CmdInit) -> Result<()> {
-    let path = args.path.unwrap_or(std::env::current_dir().unwrap());
+    let path = args
+        .path
+        .unwrap_or(std::env::current_dir().unwrap().try_into().unwrap());
 
     // for now, the package name is the same as the path
     let package_name = path
         .file_name()
         .ok_or(miette::miette!("invalid path given in argument to CLI"))?
-        .to_str()
-        .expect("couldn't parse the path as a string")
-        .to_owned();
+        .to_string();
 
     if !path.exists() {
         miette::bail!("path `{path}` doesn't exists. Use `noname new` to create a new package in an non-existing directory");
@@ -93,30 +93,25 @@ dependencies = []
     let manifest_file = path.join("Noname.toml");
 
     if manifest_file.exists() {
-        miette::bail!(
-            "manifest file already exists at `{}`",
-            manifest_file.display()
-        );
+        miette::bail!("manifest file already exists at `{manifest_file}`");
     }
 
     std::fs::write(&manifest_file, content)
         .into_diagnostic()
         .wrap_err(format!(
-            "cannot create Noname.toml file at given path: `{}`",
-            manifest_file.display()
+            "cannot create Noname.toml file at given path: `{manifest_file}`"
         ))?;
 
     let src_path = path.join("src");
 
     if src_path.exists() {
-        miette::bail!("src directory already exists at `{}`", src_path.display());
+        miette::bail!("src directory already exists at `{src_path}`");
     }
 
     std::fs::create_dir(&src_path)
         .into_diagnostic()
         .wrap_err(format!(
-            "cannot create src directory at given path: `{}`",
-            src_path.display()
+            "cannot create src directory at given path: `{src_path}`"
         ))?;
 
     let (content, file_name) = if is_lib {
@@ -128,18 +123,15 @@ dependencies = []
     let file_path = src_path.join(file_name);
 
     if file_path.exists() {
-        miette::bail!("file already exists at `{}`", file_path.display());
+        miette::bail!("file already exists at `{file_path}`");
     }
 
     std::fs::write(&file_path, content)
         .into_diagnostic()
-        .wrap_err(format!(
-            "cannot create file at given path: `{}`",
-            file_path.display()
-        ))?;
+        .wrap_err(format!("cannot create file at given path: `{file_path}`"))?;
 
     // success msg
-    println!("created new package at `{}`", path.display());
+    println!("created new package at `{path}`");
 
     Ok(())
 }

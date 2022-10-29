@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fmt};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
@@ -54,9 +56,10 @@ impl std::fmt::Debug for BuiltinModule {
 pub type FnHandle = fn(&mut CircuitWriter, &[VarInfo], Span) -> Result<Option<Var>>;
 
 /// The different types of a noname function.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum FnKind {
     /// A built-in is just a handle to a function written in Rust.
+    #[serde(skip)]
     BuiltIn(FnSig, FnHandle),
 
     /// A native function is represented as an AST.

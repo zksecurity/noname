@@ -4,11 +4,9 @@ use std::iter::once;
 
 use crate::{
     circuit_writer::Wiring,
-    compiler,
     constants::{Field, Span},
     error::{Error, Result},
     inputs::JsonInputs,
-    type_checker::Dependencies,
     witness::CompiledCircuit,
 };
 
@@ -17,6 +15,7 @@ use kimchi::{
     commitment_dlog::commitment::CommitmentCurve, groupmap::GroupMap, proof::ProverProof,
 };
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 
 //
 // aliases
@@ -42,11 +41,13 @@ static GROUP_MAP: Lazy<<Curve as CommitmentCurve>::Map> =
 // Data Structures
 //
 
+//#[derive(Serialize, Deserialize)]
 pub struct ProverIndex {
     index: kimchi::prover_index::ProverIndex<Curve>,
     compiled_circuit: CompiledCircuit,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct VerifierIndex {
     index: kimchi::verifier_index::VerifierIndex<Curve>,
 }
@@ -55,9 +56,9 @@ pub struct VerifierIndex {
 // Setup
 //
 
-pub fn compile_and_prove(code: &str, deps: Dependencies) -> Result<(ProverIndex, VerifierIndex)> {
-    let compiled_circuit = compiler::compile(code, deps)?;
-
+pub fn compile_to_indexes(
+    compiled_circuit: CompiledCircuit,
+) -> Result<(ProverIndex, VerifierIndex)> {
     // convert gates to kimchi gates
     let mut gates: Vec<_> = compiled_circuit
         .compiled_gates()
@@ -93,7 +94,6 @@ pub fn compile_and_prove(code: &str, deps: Dependencies) -> Result<(ProverIndex,
         .map_err(|e| Error::new(e.into(), Span(0, 0)))?;
 
     // create SRS (for vesta, as the circuit is in Fp)
-
     let mut srs = kimchi::commitment_dlog::srs::SRS::<Curve>::create(cs.domain.d1.size as usize);
     srs.add_lagrange_basis(cs.domain.d1);
     let srs = std::sync::Arc::new(srs);

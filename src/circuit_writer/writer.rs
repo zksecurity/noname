@@ -8,6 +8,7 @@ use ark_ff::{One, Zero};
 use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 use num_bigint::BigUint;
 use num_traits::Num as _;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     asm, boolean,
@@ -26,7 +27,7 @@ use crate::{
 // Data structures
 //
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum GateKind {
     Zero,
     DoubleGeneric,
@@ -45,12 +46,13 @@ impl From<GateKind> for kimchi::circuits::gate::GateType {
 }
 
 // TODO: this could also contain the span that defined the gate!
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Gate {
     /// Type of gate
     pub typ: GateKind,
 
     /// Coefficients
+    #[serde(skip)]
     pub coeffs: Vec<Field>,
 
     /// The place in the original source code that created that gate.
@@ -70,7 +72,7 @@ impl Gate {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Cell {
     pub row: usize,
     pub col: usize,
@@ -82,7 +84,7 @@ impl Display for Cell {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Wiring {
     /// Not yet wired (just indicates the position of the cell itself)
     NotWired(Cell),
@@ -928,9 +930,10 @@ impl CircuitWriter {
     }
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub(crate) struct PendingGate {
     pub label: &'static str,
+    #[serde(skip)]
     pub coeffs: Vec<Field>,
     pub vars: Vec<Option<CellVar>>,
     pub span: Span,
