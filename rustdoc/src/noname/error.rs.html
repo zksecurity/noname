@@ -279,6 +279,11 @@
 <span id="279">279</span>
 <span id="280">280</span>
 <span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
 </pre><pre class="rust"><code><span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
@@ -344,7 +349,12 @@
     </span>MismatchFunctionArguments(usize, usize),
 
     <span class="attribute">#[error(<span class="string">&quot;constants must be declared before any structs or functions&quot;</span>)]
-    </span>ConstDeclarationAfterStructOrFunction,
+    </span>OrderOfConstDeclaration,
+
+    <span class="attribute">#[error(
+        <span class="string">&quot;the `use` keyword must be used before anything else (consts, structs, functions, etc.)&quot;
+    </span>)]
+    </span>OrderOfUseDeclaration,
 
     <span class="attribute">#[error(<span class="string">&quot;cannot chain arithmetic operations without using parenthesis&quot;</span>)]
     </span>MissingParenthesis,

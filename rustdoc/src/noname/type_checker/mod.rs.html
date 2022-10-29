@@ -344,6 +344,9 @@
 <span id="344">344</span>
 <span id="345">345</span>
 <span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -486,12 +489,9 @@
             <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
                 <span class="comment">// `use crypto::poseidon;`
                 </span>RootKind::Use(path) =&gt; {
-                    <span class="comment">// important: no struct or function definition must appear before a constant declaration
+                    <span class="comment">// important: no struct or function definition must appear before a use declaration
                     </span><span class="kw">if let </span><span class="prelude-val">Some</span>(span) = abort {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                            ErrorKind::ConstDeclarationAfterStructOrFunction,
-                            span,
-                        ));
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::OrderOfUseDeclaration, span));
                     }
                     type_checker.import(path)<span class="question-mark">?
                 </span>}
@@ -514,22 +514,28 @@
                 RootKind::Const(cst) =&gt; {
                     <span class="comment">// important: no struct or function definition must appear before a constant declaration
                     </span><span class="kw">if let </span><span class="prelude-val">Some</span>(span) = abort {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                            ErrorKind::ConstDeclarationAfterStructOrFunction,
-                            span,
-                        ));
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::OrderOfConstDeclaration, span));
                     }
 
-                    type_checker.constants.insert(
-                        cst.name.value.clone(),
-                        ConstInfo {
-                            value: cst.value,
-                            typ: Ty {
-                                kind: TyKind::Field,
-                                span: cst.span,
+                    <span class="kw">if </span>type_checker
+                        .constants
+                        .insert(
+                            cst.name.value.clone(),
+                            ConstInfo {
+                                value: cst.value,
+                                typ: Ty {
+                                    kind: TyKind::Field,
+                                    span: cst.span,
+                                },
                             },
-                        },
-                    );
+                        )
+                        .is_some()
+                    {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            ErrorKind::DuplicateDefinition(cst.name.value.clone()),
+                            cst.name.span,
+                        ));
+                    }
                 }
 
                 RootKind::Function(Function { span, .. })
