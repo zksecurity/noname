@@ -9,7 +9,7 @@ use crate::{
     syntax::is_type,
 };
 
-use super::{Dependencies, TypeInfo, TypedFnEnv};
+use super::{Dependencies, TypeChecker, TypeInfo, TypedFnEnv};
 
 /// Keeps track of the signature of a user-defined function.
 #[derive(Debug, Clone)]
@@ -23,7 +23,6 @@ impl FnInfo {
         match &self.kind {
             FnKind::BuiltIn(sig, _) => sig,
             FnKind::Native(func) => &func.sig,
-            FnKind::Main(sig) => sig,
         }
     }
 }
@@ -64,31 +63,6 @@ impl ExprTyInfo {
             typ,
         }
     }
-}
-
-/// The environment we use to type check a noname program.
-#[derive(Default, Debug)]
-pub struct TypeChecker {
-    /// the functions present in the scope
-    /// contains at least the set of builtin functions (like assert_eq)
-    pub functions: HashMap<String, FnInfo>,
-
-    /// maps `module` to its original `use a::module`
-    pub modules: HashMap<String, UsePath>,
-
-    /// If there's a main function in this module, then this is true
-    /// (in other words, it's not a library)
-    pub has_main: bool,
-
-    /// Custom structs type information and ASTs for methods.
-    pub structs: HashMap<String, StructInfo>,
-
-    /// Constants declared in this module.
-    pub constants: HashMap<String, Ty>,
-
-    /// Mapping from node id to TyKind.
-    /// This can be used by the circuit-writer when it needs type information.
-    pub node_types: HashMap<usize, TyKind>,
 }
 
 impl TypeChecker {
@@ -449,10 +423,10 @@ impl TypeChecker {
                     // check if it's a constant first
                     let typ = if let Some(typ) = self.constants.get(&name.value) {
                         // if it's a field, we need to convert it to a bigint
-                        if matches!(typ.kind, TyKind::Field) {
+                        if matches!(typ.1.kind, TyKind::Field) {
                             TyKind::BigInt
                         } else {
-                            typ.kind.clone()
+                            typ.1.kind.clone()
                         }
                     } else {
                         // otherwise it's a local variable

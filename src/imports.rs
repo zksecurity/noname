@@ -6,7 +6,7 @@ use crate::{
     error::Result,
     parser::{FnSig, Function, UsePath},
     stdlib::{self, parse_fn_sigs, BUILTIN_FNS},
-    type_checker::{FnInfo, TAST},
+    type_checker::{FnInfo, TypeChecker},
     var::Var,
 };
 
@@ -22,7 +22,7 @@ pub enum ModuleKind {
     BuiltIn(BuiltinModule),
 
     /// A module that contains both built-in functions and native functions.
-    Native(TAST),
+    Native(TypeChecker),
 }
 
 #[derive(Debug, Clone)]
@@ -61,9 +61,6 @@ pub enum FnKind {
 
     /// A native function is represented as an AST.
     Native(Function),
-
-    /// For the main function, we don't need the AST, just the signature
-    Main(FnSig),
 }
 
 impl fmt::Debug for FnKind {

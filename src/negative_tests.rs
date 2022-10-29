@@ -6,17 +6,17 @@ use crate::{
     error::{ErrorKind, Result},
     lexer::Token,
     parser::AST,
-    type_checker::{Dependencies, TAST},
+    type_checker::{Dependencies, TypeChecker},
 };
 
-fn type_check(code: &str) -> Result<TAST> {
+fn type_check(code: &str) -> Result<TypeChecker> {
     // lexer
     let tokens = Token::parse(code).unwrap();
     // AST
     let ast = AST::parse(tokens).unwrap();
     // TAST
     let deps = Dependencies::default();
-    TAST::analyze(ast, &deps)
+    TypeChecker::analyze(ast, &deps)
 }
 
 #[test]

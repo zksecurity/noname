@@ -6,7 +6,7 @@ use crate::{
     circuit_writer::CircuitWriter,
     cli::packages::{get_dep_code, path_to_package},
     compiler::get_tast,
-    type_checker::{Dependencies, TAST},
+    type_checker::{Dependencies, TypeChecker},
 };
 
 use super::{
@@ -33,7 +33,7 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
     let (code, tast, deps_tasts) = produce_all_asts(&curr_dir)?;
 
     // produce indexes
-    let compiled_circuit = CircuitWriter::generate_circuit(tast, &deps_tasts, &code)
+    let compiled_circuit = CircuitWriter::generate_circuit(tast, deps_tasts, &code)
         .into_diagnostic()
         .map_err(|e| e.with_source_code(NamedSource::new(curr_dir.to_str().unwrap(), code)))?;
 
@@ -64,7 +64,7 @@ pub fn cmd_check(args: CmdCheck) -> Result<()> {
     Ok(())
 }
 
-fn produce_all_asts(path: &PathBuf) -> Result<(String, TAST, Dependencies)> {
+fn produce_all_asts(path: &PathBuf) -> Result<(String, TypeChecker, Dependencies)> {
     // find manifest
     let manifest = validate_package_and_get_manifest(&path, false)?;
 
@@ -92,9 +92,12 @@ fn produce_all_asts(path: &PathBuf) -> Result<(String, TAST, Dependencies)> {
             .into_diagnostic()
             .wrap_err_with(|| format!("could not read file `{}`", path.display()))?;
 
+        let lib_file_str = lib_file.to_str().unwrap();
         let tast = get_tast(&code, &deps_tasts)
-            .map_err(|e| e.with_source_code(NamedSource::new(lib_file.to_str().unwrap(), code)))?;
-        deps_tasts.deps.insert(dep, tast);
+            .map_err(|e| e.with_source_code(NamedSource::new(lib_file_str, code.clone())))?;
+        deps_tasts
+            .deps
+            .insert(dep, (tast, lib_file_str.to_string(), code));
     }
 
     // produce artifact for this one

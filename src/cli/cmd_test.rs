@@ -60,7 +60,7 @@ fn parse(
 ) -> Result<()> {
     // compile
     let deps_asts = Dependencies::default();
-    let (prover_index, verifier_index) = compile_and_prove(code, &deps_asts)?;
+    let (prover_index, verifier_index) = compile_and_prove(code, deps_asts)?;
     println!("successfuly compiled");
 
     // print ASM

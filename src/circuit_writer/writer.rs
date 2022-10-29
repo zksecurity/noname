@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt::{self, Display, Formatter},
     ops::Neg,
 };
@@ -15,9 +16,9 @@ use crate::{
     error::{Error, ErrorKind, Result},
     field,
     imports::FnKind,
-    parser::{Expr, ExprKind, Function, Op2, Stmt, StmtKind, TyKind},
+    parser::{Expr, ExprKind, Function, Ident, Op2, Stmt, StmtKind, TyKind, UsePath},
     syntax::is_type,
-    type_checker::{checker::TypeChecker, Dependencies, StructInfo},
+    type_checker::{Dependencies, FnInfo, StructInfo, TypeChecker},
     var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
 };
 
@@ -94,25 +95,45 @@ pub enum Wiring {
 //
 
 impl CircuitWriter {
-    /// Creates a global environment from the one created by the type checker.
-    pub fn new(code: &str, typed_global_env: TypeChecker) -> Self {
-        let (main_sig, main_span) = {
-            let fn_info = typed_global_env.functions.get("main").cloned().unwrap();
-
-            (fn_info.sig().clone(), fn_info.span)
-        };
-
-        Self {
-            source: code.to_string(),
-            main: (main_sig, main_span),
-            typed: typed_global_env,
-            double_generic_gate_optimization: false,
-            ..Self::default()
-        }
-    }
-
     pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
         self.typed.struct_info(name)
+    }
+
+    pub fn size_of(&self, ty: &TyKind) -> Result<usize> {
+        self.typed.size_of(&self.dependencies, ty)
+    }
+
+    pub fn get_fn(&self, module: &UsePath, fn_name: &Ident) -> Result<FnInfo> {
+        self.dependencies.get_fn(module, fn_name)
+    }
+
+    pub fn get_struct(&self, module: &UsePath, struct_name: &Ident) -> Result<StructInfo> {
+        self.dependencies.get_struct(module, struct_name)
+    }
+}
+
+impl CircuitWriter {
+    /// Creates a global environment from the one created by the type checker.
+    pub fn new(code: &str, typed: TypeChecker, dependencies: Dependencies) -> Self {
+        Self {
+            source: code.to_string(),
+            typed,
+            dependencies,
+            current_module: None,
+            finalized: false,
+            next_variable: 0,
+            witness_vars: HashMap::new(),
+            rows_of_vars: vec![],
+            gates: vec![],
+            wiring: HashMap::new(),
+            public_input_size: 0,
+            public_output: None,
+            private_input_indices: vec![],
+            constants: HashMap::new(),
+            double_generic_gate_optimization: false,
+            pending_generic_gate: None,
+            cached_constants: HashMap::new(),
+        }
     }
 
     /// Stores type information about a local variable.
@@ -137,22 +158,17 @@ impl CircuitWriter {
     /// Returns the compiled gates of the circuit.
     pub fn compiled_gates(&self) -> &[Gate] {
         if !self.finalized {
-            panic!("Circuit not finalized yet!");
+            unreachable!();
         }
         &self.gates
     }
 
-    fn compile_stmt(
-        &mut self,
-        fn_env: &mut FnEnv,
-        deps: &Dependencies,
-        stmt: &Stmt,
-    ) -> Result<Option<VarOrRef>> {
+    fn compile_stmt(&mut self, fn_env: &mut FnEnv, stmt: &Stmt) -> Result<Option<VarOrRef>> {
         match &stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } => {
                 // compute the rhs
                 let rhs_var = self
-                    .compute_expr(fn_env, deps, rhs)?
+                    .compute_expr(fn_env, rhs)?
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))?;
 
                 // obtain the actual values
@@ -174,21 +190,21 @@ impl CircuitWriter {
                     let var_info = VarInfo::new(cst_var, false, Some(TyKind::Field));
                     fn_env.add_var(var.value.clone(), var_info);
 
-                    self.compile_block(fn_env, deps, body)?;
+                    self.compile_block(fn_env, body)?;
 
                     fn_env.pop();
                 }
             }
             StmtKind::Expr(expr) => {
                 // compute the expression
-                let var = self.compute_expr(fn_env, deps, expr)?;
+                let var = self.compute_expr(fn_env, expr)?;
 
                 // make sure it does not return any value.
                 assert!(var.is_none());
             }
             StmtKind::Return(expr) => {
                 let var = self
-                    .compute_expr(fn_env, deps, expr)?
+                    .compute_expr(fn_env, expr)?
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))?;
 
                 // we already checked in type checking that this is not an early return
@@ -201,15 +217,10 @@ impl CircuitWriter {
     }
 
     /// might return something?
-    fn compile_block(
-        &mut self,
-        fn_env: &mut FnEnv,
-        deps: &Dependencies,
-        stmts: &[Stmt],
-    ) -> Result<Option<Var>> {
+    fn compile_block(&mut self, fn_env: &mut FnEnv, stmts: &[Stmt]) -> Result<Option<Var>> {
         fn_env.nest();
         for stmt in stmts {
-            let res = self.compile_stmt(fn_env, deps, stmt)?;
+            let res = self.compile_stmt(fn_env, stmt)?;
             if let Some(var) = res {
                 // a block doesn't return a pointer, only values
                 let var = var.value(fn_env);
@@ -224,7 +235,6 @@ impl CircuitWriter {
 
     fn compile_native_function_call(
         &mut self,
-        deps: &Dependencies,
         function: &Function,
         args: Vec<VarInfo>,
     ) -> Result<Option<Var>> {
@@ -241,12 +251,11 @@ impl CircuitWriter {
         }
 
         // compile it and potentially return a return value
-        self.compile_block(fn_env, deps, &function.body)
+        self.compile_block(fn_env, &function.body)
     }
 
     pub(crate) fn constrain_inputs_to_main(
         &mut self,
-        deps: &Dependencies,
         input: &[ConstOrCell],
         input_typ: &TyKind,
         span: Span,
@@ -258,9 +267,9 @@ impl CircuitWriter {
                 boolean::check(self, &input[0], span);
             }
             TyKind::Array(tykind, _) => {
-                let el_size = self.typed.size_of(deps, tykind)?;
+                let el_size = self.size_of(tykind)?;
                 for el in input.chunks(el_size) {
-                    self.constrain_inputs_to_main(deps, el, tykind, span);
+                    self.constrain_inputs_to_main(el, tykind, span);
                 }
             }
             TyKind::Custom {
@@ -276,7 +285,7 @@ impl CircuitWriter {
                             )
                         })?;
 
-                    deps.get_struct(imported_module, &struct_name)?
+                    self.get_struct(imported_module, &struct_name)?
                 } else {
                     self.struct_info(&struct_name.value)
                         .ok_or(Error::new(
@@ -288,9 +297,9 @@ impl CircuitWriter {
 
                 let mut offset = 0;
                 for (_field_name, field_typ) in &struct_info.fields {
-                    let len = self.typed.size_of(deps, field_typ)?;
+                    let len = self.size_of(field_typ)?;
                     let range = offset..(offset + len);
-                    self.constrain_inputs_to_main(deps, &input[range], field_typ, span)?;
+                    self.constrain_inputs_to_main(&input[range], field_typ, span)?;
                     offset += len;
                 }
             }
@@ -303,13 +312,12 @@ impl CircuitWriter {
     pub(crate) fn compile_main_function(
         &mut self,
         fn_env: &mut FnEnv,
-        deps: &Dependencies,
         function: &Function,
     ) -> Result<()> {
         assert!(function.is_main());
 
         // compile the block
-        let returned = self.compile_block(fn_env, deps, &function.body)?;
+        let returned = self.compile_block(fn_env, &function.body)?;
 
         // we're expecting something returned?
         match (function.sig.return_type.as_ref(), returned) {
@@ -363,12 +371,7 @@ impl CircuitWriter {
         var
     }
 
-    fn compute_expr(
-        &mut self,
-        fn_env: &mut FnEnv,
-        deps: &Dependencies,
-        expr: &Expr,
-    ) -> Result<Option<VarOrRef>> {
+    fn compute_expr(&mut self, fn_env: &mut FnEnv, expr: &Expr) -> Result<Option<VarOrRef>> {
         match &expr.kind {
             // `module::fn_name(args)`
             ExprKind::FnCall {
@@ -376,6 +379,11 @@ impl CircuitWriter {
                 fn_name,
                 args,
             } => {
+                // sanity check
+                if &fn_name.value == "main" {
+                    return Err(Error::new(ErrorKind::RecursiveMain, expr.span));
+                }
+
                 // compute the arguments
                 // module::fn_name(args)
                 //                 ^^^^
@@ -383,7 +391,7 @@ impl CircuitWriter {
                 for arg in args {
                     // get the variable behind the expression
                     let var = self
-                        .compute_expr(fn_env, deps, arg)?
+                        .compute_expr(fn_env, arg)?
                         .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))?;
 
                     // we pass variables by values always
@@ -407,7 +415,7 @@ impl CircuitWriter {
                         )
                     })?;
 
-                    let fn_info = deps.get_fn(module, fn_name)?;
+                    let fn_info = self.get_fn(module, fn_name)?;
 
                     match &fn_info.kind {
                         FnKind::BuiltIn(_, handle) => {
@@ -415,7 +423,6 @@ impl CircuitWriter {
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Native(_) => todo!(),
-                        FnKind::Main(_) => Err(Error::new(ErrorKind::RecursiveMain, expr.span)),
                     }
                 } else {
                     // fn_name(args)
@@ -438,10 +445,9 @@ impl CircuitWriter {
                             res.map(|r| r.map(VarOrRef::Var))
                         }
                         FnKind::Native(func) => {
-                            let res = self.compile_native_function_call(deps, &func, vars);
+                            let res = self.compile_native_function_call(&func, vars);
                             res.map(|r| r.map(VarOrRef::Var))
                         }
-                        FnKind::Main(_) => Err(Error::new(ErrorKind::RecursiveMain, expr.span)),
                     }
                 }
             }
@@ -449,7 +455,7 @@ impl CircuitWriter {
             ExprKind::FieldAccess { lhs, rhs } => {
                 // get var behind lhs
                 let lhs_var = self
-                    .compute_expr(fn_env, deps, lhs)?
+                    .compute_expr(fn_env, lhs)?
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))?;
 
                 // get struct info behind lhs
@@ -475,11 +481,11 @@ impl CircuitWriter {
                 let mut len = 0;
                 for (field, field_typ) in &struct_info.fields {
                     if field == &rhs.value {
-                        len = self.typed.size_of(deps, field_typ)?;
+                        len = self.size_of(field_typ)?;
                         break;
                     }
 
-                    start += self.typed.size_of(deps, field_typ)?;
+                    start += self.size_of(field_typ)?;
                 }
 
                 // narrow the variable to the given range
@@ -507,7 +513,7 @@ impl CircuitWriter {
 
                 // get var of `self`
                 // (might be `None` if it's a static method call)
-                let self_var = self.compute_expr(fn_env, deps, lhs)?;
+                let self_var = self.compute_expr(fn_env, lhs)?;
 
                 // find method info
                 let struct_info = if let Some(module) = module {
@@ -519,7 +525,7 @@ impl CircuitWriter {
                             )
                         })?;
 
-                    deps.get_struct(imported_module, &struct_name)?
+                    self.get_struct(imported_module, &struct_name)?
                 } else {
                     self.struct_info(&struct_name.value)
                         .ok_or(Error::new(
@@ -556,7 +562,7 @@ impl CircuitWriter {
                 // compute the arguments
                 for arg in args {
                     let var = self
-                        .compute_expr(fn_env, deps, arg)?
+                        .compute_expr(fn_env, arg)?
                         .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))?;
 
                     // TODO: for now we pass `self` by value as well
@@ -570,23 +576,14 @@ impl CircuitWriter {
                 }
 
                 // execute method
-                let res = self.compile_native_function_call(deps, func, vars);
+                let res = self.compile_native_function_call(func, vars);
                 res.map(|r| r.map(VarOrRef::Var))
             }
 
             ExprKind::IfElse { cond, then_, else_ } => {
-                let cond = self
-                    .compute_expr(fn_env, deps, cond)?
-                    .unwrap()
-                    .value(fn_env);
-                let then_ = self
-                    .compute_expr(fn_env, deps, then_)?
-                    .unwrap()
-                    .value(fn_env);
-                let else_ = self
-                    .compute_expr(fn_env, deps, else_)?
-                    .unwrap()
-                    .value(fn_env);
+                let cond = self.compute_expr(fn_env, cond)?.unwrap().value(fn_env);
+                let then_ = self.compute_expr(fn_env, then_)?.unwrap().value(fn_env);
+                let else_ = self.compute_expr(fn_env, else_)?.unwrap().value(fn_env);
 
                 let res = field::if_else(self, &cond, &then_, &else_, expr.span);
 
@@ -595,10 +592,10 @@ impl CircuitWriter {
 
             ExprKind::Assignment { lhs, rhs } => {
                 // figure out the local var  of lhs
-                let lhs = self.compute_expr(fn_env, deps, lhs)?.unwrap();
+                let lhs = self.compute_expr(fn_env, lhs)?.unwrap();
 
                 // figure out the var of what's on the right
-                let rhs = self.compute_expr(fn_env, deps, rhs)?.unwrap();
+                let rhs = self.compute_expr(fn_env, rhs)?.unwrap();
                 let rhs_var = match rhs {
                     VarOrRef::Var(var) => var,
                     VarOrRef::Ref {
@@ -628,8 +625,8 @@ impl CircuitWriter {
             }
 
             ExprKind::BinaryOp { op, lhs, rhs, .. } => {
-                let lhs = self.compute_expr(fn_env, deps, lhs)?.unwrap();
-                let rhs = self.compute_expr(fn_env, deps, rhs)?.unwrap();
+                let lhs = self.compute_expr(fn_env, lhs)?.unwrap();
+                let rhs = self.compute_expr(fn_env, rhs)?.unwrap();
 
                 let lhs = lhs.value(fn_env);
                 let rhs = rhs.value(fn_env);
@@ -648,7 +645,7 @@ impl CircuitWriter {
             }
 
             ExprKind::Negated(b) => {
-                let var = self.compute_expr(fn_env, deps, b)?.unwrap();
+                let var = self.compute_expr(fn_env, b)?.unwrap();
 
                 let var = var.value(fn_env);
 
@@ -656,7 +653,7 @@ impl CircuitWriter {
             }
 
             ExprKind::Not(b) => {
-                let var = self.compute_expr(fn_env, deps, b)?.unwrap();
+                let var = self.compute_expr(fn_env, b)?.unwrap();
 
                 let var = var.value(fn_env);
 
@@ -700,12 +697,12 @@ impl CircuitWriter {
             ExprKind::ArrayAccess { array, idx } => {
                 // retrieve var of array
                 let var = self
-                    .compute_expr(fn_env, deps, array)?
+                    .compute_expr(fn_env, array)?
                     .expect("array access on non-array");
 
                 // compute the index
                 let idx_var = self
-                    .compute_expr(fn_env, deps, idx)?
+                    .compute_expr(fn_env, idx)?
                     .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, expr.span))?;
                 let idx = idx_var
                     .constant()
@@ -733,7 +730,7 @@ impl CircuitWriter {
                 };
 
                 // compute the size of each element in the array
-                let len = self.typed.size_of(deps, elem_type)?;
+                let len = self.size_of(elem_type)?;
 
                 // compute the real index
                 let start = idx * len;
@@ -757,7 +754,7 @@ impl CircuitWriter {
                 let mut cvars = vec![];
 
                 for item in items {
-                    let var = self.compute_expr(fn_env, deps, item)?.unwrap();
+                    let var = self.compute_expr(fn_env, item)?.unwrap();
                     let to_extend = var.value(fn_env).cvars.clone();
                     cvars.extend(to_extend);
                 }
@@ -774,7 +771,7 @@ impl CircuitWriter {
                 // create the struct by just concatenating all of its cvars
                 let mut cvars = vec![];
                 for (_field, rhs) in fields {
-                    let var = self.compute_expr(fn_env, deps, rhs)?.unwrap();
+                    let var = self.compute_expr(fn_env, rhs)?.unwrap();
                     let to_extend = var.value(fn_env).cvars.clone();
                     cvars.extend(to_extend);
                 }

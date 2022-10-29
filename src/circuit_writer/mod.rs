@@ -1,10 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
+    cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     parser::{AttributeKind, FnArg, FnSig, Function, RootKind, Struct, TyKind},
-    type_checker::{Dependencies, TypeChecker, TAST},
+    type_checker::{Dependencies, TypeChecker},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,
 };
@@ -17,12 +18,20 @@ use self::writer::PendingGate;
 pub mod fn_env;
 pub mod writer;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct CircuitWriter {
-    /// The source code that created this circuit.
+    /// The source code of this module.
     /// Useful for debugging and displaying user errors.
-    // TODO: why is this here? probably doesn't need to be
     pub(crate) source: String,
+
+    /// The type checker state for the main module.
+    pub(crate) typed: TypeChecker,
+
+    /// The type checker state and source for the dependencies.
+    pub(crate) dependencies: Dependencies,
+
+    /// The current module. If not set, the main module.
+    pub(crate) current_module: Option<UserRepo>,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
     // Note: I don't think we need this, but it acts as a nice redundant failsafe.
@@ -64,13 +73,6 @@ pub struct CircuitWriter {
     /// (this is useful to check that they appear in the circuit)
     pub(crate) private_input_indices: Vec<usize>,
 
-    /// Used during the witness generation to check
-    /// public and private inputs given by the prover.
-    pub(crate) main: (FnSig, Span),
-
-    /// The state of the type checker.
-    pub(crate) typed: TypeChecker,
-
     /// Constants defined in the module/program.
     pub(crate) constants: HashMap<String, VarInfo>,
 
@@ -89,157 +91,94 @@ pub struct CircuitWriter {
 
 impl CircuitWriter {
     pub fn generate_circuit(
-        tast: TAST,
-        deps: &Dependencies,
+        typed: TypeChecker,
+        deps: Dependencies,
         code: &str,
     ) -> Result<CompiledCircuit> {
-        // if there's no main function, then return an error
-        let TAST {
-            ast,
-            typed_global_env,
-        } = tast;
+        // create circuit writer
+        let mut circuit_writer = CircuitWriter::new(code, typed, deps);
 
-        if !typed_global_env.has_main {
-            return Err(Error::new(ErrorKind::NoMainFunction, Span::default()));
-        }
-
-        let mut circuit_writer = CircuitWriter::new(code, typed_global_env);
-
-        // make sure we can't call that several times
-        if circuit_writer.finalized {
-            panic!("circuit already finalized (TODO: return a proper error");
-        }
-
-        //
         // Process constants
-        //
-
-        // we detect struct or function definition
-        let mut func_or_struct = None;
-
-        for root in &ast.0 {
-            match &root.kind {
-                RootKind::Const(cst) => {
-                    // important: no struct or function definition must appear before a constant declaration
-                    if let Some(span) = func_or_struct {
-                        return Err(Error::new(
-                            ErrorKind::ConstDeclarationAfterStructOrFunction,
-                            span,
-                        ));
-                    }
-                    circuit_writer.add_constant_var(cst.name.value.clone(), cst.value, cst.span);
-                }
-
-                RootKind::Function(Function { span, .. })
-                | RootKind::Struct(Struct { span, .. }) => func_or_struct = Some(*span),
-
-                RootKind::Use(_) | RootKind::Comment(_) => (),
-            }
+        for (name, (value, typ)) in circuit_writer.typed.constants.clone() {
+            circuit_writer.add_constant_var(name, value, typ.span);
         }
 
-        //
-        // Generate the circuit
-        //
+        // get main function
+        let main_fn_info = circuit_writer
+            .typed
+            .functions
+            .get("main")
+            .ok_or(Error::new(ErrorKind::NoMainFunction, Span::default()))?;
 
-        for root in &ast.0 {
-            match &root.kind {
-                // imports (already dealt with in type checker)
-                RootKind::Use(_path) => (),
+        let function = match &main_fn_info.kind {
+            crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
+            crate::imports::FnKind::Native(fn_sig) => fn_sig.clone(),
+        };
 
-                // `const thing = 42;`
-                RootKind::Const(_cst) => {
-                    // already took care of it previously
-                    ()
+        // create the main env
+        let fn_env = &mut FnEnv::new(&circuit_writer.constants);
+
+        // create public and private inputs
+        for FnArg {
+            attribute,
+            name,
+            typ,
+            ..
+        } in &function.sig.arguments
+        {
+            // get length
+            let len = match &typ.kind {
+                TyKind::Field => 1,
+                TyKind::Array(typ, len) => {
+                    if !matches!(**typ, TyKind::Field) {
+                        unimplemented!();
+                    }
+                    *len as usize
                 }
+                TyKind::Bool => 1,
+                typ => circuit_writer.size_of(typ)?,
+            };
 
-                // `fn main() { ... }`
-                RootKind::Function(function) => {
-                    // create the env
-                    let fn_env = &mut FnEnv::new(&circuit_writer.constants);
-
-                    // we only compile the main function
-                    if !function.is_main() {
-                        continue;
-                    }
-
-                    // if there are no arguments, return an error
-                    // TODO: should we check this in the type checker?
-                    if function.sig.arguments.is_empty() {
-                        return Err(Error::new(ErrorKind::NoArgsInMain, function.span));
-                    }
-
-                    // create public and private inputs
-                    for FnArg {
-                        attribute,
-                        name,
-                        typ,
-                        ..
-                    } in &function.sig.arguments
-                    {
-                        // get length
-                        let len = match &typ.kind {
-                            TyKind::Field => 1,
-                            TyKind::Array(typ, len) => {
-                                if !matches!(**typ, TyKind::Field) {
-                                    unimplemented!();
-                                }
-                                *len as usize
-                            }
-                            TyKind::Bool => 1,
-                            typ => circuit_writer.typed.size_of(deps, typ)?,
-                        };
-
-                        // create the variable
-                        let var = if let Some(attr) = attribute {
-                            if !matches!(attr.kind, AttributeKind::Pub) {
-                                return Err(Error::new(
-                                    ErrorKind::InvalidAttribute(attr.kind),
-                                    attr.span,
-                                ));
-                            }
-                            circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
-                        } else {
-                            circuit_writer.add_private_inputs(name.value.clone(), len, name.span)
-                        };
-
-                        // constrain what needs to be constrained
-                        // (for example, booleans need to be constrained to be 0 or 1)
-                        // note: we constrain private inputs as well as public inputs
-                        // in theory we might not need to check the validity of public inputs,
-                        // but we are being extra cautious due to attacks
-                        // where the prover gives the verifier malformed inputs that look legit.
-                        // (See short address attacks in Ethereum.)
-                        circuit_writer
-                            .constrain_inputs_to_main(deps, &var.cvars, &typ.kind, typ.span)?;
-
-                        // add argument variable to the ast env
-                        let mutable = false; // TODO: should we add a mut keyword in arguments as well?
-                        let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
-                        fn_env.add_var(name.value.clone(), var_info);
-                    }
-
-                    // create public output
-                    if let Some(typ) = &function.sig.return_type {
-                        if typ.kind != TyKind::Field {
-                            unimplemented!();
-                        }
-
-                        // create it
-                        circuit_writer.add_public_outputs(1, typ.span);
-                    }
-
-                    // compile function
-                    circuit_writer.compile_main_function(fn_env, deps, function)?;
+            // create the variable
+            let var = if let Some(attr) = attribute {
+                if !matches!(attr.kind, AttributeKind::Pub) {
+                    return Err(Error::new(
+                        ErrorKind::InvalidAttribute(attr.kind),
+                        attr.span,
+                    ));
                 }
+                circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
+            } else {
+                circuit_writer.add_private_inputs(name.value.clone(), len, name.span)
+            };
 
-                // struct definition (already dealt with in type checker)
-                RootKind::Struct(_struct) => (),
+            // constrain what needs to be constrained
+            // (for example, booleans need to be constrained to be 0 or 1)
+            // note: we constrain private inputs as well as public inputs
+            // in theory we might not need to check the validity of public inputs,
+            // but we are being extra cautious due to attacks
+            // where the prover gives the verifier malformed inputs that look legit.
+            // (See short address attacks in Ethereum.)
+            circuit_writer.constrain_inputs_to_main(&var.cvars, &typ.kind, typ.span)?;
 
-                // ignore comments
-                // TODO: we could actually preserve the comment in the ASM!
-                RootKind::Comment(_comment) => (),
-            }
+            // add argument variable to the ast env
+            let mutable = false; // TODO: should we add a mut keyword in arguments as well?
+            let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
+            fn_env.add_var(name.value.clone(), var_info);
         }
+
+        // create public output
+        if let Some(typ) = &function.sig.return_type {
+            if typ.kind != TyKind::Field {
+                unimplemented!();
+            }
+
+            // create it
+            circuit_writer.add_public_outputs(1, typ.span);
+        }
+
+        // compile function
+        circuit_writer.compile_main_function(fn_env, &function)?;
 
         // important: there might still be a pending generic gate
         if let Some(pending) = circuit_writer.pending_generic_gate.take() {
@@ -263,10 +202,15 @@ impl CircuitWriter {
         for var in 0..circuit_writer.next_variable {
             if !written_vars.contains(&var) {
                 if circuit_writer.private_input_indices.contains(&var) {
-                    return Err(Error::new(
-                        ErrorKind::PrivateInputNotUsed,
-                        circuit_writer.main.1,
-                    ));
+                    // compute main sig
+                    let (_main_sig, main_span) = {
+                        let fn_info = circuit_writer.typed.functions.get("main").cloned().unwrap();
+
+                        (fn_info.sig().clone(), fn_info.span)
+                    };
+
+                    // TODO: is this error useful?
+                    return Err(Error::new(ErrorKind::PrivateInputNotUsed, main_span));
                 } else {
                     panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
                 }

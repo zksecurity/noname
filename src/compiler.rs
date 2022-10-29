@@ -3,11 +3,11 @@ use crate::{
     error::Result,
     lexer::Token,
     parser::AST,
-    type_checker::{Dependencies, TAST},
+    type_checker::{Dependencies, TypeChecker},
     witness::CompiledCircuit,
 };
 
-pub fn compile(code: &str, deps: &Dependencies) -> Result<CompiledCircuit> {
+pub fn compile(code: &str, deps: Dependencies) -> Result<CompiledCircuit> {
     // lexer
     let tokens = Token::parse(code)?;
 
@@ -15,7 +15,7 @@ pub fn compile(code: &str, deps: &Dependencies) -> Result<CompiledCircuit> {
     let ast = AST::parse(tokens)?;
 
     // TAST
-    let tast = TAST::analyze(ast, deps)?;
+    let tast = TypeChecker::analyze(ast, &deps)?;
 
     // type checker + compiler
     let circuit = CircuitWriter::generate_circuit(tast, deps, code)?;
@@ -24,7 +24,7 @@ pub fn compile(code: &str, deps: &Dependencies) -> Result<CompiledCircuit> {
     Ok(circuit)
 }
 
-pub fn get_tast(code: &str, deps: &Dependencies) -> miette::Result<TAST> {
+pub fn get_tast(code: &str, deps: &Dependencies) -> miette::Result<TypeChecker> {
     // lexer
     let tokens = Token::parse(code)?;
 
@@ -32,7 +32,7 @@ pub fn get_tast(code: &str, deps: &Dependencies) -> miette::Result<TAST> {
     let ast = AST::parse(tokens)?;
 
     // TAST
-    let tast = TAST::analyze(ast, deps)?;
+    let tast = TypeChecker::analyze(ast, deps)?;
 
     //
     Ok(tast)

@@ -2,32 +2,26 @@ use std::collections::HashMap;
 
 use crate::{
     cli::packages::UserRepo,
+    constants::Field,
     error::{Error, ErrorKind, Result},
     imports::FnKind,
-    parser::{Ident, RootKind, Struct, Ty, TyKind, UsePath, AST},
+    parser::{Const, Function, Ident, RootKind, Struct, Ty, TyKind, UsePath, AST},
     stdlib::get_std_fn,
 };
 
-pub use checker::{FnInfo, StructInfo, TypeChecker};
+pub use checker::{FnInfo, StructInfo};
 pub use fn_env::{TypeInfo, TypedFnEnv};
 
 pub mod checker;
 pub mod fn_env;
 
 const RESERVED_ARGS: [&str; 1] = ["public_output"];
-/// TAST for Typed-AST. Not sure how else to call this,
-/// this is to make sure we call this compilation phase before the actual compilation.
-#[derive(Debug)]
-pub struct TAST {
-    pub ast: AST,
-    pub typed_global_env: TypeChecker,
-}
 
 /// Contains metadata from other dependencies that might be use in this module.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Dependencies {
-    /// Maps each `user/repo` to their TAST.
-    pub deps: HashMap<UserRepo, TAST>,
+    /// Maps each `user/repo` to their type checker and source.
+    pub deps: HashMap<UserRepo, (TypeChecker, String, String)>,
 }
 
 impl Dependencies {
@@ -40,7 +34,7 @@ impl Dependencies {
         }
 
         // then check in imported dependencies
-        let tast = self.deps.get(&user_repo).ok_or_else(|| {
+        let (tast, _source_path, _source) = self.deps.get(&user_repo).ok_or_else(|| {
             Error::new(
                 ErrorKind::UnknownDependency(user_repo.to_string()),
                 use_path.span,
@@ -48,15 +42,12 @@ impl Dependencies {
         })?;
 
         // we found the module, now let's find the function
-        let fn_info = tast
-            .typed_global_env
-            .fn_info(&fn_name.value)
-            .ok_or_else(|| {
-                Error::new(
-                    ErrorKind::UnknownExternalFn(user_repo.to_string(), fn_name.value.to_string()),
-                    fn_name.span,
-                )
-            })?;
+        let fn_info = tast.fn_info(&fn_name.value).ok_or_else(|| {
+            Error::new(
+                ErrorKind::UnknownExternalFn(user_repo.to_string(), fn_name.value.to_string()),
+                fn_name.span,
+            )
+        })?;
 
         Ok(fn_info.clone())
     }
@@ -70,7 +61,7 @@ impl Dependencies {
         }
 
         // then check in imported dependencies
-        let tast = self.deps.get(&user_repo).ok_or_else(|| {
+        let (tast, _source_path, _source) = self.deps.get(&user_repo).ok_or_else(|| {
             Error::new(
                 ErrorKind::UnknownDependency(user_repo.to_string()),
                 use_path.span,
@@ -78,8 +69,7 @@ impl Dependencies {
         })?;
 
         // we found the module, now let's find the function
-        tast.typed_global_env
-            .struct_info(&struct_name.value)
+        tast.struct_info(&struct_name.value)
             .ok_or_else(|| {
                 Error::new(
                     ErrorKind::UnknownExternalStruct(
@@ -93,32 +83,101 @@ impl Dependencies {
     }
 }
 
-impl TAST {
+/// The environment we use to type check a noname program.
+#[derive(Default, Debug)]
+pub struct TypeChecker {
+    /// the functions present in the scope
+    /// contains at least the set of builtin functions (like assert_eq)
+    pub functions: HashMap<String, FnInfo>,
+
+    /// maps `module` to its original `use a::module`
+    pub modules: HashMap<String, UsePath>,
+
+    /// Custom structs type information and ASTs for methods.
+    pub structs: HashMap<String, StructInfo>,
+
+    /// Constants declared in this module.
+    pub constants: HashMap<String, (Field, Ty)>,
+
+    /// Mapping from node id to TyKind.
+    /// This can be used by the circuit-writer when it needs type information.
+    pub node_types: HashMap<usize, TyKind>,
+}
+
+impl TypeChecker {
     /// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    pub fn analyze(ast: AST, deps: &Dependencies) -> Result<TAST> {
+    pub fn analyze(ast: AST, deps: &Dependencies) -> Result<Self> {
         //
         // inject some utility builtin functions in the scope
         //
 
-        let mut typed_global_env = TypeChecker::default();
+        let mut type_checker = TypeChecker::default();
 
         // TODO: should we really import them by default?
-        typed_global_env.resolve_global_imports()?;
+        type_checker.resolve_global_imports()?;
 
         //
         // Resolve imports
         //
 
+        let mut abort = None;
+
         for root in &ast.0 {
             match &root.kind {
                 // `use crypto::poseidon;`
-                RootKind::Use(path) => typed_global_env.import(path)?,
-                RootKind::Function(_) => (),
-                RootKind::Struct(_) => (),
+                RootKind::Use(path) => {
+                    // important: no struct or function definition must appear before a constant declaration
+                    if let Some(span) = abort {
+                        return Err(Error::new(
+                            ErrorKind::ConstDeclarationAfterStructOrFunction,
+                            span,
+                        ));
+                    }
+                    type_checker.import(path)?
+                }
+                RootKind::Function(Function { span, .. })
+                | RootKind::Struct(Struct { span, .. })
+                | RootKind::Const(Const { span, .. }) => abort = Some(*span),
                 RootKind::Comment(_) => (),
-                RootKind::Const(_) => (),
+            }
+        }
+
+        //
+        // Process constants
+        //
+
+        // we detect struct or function definition
+        let mut abort = None;
+
+        for root in &ast.0 {
+            match &root.kind {
+                RootKind::Const(cst) => {
+                    // important: no struct or function definition must appear before a constant declaration
+                    if let Some(span) = abort {
+                        return Err(Error::new(
+                            ErrorKind::ConstDeclarationAfterStructOrFunction,
+                            span,
+                        ));
+                    }
+
+                    type_checker.constants.insert(
+                        cst.name.value.clone(),
+                        (
+                            cst.value,
+                            Ty {
+                                kind: TyKind::Field,
+                                span: cst.span,
+                            },
+                        ),
+                    );
+                }
+
+                RootKind::Function(Function { span, .. })
+                | RootKind::Struct(Struct { span, .. }) => abort = Some(*span),
+
+                RootKind::Use(_) | RootKind::Comment(_) => (),
             }
         }
 
@@ -146,22 +205,13 @@ impl TAST {
                         methods: HashMap::new(),
                     };
 
-                    typed_global_env
-                        .structs
-                        .insert(name.value.clone(), struct_info);
+                    type_checker.structs.insert(name.value.clone(), struct_info);
                 }
 
-                RootKind::Const(cst) => {
-                    typed_global_env.constants.insert(
-                        cst.name.value.clone(),
-                        Ty {
-                            kind: TyKind::Field,
-                            span: cst.span,
-                        },
-                    );
-                }
-
-                RootKind::Use(_) | RootKind::Function(_) | RootKind::Comment(_) => (),
+                RootKind::Const(_)
+                | RootKind::Use(_)
+                | RootKind::Function(_)
+                | RootKind::Comment(_) => (),
             }
         }
 
@@ -178,25 +228,21 @@ impl TAST {
                     // create a new typed fn environment to type check the function
                     let mut typed_fn_env = TypedFnEnv::default();
 
-                    // if this is main, witness it
+                    // if this is the main function check that it has arguments
                     let is_main = function.is_main();
-                    if is_main {
-                        typed_global_env.has_main = true;
+                    if is_main && function.sig.arguments.is_empty() {
+                        return Err(Error::new(ErrorKind::NoArgsInMain, function.span));
                     }
 
                     // save the function in the typed global env
-                    let fn_kind = if is_main {
-                        FnKind::Main(function.sig.clone())
-                    } else {
-                        FnKind::Native(function.clone())
-                    };
+                    let fn_kind = FnKind::Native(function.clone());
                     let fn_info = FnInfo {
                         kind: fn_kind,
                         span: function.span,
                     };
 
                     if let Some(self_name) = &function.sig.name.self_name {
-                        let struct_info = typed_global_env
+                        let struct_info = type_checker
                             .structs
                             .get_mut(&self_name.value)
                             .expect("couldn't find the struct for storing the method");
@@ -205,7 +251,7 @@ impl TAST {
                             .methods
                             .insert(function.sig.name.name.value.clone(), function.clone());
                     } else {
-                        typed_global_env
+                        type_checker
                             .functions
                             .insert(function.sig.name.name.value.clone(), fn_info);
                     }
@@ -268,7 +314,7 @@ impl TAST {
                     }
 
                     // type system pass
-                    typed_global_env.check_block(
+                    type_checker.check_block(
                         &mut typed_fn_env,
                         deps,
                         &function.body,
@@ -283,9 +329,6 @@ impl TAST {
             }
         }
 
-        Ok(TAST {
-            ast,
-            typed_global_env,
-        })
+        Ok(type_checker)
     }
 }

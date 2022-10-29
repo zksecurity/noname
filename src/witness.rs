@@ -135,8 +135,19 @@ impl CompiledCircuit {
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
 
+        // get info on main
+        let main_info = self
+            .circuit
+            .typed
+            .fn_info("main")
+            .expect("bug in the compiler: main not found");
+        let main_sig = match &main_info.kind {
+            crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
+            crate::imports::FnKind::Native(fn_sig) => &fn_sig.sig,
+        };
+
         // create the argument's variables?
-        for arg in &self.circuit.main.0.arguments {
+        for arg in &main_sig.arguments {
             let name = &arg.name.value;
 
             let input = if arg.is_public() {
@@ -160,7 +171,7 @@ impl CompiledCircuit {
         if let Some(name) = chain![private_inputs.0.keys(), public_inputs.0.keys()].next() {
             return Err(Error::new(
                 ErrorKind::UnusedInput(name.clone()),
-                self.circuit.main.1,
+                main_info.span,
             ));
         }
 
