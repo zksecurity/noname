@@ -120,6 +120,9 @@
 <span id="120">120</span>
 <span id="121">121</span>
 <span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{path::PathBuf, process};
 
 <span class="kw">use </span>miette::{Context, IntoDiagnostic, NamedSource, <span class="prelude-ty">Result</span>};
@@ -128,7 +131,7 @@
     circuit_writer::CircuitWriter,
     cli::packages::{get_dep_code, path_to_package},
     compiler::get_tast,
-    type_checker::{Dependencies, TAST},
+    type_checker::{Dependencies, TypeChecker},
 };
 
 <span class="kw">use super</span>::{
@@ -155,7 +158,7 @@
     </span><span class="kw">let </span>(code, tast, deps_tasts) = produce_all_asts(<span class="kw-2">&amp;</span>curr_dir)<span class="question-mark">?</span>;
 
     <span class="comment">// produce indexes
-    </span><span class="kw">let </span>compiled_circuit = CircuitWriter::generate_circuit(tast, <span class="kw-2">&amp;</span>deps_tasts, <span class="kw-2">&amp;</span>code)
+    </span><span class="kw">let </span>compiled_circuit = CircuitWriter::generate_circuit(tast, deps_tasts, <span class="kw-2">&amp;</span>code)
         .into_diagnostic()
         .map_err(|e| e.with_source_code(NamedSource::new(curr_dir.to_str().unwrap(), code)))<span class="question-mark">?</span>;
 
@@ -186,7 +189,7 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn </span>produce_all_asts(path: <span class="kw-2">&amp;</span>PathBuf) -&gt; <span class="prelude-ty">Result</span>&lt;(String, TAST, Dependencies)&gt; {
+<span class="kw">fn </span>produce_all_asts(path: <span class="kw-2">&amp;</span>PathBuf) -&gt; <span class="prelude-ty">Result</span>&lt;(String, TypeChecker, Dependencies)&gt; {
     <span class="comment">// find manifest
     </span><span class="kw">let </span>manifest = validate_package_and_get_manifest(<span class="kw-2">&amp;</span>path, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
@@ -214,9 +217,12 @@
             .into_diagnostic()
             .wrap_err_with(|| <span class="macro">format!</span>(<span class="string">&quot;could not read file `{}`&quot;</span>, path.display()))<span class="question-mark">?</span>;
 
+        <span class="kw">let </span>lib_file_str = lib_file.to_str().unwrap();
         <span class="kw">let </span>tast = get_tast(<span class="kw-2">&amp;</span>code, <span class="kw-2">&amp;</span>deps_tasts)
-            .map_err(|e| e.with_source_code(NamedSource::new(lib_file.to_str().unwrap(), code)))<span class="question-mark">?</span>;
-        deps_tasts.deps.insert(dep, tast);
+            .map_err(|e| e.with_source_code(NamedSource::new(lib_file_str, code.clone())))<span class="question-mark">?</span>;
+        deps_tasts
+            .deps
+            .insert(dep, (tast, lib_file_str.to_string(), code));
     }
 
     <span class="comment">// produce artifact for this one

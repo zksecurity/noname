@@ -140,7 +140,7 @@
 ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="comment">// compile
     </span><span class="kw">let </span>deps_asts = Dependencies::default();
-    <span class="kw">let </span>(prover_index, verifier_index) = compile_and_prove(code, <span class="kw-2">&amp;</span>deps_asts)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(prover_index, verifier_index) = compile_and_prove(code, deps_asts)<span class="question-mark">?</span>;
     <span class="macro">println!</span>(<span class="string">&quot;successfuly compiled&quot;</span>);
 
     <span class="comment">// print ASM

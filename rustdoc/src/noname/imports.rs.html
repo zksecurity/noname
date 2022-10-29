@@ -72,9 +72,6 @@
 <span id="72">72</span>
 <span id="73">73</span>
 <span id="74">74</span>
-<span id="75">75</span>
-<span id="76">76</span>
-<span id="77">77</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fmt};
 
 <span class="kw">use crate</span>::{
@@ -83,7 +80,7 @@
     error::Result,
     parser::{FnSig, Function, UsePath},
     stdlib::{<span class="self">self</span>, parse_fn_sigs, BUILTIN_FNS},
-    type_checker::{FnInfo, TAST},
+    type_checker::{FnInfo, TypeChecker},
     var::Var,
 };
 
@@ -99,7 +96,7 @@
     </span>BuiltIn(BuiltinModule),
 
     <span class="doccomment">/// A module that contains both built-in functions and native functions.
-    </span>Native(TAST),
+    </span>Native(TypeChecker),
 }
 
 <span class="attribute">#[derive(Debug, Clone)]
@@ -138,9 +135,6 @@ impl std::fmt::Debug for BuiltinModule {
 
     <span class="doccomment">/// A native function is represented as an AST.
     </span>Native(Function),
-
-    <span class="doccomment">/// For the main function, we don&#39;t need the AST, just the signature
-    </span>Main(FnSig),
 }
 
 <span class="kw">impl </span>fmt::Debug <span class="kw">for </span>FnKind {

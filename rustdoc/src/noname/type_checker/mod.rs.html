@@ -289,36 +289,73 @@
 <span id="289">289</span>
 <span id="290">290</span>
 <span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
     cli::packages::UserRepo,
+    constants::Field,
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     imports::FnKind,
-    parser::{Ident, RootKind, Struct, Ty, TyKind, UsePath, AST},
+    parser::{Const, Function, Ident, RootKind, Struct, Ty, TyKind, UsePath, AST},
     stdlib::get_std_fn,
 };
 
-<span class="kw">pub use </span>checker::{FnInfo, StructInfo, TypeChecker};
+<span class="kw">pub use </span>checker::{FnInfo, StructInfo};
 <span class="kw">pub use </span>fn_env::{TypeInfo, TypedFnEnv};
 
 <span class="kw">pub mod </span>checker;
 <span class="kw">pub mod </span>fn_env;
 
 <span class="kw">const </span>RESERVED_ARGS: [<span class="kw-2">&amp;</span>str; <span class="number">1</span>] = [<span class="string">&quot;public_output&quot;</span>];
-<span class="doccomment">/// TAST for Typed-AST. Not sure how else to call this,
-/// this is to make sure we call this compilation phase before the actual compilation.
-</span><span class="attribute">#[derive(Debug)]
-</span><span class="kw">pub struct </span>TAST {
-    <span class="kw">pub </span>ast: AST,
-    <span class="kw">pub </span>typed_global_env: TypeChecker,
-}
 
 <span class="doccomment">/// Contains metadata from other dependencies that might be use in this module.
-</span><span class="attribute">#[derive(Default)]
+</span><span class="attribute">#[derive(Default, Debug)]
 </span><span class="kw">pub struct </span>Dependencies {
-    <span class="doccomment">/// Maps each `user/repo` to their TAST.
-    </span><span class="kw">pub </span>deps: HashMap&lt;UserRepo, TAST&gt;,
+    <span class="doccomment">/// Maps each `user/repo` to their type checker and source.
+    </span><span class="kw">pub </span>deps: HashMap&lt;UserRepo, (TypeChecker, String, String)&gt;,
 }
 
 <span class="kw">impl </span>Dependencies {
@@ -331,7 +368,7 @@
         }
 
         <span class="comment">// then check in imported dependencies
-        </span><span class="kw">let </span>tast = <span class="self">self</span>.deps.get(<span class="kw-2">&amp;</span>user_repo).ok_or_else(|| {
+        </span><span class="kw">let </span>(tast, _source_path, _source) = <span class="self">self</span>.deps.get(<span class="kw-2">&amp;</span>user_repo).ok_or_else(|| {
             Error::new(
                 ErrorKind::UnknownDependency(user_repo.to_string()),
                 use_path.span,
@@ -339,15 +376,12 @@
         })<span class="question-mark">?</span>;
 
         <span class="comment">// we found the module, now let&#39;s find the function
-        </span><span class="kw">let </span>fn_info = tast
-            .typed_global_env
-            .fn_info(<span class="kw-2">&amp;</span>fn_name.value)
-            .ok_or_else(|| {
-                Error::new(
-                    ErrorKind::UnknownExternalFn(user_repo.to_string(), fn_name.value.to_string()),
-                    fn_name.span,
-                )
-            })<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>fn_info = tast.fn_info(<span class="kw-2">&amp;</span>fn_name.value).ok_or_else(|| {
+            Error::new(
+                ErrorKind::UnknownExternalFn(user_repo.to_string(), fn_name.value.to_string()),
+                fn_name.span,
+            )
+        })<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(fn_info.clone())
     }
@@ -361,7 +395,7 @@
         }
 
         <span class="comment">// then check in imported dependencies
-        </span><span class="kw">let </span>tast = <span class="self">self</span>.deps.get(<span class="kw-2">&amp;</span>user_repo).ok_or_else(|| {
+        </span><span class="kw">let </span>(tast, _source_path, _source) = <span class="self">self</span>.deps.get(<span class="kw-2">&amp;</span>user_repo).ok_or_else(|| {
             Error::new(
                 ErrorKind::UnknownDependency(user_repo.to_string()),
                 use_path.span,
@@ -369,8 +403,7 @@
         })<span class="question-mark">?</span>;
 
         <span class="comment">// we found the module, now let&#39;s find the function
-        </span>tast.typed_global_env
-            .struct_info(<span class="kw-2">&amp;</span>struct_name.value)
+        </span>tast.struct_info(<span class="kw-2">&amp;</span>struct_name.value)
             .ok_or_else(|| {
                 Error::new(
                     ErrorKind::UnknownExternalStruct(
@@ -384,32 +417,101 @@
     }
 }
 
-<span class="kw">impl </span>TAST {
+<span class="doccomment">/// The environment we use to type check a noname program.
+</span><span class="attribute">#[derive(Default, Debug)]
+</span><span class="kw">pub struct </span>TypeChecker {
+    <span class="doccomment">/// the functions present in the scope
+    /// contains at least the set of builtin functions (like assert_eq)
+    </span><span class="kw">pub </span>functions: HashMap&lt;String, FnInfo&gt;,
+
+    <span class="doccomment">/// maps `module` to its original `use a::module`
+    </span><span class="kw">pub </span>modules: HashMap&lt;String, UsePath&gt;,
+
+    <span class="doccomment">/// Custom structs type information and ASTs for methods.
+    </span><span class="kw">pub </span>structs: HashMap&lt;String, StructInfo&gt;,
+
+    <span class="doccomment">/// Constants declared in this module.
+    </span><span class="kw">pub </span>constants: HashMap&lt;String, (Field, Ty)&gt;,
+
+    <span class="doccomment">/// Mapping from node id to TyKind.
+    /// This can be used by the circuit-writer when it needs type information.
+    </span><span class="kw">pub </span>node_types: HashMap&lt;usize, TyKind&gt;,
+}
+
+<span class="kw">impl </span>TypeChecker {
     <span class="doccomment">/// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    </span><span class="kw">pub fn </span>analyze(ast: AST, deps: <span class="kw-2">&amp;</span>Dependencies) -&gt; <span class="prelude-ty">Result</span>&lt;TAST&gt; {
+    </span><span class="kw">pub fn </span>analyze(ast: AST, deps: <span class="kw-2">&amp;</span>Dependencies) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="comment">//
         // inject some utility builtin functions in the scope
         //
 
-        </span><span class="kw">let </span><span class="kw-2">mut </span>typed_global_env = TypeChecker::default();
+        </span><span class="kw">let </span><span class="kw-2">mut </span>type_checker = TypeChecker::default();
 
         <span class="comment">// TODO: should we really import them by default?
-        </span>typed_global_env.resolve_global_imports()<span class="question-mark">?</span>;
+        </span>type_checker.resolve_global_imports()<span class="question-mark">?</span>;
 
         <span class="comment">//
         // Resolve imports
         //
 
-        </span><span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
+        </span><span class="kw">let </span><span class="kw-2">mut </span>abort = <span class="prelude-val">None</span>;
+
+        <span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
             <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
                 <span class="comment">// `use crypto::poseidon;`
-                </span>RootKind::Use(path) =&gt; typed_global_env.import(path)<span class="question-mark">?</span>,
-                RootKind::Function(<span class="kw">_</span>) =&gt; (),
-                RootKind::Struct(<span class="kw">_</span>) =&gt; (),
+                </span>RootKind::Use(path) =&gt; {
+                    <span class="comment">// important: no struct or function definition must appear before a constant declaration
+                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(span) = abort {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            ErrorKind::ConstDeclarationAfterStructOrFunction,
+                            span,
+                        ));
+                    }
+                    type_checker.import(path)<span class="question-mark">?
+                </span>}
+                RootKind::Function(Function { span, .. })
+                | RootKind::Struct(Struct { span, .. })
+                | RootKind::Const(Const { span, .. }) =&gt; abort = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>span),
                 RootKind::Comment(<span class="kw">_</span>) =&gt; (),
-                RootKind::Const(<span class="kw">_</span>) =&gt; (),
+            }
+        }
+
+        <span class="comment">//
+        // Process constants
+        //
+
+        // we detect struct or function definition
+        </span><span class="kw">let </span><span class="kw-2">mut </span>abort = <span class="prelude-val">None</span>;
+
+        <span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
+            <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
+                RootKind::Const(cst) =&gt; {
+                    <span class="comment">// important: no struct or function definition must appear before a constant declaration
+                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(span) = abort {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            ErrorKind::ConstDeclarationAfterStructOrFunction,
+                            span,
+                        ));
+                    }
+
+                    type_checker.constants.insert(
+                        cst.name.value.clone(),
+                        (
+                            cst.value,
+                            Ty {
+                                kind: TyKind::Field,
+                                span: cst.span,
+                            },
+                        ),
+                    );
+                }
+
+                RootKind::Function(Function { span, .. })
+                | RootKind::Struct(Struct { span, .. }) =&gt; abort = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>span),
+
+                RootKind::Use(<span class="kw">_</span>) | RootKind::Comment(<span class="kw">_</span>) =&gt; (),
             }
         }
 
@@ -437,22 +539,13 @@
                         methods: HashMap::new(),
                     };
 
-                    typed_global_env
-                        .structs
-                        .insert(name.value.clone(), struct_info);
+                    type_checker.structs.insert(name.value.clone(), struct_info);
                 }
 
-                RootKind::Const(cst) =&gt; {
-                    typed_global_env.constants.insert(
-                        cst.name.value.clone(),
-                        Ty {
-                            kind: TyKind::Field,
-                            span: cst.span,
-                        },
-                    );
-                }
-
-                RootKind::Use(<span class="kw">_</span>) | RootKind::Function(<span class="kw">_</span>) | RootKind::Comment(<span class="kw">_</span>) =&gt; (),
+                RootKind::Const(<span class="kw">_</span>)
+                | RootKind::Use(<span class="kw">_</span>)
+                | RootKind::Function(<span class="kw">_</span>)
+                | RootKind::Comment(<span class="kw">_</span>) =&gt; (),
             }
         }
 
@@ -469,25 +562,21 @@
                     <span class="comment">// create a new typed fn environment to type check the function
                     </span><span class="kw">let </span><span class="kw-2">mut </span>typed_fn_env = TypedFnEnv::default();
 
-                    <span class="comment">// if this is main, witness it
+                    <span class="comment">// if this is the main function check that it has arguments
                     </span><span class="kw">let </span>is_main = function.is_main();
-                    <span class="kw">if </span>is_main {
-                        typed_global_env.has_main = <span class="bool-val">true</span>;
+                    <span class="kw">if </span>is_main &amp;&amp; function.sig.arguments.is_empty() {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::NoArgsInMain, function.span));
                     }
 
                     <span class="comment">// save the function in the typed global env
-                    </span><span class="kw">let </span>fn_kind = <span class="kw">if </span>is_main {
-                        FnKind::Main(function.sig.clone())
-                    } <span class="kw">else </span>{
-                        FnKind::Native(function.clone())
-                    };
+                    </span><span class="kw">let </span>fn_kind = FnKind::Native(function.clone());
                     <span class="kw">let </span>fn_info = FnInfo {
                         kind: fn_kind,
                         span: function.span,
                     };
 
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(self_name) = <span class="kw-2">&amp;</span>function.sig.name.self_name {
-                        <span class="kw">let </span>struct_info = typed_global_env
+                        <span class="kw">let </span>struct_info = type_checker
                             .structs
                             .get_mut(<span class="kw-2">&amp;</span>self_name.value)
                             .expect(<span class="string">&quot;couldn&#39;t find the struct for storing the method&quot;</span>);
@@ -496,7 +585,7 @@
                             .methods
                             .insert(function.sig.name.name.value.clone(), function.clone());
                     } <span class="kw">else </span>{
-                        typed_global_env
+                        type_checker
                             .functions
                             .insert(function.sig.name.name.value.clone(), fn_info);
                     }
@@ -559,7 +648,7 @@
                     }
 
                     <span class="comment">// type system pass
-                    </span>typed_global_env.check_block(
+                    </span>type_checker.check_block(
                         <span class="kw-2">&amp;mut </span>typed_fn_env,
                         deps,
                         <span class="kw-2">&amp;</span>function.body,
@@ -574,10 +663,7 @@
             }
         }
 
-        <span class="prelude-val">Ok</span>(TAST {
-            ast,
-            typed_global_env,
-        })
+        <span class="prelude-val">Ok</span>(type_checker)
     }
 }
 </code></pre></div>

@@ -767,32 +767,6 @@
 <span id="767">767</span>
 <span id="768">768</span>
 <span id="769">769</span>
-<span id="770">770</span>
-<span id="771">771</span>
-<span id="772">772</span>
-<span id="773">773</span>
-<span id="774">774</span>
-<span id="775">775</span>
-<span id="776">776</span>
-<span id="777">777</span>
-<span id="778">778</span>
-<span id="779">779</span>
-<span id="780">780</span>
-<span id="781">781</span>
-<span id="782">782</span>
-<span id="783">783</span>
-<span id="784">784</span>
-<span id="785">785</span>
-<span id="786">786</span>
-<span id="787">787</span>
-<span id="788">788</span>
-<span id="789">789</span>
-<span id="790">790</span>
-<span id="791">791</span>
-<span id="792">792</span>
-<span id="793">793</span>
-<span id="794">794</span>
-<span id="795">795</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -804,7 +778,7 @@
     syntax::is_type,
 };
 
-<span class="kw">use super</span>::{Dependencies, TypeInfo, TypedFnEnv};
+<span class="kw">use super</span>::{Dependencies, TypeChecker, TypeInfo, TypedFnEnv};
 
 <span class="doccomment">/// Keeps track of the signature of a user-defined function.
 </span><span class="attribute">#[derive(Debug, Clone)]
@@ -818,7 +792,6 @@
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
             FnKind::BuiltIn(sig, <span class="kw">_</span>) =&gt; sig,
             FnKind::Native(func) =&gt; <span class="kw-2">&amp;</span>func.sig,
-            FnKind::Main(sig) =&gt; sig,
         }
     }
 }
@@ -859,31 +832,6 @@
             typ,
         }
     }
-}
-
-<span class="doccomment">/// The environment we use to type check a noname program.
-</span><span class="attribute">#[derive(Default, Debug)]
-</span><span class="kw">pub struct </span>TypeChecker {
-    <span class="doccomment">/// the functions present in the scope
-    /// contains at least the set of builtin functions (like assert_eq)
-    </span><span class="kw">pub </span>functions: HashMap&lt;String, FnInfo&gt;,
-
-    <span class="doccomment">/// maps `module` to its original `use a::module`
-    </span><span class="kw">pub </span>modules: HashMap&lt;String, UsePath&gt;,
-
-    <span class="doccomment">/// If there&#39;s a main function in this module, then this is true
-    /// (in other words, it&#39;s not a library)
-    </span><span class="kw">pub </span>has_main: bool,
-
-    <span class="doccomment">/// Custom structs type information and ASTs for methods.
-    </span><span class="kw">pub </span>structs: HashMap&lt;String, StructInfo&gt;,
-
-    <span class="doccomment">/// Constants declared in this module.
-    </span><span class="kw">pub </span>constants: HashMap&lt;String, Ty&gt;,
-
-    <span class="doccomment">/// Mapping from node id to TyKind.
-    /// This can be used by the circuit-writer when it needs type information.
-    </span><span class="kw">pub </span>node_types: HashMap&lt;usize, TyKind&gt;,
 }
 
 <span class="kw">impl </span>TypeChecker {
@@ -1244,10 +1192,10 @@
                     // check if it&#39;s a constant first
                     </span><span class="kw">let </span>typ = <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.constants.get(<span class="kw-2">&amp;</span>name.value) {
                         <span class="comment">// if it&#39;s a field, we need to convert it to a bigint
-                        </span><span class="kw">if </span><span class="macro">matches!</span>(typ.kind, TyKind::Field) {
+                        </span><span class="kw">if </span><span class="macro">matches!</span>(typ.<span class="number">1</span>.kind, TyKind::Field) {
                             TyKind::BigInt
                         } <span class="kw">else </span>{
-                            typ.kind.clone()
+                            typ.<span class="number">1</span>.kind.clone()
                         }
                     } <span class="kw">else </span>{
                         <span class="comment">// otherwise it&#39;s a local variable

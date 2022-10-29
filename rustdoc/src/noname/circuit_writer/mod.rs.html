@@ -223,69 +223,14 @@
 <span id="223">223</span>
 <span id="224">224</span>
 <span id="225">225</span>
-<span id="226">226</span>
-<span id="227">227</span>
-<span id="228">228</span>
-<span id="229">229</span>
-<span id="230">230</span>
-<span id="231">231</span>
-<span id="232">232</span>
-<span id="233">233</span>
-<span id="234">234</span>
-<span id="235">235</span>
-<span id="236">236</span>
-<span id="237">237</span>
-<span id="238">238</span>
-<span id="239">239</span>
-<span id="240">240</span>
-<span id="241">241</span>
-<span id="242">242</span>
-<span id="243">243</span>
-<span id="244">244</span>
-<span id="245">245</span>
-<span id="246">246</span>
-<span id="247">247</span>
-<span id="248">248</span>
-<span id="249">249</span>
-<span id="250">250</span>
-<span id="251">251</span>
-<span id="252">252</span>
-<span id="253">253</span>
-<span id="254">254</span>
-<span id="255">255</span>
-<span id="256">256</span>
-<span id="257">257</span>
-<span id="258">258</span>
-<span id="259">259</span>
-<span id="260">260</span>
-<span id="261">261</span>
-<span id="262">262</span>
-<span id="263">263</span>
-<span id="264">264</span>
-<span id="265">265</span>
-<span id="266">266</span>
-<span id="267">267</span>
-<span id="268">268</span>
-<span id="269">269</span>
-<span id="270">270</span>
-<span id="271">271</span>
-<span id="272">272</span>
-<span id="273">273</span>
-<span id="274">274</span>
-<span id="275">275</span>
-<span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
+    cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     parser::{AttributeKind, FnArg, FnSig, Function, RootKind, Struct, TyKind},
-    type_checker::{Dependencies, TypeChecker, TAST},
+    type_checker::{Dependencies, TypeChecker},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,
 };
@@ -298,12 +243,20 @@
 <span class="kw">pub mod </span>fn_env;
 <span class="kw">pub mod </span>writer;
 
-<span class="attribute">#[derive(Default, Debug)]
+<span class="attribute">#[derive(Debug)]
 </span><span class="kw">pub struct </span>CircuitWriter {
-    <span class="doccomment">/// The source code that created this circuit.
+    <span class="doccomment">/// The source code of this module.
     /// Useful for debugging and displaying user errors.
-    </span><span class="comment">// TODO: why is this here? probably doesn&#39;t need to be
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) source: String,
+
+    <span class="doccomment">/// The type checker state for the main module.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) typed: TypeChecker,
+
+    <span class="doccomment">/// The type checker state and source for the dependencies.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) dependencies: Dependencies,
+
+    <span class="doccomment">/// The current module. If not set, the main module.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) current_module: <span class="prelude-ty">Option</span>&lt;UserRepo&gt;,
 
     <span class="doccomment">/// Once this is set, you can generate a witness (and can&#39;t modify the circuit?)
     </span><span class="comment">// Note: I don&#39;t think we need this, but it acts as a nice redundant failsafe.
@@ -345,13 +298,6 @@
     /// (this is useful to check that they appear in the circuit)
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) private_input_indices: Vec&lt;usize&gt;,
 
-    <span class="doccomment">/// Used during the witness generation to check
-    /// public and private inputs given by the prover.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) main: (FnSig, Span),
-
-    <span class="doccomment">/// The state of the type checker.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) typed: TypeChecker,
-
     <span class="doccomment">/// Constants defined in the module/program.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) constants: HashMap&lt;String, VarInfo&gt;,
 
@@ -370,157 +316,94 @@
 
 <span class="kw">impl </span>CircuitWriter {
     <span class="kw">pub fn </span>generate_circuit(
-        tast: TAST,
-        deps: <span class="kw-2">&amp;</span>Dependencies,
+        typed: TypeChecker,
+        deps: Dependencies,
         code: <span class="kw-2">&amp;</span>str,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledCircuit&gt; {
-        <span class="comment">// if there&#39;s no main function, then return an error
-        </span><span class="kw">let </span>TAST {
-            ast,
-            typed_global_env,
-        } = tast;
+        <span class="comment">// create circuit writer
+        </span><span class="kw">let </span><span class="kw-2">mut </span>circuit_writer = CircuitWriter::new(code, typed, deps);
 
-        <span class="kw">if </span>!typed_global_env.has_main {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::NoMainFunction, Span::default()));
+        <span class="comment">// Process constants
+        </span><span class="kw">for </span>(name, (value, typ)) <span class="kw">in </span>circuit_writer.typed.constants.clone() {
+            circuit_writer.add_constant_var(name, value, typ.span);
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>circuit_writer = CircuitWriter::new(code, typed_global_env);
+        <span class="comment">// get main function
+        </span><span class="kw">let </span>main_fn_info = circuit_writer
+            .typed
+            .functions
+            .get(<span class="string">&quot;main&quot;</span>)
+            .ok_or(Error::new(ErrorKind::NoMainFunction, Span::default()))<span class="question-mark">?</span>;
 
-        <span class="comment">// make sure we can&#39;t call that several times
-        </span><span class="kw">if </span>circuit_writer.finalized {
-            <span class="macro">panic!</span>(<span class="string">&quot;circuit already finalized (TODO: return a proper error&quot;</span>);
-        }
+        <span class="kw">let </span>function = <span class="kw">match </span><span class="kw-2">&amp;</span>main_fn_info.kind {
+            <span class="kw">crate</span>::imports::FnKind::BuiltIn(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
+            <span class="kw">crate</span>::imports::FnKind::Native(fn_sig) =&gt; fn_sig.clone(),
+        };
 
-        <span class="comment">//
-        // Process constants
-        //
+        <span class="comment">// create the main env
+        </span><span class="kw">let </span>fn_env = <span class="kw-2">&amp;mut </span>FnEnv::new(<span class="kw-2">&amp;</span>circuit_writer.constants);
 
-        // we detect struct or function definition
-        </span><span class="kw">let </span><span class="kw-2">mut </span>func_or_struct = <span class="prelude-val">None</span>;
-
-        <span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
-            <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
-                RootKind::Const(cst) =&gt; {
-                    <span class="comment">// important: no struct or function definition must appear before a constant declaration
-                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(span) = func_or_struct {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                            ErrorKind::ConstDeclarationAfterStructOrFunction,
-                            span,
-                        ));
+        <span class="comment">// create public and private inputs
+        </span><span class="kw">for </span>FnArg {
+            attribute,
+            name,
+            typ,
+            ..
+        } <span class="kw">in </span><span class="kw-2">&amp;</span>function.sig.arguments
+        {
+            <span class="comment">// get length
+            </span><span class="kw">let </span>len = <span class="kw">match </span><span class="kw-2">&amp;</span>typ.kind {
+                TyKind::Field =&gt; <span class="number">1</span>,
+                TyKind::Array(typ, len) =&gt; {
+                    <span class="kw">if </span>!<span class="macro">matches!</span>(<span class="kw-2">**</span>typ, TyKind::Field) {
+                        <span class="macro">unimplemented!</span>();
                     }
-                    circuit_writer.add_constant_var(cst.name.value.clone(), cst.value, cst.span);
+                    <span class="kw-2">*</span>len <span class="kw">as </span>usize
                 }
+                TyKind::Bool =&gt; <span class="number">1</span>,
+                typ =&gt; circuit_writer.size_of(typ)<span class="question-mark">?</span>,
+            };
 
-                RootKind::Function(Function { span, .. })
-                | RootKind::Struct(Struct { span, .. }) =&gt; func_or_struct = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>span),
+            <span class="comment">// create the variable
+            </span><span class="kw">let </span>var = <span class="kw">if let </span><span class="prelude-val">Some</span>(attr) = attribute {
+                <span class="kw">if </span>!<span class="macro">matches!</span>(attr.kind, AttributeKind::Pub) {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::InvalidAttribute(attr.kind),
+                        attr.span,
+                    ));
+                }
+                circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
+            } <span class="kw">else </span>{
+                circuit_writer.add_private_inputs(name.value.clone(), len, name.span)
+            };
 
-                RootKind::Use(<span class="kw">_</span>) | RootKind::Comment(<span class="kw">_</span>) =&gt; (),
+            <span class="comment">// constrain what needs to be constrained
+            // (for example, booleans need to be constrained to be 0 or 1)
+            // note: we constrain private inputs as well as public inputs
+            // in theory we might not need to check the validity of public inputs,
+            // but we are being extra cautious due to attacks
+            // where the prover gives the verifier malformed inputs that look legit.
+            // (See short address attacks in Ethereum.)
+            </span>circuit_writer.constrain_inputs_to_main(<span class="kw-2">&amp;</span>var.cvars, <span class="kw-2">&amp;</span>typ.kind, typ.span)<span class="question-mark">?</span>;
+
+            <span class="comment">// add argument variable to the ast env
+            </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>; <span class="comment">// TODO: should we add a mut keyword in arguments as well?
+            </span><span class="kw">let </span>var_info = VarInfo::new(var, mutable, <span class="prelude-val">Some</span>(typ.kind.clone()));
+            fn_env.add_var(name.value.clone(), var_info);
+        }
+
+        <span class="comment">// create public output
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="kw-2">&amp;</span>function.sig.return_type {
+            <span class="kw">if </span>typ.kind != TyKind::Field {
+                <span class="macro">unimplemented!</span>();
             }
+
+            <span class="comment">// create it
+            </span>circuit_writer.add_public_outputs(<span class="number">1</span>, typ.span);
         }
 
-        <span class="comment">//
-        // Generate the circuit
-        //
-
-        </span><span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
-            <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
-                <span class="comment">// imports (already dealt with in type checker)
-                </span>RootKind::Use(_path) =&gt; (),
-
-                <span class="comment">// `const thing = 42;`
-                </span>RootKind::Const(_cst) =&gt; {
-                    <span class="comment">// already took care of it previously
-                    </span>()
-                }
-
-                <span class="comment">// `fn main() { ... }`
-                </span>RootKind::Function(function) =&gt; {
-                    <span class="comment">// create the env
-                    </span><span class="kw">let </span>fn_env = <span class="kw-2">&amp;mut </span>FnEnv::new(<span class="kw-2">&amp;</span>circuit_writer.constants);
-
-                    <span class="comment">// we only compile the main function
-                    </span><span class="kw">if </span>!function.is_main() {
-                        <span class="kw">continue</span>;
-                    }
-
-                    <span class="comment">// if there are no arguments, return an error
-                    // TODO: should we check this in the type checker?
-                    </span><span class="kw">if </span>function.sig.arguments.is_empty() {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::NoArgsInMain, function.span));
-                    }
-
-                    <span class="comment">// create public and private inputs
-                    </span><span class="kw">for </span>FnArg {
-                        attribute,
-                        name,
-                        typ,
-                        ..
-                    } <span class="kw">in </span><span class="kw-2">&amp;</span>function.sig.arguments
-                    {
-                        <span class="comment">// get length
-                        </span><span class="kw">let </span>len = <span class="kw">match </span><span class="kw-2">&amp;</span>typ.kind {
-                            TyKind::Field =&gt; <span class="number">1</span>,
-                            TyKind::Array(typ, len) =&gt; {
-                                <span class="kw">if </span>!<span class="macro">matches!</span>(<span class="kw-2">**</span>typ, TyKind::Field) {
-                                    <span class="macro">unimplemented!</span>();
-                                }
-                                <span class="kw-2">*</span>len <span class="kw">as </span>usize
-                            }
-                            TyKind::Bool =&gt; <span class="number">1</span>,
-                            typ =&gt; circuit_writer.typed.size_of(deps, typ)<span class="question-mark">?</span>,
-                        };
-
-                        <span class="comment">// create the variable
-                        </span><span class="kw">let </span>var = <span class="kw">if let </span><span class="prelude-val">Some</span>(attr) = attribute {
-                            <span class="kw">if </span>!<span class="macro">matches!</span>(attr.kind, AttributeKind::Pub) {
-                                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                                    ErrorKind::InvalidAttribute(attr.kind),
-                                    attr.span,
-                                ));
-                            }
-                            circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
-                        } <span class="kw">else </span>{
-                            circuit_writer.add_private_inputs(name.value.clone(), len, name.span)
-                        };
-
-                        <span class="comment">// constrain what needs to be constrained
-                        // (for example, booleans need to be constrained to be 0 or 1)
-                        // note: we constrain private inputs as well as public inputs
-                        // in theory we might not need to check the validity of public inputs,
-                        // but we are being extra cautious due to attacks
-                        // where the prover gives the verifier malformed inputs that look legit.
-                        // (See short address attacks in Ethereum.)
-                        </span>circuit_writer
-                            .constrain_inputs_to_main(deps, <span class="kw-2">&amp;</span>var.cvars, <span class="kw-2">&amp;</span>typ.kind, typ.span)<span class="question-mark">?</span>;
-
-                        <span class="comment">// add argument variable to the ast env
-                        </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>; <span class="comment">// TODO: should we add a mut keyword in arguments as well?
-                        </span><span class="kw">let </span>var_info = VarInfo::new(var, mutable, <span class="prelude-val">Some</span>(typ.kind.clone()));
-                        fn_env.add_var(name.value.clone(), var_info);
-                    }
-
-                    <span class="comment">// create public output
-                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="kw-2">&amp;</span>function.sig.return_type {
-                        <span class="kw">if </span>typ.kind != TyKind::Field {
-                            <span class="macro">unimplemented!</span>();
-                        }
-
-                        <span class="comment">// create it
-                        </span>circuit_writer.add_public_outputs(<span class="number">1</span>, typ.span);
-                    }
-
-                    <span class="comment">// compile function
-                    </span>circuit_writer.compile_main_function(fn_env, deps, function)<span class="question-mark">?</span>;
-                }
-
-                <span class="comment">// struct definition (already dealt with in type checker)
-                </span>RootKind::Struct(_struct) =&gt; (),
-
-                <span class="comment">// ignore comments
-                // TODO: we could actually preserve the comment in the ASM!
-                </span>RootKind::Comment(_comment) =&gt; (),
-            }
-        }
+        <span class="comment">// compile function
+        </span>circuit_writer.compile_main_function(fn_env, <span class="kw-2">&amp;</span>function)<span class="question-mark">?</span>;
 
         <span class="comment">// important: there might still be a pending generic gate
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(pending) = circuit_writer.pending_generic_gate.take() {
@@ -544,10 +427,15 @@
         <span class="kw">for </span>var <span class="kw">in </span><span class="number">0</span>..circuit_writer.next_variable {
             <span class="kw">if </span>!written_vars.contains(<span class="kw-2">&amp;</span>var) {
                 <span class="kw">if </span>circuit_writer.private_input_indices.contains(<span class="kw-2">&amp;</span>var) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                        ErrorKind::PrivateInputNotUsed,
-                        circuit_writer.main.<span class="number">1</span>,
-                    ));
+                    <span class="comment">// compute main sig
+                    </span><span class="kw">let </span>(_main_sig, main_span) = {
+                        <span class="kw">let </span>fn_info = circuit_writer.typed.functions.get(<span class="string">&quot;main&quot;</span>).cloned().unwrap();
+
+                        (fn_info.sig().clone(), fn_info.span)
+                    };
+
+                    <span class="comment">// TODO: is this error useful?
+                    </span><span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::PrivateInputNotUsed, main_span));
                 } <span class="kw">else </span>{
                     <span class="macro">panic!</span>(<span class="string">&quot;there&#39;s a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!&quot;</span>);
                 }
