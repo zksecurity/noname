@@ -303,13 +303,44 @@
 <span id="303">303</span>
 <span id="304">304</span>
 <span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
-    parser::{AttributeKind, Expr, FnArg, FnSig, Function, Ident, RootKind, Struct, TyKind},
+    parser::{
+        AttributeKind, Expr, FnArg, FnSig, Function, Ident, RootKind, Struct, TyKind, UsePath,
+    },
     type_checker::{Dependencies, FnInfo, StructInfo, TypeChecker},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,
@@ -340,6 +371,9 @@
     </span>dependencies: Dependencies,
 
     <span class="doccomment">/// The current module. If not set, the main module.
+    </span><span class="comment">// Note: this can be an alias that came from a 3rd party library.
+    // For example, a 3rd party library might have written `use a::b as c;`.
+    // For this reason we must store this as a fully-qualified module.
     </span>current_module: <span class="prelude-ty">Option</span>&lt;UserRepo&gt;,
 
     <span class="doccomment">/// Once this is set, you can generate a witness (and can&#39;t modify the circuit?)
@@ -399,45 +433,63 @@
 }
 
 <span class="kw">impl </span>CircuitWriter {
-    <span class="kw">pub fn </span>main_info(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>FnInfo {
-        <span class="self">self</span>.typed
-            .fn_info(<span class="string">&quot;main&quot;</span>)
-            .expect(<span class="string">&quot;bug in the compiler: main not found&quot;</span>)
+    <span class="doccomment">/// Retrieves the type checker associated to the current module being parsed.
+    /// It is possible, when we jump to third-party libraries&#39; code,
+    /// that we need access to their type checker state instead of the main module one.
+    </span><span class="kw">pub fn </span>current_type_checker(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>TypeChecker {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(current_module) = <span class="kw-2">&amp;</span><span class="self">self</span>.current_module {
+            <span class="self">self</span>.dependencies
+                .get_type_checker(current_module)
+                .expect(<span class="string">&quot;bug in the compiler: couldn&#39;t find current module&quot;</span>)
+        } <span class="kw">else </span>{
+            <span class="kw-2">&amp;</span><span class="self">self</span>.typed
+        }
     }
 
     <span class="kw">pub fn </span>expr_type(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expr) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TyKind&gt; {
-        <span class="self">self</span>.typed.node_types.get(<span class="kw-2">&amp;</span>expr.node_id)
+        <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
+        curr_type_checker.node_types.get(<span class="kw-2">&amp;</span>expr.node_id)
     }
 
     <span class="kw">pub fn </span>node_type(<span class="kw-2">&amp;</span><span class="self">self</span>, node_id: usize) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TyKind&gt; {
-        <span class="self">self</span>.typed.node_types.get(<span class="kw-2">&amp;</span>node_id)
+        <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
+        curr_type_checker.node_types.get(<span class="kw-2">&amp;</span>node_id)
     }
 
     <span class="kw">pub fn </span>struct_info(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>StructInfo&gt; {
-        <span class="self">self</span>.typed.struct_info(name)
+        <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
+        curr_type_checker.struct_info(name)
     }
 
     <span class="kw">pub fn </span>fn_info(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>FnInfo&gt; {
-        <span class="self">self</span>.typed.functions.get(name)
+        <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
+        curr_type_checker.functions.get(name)
     }
 
     <span class="kw">pub fn </span>size_of(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>TyKind) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-        <span class="self">self</span>.typed.size_of(<span class="kw-2">&amp;</span><span class="self">self</span>.dependencies, typ)
+        <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
+        curr_type_checker.size_of(<span class="kw-2">&amp;</span><span class="self">self</span>.dependencies, typ)
+    }
+
+    <span class="kw">pub fn </span>resolve_module(<span class="kw-2">&amp;</span><span class="self">self</span>, module: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span>UsePath&gt; {
+        <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
+        curr_type_checker.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
+            Error::new(
+                ErrorKind::UndefinedModule(module.value.clone()),
+                module.span,
+            )
+        })
     }
 
     <span class="kw">pub fn </span>get_fn(<span class="kw-2">&amp;</span><span class="self">self</span>, module: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Ident&gt;, fn_name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Result</span>&lt;FnInfo&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-            <span class="kw">let </span>module = <span class="self">self</span>.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
-                Error::new(
-                    ErrorKind::UndefinedModule(module.value.clone()),
-                    module.span,
-                )
-            })<span class="question-mark">?</span>;
-
+            <span class="comment">// we may be parsing a function from a 3rd-party library
+            // which might also come from another 3rd-party library
+            </span><span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
             <span class="self">self</span>.dependencies.get_fn(module, fn_name)
         } <span class="kw">else </span>{
-            <span class="kw">let </span>fn_info = <span class="self">self
-                </span>.typed
+            <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
+            <span class="kw">let </span>fn_info = curr_type_checker
                 .functions
                 .get(<span class="kw-2">&amp;</span>fn_name.value)
                 .cloned()
@@ -453,17 +505,14 @@
 
     <span class="kw">pub fn </span>get_struct(<span class="kw-2">&amp;</span><span class="self">self</span>, module: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Ident&gt;, struct_name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Result</span>&lt;StructInfo&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-            <span class="kw">let </span>imported_module = <span class="self">self</span>.typed.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
-                Error::new(
-                    ErrorKind::UndefinedModule(module.value.clone()),
-                    module.span,
-                )
-            })<span class="question-mark">?</span>;
-
-            <span class="self">self</span>.dependencies.get_struct(imported_module, struct_name)
+            <span class="comment">// we may be parsing a struct from a 3rd-party library
+            // which might also come from another 3rd-party library
+            </span><span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
+            <span class="self">self</span>.dependencies.get_struct(module, struct_name)
         } <span class="kw">else </span>{
-            <span class="kw">let </span>struct_info = <span class="self">self
-                </span>.struct_info(<span class="kw-2">&amp;</span>struct_name.value)
+            <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
+            <span class="kw">let </span>struct_info = curr_type_checker
+                .struct_info(<span class="kw-2">&amp;</span>struct_name.value)
                 .ok_or(Error::new(
                     ErrorKind::UndefinedStruct(struct_name.value.clone()),
                     struct_name.span,
@@ -471,6 +520,15 @@
                 </span>.clone();
             <span class="prelude-val">Ok</span>(struct_info)
         }
+    }
+
+    <span class="doccomment">/// Retrieves the [FnInfo] for the `main()` function.
+    /// This function should only be called if we know there&#39;s a main function,
+    /// if there&#39;s no main function it&#39;ll panic.
+    </span><span class="kw">pub fn </span>main_info(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>FnInfo {
+        <span class="self">self</span>.typed
+            .fn_info(<span class="string">&quot;main&quot;</span>)
+            .expect(<span class="string">&quot;bug in the compiler: main not found&quot;</span>)
     }
 }
 

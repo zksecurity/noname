@@ -334,6 +334,10 @@
 <span id="334">334</span>
 <span id="335">335</span>
 <span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -361,6 +365,10 @@
 }
 
 <span class="kw">impl </span>Dependencies {
+    <span class="kw">pub fn </span>get_type_checker(<span class="kw-2">&amp;</span><span class="self">self</span>, user_repo: <span class="kw-2">&amp;</span>UserRepo) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TypeChecker&gt; {
+        <span class="self">self</span>.deps.get(user_repo).map(|(tast, <span class="kw">_</span>, <span class="kw">_</span>)| tast)
+    }
+
     <span class="doccomment">/// Expects the real use_path
     </span><span class="kw">pub fn </span>get_fn(<span class="kw-2">&amp;</span><span class="self">self</span>, use_path: <span class="kw-2">&amp;</span>UsePath, fn_name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Result</span>&lt;FnInfo&gt; {
         <span class="kw">let </span>user_repo: UserRepo = use_path.into();
