@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["cmd_build",""],["cmd_check",""]],"struct":[["CmdBuild",""],["CmdCheck",""]]};
+window.SIDEBAR_ITEMS = {"fn":[["build",""],["cmd_build",""],["cmd_check",""]],"struct":[["CmdBuild",""],["CmdCheck",""]]};

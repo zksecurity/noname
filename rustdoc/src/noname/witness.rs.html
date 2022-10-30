@@ -262,9 +262,9 @@
 
 <span class="kw">use </span>ark_ff::{Field <span class="kw">as _</span>, Zero};
 <span class="kw">use </span>itertools::{chain, Itertools};
-<span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="comment">//use serde::{Deserialize, Serialize};
 
-<span class="kw">use crate</span>::{
+</span><span class="kw">use crate</span>::{
     circuit_writer::{CircuitWriter, Gate},
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},

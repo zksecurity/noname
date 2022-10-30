@@ -181,6 +181,13 @@
 <span id="181">181</span>
 <span id="182">182</span>
 <span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
 </pre><pre class="rust"><code><span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
 <span class="kw">use </span>miette::{Context, IntoDiagnostic, NamedSource, <span class="prelude-ty">Result</span>};
 
@@ -188,7 +195,7 @@
     circuit_writer::CircuitWriter,
     cli::packages::path_to_package,
     compiler::get_tast,
-    prover::compile_to_indexes,
+    prover::{compile_to_indexes, ProverIndex, VerifierIndex},
     type_checker::{Dependencies, TypeChecker},
 };
 
@@ -205,23 +212,23 @@
     </span>path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 
     <span class="doccomment">/// Prints an assembly-like encoding of the circuit.
-    </span><span class="attribute">#[clap(short, long)]
+    </span><span class="attribute">#[clap(long)]
     </span>asm: bool,
 
     <span class="doccomment">/// Prints a debug version of the assembly. To be used in conjunction with `--asm`.
-    </span><span class="attribute">#[clap(short, long)]
+    </span><span class="attribute">#[clap(long)]
     </span>debug: bool,
 
     <span class="doccomment">/// In case the path points to a binary,
     /// outputs the prover parameters to the given file.
     /// Defaults to `prover.nope`
-    </span><span class="attribute">#[clap(short, long, value_parser)]
+    </span><span class="attribute">#[clap(long, value_parser)]
     </span>prover_params: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 
     <span class="doccomment">/// In case the path points to a binary,
     /// outputs the verifier parameters to the given file.
     /// Defaults to `verifier.nope`
-    </span><span class="attribute">#[clap(short, long, value_parser)]
+    </span><span class="attribute">#[clap(long, value_parser)]
     </span>verifier_params: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 }
 
@@ -230,23 +237,7 @@
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    <span class="comment">// produce all TASTs
-    </span><span class="kw">let </span>(code, tast, deps_tasts) = produce_all_asts(<span class="kw-2">&amp;</span>curr_dir)<span class="question-mark">?</span>;
-
-    <span class="comment">// produce indexes
-    </span><span class="kw">let </span>compiled_circuit = CircuitWriter::generate_circuit(tast, deps_tasts, <span class="kw-2">&amp;</span>code)
-        .into_diagnostic()
-        .map_err(|e| e.with_source_code(NamedSource::new(curr_dir.to_string(), code)))<span class="question-mark">?</span>;
-
-    <span class="comment">// asm
-    </span><span class="kw">if </span>args.asm {
-        <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, compiled_circuit.asm(args.debug));
-    }
-
-    <span class="comment">// TODO: cache artifacts
-
-    // produce indexes
-    </span><span class="kw">let </span>(prover_index, verifier_index) = compile_to_indexes(compiled_circuit)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(prover_index, verifier_index) = build(<span class="kw-2">&amp;</span>curr_dir, args.asm, args.debug)<span class="question-mark">?</span>;
 
     <span class="comment">// create COMPILED_DIR
     </span><span class="kw">let </span>compiled_path = curr_dir.join(COMPILED_DIR);
@@ -363,6 +354,29 @@
         .map_err(|e| e.with_source_code(NamedSource::new(file_path.to_string(), code.clone())))<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>((code, tast, deps_tasts))
+}
+
+<span class="kw">pub fn </span>build(
+    curr_dir: <span class="kw-2">&amp;</span>PathBuf,
+    asm: bool,
+    debug: bool,
+) -&gt; miette::Result&lt;(ProverIndex, VerifierIndex)&gt; {
+    <span class="comment">// produce all TASTs
+    </span><span class="kw">let </span>(code, tast, deps_tasts) = produce_all_asts(curr_dir)<span class="question-mark">?</span>;
+
+    <span class="comment">// produce indexes
+    </span><span class="kw">let </span>compiled_circuit = CircuitWriter::generate_circuit(tast, deps_tasts, <span class="kw-2">&amp;</span>code)
+        .into_diagnostic()
+        .map_err(|e| e.with_source_code(NamedSource::new(curr_dir.to_string(), code)))<span class="question-mark">?</span>;
+
+    <span class="kw">if </span>asm {
+        <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, compiled_circuit.asm(debug));
+    }
+
+    <span class="comment">// TODO: cache artifacts
+
+    // produce indexes
+    </span>compile_to_indexes(compiled_circuit).into_diagnostic()
 }
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9565dfeb4 2022-10-28)" ></div></body></html>
