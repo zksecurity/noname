@@ -1,21 +1,9 @@
 use camino::Utf8PathBuf as PathBuf;
-use miette::{Context, IntoDiagnostic, NamedSource, Result};
+use miette::{Context, IntoDiagnostic};
 
-use crate::{
-    circuit_writer::CircuitWriter,
-    cli::packages::path_to_package,
-    compiler::get_tast,
-    inputs::parse_inputs,
-    prover::compile_to_indexes,
-    type_checker::{Dependencies, TypeChecker},
-};
+use crate::inputs::parse_inputs;
 
-use super::{
-    cmd_build_and_check::build,
-    packages::{
-        get_deps_of_package, is_lib, validate_package_and_get_manifest, DependencyGraph, UserRepo,
-    },
-};
+use super::cmd_build_and_check::build;
 
 #[derive(clap::Parser)]
 pub struct CmdProve {
@@ -32,11 +20,11 @@ pub struct CmdProve {
     proof_path: Option<PathBuf>,
 
     /// JSON encoding of the public inputs. For example: `--public-inputs {"a": "1", "b": ["2", "3"]}`.
-    #[clap(long, value_parser)]
+    #[clap(long, value_parser, default_value = "{}")]
     public_inputs: String,
 
     /// JSON encoding of the private inputs. Similar to `--public-inputs` but for private inputs.
-    #[clap(long, value_parser)]
+    #[clap(long, value_parser, default_value = "{}")]
     private_inputs: String,
 }
 
@@ -45,18 +33,15 @@ pub fn cmd_prove(args: CmdProve) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let (prover_index, verifier_index) = build(&curr_dir, false, false)?;
+    let (prover_index, verifier_index) = build(&curr_dir, false, args.debug)?;
 
     // parse inputs
     let public_inputs = parse_inputs(&args.public_inputs).unwrap();
     let private_inputs = parse_inputs(&args.private_inputs).unwrap();
 
     // create proof
-    let (proof, full_public_inputs, public_output) = prover_index
-        .prove(public_inputs, private_inputs, false)
-        .unwrap();
-
-    println!("proof created, with public output `{:?}`. To verify this proof, you will need to also pass the expected public output to the verifier (using the `--public-output` flag).", public_output);
+    let (proof, full_public_inputs, public_output) =
+        prover_index.prove(public_inputs, private_inputs, args.debug)?;
 
     // verify proof
     if args.debug {
@@ -73,6 +58,15 @@ pub fn cmd_prove(args: CmdProve) -> miette::Result<()> {
     std::fs::write(&proof_path, rmp_serde::to_vec(&proof).unwrap())
         .into_diagnostic()
         .wrap_err(format!("could not write the proof to `{proof_path}`"))?;
+
+    // notification
+    if public_output.is_empty() {
+        println!(
+            "proof created at path `{proof_path}`. You can use `noname --verify` to verify it. Note that you will need to pass the same JSON-encoded public inputs as you did when creating the proof. (If you didn't use the `--public-inputs` flag, then you don't need to pass any public inputs.)",
+        );
+    } else {
+        println!("proof created at path `{proof_path}`. Since running the proof produced a  public output `{public:?}`, you will need to also pass the expected public output to the verifier (who can run `noname verify --public-output '{public:?}'`).", public=public_output);
+    }
 
     //
     Ok(())
