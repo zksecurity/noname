@@ -19,7 +19,7 @@ pub struct CmdNew {
     path: PathBuf,
 
     /// is the package a library or a binary?
-    #[clap(short, long)]
+    #[clap(long)]
     lib: bool,
 }
 
@@ -30,7 +30,7 @@ pub struct CmdInit {
     path: Option<PathBuf>,
 
     /// is the package a library or a binary?
-    #[clap(short, long)]
+    #[clap(long)]
     lib: bool,
 }
 

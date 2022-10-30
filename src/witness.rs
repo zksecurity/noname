@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use ark_ff::{Field as _, Zero};
 use itertools::{chain, Itertools};
-use serde::{Deserialize, Serialize};
+//use serde::{Deserialize, Serialize};
 
 use crate::{
     circuit_writer::{CircuitWriter, Gate},

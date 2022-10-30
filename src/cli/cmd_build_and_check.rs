@@ -5,7 +5,7 @@ use crate::{
     circuit_writer::CircuitWriter,
     cli::packages::path_to_package,
     compiler::get_tast,
-    prover::compile_to_indexes,
+    prover::{compile_to_indexes, ProverIndex, VerifierIndex},
     type_checker::{Dependencies, TypeChecker},
 };
 
@@ -22,23 +22,23 @@ pub struct CmdBuild {
     path: Option<PathBuf>,
 
     /// Prints an assembly-like encoding of the circuit.
-    #[clap(short, long)]
+    #[clap(long)]
     asm: bool,
 
     /// Prints a debug version of the assembly. To be used in conjunction with `--asm`.
-    #[clap(short, long)]
+    #[clap(long)]
     debug: bool,
 
     /// In case the path points to a binary,
     /// outputs the prover parameters to the given file.
     /// Defaults to `prover.nope`
-    #[clap(short, long, value_parser)]
+    #[clap(long, value_parser)]
     prover_params: Option<PathBuf>,
 
     /// In case the path points to a binary,
     /// outputs the verifier parameters to the given file.
     /// Defaults to `verifier.nope`
-    #[clap(short, long, value_parser)]
+    #[clap(long, value_parser)]
     verifier_params: Option<PathBuf>,
 }
 
@@ -47,23 +47,7 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    // produce all TASTs
-    let (code, tast, deps_tasts) = produce_all_asts(&curr_dir)?;
-
-    // produce indexes
-    let compiled_circuit = CircuitWriter::generate_circuit(tast, deps_tasts, &code)
-        .into_diagnostic()
-        .map_err(|e| e.with_source_code(NamedSource::new(curr_dir.to_string(), code)))?;
-
-    // asm
-    if args.asm {
-        println!("{}", compiled_circuit.asm(args.debug));
-    }
-
-    // TODO: cache artifacts
-
-    // produce indexes
-    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
+    let (prover_index, verifier_index) = build(&curr_dir, args.asm, args.debug)?;
 
     // create COMPILED_DIR
     let compiled_path = curr_dir.join(COMPILED_DIR);
@@ -180,4 +164,27 @@ fn produce_all_asts(path: &PathBuf) -> Result<(String, TypeChecker, Dependencies
         .map_err(|e| e.with_source_code(NamedSource::new(file_path.to_string(), code.clone())))?;
 
     Ok((code, tast, deps_tasts))
+}
+
+pub fn build(
+    curr_dir: &PathBuf,
+    asm: bool,
+    debug: bool,
+) -> miette::Result<(ProverIndex, VerifierIndex)> {
+    // produce all TASTs
+    let (code, tast, deps_tasts) = produce_all_asts(curr_dir)?;
+
+    // produce indexes
+    let compiled_circuit = CircuitWriter::generate_circuit(tast, deps_tasts, &code)
+        .into_diagnostic()
+        .map_err(|e| e.with_source_code(NamedSource::new(curr_dir.to_string(), code)))?;
+
+    if asm {
+        println!("{}", compiled_circuit.asm(debug));
+    }
+
+    // TODO: cache artifacts
+
+    // produce indexes
+    compile_to_indexes(compiled_circuit).into_diagnostic()
 }
