@@ -133,30 +133,12 @@
 <span id="133">133</span>
 <span id="134">134</span>
 <span id="135">135</span>
-<span id="136">136</span>
-<span id="137">137</span>
-<span id="138">138</span>
-<span id="139">139</span>
-<span id="140">140</span>
-<span id="141">141</span>
 </pre><pre class="rust"><code><span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
-<span class="kw">use </span>miette::{Context, IntoDiagnostic, NamedSource, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span>miette::{Context, IntoDiagnostic};
 
-<span class="kw">use crate</span>::{
-    circuit_writer::CircuitWriter,
-    cli::packages::path_to_package,
-    compiler::get_tast,
-    inputs::parse_inputs,
-    prover::compile_to_indexes,
-    type_checker::{Dependencies, TypeChecker},
-};
+<span class="kw">use </span><span class="kw">crate</span>::inputs::parse_inputs;
 
-<span class="kw">use super</span>::{
-    cmd_build_and_check::build,
-    packages::{
-        get_deps_of_package, is_lib, validate_package_and_get_manifest, DependencyGraph, UserRepo,
-    },
-};
+<span class="kw">use </span><span class="kw">super</span>::cmd_build_and_check::build;
 
 <span class="attribute">#[derive(clap::Parser)]
 </span><span class="kw">pub struct </span>CmdProve {
@@ -173,11 +155,11 @@
     </span>proof_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 
     <span class="doccomment">/// JSON encoding of the public inputs. For example: `--public-inputs {&quot;a&quot;: &quot;1&quot;, &quot;b&quot;: [&quot;2&quot;, &quot;3&quot;]}`.
-    </span><span class="attribute">#[clap(long, value_parser)]
+    </span><span class="attribute">#[clap(long, value_parser, default_value = <span class="string">&quot;{}&quot;</span>)]
     </span>public_inputs: String,
 
     <span class="doccomment">/// JSON encoding of the private inputs. Similar to `--public-inputs` but for private inputs.
-    </span><span class="attribute">#[clap(long, value_parser)]
+    </span><span class="attribute">#[clap(long, value_parser, default_value = <span class="string">&quot;{}&quot;</span>)]
     </span>private_inputs: String,
 }
 
@@ -186,18 +168,15 @@
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    <span class="kw">let </span>(prover_index, verifier_index) = build(<span class="kw-2">&amp;</span>curr_dir, <span class="bool-val">false</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(prover_index, verifier_index) = build(<span class="kw-2">&amp;</span>curr_dir, <span class="bool-val">false</span>, args.debug)<span class="question-mark">?</span>;
 
     <span class="comment">// parse inputs
     </span><span class="kw">let </span>public_inputs = parse_inputs(<span class="kw-2">&amp;</span>args.public_inputs).unwrap();
     <span class="kw">let </span>private_inputs = parse_inputs(<span class="kw-2">&amp;</span>args.private_inputs).unwrap();
 
     <span class="comment">// create proof
-    </span><span class="kw">let </span>(proof, full_public_inputs, public_output) = prover_index
-        .prove(public_inputs, private_inputs, <span class="bool-val">false</span>)
-        .unwrap();
-
-    <span class="macro">println!</span>(<span class="string">&quot;proof created, with public output `{:?}`. To verify this proof, you will need to also pass the expected public output to the verifier (using the `--public-output` flag).&quot;</span>, public_output);
+    </span><span class="kw">let </span>(proof, full_public_inputs, public_output) =
+        prover_index.prove(public_inputs, private_inputs, args.debug)<span class="question-mark">?</span>;
 
     <span class="comment">// verify proof
     </span><span class="kw">if </span>args.debug {
@@ -214,6 +193,15 @@
     std::fs::write(<span class="kw-2">&amp;</span>proof_path, rmp_serde::to_vec(<span class="kw-2">&amp;</span>proof).unwrap())
         .into_diagnostic()
         .wrap_err(<span class="macro">format!</span>(<span class="string">&quot;could not write the proof to `{proof_path}`&quot;</span>))<span class="question-mark">?</span>;
+
+    <span class="comment">// notification
+    </span><span class="kw">if </span>public_output.is_empty() {
+        <span class="macro">println!</span>(
+            <span class="string">&quot;proof created at path `{proof_path}`. You can use `noname --verify` to verify it. Note that you will need to pass the same JSON-encoded public inputs as you did when creating the proof. (If you didn&#39;t use the `--public-inputs` flag, then you don&#39;t need to pass any public inputs.)&quot;</span>,
+        );
+    } <span class="kw">else </span>{
+        <span class="macro">println!</span>(<span class="string">&quot;proof created at path `{proof_path}`. Since running the proof produced a  public output `{public:?}`, you will need to also pass the expected public output to the verifier (who can run `noname verify --public-output &#39;{public:?}&#39;`).&quot;</span>, public=public_output);
+    }
 
     <span class="comment">//
     </span><span class="prelude-val">Ok</span>(())
