@@ -164,12 +164,28 @@ impl CircuitWriter {
         res
     }
 
+    pub fn do_in_submodule<T, F>(&mut self, module: &Option<Ident>, mut closure: F) -> Result<T>
+    where
+        F: FnMut(&mut CircuitWriter) -> Result<T>,
+    {
+        if let Some(module) = module {
+            let prev_current_module = self.current_module.clone();
+            let submodule = self.resolve_module(module)?;
+            self.current_module = Some(submodule.into());
+            let res = closure(self);
+            self.current_module = prev_current_module;
+            res
+        } else {
+            closure(self)
+        }
+    }
+
     pub fn get_fn(&self, module: &Option<Ident>, fn_name: &Ident) -> Result<FnInfo> {
         if let Some(module) = module {
             // we may be parsing a function from a 3rd-party library
             // which might also come from another 3rd-party library
             let module = self.resolve_module(module)?;
-            self.dependencies.get_fn(module, fn_name)
+            self.dependencies.get_fn(module, fn_name) // TODO: add source
         } else {
             let curr_type_checker = self.current_type_checker();
             let fn_info = curr_type_checker
@@ -191,7 +207,7 @@ impl CircuitWriter {
             // we may be parsing a struct from a 3rd-party library
             // which might also come from another 3rd-party library
             let module = self.resolve_module(module)?;
-            self.dependencies.get_struct(module, struct_name)
+            self.dependencies.get_struct(module, struct_name) // TODO: add source
         } else {
             let curr_type_checker = self.current_type_checker();
             let struct_info = curr_type_checker

@@ -85,6 +85,10 @@ impl CompiledCircuit {
                 },
                 Value::Object(mut map),
             ) => {
+                if module.is_some() {
+                    unimplemented!();
+                }
+
                 // get fields of struct
                 let struct_info = self
                     .circuit

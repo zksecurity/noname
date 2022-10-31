@@ -171,7 +171,7 @@ impl TypeChecker {
                 // get struct info
                 let struct_info = self
                     .struct_info(&struct_name.value)
-                    .expect("this struct is not defined");
+                    .expect("this struct is not defined, or you're trying to access a field of a struct defined in a third-party library (TODO: better error)");
 
                 // find field type
                 let res = struct_info

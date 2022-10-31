@@ -324,7 +324,22 @@ impl CircuitWriter {
                 }
 
                 // retrieve the function in the env
-                let fn_info = self.get_fn(module, fn_name)?;
+
+                // let fn_info = self.get_fn(module, fn_name)?;
+
+                let fn_info = self.do_in_submodule(module, |circuit_writer| {
+                    let curr_type_checker = circuit_writer.current_type_checker();
+                    curr_type_checker
+                        .functions
+                        .get(&fn_name.value)
+                        .cloned()
+                        .ok_or_else(|| {
+                            circuit_writer.error(
+                                ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                                fn_name.span,
+                            )
+                        })
+                })?;
 
                 // compute the arguments
                 // module::fn_name(args)
