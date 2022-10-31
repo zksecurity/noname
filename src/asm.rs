@@ -27,122 +27,154 @@ use std::hash::Hash;
 
 use itertools::Itertools;
 
+use crate::circuit_writer::writer::AnnotatedCell;
+use crate::circuit_writer::{CircuitWriter, DebugInfo};
 use crate::{
     circuit_writer::{Gate, Wiring},
     constants::{Field, Span},
     helpers::PrettyField as _,
 };
 
-pub fn generate_asm(
-    source: &str,
-    gates: &[Gate],
-    wiring: &HashMap<usize, Wiring>,
-    debug: bool,
-) -> String {
-    let mut res = "".to_string();
+impl CircuitWriter {
+    pub fn generate_asm(&self, debug: bool) -> String {
+        let mut res = "".to_string();
 
-    // version
-    res.push_str("@ noname.0.6.0\n\n");
+        // version
+        res.push_str("@ noname.0.6.0\n\n");
 
-    // vars
-    let mut vars = OrderedHashSet::default();
+        // vars
+        let mut vars = OrderedHashSet::default();
 
-    for Gate { coeffs, .. } in gates {
-        extract_vars_from_coeffs(&mut vars, coeffs);
-    }
+        let gates = self.compiled_gates();
 
-    if debug && !vars.is_empty() {
-        title(&mut res, "VARS");
-    }
-
-    for (idx, var) in vars.iter().enumerate() {
-        writeln!(res, "c{idx} = {}", var.pretty()).unwrap();
-    }
-
-    // gates
-    if debug {
-        title(&mut res, "GATES");
-    }
-
-    for (
-        row,
-        Gate {
-            typ,
-            coeffs,
-            span,
-            note,
-        },
-    ) in gates.iter().enumerate()
-    {
-        // gate #
-        if debug {
-            writeln!(res, "╭{s}\n", s = "─".repeat(80)).unwrap();
-            write!(res, "│ GATE {row} - ").unwrap();
+        for Gate { coeffs, .. } in gates {
+            extract_vars_from_coeffs(&mut vars, coeffs);
         }
 
-        // gate
-        write!(res, "{typ:?}").unwrap();
+        if debug && !vars.is_empty() {
+            title(&mut res, "VARS");
+        }
 
-        // coeffs
+        for (idx, var) in vars.iter().enumerate() {
+            writeln!(res, "c{idx} = {}", var.pretty()).unwrap();
+        }
+
+        // gates
+        if debug {
+            title(&mut res, "GATES");
+        }
+
+        for (row, (Gate { typ, coeffs }, debug_info)) in
+            gates.iter().zip(&self.debug_info).enumerate()
         {
-            let coeffs = parse_coeffs(&vars, coeffs);
-            if !coeffs.is_empty() {
-                res.push('<');
-                res.push_str(&coeffs.join(","));
-                res.push_str(">");
+            // gate #
+            if debug {
+                writeln!(res, "╭{s}", s = "─".repeat(80)).unwrap();
+                write!(res, "│ GATE {row} - ").unwrap();
+            }
+
+            // gate
+            write!(res, "{typ:?}").unwrap();
+
+            // coeffs
+            {
+                let coeffs = parse_coeffs(&vars, coeffs);
+                if !coeffs.is_empty() {
+                    res.push('<');
+                    res.push_str(&coeffs.join(","));
+                    res.push_str(">");
+                }
+            }
+
+            res.push('\n');
+
+            if debug {
+                // source
+                self.display_source(&mut res, &[debug_info.clone()]);
+
+                // note
+                res.push_str("    ▲\n");
+                writeln!(res, "    ╰── {note}", note = debug_info.note).unwrap();
+
+                //
+                res.push_str("\n\n");
             }
         }
 
-        res.push('\n');
-
+        // wiring
         if debug {
+            title(&mut res, "WIRING");
+        }
+
+        let mut cycles: Vec<_> = self
+            .wiring
+            .values()
+            .map(|w| match w {
+                Wiring::NotWired(_) => None,
+                Wiring::Wired(annotated_cells) => Some(annotated_cells),
+            })
+            .filter(Option::is_some)
+            .flatten()
+            .collect();
+
+        // we must have a deterministic sort for the cycles,
+        // otherwise the same circuit might have different representations
+        cycles.sort();
+
+        for annotated_cells in cycles {
+            let (cells, debug_infos): (Vec<_>, Vec<_>) = annotated_cells
+                .into_iter()
+                .map(|AnnotatedCell { cell, debug }| (cell.clone(), debug.clone()))
+                .unzip();
+
+            if debug {
+                self.display_source(&mut res, &debug_infos);
+            }
+
+            let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
+            writeln!(res, "{s}").unwrap();
+
+            if debug {
+                writeln!(res, "\n").unwrap();
+            }
+        }
+
+        res
+    }
+
+    fn display_source(&self, res: &mut String, debug_infos: &[DebugInfo]) {
+        for DebugInfo { module, span, note } in debug_infos {
+            // find filename and source
+            let file = self.get_file(module);
+            let source = self.get_source(module);
+
+            // top corner
+            res.push('╭');
+            res.push_str(&"─".repeat(80));
+            res.push('\n');
+
+            // display filename
+            writeln!(res, "│ FILE: {}", file).unwrap();
+            writeln!(res, "│{s}", s = "─".repeat(80)).unwrap();
+
             // source
-            display_source(&mut res, source, &[*span]);
+            res.push_str("│ ");
+            let (line_number, start, line) = find_exact_line(source, *span);
+            let header = format!("{line_number}: ");
+            writeln!(res, "{header}{line}").unwrap();
 
-            // note
-            res.push_str("    ▲\n");
-            writeln!(res, "    ╰── {note}").unwrap();
-
-            //
-            res.push_str("\n\n");
-        }
-    }
-
-    // wiring
-    if debug {
-        title(&mut res, "WIRING");
-    }
-
-    let mut cycles: Vec<_> = wiring
-        .values()
-        .map(|w| match w {
-            Wiring::NotWired(_) => None,
-            Wiring::Wired(cells_and_spans) => Some(cells_and_spans),
-        })
-        .filter(Option::is_some)
-        .flatten()
-        .collect();
-
-    // we must have a deterministic sort for the cycles,
-    // otherwise the same circuit might have different representations
-    cycles.sort();
-
-    for cells_and_spans in cycles {
-        let (cells, spans): (Vec<_>, Vec<_>) = cells_and_spans.iter().cloned().unzip();
-
-        if debug {
-            display_source(&mut res, source, &spans);
+            // caption
+            res.push('│');
+            res.push_str(&" ".repeat(header.len() + 1 + span.0 - start));
+            res.push_str(&"^".repeat(span.1));
+            res.push('\n');
         }
 
-        let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
-        writeln!(res, "{s}").unwrap();
-
-        if debug {
-            writeln!(res, "\n").unwrap();
-        }
+        // bottom corner
+        res.push('╰');
+        res.push_str(&"─".repeat(80));
+        res.push('\n');
     }
-
-    res
 }
 
 fn extract_vars_from_coeffs(vars: &mut OrderedHashSet<Field>, coeffs: &[Field]) {
@@ -192,32 +224,6 @@ fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
     let line_number = source[..start].matches('\n').count() + 1;
 
     (line_number, start, line)
-}
-
-fn display_source(res: &mut String, source: &str, spans: &[Span]) {
-    for span in spans {
-        // top corner
-        res.push('╭');
-        res.push_str(&"─".repeat(80));
-        res.push('\n');
-
-        // source
-        res.push_str("│ ");
-        let (line_number, start, line) = find_exact_line(source, *span);
-        let header = format!("{line_number}: ");
-        writeln!(res, "{header}{line}").unwrap();
-
-        // caption
-        res.push('│');
-        res.push_str(&" ".repeat(header.len() + 1 + span.0 - start));
-        res.push_str(&"^".repeat(span.1));
-        res.push('\n');
-    }
-
-    // bottom corner
-    res.push('╰');
-    res.push_str(&"─".repeat(80));
-    res.push('\n');
 }
 
 fn title(res: &mut String, s: &str) {

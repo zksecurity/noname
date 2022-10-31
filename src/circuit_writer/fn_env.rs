@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{parser::TyKind, var::Var};
+use crate::{parser::types::TyKind, var::Var};
 
 /// Information about a variable.
 #[derive(Debug, Clone)]

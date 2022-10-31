@@ -7,7 +7,7 @@ use miette::Diagnostic;
 use num_bigint::BigUint;
 use thiserror::Error;
 
-use crate::{constants::Field, parser::TyKind, witness::CompiledCircuit};
+use crate::{constants::Field, parser::types::TyKind, witness::CompiledCircuit};
 
 //
 // Errors

@@ -45,10 +45,7 @@ pub fn cmd_prove(args: CmdProve) -> miette::Result<()> {
 
     // verify proof
     if args.debug {
-        verifier_index
-            .verify(full_public_inputs, proof.clone())
-            .into_diagnostic()
-            .wrap_err("Failed to verify proof")?;
+        verifier_index.verify(full_public_inputs, proof.clone())?;
     }
 
     // serialize proof
@@ -131,5 +128,6 @@ pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
             .wrap_err("Failed to verify proof")?;
     */
     //
+
     Ok(())
 }

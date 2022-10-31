@@ -4,13 +4,14 @@ use crate::{
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    parser::{AttributeKind, Expr, FnArg, Ident, TyKind, UsePath},
+    parser::types::{AttributeKind, Expr, FnArg, Ident, TyKind, UsePath},
     type_checker::{Dependencies, FnInfo, StructInfo, TypeChecker},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,
 };
 
 pub use fn_env::{FnEnv, VarInfo};
+use serde::{Deserialize, Serialize};
 //use serde::{Deserialize, Serialize};
 pub use writer::{Gate, GateKind, Wiring};
 
@@ -22,10 +23,6 @@ pub mod writer;
 //#[derive(Debug, Serialize, Deserialize)]
 #[derive(Debug)]
 pub struct CircuitWriter {
-    /// The source code of this module.
-    /// Useful for debugging and displaying user errors.
-    pub(crate) source: String,
-
     /// The type checker state for the main module.
     // Important: this field must not be used directly.
     // This is because, depending on the value of [current_module],
@@ -40,7 +37,7 @@ pub struct CircuitWriter {
     // Note: this can be an alias that came from a 3rd party library.
     // For example, a 3rd party library might have written `use a::b as c;`.
     // For this reason we must store this as a fully-qualified module.
-    current_module: Option<UserRepo>,
+    pub(crate) current_module: Option<UserRepo>,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
     // Note: I don't think we need this, but it acts as a nice redundant failsafe.
@@ -93,6 +90,22 @@ pub struct CircuitWriter {
     /// We cache the association between a constant and its _constrained_ variable,
     /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
     pub(crate) cached_constants: HashMap<Field, CellVar>,
+
+    /// A vector of debug information that maps to each row of the created circuit.
+    pub(crate) debug_info: Vec<DebugInfo>,
+}
+
+/// Debug information related to a single row in a circuit.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DebugInfo {
+    /// The file in which the source comes from
+    pub module: Option<UserRepo>,
+
+    /// The place in the original source code that created that gate.
+    pub span: Span,
+
+    /// A note on why this was added
+    pub note: String,
 }
 
 impl CircuitWriter {
@@ -188,6 +201,30 @@ impl CircuitWriter {
         }
     }
 
+    pub fn get_source(&self, module: &Option<UserRepo>) -> &str {
+        if let Some(module) = module {
+            &self
+                .dependencies
+                .get_type_checker(module)
+                .expect(&format!(
+                    "type checker bug: can't find current module's (`{module:?}`) file"
+                ))
+                .src
+        } else {
+            &self.typed.src
+        }
+    }
+
+    pub fn get_file(&self, module: &Option<UserRepo>) -> &str {
+        if let Some(module) = module {
+            &self.dependencies.get_file(module).expect(&format!(
+                "type checker bug: can't find current module's (`{module:?}`) file"
+            ))
+        } else {
+            &self.typed.filename
+        }
+    }
+
     pub fn add_local_var(&self, fn_env: &mut FnEnv, var_name: String, var_info: VarInfo) {
         // check for consts first
         let type_checker = self.current_type_checker();
@@ -224,13 +261,31 @@ impl CircuitWriter {
 }
 
 impl CircuitWriter {
-    pub fn generate_circuit(
-        typed: TypeChecker,
-        deps: Dependencies,
-        code: &str,
-    ) -> Result<CompiledCircuit> {
+    /// Creates a global environment from the one created by the type checker.
+    fn new(typed: TypeChecker, dependencies: Dependencies) -> Self {
+        Self {
+            typed,
+            dependencies,
+            current_module: None,
+            finalized: false,
+            next_variable: 0,
+            witness_vars: HashMap::new(),
+            rows_of_vars: vec![],
+            gates: vec![],
+            wiring: HashMap::new(),
+            public_input_size: 0,
+            public_output: None,
+            private_input_indices: vec![],
+            double_generic_gate_optimization: false,
+            pending_generic_gate: None,
+            cached_constants: HashMap::new(),
+            debug_info: vec![],
+        }
+    }
+
+    pub fn generate_circuit(typed: TypeChecker, deps: Dependencies) -> Result<CompiledCircuit> {
         // create circuit writer
-        let mut circuit_writer = CircuitWriter::new(code, typed, deps);
+        let mut circuit_writer = CircuitWriter::new(typed, deps);
 
         // get main function
         let main_fn_info = circuit_writer

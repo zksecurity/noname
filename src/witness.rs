@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ark_ff::{Field as _, Zero};
-use itertools::{chain, Itertools};
+use itertools::{chain, izip, Itertools};
 //use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -79,7 +79,7 @@ impl CompiledCircuit {
     }
 
     pub fn asm(&self, debug: bool) -> String {
-        self.circuit.asm(debug)
+        self.circuit.generate_asm(debug)
     }
 
     pub fn compiled_gates(&self) -> &[Gate] {
@@ -181,12 +181,9 @@ impl CompiledCircuit {
         // compute each rows' vars, except for the deferred ones (public output)
         let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
 
-        for (row, (row_of_vars, gate)) in self
-            .circuit
-            .rows_of_vars
-            .iter()
-            .zip_eq(self.circuit.compiled_gates())
-            .enumerate()
+        let gates = self.circuit.compiled_gates();
+        for (row, (gate, row_of_vars, debug_info)) in
+            izip!(gates, &self.circuit.rows_of_vars, &self.circuit.debug_info).enumerate()
         {
             // create the witness row
             let mut witness_row = [Field::zero(); NUM_REGISTERS];
@@ -222,7 +219,10 @@ impl CompiledCircuit {
                         let sum2 =
                             c(5) * w[3] + c(6) * w[4] + c(7) * w[5] + c(8) * w[3] * w[4] + c(9);
                         if sum1 != Field::zero() || sum2 != Field::zero() {
-                            return Err(Error::new(ErrorKind::InvalidWitness(row), gate.span));
+                            return Err(Error::new(
+                                ErrorKind::InvalidWitness(row),
+                                debug_info.span,
+                            ));
                         }
                     }
                     // for all other gates, we trust the gadgets

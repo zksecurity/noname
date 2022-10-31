@@ -7,33 +7,17 @@ use crate::{
     witness::CompiledCircuit,
 };
 
-pub fn compile(code: &str, deps: Dependencies) -> Result<CompiledCircuit> {
-    // lexer
-    let tokens = Token::parse(code)?;
-
-    // AST
-    let ast = AST::parse(tokens)?;
-
-    // TAST
-    let tast = TypeChecker::analyze(ast, &deps)?;
-
-    // type checker + compiler
-    let circuit = CircuitWriter::generate_circuit(tast, deps, code)?;
-
-    //
-    Ok(circuit)
+pub fn compile_single(filename: String, code: String) -> Result<CompiledCircuit> {
+    let tast = get_tast_single(filename, code)?;
+    CircuitWriter::generate_circuit(tast, Dependencies::default())
 }
 
-pub fn get_tast(code: &str, deps: &Dependencies) -> miette::Result<TypeChecker> {
-    // lexer
-    let tokens = Token::parse(code)?;
+pub fn get_tast_single(filename: String, code: String) -> Result<TypeChecker> {
+    get_tast(filename, code, &Dependencies::default())
+}
 
-    // AST
-    let ast = AST::parse(tokens)?;
-
-    // TAST
-    let tast = TypeChecker::analyze(ast, deps)?;
-
-    //
-    Ok(tast)
+pub fn get_tast(filename: String, code: String, deps: &Dependencies) -> Result<TypeChecker> {
+    let tokens = Token::parse(&filename, &code)?;
+    let ast = AST::parse(&filename, &code, tokens)?;
+    TypeChecker::analyze(filename, code, ast, deps)
 }

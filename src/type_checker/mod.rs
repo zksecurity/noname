@@ -5,7 +5,10 @@ use crate::{
     constants::Field,
     error::{Error, ErrorKind, Result},
     imports::FnKind,
-    parser::{Const, Function, Ident, RootKind, Struct, Ty, TyKind, UsePath, AST},
+    parser::{
+        types::{Const, Function, Ident, RootKind, Struct, Ty, TyKind, UsePath},
+        AST,
+    },
     stdlib::get_std_fn,
 };
 
@@ -22,13 +25,21 @@ const RESERVED_ARGS: [&str; 1] = ["public_output"];
 /// Contains metadata from other dependencies that might be use in this module.
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Dependencies {
-    /// Maps each `user/repo` to their type checker and source.
-    pub deps: HashMap<UserRepo, (TypeChecker, String, String)>,
+    /// Maps each `user/repo` to their filename and type checker state.
+    deps: HashMap<UserRepo, (String, TypeChecker)>,
 }
 
 impl Dependencies {
+    pub fn get_file(&self, user_repo: &UserRepo) -> Option<&String> {
+        self.deps.get(user_repo).map(|(file, _)| file)
+    }
+
     pub fn get_type_checker(&self, user_repo: &UserRepo) -> Option<&TypeChecker> {
-        self.deps.get(user_repo).map(|(tast, _, _)| tast)
+        self.deps.get(user_repo).map(|(_, tc)| tc)
+    }
+
+    pub fn add_type_checker(&mut self, user_repo: UserRepo, file: String, tc: TypeChecker) {
+        assert!(self.deps.insert(user_repo, (file, tc)).is_none());
     }
 
     /// Expects the real use_path
@@ -41,7 +52,7 @@ impl Dependencies {
         }
 
         // then check in imported dependencies
-        let (tast, _source_path, _source) = self.deps.get(&user_repo).ok_or_else(|| {
+        let tast = self.get_type_checker(&user_repo).ok_or_else(|| {
             Error::new(
                 ErrorKind::UnknownDependency(user_repo.to_string()),
                 use_path.span,
@@ -69,7 +80,7 @@ impl Dependencies {
         }
 
         // then check in imported dependencies
-        let (tast, _source_path, _source) = self.deps.get(&user_repo).ok_or_else(|| {
+        let tast = self.get_type_checker(&user_repo).ok_or_else(|| {
             Error::new(
                 ErrorKind::UnknownDependency(user_repo.to_string()),
                 use_path.span,
@@ -100,8 +111,14 @@ pub struct ConstInfo {
 }
 
 /// The environment we use to type check a noname program.
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TypeChecker {
+    /// The filename containining the code
+    pub filename: String,
+
+    /// The source code
+    pub src: String,
+
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
     pub functions: HashMap<String, FnInfo>,
@@ -121,15 +138,27 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
+    fn new(filename: String, src: String) -> Self {
+        Self {
+            filename,
+            src,
+            functions: HashMap::new(),
+            modules: HashMap::new(),
+            structs: HashMap::new(),
+            constants: HashMap::new(),
+            node_types: HashMap::new(),
+        }
+    }
+
     /// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    pub fn analyze(ast: AST, deps: &Dependencies) -> Result<Self> {
+    pub fn analyze(filename: String, code: String, ast: AST, deps: &Dependencies) -> Result<Self> {
         //
         // inject some utility builtin functions in the scope
         //
 
-        let mut type_checker = TypeChecker::default();
+        let mut type_checker = TypeChecker::new(filename, code);
 
         // TODO: should we really import them by default?
         type_checker.resolve_global_imports()?;

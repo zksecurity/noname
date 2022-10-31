@@ -8,7 +8,7 @@ use std::vec::IntoIter;
 use crate::{
     error::{Error, ErrorKind, Result},
     lexer::{Token, TokenKind},
-    parser::{Ident, ParserCtx},
+    parser::{types::Ident, ParserCtx},
 };
 
 #[derive(Debug)]
@@ -55,7 +55,7 @@ impl Tokens {
     /// Like [Self::bump] but errors with `err` pointing to the latest token
     pub fn bump_err(&mut self, ctx: &mut ParserCtx, err: ErrorKind) -> Result<Token> {
         self.bump(ctx)
-            .ok_or_else(|| Error::new(err, ctx.last_span()))
+            .ok_or_else(|| ctx.error(err, ctx.last_span()))
     }
 
     /// Like [Self::bump] but errors if the token is not `typ`
@@ -64,7 +64,7 @@ impl Tokens {
         if token.kind == typ {
             Ok(token)
         } else {
-            Err(Error::new(ErrorKind::ExpectedToken(typ), ctx.last_span()))
+            Err(ctx.error(ErrorKind::ExpectedToken(typ), ctx.last_span()))
         }
     }
 
@@ -74,8 +74,8 @@ impl Tokens {
                 kind: TokenKind::Identifier(value),
                 span,
             }) => Ok(Ident { value: value, span }),
-            Some(token) => Err(Error::new(kind, token.span)),
-            None => Err(Error::new(kind, ctx.last_span())),
+            Some(token) => Err(ctx.error(kind, token.span)),
+            None => Err(ctx.error(kind, ctx.last_span())),
         }
     }
 }

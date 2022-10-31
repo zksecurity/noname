@@ -1,11 +1,11 @@
-use miette::Diagnostic;
+use miette::{Diagnostic, NamedSource};
 use thiserror::Error;
 
 use crate::{
     constants::Span,
     inputs::ParsingError,
     lexer::TokenKind,
-    parser::{AttributeKind, TyKind},
+    parser::types::{AttributeKind, TyKind},
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -21,12 +21,31 @@ pub struct Error {
     /// Indicate where the error occurred in the source code.
     #[label("here")]
     pub span: Span,
+
+    #[source_code]
+    pub src: NamedSource,
 }
 
 impl Error {
     /// Creates a new [Error] from an [ErrorKind].
     pub fn new(kind: ErrorKind, span: Span) -> Self {
-        Self { kind, span }
+        Self {
+            kind,
+            span,
+            src: NamedSource::new("", "".to_string()),
+        }
+    }
+
+    pub fn new_with_source(kind: ErrorKind, src: NamedSource, span: Span) -> Self {
+        Self { kind, span, src }
+    }
+
+    pub fn new_with_code(kind: ErrorKind, source_file: &str, code: String, span: Span) -> Self {
+        Self {
+            kind,
+            span,
+            src: NamedSource::new(source_file, code),
+        }
     }
 }
 

@@ -9,7 +9,10 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::{BuiltinModule, FnHandle, FnKind, Module, ModuleKind},
     lexer::Token,
-    parser::{FnSig, ParserCtx, TyKind},
+    parser::{
+        types::{FnSig, TyKind},
+        ParserCtx,
+    },
     type_checker::FnInfo,
     var::{ConstOrCell, Var},
 };
@@ -49,7 +52,7 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> HashMap<String, FnInfo> {
     let ctx = &mut ParserCtx::default();
 
     for (sig, fn_ptr) in fn_sigs {
-        let mut tokens = Token::parse(sig).unwrap();
+        let mut tokens = Token::parse("<BUILTIN>", sig).unwrap();
 
         let sig = FnSig::parse(ctx, &mut tokens).unwrap();
 

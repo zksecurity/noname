@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
-    parser::TyKind,
+    parser::types::TyKind,
 };
 
 /// Some type information on local variables that we want to track in the [TypedFnEnv] environment.

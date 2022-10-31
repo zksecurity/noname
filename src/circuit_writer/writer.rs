@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fmt::{self, Display, Formatter},
     ops::Neg,
 };
@@ -11,15 +10,14 @@ use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    asm, boolean,
-    circuit_writer::{CircuitWriter, FnEnv, VarInfo},
+    boolean,
+    circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     field,
     imports::FnKind,
-    parser::{Expr, ExprKind, Function, Ident, Op2, Stmt, StmtKind, TyKind, UsePath},
+    parser::types::{Expr, ExprKind, Function, Op2, Stmt, StmtKind, TyKind},
     syntax::is_type,
-    type_checker::{Dependencies, FnInfo, StructInfo, TypeChecker},
     var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
 };
 
@@ -54,12 +52,6 @@ pub struct Gate {
     /// Coefficients
     #[serde(skip)]
     pub coeffs: Vec<Field>,
-
-    /// The place in the original source code that created that gate.
-    pub span: Span,
-
-    /// A note on why this was added
-    pub note: &'static str,
 }
 
 impl Gate {
@@ -87,9 +79,33 @@ impl Display for Cell {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Wiring {
     /// Not yet wired (just indicates the position of the cell itself)
-    NotWired(Cell),
+    NotWired(AnnotatedCell),
     /// The wiring (associated to different spans)
-    Wired(Vec<(Cell, Span)>),
+    Wired(Vec<AnnotatedCell>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq)]
+pub struct AnnotatedCell {
+    pub(crate) cell: Cell,
+    pub(crate) debug: DebugInfo,
+}
+
+impl PartialEq for AnnotatedCell {
+    fn eq(&self, other: &Self) -> bool {
+        self.cell == other.cell
+    }
+}
+
+impl PartialOrd for AnnotatedCell {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.cell.partial_cmp(&other.cell)
+    }
+}
+
+impl Ord for AnnotatedCell {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.cell.cmp(&other.cell)
+    }
 }
 
 //
@@ -97,28 +113,6 @@ pub enum Wiring {
 //
 
 impl CircuitWriter {
-    /// Creates a global environment from the one created by the type checker.
-    pub fn new(code: &str, typed: TypeChecker, dependencies: Dependencies) -> Self {
-        Self {
-            source: code.to_string(),
-            typed,
-            dependencies,
-            current_module: None,
-            finalized: false,
-            next_variable: 0,
-            witness_vars: HashMap::new(),
-            rows_of_vars: vec![],
-            gates: vec![],
-            wiring: HashMap::new(),
-            public_input_size: 0,
-            public_output: None,
-            private_input_indices: vec![],
-            double_generic_gate_optimization: false,
-            pending_generic_gate: None,
-            cached_constants: HashMap::new(),
-        }
-    }
-
     /// Returns the compiled gates of the circuit.
     pub fn compiled_gates(&self) -> &[Gate] {
         if !self.finalized {
@@ -303,10 +297,6 @@ impl CircuitWriter {
                 Ok(())
             }
         }
-    }
-
-    pub fn asm(&self, debug: bool) -> String {
-        asm::generate_asm(&self.source, &self.gates, &self.wiring, debug)
     }
 
     pub fn new_internal_var(&mut self, val: Value, span: Span) -> CellVar {
@@ -804,28 +794,36 @@ impl CircuitWriter {
         let row = self.gates.len();
 
         // add gate
-        self.gates.push(Gate {
-            typ,
-            coeffs,
+        self.gates.push(Gate { typ, coeffs });
+
+        // add debug info related to that gate
+        let debug_info = DebugInfo {
+            module: self.current_module.clone(),
             span,
-            note,
-        });
+            note: note.to_string(),
+        };
+        self.debug_info.push(debug_info.clone());
 
         // wiring (based on vars)
         for (col, var) in vars.iter().enumerate() {
             if let Some(var) = var {
                 let curr_cell = Cell { row, col };
+                let annotated_cell = AnnotatedCell {
+                    cell: curr_cell,
+                    debug: debug_info.clone(),
+                };
+
                 self.wiring
                     .entry(var.index)
                     .and_modify(|w| match w {
-                        Wiring::NotWired(cell) => {
-                            *w = Wiring::Wired(vec![(*cell, var.span), (curr_cell, span)])
+                        Wiring::NotWired(old_cell) => {
+                            *w = Wiring::Wired(vec![old_cell.clone(), annotated_cell.clone()])
                         }
                         Wiring::Wired(ref mut cells) => {
-                            cells.push((curr_cell, span));
+                            cells.push(annotated_cell.clone());
                         }
                     })
-                    .or_insert(Wiring::NotWired(curr_cell));
+                    .or_insert(Wiring::NotWired(annotated_cell));
             }
         }
     }

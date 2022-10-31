@@ -6,7 +6,7 @@ use crate::{
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
     error::Result,
-    parser::{FnSig, Function, UsePath},
+    parser::types::{FnSig, Function, UsePath},
     stdlib::{self, parse_fn_sigs, BUILTIN_FNS},
     type_checker::{FnInfo, TypeChecker},
     var::Var,

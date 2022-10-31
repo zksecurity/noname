@@ -1,10 +1,11 @@
 use camino::Utf8PathBuf as PathBuf;
-use miette::{Context, IntoDiagnostic, NamedSource, Result};
+use miette::{Context, IntoDiagnostic, Result};
 
 use crate::{
     circuit_writer::CircuitWriter,
     cli::packages::path_to_package,
-    compiler::get_tast,
+    compiler::{compile_single, get_tast},
+    inputs::{parse_inputs, JsonInputs},
     prover::{compile_to_indexes, ProverIndex, VerifierIndex},
     type_checker::{Dependencies, TypeChecker},
 };
@@ -109,7 +110,7 @@ pub fn cmd_check(args: CmdCheck) -> Result<()> {
     Ok(())
 }
 
-fn produce_all_asts(path: &PathBuf) -> Result<(String, TypeChecker, Dependencies)> {
+fn produce_all_asts(path: &PathBuf) -> Result<(TypeChecker, Dependencies)> {
     // find manifest
     let manifest = validate_package_and_get_manifest(&path, false)?;
 
@@ -138,9 +139,8 @@ fn produce_all_asts(path: &PathBuf) -> Result<(String, TypeChecker, Dependencies
             .wrap_err_with(|| format!("could not read file `{path}`"))?;
 
         let lib_file_str = lib_file.to_string();
-        let tast = get_tast(&code, &deps_tasts)
-            .map_err(|e| e.with_source_code(NamedSource::new(&lib_file_str, code.clone())))?;
-        deps_tasts.deps.insert(dep, (tast, lib_file_str, code));
+        let tast = get_tast(lib_file_str.clone(), code, &deps_tasts)?;
+        deps_tasts.add_type_checker(dep, lib_file_str, tast);
     }
 
     // produce artifact for this one
@@ -160,10 +160,9 @@ fn produce_all_asts(path: &PathBuf) -> Result<(String, TypeChecker, Dependencies
         .into_diagnostic()
         .wrap_err_with(|| format!("could not read file `{file_path}`"))?;
 
-    let tast = get_tast(&code, &deps_tasts)
-        .map_err(|e| e.with_source_code(NamedSource::new(file_path.to_string(), code.clone())))?;
+    let tast = get_tast(file_path.to_string(), code, &deps_tasts)?;
 
-    Ok((code, tast, deps_tasts))
+    Ok((tast, deps_tasts))
 }
 
 pub fn build(
@@ -172,12 +171,10 @@ pub fn build(
     debug: bool,
 ) -> miette::Result<(ProverIndex, VerifierIndex)> {
     // produce all TASTs
-    let (code, tast, deps_tasts) = produce_all_asts(curr_dir)?;
+    let (tast, deps_tasts) = produce_all_asts(curr_dir)?;
 
     // produce indexes
-    let compiled_circuit = CircuitWriter::generate_circuit(tast, deps_tasts, &code)
-        .into_diagnostic()
-        .map_err(|e| e.with_source_code(NamedSource::new(curr_dir.to_string(), code)))?;
+    let compiled_circuit = CircuitWriter::generate_circuit(tast, deps_tasts).into_diagnostic()?;
 
     if asm {
         println!("{}", compiled_circuit.asm(debug));
@@ -186,5 +183,69 @@ pub fn build(
     // TODO: cache artifacts
 
     // produce indexes
-    compile_to_indexes(compiled_circuit).into_diagnostic()
+    compile_to_indexes(compiled_circuit)
+}
+
+#[derive(clap::Parser)]
+pub struct CmdTest {
+    /// path to the .no file
+    #[clap(short, long, value_parser)]
+    path: PathBuf,
+
+    /// public inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
+    #[clap(long)]
+    public_inputs: Option<String>,
+
+    /// private inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
+    #[clap(long)]
+    private_inputs: Option<String>,
+
+    /// prints debug information (defaults to false)
+    #[clap(short, long)]
+    debug: bool,
+}
+
+pub fn cmd_test(args: CmdTest) -> Result<()> {
+    // read source code
+    let code = std::fs::read_to_string(&args.path)
+        .into_diagnostic()
+        .wrap_err_with(|| {
+            format!(
+                "could not read file: `{}` (are you sure it exists?)",
+                args.path
+            )
+        })?;
+
+    // parse inputs
+    let public_inputs = if let Some(s) = args.public_inputs {
+        parse_inputs(&s)?
+    } else {
+        JsonInputs::default()
+    };
+
+    let private_inputs = if let Some(s) = args.private_inputs {
+        parse_inputs(&s)?
+    } else {
+        JsonInputs::default()
+    };
+
+    // compile
+    let compiled_circuit = compile_single(args.path.to_string(), code)?;
+    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
+    println!("successfuly compiled");
+
+    // print ASM
+    let asm = prover_index.asm(args.debug);
+    println!("{asm}");
+
+    // create proof
+    let (proof, full_public_inputs, _public_output) =
+        prover_index.prove(public_inputs, private_inputs, args.debug)?;
+    println!("proof created");
+
+    // verify proof
+    verifier_index.verify(full_public_inputs, proof)?;
+    println!("proof verified");
+
+    Ok(())
 }

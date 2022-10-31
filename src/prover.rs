@@ -3,17 +3,14 @@
 use std::iter::once;
 
 use crate::{
-    circuit_writer::Wiring,
-    constants::{Field, Span},
-    error::{Error, Result},
-    inputs::JsonInputs,
-    witness::CompiledCircuit,
+    circuit_writer::Wiring, constants::Field, inputs::JsonInputs, witness::CompiledCircuit,
 };
 
 use itertools::chain;
 use kimchi::{
     commitment_dlog::commitment::CommitmentCurve, groupmap::GroupMap, proof::ProverProof,
 };
+use miette::{Context, IntoDiagnostic};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
@@ -58,7 +55,7 @@ pub struct VerifierIndex {
 
 pub fn compile_to_indexes(
     compiled_circuit: CompiledCircuit,
-) -> Result<(ProverIndex, VerifierIndex)> {
+) -> miette::Result<(ProverIndex, VerifierIndex)> {
     // convert gates to kimchi gates
     let mut gates: Vec<_> = compiled_circuit
         .compiled_gates()
@@ -69,9 +66,11 @@ pub fn compile_to_indexes(
 
     // wiring
     for wiring in compiled_circuit.circuit.wiring.values() {
-        if let Wiring::Wired(cells_and_spans) = wiring {
+        if let Wiring::Wired(annotated_cells) = wiring {
             // all the wired cells form a cycle, remember!
-            let mut wired_cells = cells_and_spans.iter().map(|(cell, _)| cell).copied();
+            let mut wired_cells = annotated_cells
+                .iter()
+                .map(|annotated_cell| annotated_cell.cell);
             assert!(wired_cells.len() > 1);
 
             let first_cell = wired_cells.next().unwrap(); // for the cycle
@@ -91,7 +90,8 @@ pub fn compile_to_indexes(
     let cs = kimchi::circuits::constraints::ConstraintSystem::create(gates)
         .public(compiled_circuit.circuit.public_input_size)
         .build()
-        .map_err(|e| Error::new(e.into(), Span(0, 0)))?;
+        .into_diagnostic()
+        .wrap_err("kimchi: could not create a constraint system with the given circuit and public input size")?;
 
     // create SRS (for vesta, as the circuit is in Fp)
     let mut srs = kimchi::commitment_dlog::srs::SRS::<Curve>::create(cs.domain.d1.size as usize);
@@ -144,7 +144,7 @@ impl ProverIndex {
         public_inputs: JsonInputs,
         private_inputs: JsonInputs,
         debug: bool,
-    ) -> Result<(ProverProof<Curve>, Vec<Field>, Vec<Field>)> {
+    ) -> miette::Result<(ProverProof<Curve>, Vec<Field>, Vec<Field>)> {
         // generate the witness
         let (witness, full_public_inputs, public_output) = self
             .compiled_circuit
@@ -169,10 +169,11 @@ impl ProverIndex {
         // create proof
         let proof =
             ProverProof::create::<BaseSponge, ScalarSponge>(&GROUP_MAP, witness, &[], &self.index)
-                .map_err(|e| Error::new(e.into(), Span(0, 0)));
+                .into_diagnostic()
+                .wrap_err("kimchi: could not create a proof with the given inputs")?;
 
         // return proof + public output
-        proof.map(|proof| (proof, full_public_inputs, public_output))
+        Ok((proof, full_public_inputs, public_output))
     }
 }
 
@@ -181,13 +182,18 @@ impl ProverIndex {
 //
 
 impl VerifierIndex {
-    pub fn verify(&self, full_public_inputs: Vec<Field>, proof: ProverProof<Curve>) -> Result<()> {
+    pub fn verify(
+        &self,
+        full_public_inputs: Vec<Field>,
+        proof: ProverProof<Curve>,
+    ) -> miette::Result<()> {
         // pass the public input in the proof
         let mut proof = proof;
         proof.public = full_public_inputs;
 
         // verify the proof
         kimchi::verifier::verify::<Curve, BaseSponge, ScalarSponge>(&GROUP_MAP, &self.index, &proof)
-            .map_err(|e| Error::new(e.into(), Span(0, 0)))
+            .into_diagnostic()
+            .wrap_err("kimchi: failed to verify the proof")
     }
 }

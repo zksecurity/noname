@@ -1,8 +1,8 @@
 use clap::Parser as _;
 use miette::Result;
 use noname::cli::{
-    cmd_build, cmd_check, cmd_init, cmd_new, cmd_prove, cmd_verify, CmdBuild, CmdCheck, CmdInit,
-    CmdNew, CmdProve, CmdVerify,
+    cmd_build, cmd_check, cmd_init, cmd_new, cmd_prove, cmd_test, cmd_verify, CmdBuild, CmdCheck,
+    CmdInit, CmdNew, CmdProve, CmdTest, CmdVerify,
 };
 
 #[derive(clap::Parser)]
@@ -41,6 +41,11 @@ enum Commands {
 
     /// Verify a proof. This command does not currently work
     Verify(CmdVerify),
+
+    /// Tests a single file (as opposed to a package with a `Noname.toml` manifest file).
+    /// This is intended for debugging, and should most likely not be used directly by users.
+    /// This command will compile, attempt to create a proof, and verify it.
+    Test(CmdTest),
 }
 
 fn main() -> Result<()> {
@@ -57,5 +62,7 @@ fn main() -> Result<()> {
         Commands::Run(args) => cmd_prove(args),
         Commands::Prove(args) => cmd_prove(args),
         Commands::Verify(args) => cmd_verify(args),
+
+        Commands::Test(args) => cmd_test(args),
     }
 }

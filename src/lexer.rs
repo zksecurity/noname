@@ -7,10 +7,30 @@ use crate::{
     tokens::Tokens,
 };
 
-#[derive(Default, Debug)]
-pub struct LexerCtx {
+#[derive(Debug)]
+pub struct LexerCtx<'a> {
     /// the offset of what we've read so far in the file
     offset: usize,
+
+    /// the file we're reading
+    filename: &'a str,
+
+    /// the source code we're reading
+    code: &'a str,
+}
+
+impl<'a> LexerCtx<'a> {
+    pub fn new(filename: &'a str, code: &'a str) -> Self {
+        Self {
+            offset: 0,
+            filename,
+            code,
+        }
+    }
+
+    pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
+        Error::new_with_code(kind, &self.filename, self.code.to_string(), span)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -198,35 +218,34 @@ impl Token {
         // keep track of variables
         let mut ident_or_number: Option<String> = None;
 
-        let add_thing =
-            |ctx: &mut LexerCtx, tokens: &mut Vec<_>, ident_or_number: String| -> Result<()> {
-                let len = ident_or_number.len();
-                if let Some(keyword) = Keyword::parse(&ident_or_number) {
-                    tokens.push(TokenKind::Keyword(keyword).new_token(ctx, len));
-                } else {
-                    let token_type = if is_numeric(&ident_or_number) {
-                        TokenKind::BigInt(ident_or_number)
-                    } else if is_hexadecimal(&ident_or_number) {
-                        TokenKind::Hex(ident_or_number)
-                    } else if is_identifier_or_type(&ident_or_number) {
-                        if ident_or_number.len() < 2 {
-                            return Err(Error::new(
-                                ErrorKind::NoOneLetterVariable,
-                                Span(ctx.offset, 1),
-                            ));
-                        }
+        let add_thing = |ctx: &mut LexerCtx,
+                         tokens: &mut Vec<_>,
+                         ident_or_number: String|
+         -> Result<()> {
+            let len = ident_or_number.len();
+            if let Some(keyword) = Keyword::parse(&ident_or_number) {
+                tokens.push(TokenKind::Keyword(keyword).new_token(ctx, len));
+            } else {
+                let token_type = if is_numeric(&ident_or_number) {
+                    TokenKind::BigInt(ident_or_number)
+                } else if is_hexadecimal(&ident_or_number) {
+                    TokenKind::Hex(ident_or_number)
+                } else if is_identifier_or_type(&ident_or_number) {
+                    if ident_or_number.len() < 2 {
+                        return Err(ctx.error(ErrorKind::NoOneLetterVariable, Span(ctx.offset, 1)));
+                    }
 
-                        TokenKind::Identifier(ident_or_number)
-                    } else {
-                        return Err(Error::new(
-                            ErrorKind::InvalidIdentifier(ident_or_number),
-                            Span(ctx.offset, 1),
-                        ));
-                    };
-                    tokens.push(token_type.new_token(ctx, len));
-                }
-                Ok(())
-            };
+                    TokenKind::Identifier(ident_or_number)
+                } else {
+                    return Err(ctx.error(
+                        ErrorKind::InvalidIdentifier(ident_or_number),
+                        Span(ctx.offset, 1),
+                    ));
+                };
+                tokens.push(token_type.new_token(ctx, len));
+            }
+            Ok(())
+        };
 
         // go through line char by char
         let mut chars = line.chars().peekable();
@@ -380,7 +399,7 @@ impl Token {
                 }
                 ' ' => ctx.offset += 1,
                 _ => {
-                    return Err(Error::new(ErrorKind::InvalidToken, Span(ctx.offset, 1)));
+                    return Err(ctx.error(ErrorKind::InvalidToken, Span(ctx.offset, 1)));
                 }
             }
         }
@@ -388,8 +407,8 @@ impl Token {
         Ok(tokens)
     }
 
-    pub fn parse(code: &str) -> Result<Tokens> {
-        let mut ctx = LexerCtx::default();
+    pub fn parse(filename: &str, code: &str) -> Result<Tokens> {
+        let mut ctx = LexerCtx::new(filename, code);
         let mut tokens = vec![];
 
         for line in code.lines() {
@@ -416,7 +435,7 @@ fn main(public_input: [fel; 3], private_input: [fel; 3]) -> [fel; 8] {
 
     #[test]
     fn test_lexer() {
-        match Token::parse(CODE) {
+        match Token::parse("example.no", CODE) {
             Ok(root) => {
                 println!("{:#?}", root);
             }

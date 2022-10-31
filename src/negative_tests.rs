@@ -1,23 +1,4 @@
-//
-// Type checker tests
-//
-
-use crate::{
-    error::{ErrorKind, Result},
-    lexer::Token,
-    parser::AST,
-    type_checker::{Dependencies, TypeChecker},
-};
-
-fn type_check(code: &str) -> Result<TypeChecker> {
-    // lexer
-    let tokens = Token::parse(code).unwrap();
-    // AST
-    let ast = AST::parse(tokens).unwrap();
-    // TAST
-    let deps = Dependencies::default();
-    TypeChecker::analyze(ast, &deps)
-}
+use crate::{compiler::get_tast_single, error::ErrorKind};
 
 #[test]
 fn test_return() {
@@ -28,7 +9,7 @@ fn test_return() {
     }
     "#;
 
-    let res = type_check(&code);
+    let res = get_tast_single("example.no".to_string(), code.to_string());
 
     assert!(matches!(res.unwrap_err().kind, ErrorKind::NoReturnExpected));
 
@@ -39,7 +20,7 @@ fn test_return() {
     }
     "#;
 
-    let res = type_check(&code);
+    let res = get_tast_single("example.no".to_string(), code.to_string());
 
     assert!(matches!(res.unwrap_err().kind, ErrorKind::MissingReturn));
 
@@ -50,7 +31,7 @@ fn test_return() {
         }
         "#;
 
-    let res = type_check(&code);
+    let res = get_tast_single("example.no".to_string(), code.to_string());
 
     assert!(matches!(
         res.unwrap_err().kind,

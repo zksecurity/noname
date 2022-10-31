@@ -13,7 +13,7 @@ use crate::{
     constants::{self, Field, Span},
     error::Result,
     imports::FnHandle,
-    parser::TyKind,
+    parser::types::TyKind,
     var::{ConstOrCell, Value, Var},
 };
 
