@@ -316,20 +316,16 @@
 <span id="316">316</span>
 <span id="317">317</span>
 <span id="318">318</span>
-<span id="319">319</span>
-<span id="320">320</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
-    cli::packages::UserRepo,
     constants::Field,
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     imports::FnKind,
     parser::{
-        types::{Const, Function, Ident, RootKind, Struct, Ty, TyKind, UsePath},
+        types::{Const, Function, RootKind, Struct, Ty, TyKind, UsePath},
         AST,
     },
-    stdlib::get_std_fn,
 };
 
 <span class="kw">pub use </span>checker::{FnInfo, StructInfo};

@@ -131,6 +131,7 @@
 <span id="131">131</span>
 <span id="132">132</span>
 <span id="133">133</span>
+<span id="134">134</span>
 </pre><pre class="rust"><code><span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
 <span class="kw">use </span>miette::{Context, IntoDiagnostic};
 
@@ -235,7 +236,8 @@
         <span class="kw">let </span>public_output = parse_inputs(public_output).unwrap();
 
         <span class="comment">// TODO: add it to the public input
-    </span>}
+        </span><span class="macro">todo!</span>();
+    }
 
     <span class="comment">// get proof
     </span><span class="kw">let </span>proof_path = args

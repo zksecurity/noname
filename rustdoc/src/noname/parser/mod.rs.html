@@ -328,7 +328,7 @@
 </span><span class="kw">pub struct </span>AST(<span class="kw">pub </span>Vec&lt;Root&gt;);
 
 <span class="kw">impl </span>AST {
-    <span class="kw">pub fn </span>parse(filename: <span class="kw-2">&amp;</span>str, code: <span class="kw-2">&amp;</span>str, <span class="kw-2">mut </span>tokens: Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;AST&gt; {
+    <span class="kw">pub fn </span>parse(filename: <span class="kw-2">&amp;</span>str, code: <span class="kw-2">&amp;</span>str, tokens: Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;AST&gt; {
         <span class="self">Self</span>::parse_inner(tokens).map_err(|<span class="kw-2">mut </span>e| {
             e.src = NamedSource::new(filename, code.to_string());
             e
