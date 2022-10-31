@@ -303,6 +303,28 @@
 <span id="303">303</span>
 <span id="304">304</span>
 <span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
 </pre><pre class="rust"><code><span class="kw">use </span>miette::{Diagnostic, NamedSource};
 <span class="kw">use </span>thiserror::Error;
 
@@ -317,8 +339,11 @@
 
 <span class="doccomment">/// An error in noname.
 </span><span class="attribute">#[derive(Diagnostic, Debug, Error)]
-#[error(<span class="string">&quot;Looks like something went wrong...&quot;</span>)]
+#[error(<span class="string">&quot;Looks like something went wrong in {label}&quot;</span>)]
 </span><span class="kw">pub struct </span>Error {
+    <span class="doccomment">/// A hint as to where the error happened (e.g. type-checker, parser, lexer, etc.)
+    </span><span class="kw">pub </span>label: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+
     <span class="doccomment">/// The type of error.
     </span><span class="attribute">#[help]
     </span><span class="kw">pub </span>kind: ErrorKind,
@@ -327,26 +352,45 @@
     </span><span class="attribute">#[label(<span class="string">&quot;here&quot;</span>)]
     </span><span class="kw">pub </span>span: Span,
 
-    <span class="attribute">#[source_code]
+    <span class="doccomment">/// The actual (full) source code where this error happened.
+    </span><span class="attribute">#[source_code]
     </span><span class="kw">pub </span>src: NamedSource,
 }
 
 <span class="kw">impl </span>Error {
     <span class="doccomment">/// Creates a new [Error] from an [ErrorKind].
-    </span><span class="kw">pub fn </span>new(kind: ErrorKind, span: Span) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>new(label: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, kind: ErrorKind, span: Span) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
+            label,
             kind,
             span,
             src: NamedSource::new(<span class="string">&quot;&quot;</span>, <span class="string">&quot;&quot;</span>.to_string()),
         }
     }
 
-    <span class="kw">pub fn </span>new_with_source(kind: ErrorKind, src: NamedSource, span: Span) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ kind, span, src }
+    <span class="kw">pub fn </span>new_with_source(
+        label: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+        kind: ErrorKind,
+        src: NamedSource,
+        span: Span,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            label,
+            kind,
+            span,
+            src,
+        }
     }
 
-    <span class="kw">pub fn </span>new_with_code(kind: ErrorKind, source_file: <span class="kw-2">&amp;</span>str, code: String, span: Span) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new_with_code(
+        label: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+        kind: ErrorKind,
+        source_file: <span class="kw-2">&amp;</span>str,
+        code: String,
+        span: Span,
+    ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
+            label,
             kind,
             span,
             src: NamedSource::new(source_file, code),

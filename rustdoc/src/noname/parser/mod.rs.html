@@ -300,7 +300,7 @@
     }
 
     <span class="kw">pub fn </span>error(<span class="kw-2">&amp;</span><span class="self">self</span>, kind: ErrorKind, span: Span) -&gt; Error {
-        Error::new_with_code(kind, <span class="kw-2">&amp;</span><span class="self">self</span>.filename, <span class="self">self</span>.code.clone(), span)
+        Error::new_with_code(<span class="string">&quot;parser&quot;</span>, kind, <span class="kw-2">&amp;</span><span class="self">self</span>.filename, <span class="self">self</span>.code.clone(), span)
     }
 
     <span class="doccomment">/// Returns a new unique node id.

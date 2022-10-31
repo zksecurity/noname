@@ -133,6 +133,7 @@
 <span id="133">133</span>
 <span id="134">134</span>
 <span id="135">135</span>
+<span id="136">136</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module defines the context (or environment) that gets created when type checking a function.
 
 </span><span class="kw">use </span>std::collections::HashMap;
@@ -238,6 +239,7 @@
             .insert(ident.clone(), (<span class="self">self</span>.current_scope, type_info.clone()))
         {
             <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(Error::new(
+                <span class="string">&quot;type-checker&quot;</span>,
                 ErrorKind::DuplicateDefinition(ident),
                 type_info.span,
             )),

@@ -258,6 +258,17 @@
 <span id="258">258</span>
 <span id="259">259</span>
 <span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>ark_ff::{Field <span class="kw">as _</span>, Zero};
@@ -384,7 +395,8 @@
             }
             Value::External(name, idx) =&gt; <span class="prelude-val">Ok</span>(env.get_external(name)[<span class="kw-2">*</span>idx]),
             Value::PublicOutput(var) =&gt; {
-                <span class="kw">let </span>var = var.ok_or_else(|| Error::new(ErrorKind::MissingReturn, Span(<span class="number">0</span>, <span class="number">0</span>)))<span class="question-mark">?</span>;
+                <span class="kw">let </span>var =
+                    var.ok_or_else(|| Error::new(<span class="string">&quot;runtime&quot;</span>, ErrorKind::MissingReturn, Span(<span class="number">0</span>, <span class="number">0</span>)))<span class="question-mark">?</span>;
                 <span class="self">self</span>.compute_var(env, var)
             }
             Value::Scale(scalar, var) =&gt; {
@@ -415,17 +427,25 @@
 
             <span class="kw">let </span>input = <span class="kw">if </span>arg.is_public() {
                 public_inputs.<span class="number">0</span>.remove(name).ok_or_else(|| {
-                    Error::new(ErrorKind::MissingPublicArg(name.clone()), arg.span)
+                    Error::new(
+                        <span class="string">&quot;runtime&quot;</span>,
+                        ErrorKind::MissingPublicArg(name.clone()),
+                        arg.span,
+                    )
                 })<span class="question-mark">?
             </span>} <span class="kw">else </span>{
                 private_inputs.<span class="number">0</span>.remove(name).ok_or_else(|| {
-                    Error::new(ErrorKind::MissingPrivateArg(name.clone()), arg.span)
+                    Error::new(
+                        <span class="string">&quot;runtime&quot;</span>,
+                        ErrorKind::MissingPrivateArg(name.clone()),
+                        arg.span,
+                    )
                 })<span class="question-mark">?
             </span>};
 
             <span class="kw">let </span>fields = <span class="self">self
                 </span>.parse_single_input(input, <span class="kw-2">&amp;</span>arg.typ.kind)
-                .map_err(|e| Error::new(ErrorKind::ParsingError(e), arg.span))<span class="question-mark">?</span>;
+                .map_err(|e| Error::new(<span class="string">&quot;runtime&quot;</span>, ErrorKind::ParsingError(e), arg.span))<span class="question-mark">?</span>;
 
             env.add_value(name.clone(), fields.clone());
         }
@@ -433,6 +453,7 @@
         <span class="comment">// ensure that we&#39;ve used all of the inputs provided
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(name) = <span class="macro">chain!</span>[private_inputs.<span class="number">0</span>.keys(), public_inputs.<span class="number">0</span>.keys()].next() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                <span class="string">&quot;runtime&quot;</span>,
                 ErrorKind::UnusedInput(name.clone()),
                 main_info.span,
             ));
@@ -480,6 +501,7 @@
                             c(<span class="number">5</span>) * w[<span class="number">3</span>] + c(<span class="number">6</span>) * w[<span class="number">4</span>] + c(<span class="number">7</span>) * w[<span class="number">5</span>] + c(<span class="number">8</span>) * w[<span class="number">3</span>] * w[<span class="number">4</span>] + c(<span class="number">9</span>);
                         <span class="kw">if </span>sum1 != Field::zero() || sum2 != Field::zero() {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                <span class="string">&quot;runtime&quot;</span>,
                                 ErrorKind::InvalidWitness(row),
                                 debug_info.span,
                             ));

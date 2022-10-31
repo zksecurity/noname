@@ -181,6 +181,12 @@
 <span id="181">181</span>
 <span id="182">182</span>
 <span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, ops::Neg <span class="kw">as _</span>};
 
 <span class="kw">use </span>ark_ff::{One <span class="kw">as _</span>, Zero};
@@ -217,11 +223,13 @@
             .cloned()
             .ok_or_else(|| {
                 Error::new(
+                    <span class="string">&quot;type-checker&quot;</span>,
                     ErrorKind::UnknownExternalFn(submodule.to_string(), fn_name.to_string()),
                     span,
                 )
             }),
         <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(
+            <span class="string">&quot;type-checker&quot;</span>,
             ErrorKind::StdImport(submodule.to_string()),
             span,
         )),
@@ -296,7 +304,11 @@
         <span class="comment">// two constants
         </span>(ConstOrCell::Const(a), ConstOrCell::Const(b)) =&gt; {
             <span class="kw">if </span>a != b {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::AssertionFailed, span));
+                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                    <span class="string">&quot;constraint-generation&quot;</span>,
+                    ErrorKind::AssertionFailed,
+                    span,
+                ));
             }
         }
 

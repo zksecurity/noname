@@ -773,6 +773,73 @@
 <span id="773">773</span>
 <span id="774">774</span>
 <span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
+<span id="836">836</span>
+<span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -812,6 +879,7 @@
 }
 
 <span class="doccomment">/// Information that we need to pass around between expression nodes when type checking.
+</span><span class="attribute">#[derive(Debug)]
 </span><span class="kw">struct </span>ExprTyInfo {
     <span class="doccomment">/// This is needed to obtain information on variables.
     /// For example, parsing of an assignment expression needs to know if the lhs variable is mutable.
@@ -869,18 +937,25 @@
                     <span class="comment">// check module present in the scope
                     </span><span class="kw">let </span>module_val = <span class="kw-2">&amp;</span>module.value;
                     <span class="kw">let </span>imported_module = <span class="self">self</span>.modules.get(module_val).ok_or_else(|| {
-                        Error::new(ErrorKind::UndefinedModule(module_val.clone()), module.span)
+                        Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
+                            ErrorKind::UndefinedModule(module_val.clone()),
+                            module.span,
+                        )
                     })<span class="question-mark">?</span>;
 
                     deps.get_struct(imported_module, name)<span class="question-mark">?
                 </span>} <span class="kw">else </span>{
+                    <span class="macro">dbg!</span>(<span class="string">&quot;here&quot;</span>);
                     <span class="self">self</span>.struct_info(struct_name)
                         .ok_or(Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
                             ErrorKind::UndefinedStruct(struct_name.clone()),
                             name.span,
                         ))<span class="question-mark">?
                         </span>.clone()
                 };
+                <span class="macro">dbg!</span>(<span class="string">&quot;here&quot;</span>);
 
                 <span class="kw">let </span><span class="kw-2">mut </span>sum = <span class="number">0</span>;
 
@@ -915,6 +990,7 @@
             .is_some()
         {
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                <span class="string">&quot;type-checker&quot;</span>,
                 ErrorKind::DuplicateModule(path.submodule.value.clone()),
                 path.submodule.span,
             ));
@@ -974,7 +1050,11 @@
                     </span><span class="kw">let </span>module_val = <span class="kw-2">&amp;</span>module.value;
 
                     <span class="kw">let </span>imported_module = <span class="self">self</span>.modules.get(module_val).ok_or_else(|| {
-                        Error::new(ErrorKind::UndefinedModule(module_val.clone()), module.span)
+                        Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
+                            ErrorKind::UndefinedModule(module_val.clone()),
+                            module.span,
+                        )
                     })<span class="question-mark">?</span>;
 
                     <span class="kw">let </span>fn_info = deps.get_fn(imported_module, fn_name)<span class="question-mark">?</span>;
@@ -984,6 +1064,7 @@
                     <span class="comment">// functions present in the scope
                     </span><span class="kw">let </span>fn_info = <span class="self">self</span>.functions.get(<span class="kw-2">&amp;</span>fn_name.value).ok_or_else(|| {
                         Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
                             ErrorKind::UndefinedFunction(fn_name.value.clone()),
                             fn_name.span,
                         )
@@ -1007,20 +1088,25 @@
             } =&gt; {
                 <span class="comment">// retrieve struct name on the lhs
                 </span><span class="kw">let </span>lhs_type = <span class="self">self</span>.compute_type(lhs, typed_fn_env, deps)<span class="question-mark">?</span>;
+                <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>lhs_type);
                 <span class="kw">let </span>(module, struct_name) = <span class="kw">match </span>lhs_type.map(|t| t.typ) {
                     <span class="prelude-val">Some</span>(TyKind::Custom { module, name }) =&gt; (module, name),
                     <span class="kw">_ </span>=&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
                             ErrorKind::MethodCallOnNonCustomStruct,
                             expr.span,
                         ))
                     }
                 };
 
+                <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>module);
+
                 <span class="comment">// get struct info
                 </span><span class="kw">let </span>struct_info = <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
                     <span class="kw">let </span>imported_module = <span class="self">self</span>.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
                         Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
                             ErrorKind::UndefinedModule(module.value.clone()),
                             module.span,
                         )
@@ -1028,13 +1114,16 @@
 
                     deps.get_struct(imported_module, <span class="kw-2">&amp;</span>struct_name)<span class="question-mark">?
                 </span>} <span class="kw">else </span>{
+                    <span class="macro">dbg!</span>(<span class="string">&quot;here&quot;</span>);
                     <span class="self">self</span>.struct_info(<span class="kw-2">&amp;</span>struct_name.value)
                         .ok_or(Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
                             ErrorKind::UndefinedStruct(struct_name.value.clone()),
                             struct_name.span,
                         ))<span class="question-mark">?
                         </span>.clone()
                 };
+                <span class="macro">dbg!</span>(<span class="string">&quot;here&quot;</span>);
 
                 <span class="comment">// get method info
                 </span><span class="kw">let </span>method_type = struct_info
@@ -1061,6 +1150,7 @@
                 </span><span class="kw">let </span>lhs_node = <span class="self">self
                     </span>.compute_type(lhs, typed_fn_env, deps)<span class="question-mark">?
                     </span>.expect(<span class="string">&quot;type-checker bug: lhs access on an empty var&quot;</span>);
+                <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>lhs_node);
 
                 <span class="comment">// lhs can be a local variable or a path to an array
                 </span><span class="kw">let </span>lhs_name = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs.kind {
@@ -1108,6 +1198,7 @@
                 <span class="comment">// and is mutable
                 </span><span class="kw">if </span>!lhs_info.mutable {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        <span class="string">&quot;type-checker&quot;</span>,
                         ErrorKind::AssignmentToImmutableVariable,
                         expr.span,
                     ));
@@ -1137,6 +1228,7 @@
                         (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) =&gt; (),
                         <span class="kw">_ </span>=&gt; {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                <span class="string">&quot;type-checker&quot;</span>,
                                 ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
                                 expr.span,
                             ))
@@ -1161,6 +1253,7 @@
                 <span class="kw">let </span>inner_typ = <span class="self">self</span>.compute_type(inner, typed_fn_env, deps)<span class="question-mark">?</span>.unwrap();
                 <span class="kw">if </span>!<span class="macro">matches!</span>(inner_typ.typ, TyKind::Field | TyKind::BigInt) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        <span class="string">&quot;type-checker&quot;</span>,
                         ErrorKind::MismatchType(TyKind::Field, inner_typ.typ),
                         expr.span,
                     ));
@@ -1173,6 +1266,7 @@
                 <span class="kw">let </span>inner_typ = <span class="self">self</span>.compute_type(inner, typed_fn_env, deps)<span class="question-mark">?</span>.unwrap();
                 <span class="kw">if </span>!<span class="macro">matches!</span>(inner_typ.typ, TyKind::Bool) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        <span class="string">&quot;type-checker&quot;</span>,
                         ErrorKind::MismatchType(TyKind::Bool, inner_typ.typ),
                         expr.span,
                     ));
@@ -1213,7 +1307,9 @@
                         <span class="comment">// otherwise it&#39;s a local variable
                         </span><span class="kw">let </span>typ = typed_fn_env
                             .get_type(<span class="kw-2">&amp;</span>name.value)
-                            .ok_or_else(|| Error::new(ErrorKind::UndefinedVariable, name.span))<span class="question-mark">?
+                            .ok_or_else(|| {
+                                Error::new(<span class="string">&quot;type-checker&quot;</span>, ErrorKind::UndefinedVariable, name.span)
+                            })<span class="question-mark">?
                             </span>.clone();
                         <span class="comment">// if it&#39;s a field, we need to convert it to a bigint
                         </span><span class="kw">if </span><span class="macro">matches!</span>(typ, TyKind::Field) {
@@ -1234,14 +1330,24 @@
 
                 <span class="comment">// check that it is an array
                 </span><span class="kw">if </span>!<span class="macro">matches!</span>(typ.typ, TyKind::Array(..)) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::ArrayAccessOnNonArray, expr.span));
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        <span class="string">&quot;type-checker&quot;</span>,
+                        ErrorKind::ArrayAccessOnNonArray,
+                        expr.span,
+                    ));
                 }
 
                 <span class="comment">// check that expression is a bigint
                 </span><span class="kw">let </span>idx_typ = <span class="self">self</span>.compute_type(idx, typed_fn_env, deps)<span class="question-mark">?</span>;
                 <span class="kw">match </span>idx_typ.map(|t| t.typ) {
                     <span class="prelude-val">Some</span>(TyKind::BigInt) =&gt; (),
-                    <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::ExpectedConstant, expr.span)),
+                    <span class="kw">_ </span>=&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
+                            ErrorKind::ExpectedConstant,
+                            expr.span,
+                        ))
+                    }
                 };
 
                 <span class="comment">// get type of element
@@ -1267,6 +1373,7 @@
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(tykind) = <span class="kw-2">&amp;</span>tykind {
                         <span class="kw">if </span>!tykind.same_as(<span class="kw-2">&amp;</span>item_typ.typ) {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                <span class="string">&quot;type-checker&quot;</span>,
                                 ErrorKind::MismatchType(tykind.clone(), item_typ.typ),
                                 expr.span,
                             ));
@@ -1332,14 +1439,21 @@
                 fields,
             } =&gt; {
                 <span class="kw">let </span>name = <span class="kw-2">&amp;</span>struct_name.value;
+                <span class="macro">dbg!</span>(<span class="string">&quot;here&quot;</span>);
                 <span class="kw">let </span>struct_info = <span class="self">self</span>.structs.get(name).ok_or_else(|| {
-                    Error::new(ErrorKind::UndefinedStruct(name.clone()), expr.span)
+                    Error::new(
+                        <span class="string">&quot;type-checker&quot;</span>,
+                        ErrorKind::UndefinedStruct(name.clone()),
+                        expr.span,
+                    )
                 })<span class="question-mark">?</span>;
+                <span class="macro">dbg!</span>(<span class="string">&quot;here&quot;</span>);
 
                 <span class="kw">let </span>defined_fields = <span class="kw-2">&amp;</span>struct_info.fields.clone();
 
                 <span class="kw">if </span>defined_fields.len() != fields.len() {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        <span class="string">&quot;type-checker&quot;</span>,
                         ErrorKind::MismatchStructFields(name.clone()),
                         expr.span,
                     ));
@@ -1348,6 +1462,7 @@
                 <span class="kw">for </span>(defined, observed) <span class="kw">in </span>defined_fields.iter().zip(fields) {
                     <span class="kw">if </span>defined.<span class="number">0 </span>!= observed.<span class="number">0</span>.value {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
                             ErrorKind::InvalidStructField(
                                 defined.<span class="number">0</span>.clone(),
                                 observed.<span class="number">0</span>.value.clone(),
@@ -1362,6 +1477,7 @@
 
                     <span class="kw">if </span>!observed_typ.typ.match_expected(<span class="kw-2">&amp;</span>defined.<span class="number">1</span>) {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
                             ErrorKind::InvalidStructFieldType(defined.<span class="number">1</span>.clone(), observed_typ.typ),
                             expr.span,
                         ));
@@ -1409,10 +1525,15 @@
         </span><span class="kw">match </span>(expected_return, return_typ) {
             (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; (),
             (<span class="prelude-val">Some</span>(expected), <span class="prelude-val">None</span>) =&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::MissingReturn, expected.span))
+                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                    <span class="string">&quot;type-checker&quot;</span>,
+                    ErrorKind::MissingReturn,
+                    expected.span,
+                ))
             }
             (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="kw">_</span>)) =&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                    <span class="string">&quot;type-checker&quot;</span>,
                     ErrorKind::NoReturnExpected,
                     stmts.last().unwrap().span,
                 ))
@@ -1420,6 +1541,7 @@
             (<span class="prelude-val">Some</span>(expected), <span class="prelude-val">Some</span>(observed)) =&gt; {
                 <span class="kw">if </span>!observed.match_expected(<span class="kw-2">&amp;</span>expected.kind) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        <span class="string">&quot;type-checker&quot;</span>,
                         ErrorKind::ReturnTypeMismatch(expected.kind.clone(), observed.clone()),
                         expected.span,
                     ));
@@ -1445,6 +1567,8 @@
 
                 // but first we need to compute the type of the rhs expression
                 </span><span class="kw">let </span>node = <span class="self">self</span>.compute_type(rhs, typed_fn_env, deps)<span class="question-mark">?</span>.unwrap();
+
+                <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>node);
 
                 <span class="kw">let </span>type_info = <span class="kw">if </span><span class="kw-2">*</span>mutable {
                     TypeInfo::new_mut(node.typ, lhs.span)
@@ -1480,7 +1604,11 @@
 
                 </span><span class="kw">let </span>typ = <span class="self">self</span>.compute_type(expr, typed_fn_env, deps)<span class="question-mark">?</span>;
                 <span class="kw">if </span>typ.is_some() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::UnusedReturnValue, expr.span));
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        <span class="string">&quot;type-checker&quot;</span>,
+                        ErrorKind::UnusedReturnValue,
+                        expr.span,
+                    ));
                 }
             }
             StmtKind::Return(res) =&gt; {
@@ -1522,13 +1650,18 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>(node) = <span class="self">self</span>.compute_type(arg, typed_fn_env, deps)<span class="question-mark">? </span>{
                 observed.push((node.typ.clone(), arg.span));
             } <span class="kw">else </span>{
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::CannotComputeExpression, arg.span));
+                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                    <span class="string">&quot;type-checker&quot;</span>,
+                    ErrorKind::CannotComputeExpression,
+                    arg.span,
+                ));
             }
         }
 
         <span class="comment">// check argument length
         </span><span class="kw">if </span>expected.len() != observed.len() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                <span class="string">&quot;type-checker&quot;</span>,
                 ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
                 span,
             ));
@@ -1538,6 +1671,7 @@
         </span><span class="kw">for </span>(sig_arg, (typ, span)) <span class="kw">in </span>expected.iter().zip(observed) {
             <span class="kw">if </span>!typ.match_expected(<span class="kw-2">&amp;</span>sig_arg.typ.kind) {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                    <span class="string">&quot;type-checker&quot;</span>,
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                     span,
                 ));

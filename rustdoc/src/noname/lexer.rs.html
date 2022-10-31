@@ -476,7 +476,7 @@
     }
 
     <span class="kw">pub fn </span>error(<span class="kw-2">&amp;</span><span class="self">self</span>, kind: ErrorKind, span: Span) -&gt; Error {
-        Error::new_with_code(kind, <span class="kw-2">&amp;</span><span class="self">self</span>.filename, <span class="self">self</span>.code.to_string(), span)
+        Error::new_with_code(<span class="string">&quot;lexer&quot;</span>, kind, <span class="kw-2">&amp;</span><span class="self">self</span>.filename, <span class="self">self</span>.code.to_string(), span)
     }
 }
 

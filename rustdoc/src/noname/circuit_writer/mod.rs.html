@@ -739,7 +739,7 @@
         <span class="kw">let </span>file: String = <span class="self">self</span>.get_current_file().to_string();
         <span class="kw">let </span>src: String = <span class="self">self</span>.get_current_source().to_string();
         <span class="kw">let </span>named_source = NamedSource::new(file, src);
-        Error::new_with_source(kind, named_source, span)
+        Error::new_with_source(<span class="string">&quot;constraint-generation&quot;</span>, kind, named_source, span)
     }
 }
 

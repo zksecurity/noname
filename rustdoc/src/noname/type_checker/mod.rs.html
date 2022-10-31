@@ -316,6 +316,22 @@
 <span id="316">316</span>
 <span id="317">317</span>
 <span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -429,7 +445,11 @@
                 </span>RootKind::Use(path) =&gt; {
                     <span class="comment">// important: no struct or function definition must appear before a use declaration
                     </span><span class="kw">if let </span><span class="prelude-val">Some</span>(span) = abort {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::OrderOfUseDeclaration, span));
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
+                            ErrorKind::OrderOfUseDeclaration,
+                            span,
+                        ));
                     }
                     type_checker.import(path)<span class="question-mark">?
                 </span>}
@@ -452,7 +472,11 @@
                 RootKind::Const(cst) =&gt; {
                     <span class="comment">// important: no struct or function definition must appear before a constant declaration
                     </span><span class="kw">if let </span><span class="prelude-val">Some</span>(span) = abort {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::OrderOfConstDeclaration, span));
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
+                            ErrorKind::OrderOfConstDeclaration,
+                            span,
+                        ));
                     }
 
                     <span class="kw">if </span>type_checker
@@ -470,6 +494,7 @@
                         .is_some()
                     {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
                             ErrorKind::DuplicateDefinition(cst.name.value.clone()),
                             cst.name.span,
                         ));
@@ -533,7 +558,11 @@
                     <span class="comment">// if this is the main function check that it has arguments
                     </span><span class="kw">let </span>is_main = function.is_main();
                     <span class="kw">if </span>is_main &amp;&amp; function.sig.arguments.is_empty() {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::NoArgsInMain, function.span));
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
+                            ErrorKind::NoArgsInMain,
+                            function.span,
+                        ));
                     }
 
                     <span class="comment">// save the function in the typed global env
@@ -564,6 +593,7 @@
                         // associated automatically to the public output of the main function
                         </span><span class="kw">if </span>RESERVED_ARGS.contains(<span class="kw-2">&amp;</span>arg.name.value.as_str()) {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                <span class="string">&quot;type-checker&quot;</span>,
                                 ErrorKind::PublicOutputReserved(arg.name.value.to_string()),
                                 arg.name.span,
                             ));
@@ -572,6 +602,7 @@
                         <span class="comment">// `pub` arguments are only for the main function
                         </span><span class="kw">if </span>!is_main &amp;&amp; arg.is_public() {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                <span class="string">&quot;type-checker&quot;</span>,
                                 ErrorKind::PubArgumentOutsideMain,
                                 arg.attribute.as_ref().unwrap().span,
                             ));
@@ -580,6 +611,7 @@
                         <span class="comment">// `const` arguments are only for non-main functions
                         </span><span class="kw">if </span>is_main &amp;&amp; arg.is_constant() {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                                <span class="string">&quot;type-checker&quot;</span>,
                                 ErrorKind::ConstArgumentNotForMain,
                                 arg.name.span,
                             ));
