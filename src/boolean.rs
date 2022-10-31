@@ -5,7 +5,7 @@ use std::ops::Neg;
 use ark_ff::{One, Zero};
 
 use crate::{
-    circuit_writer::{CircuitWriter, GateKind},
+    circuit_writer::CircuitWriter,
     constants::{Field, Span},
     var::{ConstOrCell, Value, Var},
 };

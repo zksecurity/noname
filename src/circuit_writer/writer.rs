@@ -13,7 +13,7 @@ use crate::{
     boolean,
     circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
     constants::{Field, Span, NUM_REGISTERS},
-    error::{Error, ErrorKind, Result},
+    error::{ErrorKind, Result},
     field,
     imports::FnKind,
     parser::types::{Expr, ExprKind, Function, Op2, Stmt, StmtKind, TyKind},

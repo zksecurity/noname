@@ -100,7 +100,7 @@ impl ParserCtx {
 pub struct AST(pub Vec<Root>);
 
 impl AST {
-    pub fn parse(filename: &str, code: &str, mut tokens: Tokens) -> Result<AST> {
+    pub fn parse(filename: &str, code: &str, tokens: Tokens) -> Result<AST> {
         Self::parse_inner(tokens).map_err(|mut e| {
             e.src = NamedSource::new(filename, code.to_string());
             e

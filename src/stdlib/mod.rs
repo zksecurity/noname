@@ -7,7 +7,7 @@ use crate::{
     circuit_writer::{CircuitWriter, VarInfo},
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    imports::{BuiltinModule, FnHandle, FnKind, Module, ModuleKind},
+    imports::{BuiltinModule, FnHandle, FnKind},
     lexer::Token,
     parser::{
         types::{FnSig, TyKind},

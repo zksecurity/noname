@@ -1,7 +1,6 @@
 use std::vec;
 
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
 
 use crate::{
     circuit_writer::{CircuitWriter, FnEnv, VarInfo},

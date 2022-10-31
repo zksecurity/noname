@@ -1,15 +1,13 @@
 use std::collections::HashMap;
 
 use crate::{
-    cli::packages::UserRepo,
     constants::Field,
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{Const, Function, Ident, RootKind, Struct, Ty, TyKind, UsePath},
+        types::{Const, Function, RootKind, Struct, Ty, TyKind, UsePath},
         AST,
     },
-    stdlib::get_std_fn,
 };
 
 pub use checker::{FnInfo, StructInfo};

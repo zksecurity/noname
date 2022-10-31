@@ -102,6 +102,7 @@ pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
         let public_output = parse_inputs(public_output).unwrap();
 
         // TODO: add it to the public input
+        todo!();
     }
 
     // get proof

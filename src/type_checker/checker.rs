@@ -3,10 +3,9 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cli::packages::UserRepo,
     constants::Span,
     error::{Error, ErrorKind, Result},
-    imports::{resolve_builtin_functions, FnKind, Module},
+    imports::{resolve_builtin_functions, FnKind},
     parser::types::{Expr, ExprKind, FnSig, Function, Op2, Stmt, StmtKind, Ty, TyKind, UsePath},
     syntax::is_type,
 };
@@ -163,10 +162,14 @@ impl TypeChecker {
                     .expect("type-checker bug: field access on an empty var");
 
                 // obtain the type of the field
-                let struct_name = match lhs_node.typ {
-                    TyKind::Custom { module, name } => name,
+                let (module, struct_name) = match lhs_node.typ {
+                    TyKind::Custom { module, name } => (module, name),
                     _ => panic!("field access must be done on a custom struct"),
                 };
+
+                if module.is_some() {
+                    unimplemented!();
+                }
 
                 // get struct info
                 let struct_info = self

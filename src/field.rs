@@ -1,6 +1,6 @@
 use crate::{
     boolean,
-    circuit_writer::{CircuitWriter, GateKind},
+    circuit_writer::CircuitWriter,
     constants::{Field, Span},
     var::{ConstOrCell, Value, Var},
 };
