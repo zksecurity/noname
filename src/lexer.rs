@@ -29,7 +29,7 @@ impl<'a> LexerCtx<'a> {
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
-        Error::new_with_code(kind, &self.filename, self.code.to_string(), span)
+        Error::new_with_code("lexer", kind, &self.filename, self.code.to_string(), span)
     }
 }
 

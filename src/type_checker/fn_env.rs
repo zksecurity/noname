@@ -103,6 +103,7 @@ impl TypedFnEnv {
             .insert(ident.clone(), (self.current_scope, type_info.clone()))
         {
             Some(_) => Err(Error::new(
+                "type-checker",
                 ErrorKind::DuplicateDefinition(ident),
                 type_info.span,
             )),

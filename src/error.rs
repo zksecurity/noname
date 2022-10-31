@@ -12,8 +12,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// An error in noname.
 #[derive(Diagnostic, Debug, Error)]
-#[error("Looks like something went wrong...")]
+#[error("Looks like something went wrong in {label}")]
 pub struct Error {
+    /// A hint as to where the error happened (e.g. type-checker, parser, lexer, etc.)
+    pub label: &'static str,
+
     /// The type of error.
     #[help]
     pub kind: ErrorKind,
@@ -22,26 +25,45 @@ pub struct Error {
     #[label("here")]
     pub span: Span,
 
+    /// The actual (full) source code where this error happened.
     #[source_code]
     pub src: NamedSource,
 }
 
 impl Error {
     /// Creates a new [Error] from an [ErrorKind].
-    pub fn new(kind: ErrorKind, span: Span) -> Self {
+    pub fn new(label: &'static str, kind: ErrorKind, span: Span) -> Self {
         Self {
+            label,
             kind,
             span,
             src: NamedSource::new("", "".to_string()),
         }
     }
 
-    pub fn new_with_source(kind: ErrorKind, src: NamedSource, span: Span) -> Self {
-        Self { kind, span, src }
+    pub fn new_with_source(
+        label: &'static str,
+        kind: ErrorKind,
+        src: NamedSource,
+        span: Span,
+    ) -> Self {
+        Self {
+            label,
+            kind,
+            span,
+            src,
+        }
     }
 
-    pub fn new_with_code(kind: ErrorKind, source_file: &str, code: String, span: Span) -> Self {
+    pub fn new_with_code(
+        label: &'static str,
+        kind: ErrorKind,
+        source_file: &str,
+        code: String,
+        span: Span,
+    ) -> Self {
         Self {
+            label,
             kind,
             span,
             src: NamedSource::new(source_file, code),

@@ -111,7 +111,11 @@ impl TypeChecker {
                 RootKind::Use(path) => {
                     // important: no struct or function definition must appear before a use declaration
                     if let Some(span) = abort {
-                        return Err(Error::new(ErrorKind::OrderOfUseDeclaration, span));
+                        return Err(Error::new(
+                            "type-checker",
+                            ErrorKind::OrderOfUseDeclaration,
+                            span,
+                        ));
                     }
                     type_checker.import(path)?
                 }
@@ -134,7 +138,11 @@ impl TypeChecker {
                 RootKind::Const(cst) => {
                     // important: no struct or function definition must appear before a constant declaration
                     if let Some(span) = abort {
-                        return Err(Error::new(ErrorKind::OrderOfConstDeclaration, span));
+                        return Err(Error::new(
+                            "type-checker",
+                            ErrorKind::OrderOfConstDeclaration,
+                            span,
+                        ));
                     }
 
                     if type_checker
@@ -152,6 +160,7 @@ impl TypeChecker {
                         .is_some()
                     {
                         return Err(Error::new(
+                            "type-checker",
                             ErrorKind::DuplicateDefinition(cst.name.value.clone()),
                             cst.name.span,
                         ));
@@ -215,7 +224,11 @@ impl TypeChecker {
                     // if this is the main function check that it has arguments
                     let is_main = function.is_main();
                     if is_main && function.sig.arguments.is_empty() {
-                        return Err(Error::new(ErrorKind::NoArgsInMain, function.span));
+                        return Err(Error::new(
+                            "type-checker",
+                            ErrorKind::NoArgsInMain,
+                            function.span,
+                        ));
                     }
 
                     // save the function in the typed global env
@@ -246,6 +259,7 @@ impl TypeChecker {
                         // associated automatically to the public output of the main function
                         if RESERVED_ARGS.contains(&arg.name.value.as_str()) {
                             return Err(Error::new(
+                                "type-checker",
                                 ErrorKind::PublicOutputReserved(arg.name.value.to_string()),
                                 arg.name.span,
                             ));
@@ -254,6 +268,7 @@ impl TypeChecker {
                         // `pub` arguments are only for the main function
                         if !is_main && arg.is_public() {
                             return Err(Error::new(
+                                "type-checker",
                                 ErrorKind::PubArgumentOutsideMain,
                                 arg.attribute.as_ref().unwrap().span,
                             ));
@@ -262,6 +277,7 @@ impl TypeChecker {
                         // `const` arguments are only for non-main functions
                         if is_main && arg.is_constant() {
                             return Err(Error::new(
+                                "type-checker",
                                 ErrorKind::ConstArgumentNotForMain,
                                 arg.name.span,
                             ));

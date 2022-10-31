@@ -72,7 +72,7 @@ impl ParserCtx {
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
-        Error::new_with_code(kind, &self.filename, self.code.clone(), span)
+        Error::new_with_code("parser", kind, &self.filename, self.code.clone(), span)
     }
 
     /// Returns a new unique node id.

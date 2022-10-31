@@ -43,6 +43,7 @@ impl Dependencies {
         // then check in imported dependencies
         let tast = self.get_type_checker(&user_repo).ok_or_else(|| {
             Error::new(
+                "type-checker",
                 ErrorKind::UnknownDependency(user_repo.to_string()),
                 use_path.span,
             )
@@ -51,6 +52,7 @@ impl Dependencies {
         // we found the module, now let's find the function
         let fn_info = tast.fn_info(&fn_name.value).ok_or_else(|| {
             Error::new(
+                "type-checker",
                 ErrorKind::UnknownExternalFn(user_repo.to_string(), fn_name.value.to_string()),
                 fn_name.span,
             )
@@ -71,6 +73,7 @@ impl Dependencies {
         // then check in imported dependencies
         let tast = self.get_type_checker(&user_repo).ok_or_else(|| {
             Error::new(
+                "type-checker",
                 ErrorKind::UnknownDependency(user_repo.to_string()),
                 use_path.span,
             )
@@ -80,6 +83,7 @@ impl Dependencies {
         tast.struct_info(&struct_name.value)
             .ok_or_else(|| {
                 Error::new(
+                    "type-checker",
                     ErrorKind::UnknownExternalStruct(
                         user_repo.to_string(),
                         struct_name.value.to_string(),

@@ -124,7 +124,8 @@ impl CompiledCircuit {
             }
             Value::External(name, idx) => Ok(env.get_external(name)[*idx]),
             Value::PublicOutput(var) => {
-                let var = var.ok_or_else(|| Error::new(ErrorKind::MissingReturn, Span(0, 0)))?;
+                let var =
+                    var.ok_or_else(|| Error::new("runtime", ErrorKind::MissingReturn, Span(0, 0)))?;
                 self.compute_var(env, var)
             }
             Value::Scale(scalar, var) => {
@@ -155,17 +156,25 @@ impl CompiledCircuit {
 
             let input = if arg.is_public() {
                 public_inputs.0.remove(name).ok_or_else(|| {
-                    Error::new(ErrorKind::MissingPublicArg(name.clone()), arg.span)
+                    Error::new(
+                        "runtime",
+                        ErrorKind::MissingPublicArg(name.clone()),
+                        arg.span,
+                    )
                 })?
             } else {
                 private_inputs.0.remove(name).ok_or_else(|| {
-                    Error::new(ErrorKind::MissingPrivateArg(name.clone()), arg.span)
+                    Error::new(
+                        "runtime",
+                        ErrorKind::MissingPrivateArg(name.clone()),
+                        arg.span,
+                    )
                 })?
             };
 
             let fields = self
                 .parse_single_input(input, &arg.typ.kind)
-                .map_err(|e| Error::new(ErrorKind::ParsingError(e), arg.span))?;
+                .map_err(|e| Error::new("runtime", ErrorKind::ParsingError(e), arg.span))?;
 
             env.add_value(name.clone(), fields.clone());
         }
@@ -173,6 +182,7 @@ impl CompiledCircuit {
         // ensure that we've used all of the inputs provided
         if let Some(name) = chain![private_inputs.0.keys(), public_inputs.0.keys()].next() {
             return Err(Error::new(
+                "runtime",
                 ErrorKind::UnusedInput(name.clone()),
                 main_info.span,
             ));
@@ -220,6 +230,7 @@ impl CompiledCircuit {
                             c(5) * w[3] + c(6) * w[4] + c(7) * w[5] + c(8) * w[3] * w[4] + c(9);
                         if sum1 != Field::zero() || sum2 != Field::zero() {
                             return Err(Error::new(
+                                "runtime",
                                 ErrorKind::InvalidWitness(row),
                                 debug_info.span,
                             ));

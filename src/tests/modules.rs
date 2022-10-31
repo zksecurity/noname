@@ -1,41 +1,95 @@
 use crate::{
-    circuit_writer::CircuitWriter,
-    cli::packages::{path_to_package, UserRepo},
-    compiler::{compile_single, get_tast},
+    circuit_writer::CircuitWriter, cli::packages::UserRepo, compiler::get_tast,
     type_checker::Dependencies,
 };
 
-const LIB: &str = r#"struct Thing {
-  tt: Field
+//
+// MAIN -> LIB -> LIBLIB
+//
+
+const LIBLIB: &str = "
+// test a transitive dependency type
+struct Lol {
+    aa: Field,
 }
 
-fn Thing.tt(self) -> Field {
-  return self.tt;
+fn Lol.match(self, bb: Field) {
+    assert_eq(self.aa, bb);
 }
 
-fn new() -> Thing {
-  return Thing { tt: 4 };
+fn Lol.new() -> Lol {
+    return Lol {
+        aa: 1,
+    };
+}
+";
+
+const LIB: &str = r#"
+use mimoo::liblib;
+
+// test a library's type that links to its own type
+struct Inner {
+    inner: Field,
 }
 
+struct Lib {
+  tt: Inner
+}
+
+// a normal function
 fn add(xx: Field, yy: Field) -> Field {
-  return xx + yy;
-}"#;
+    return xx + yy;
+}
 
-const MAIN: &str = r#"use mimoo::field;
+fn Lib.tt(self) -> Field {
+    return self.tt.inner;
+}
+
+fn new() -> Lib {
+    let inner = Inner { inner: 5 };
+    return Lib { tt: inner };
+}
+
+// a transitive dependency
+fn new_liblib() -> Liblib::Lol {}
+    Liblib::Lol.new();
+}
+
+fn test_liblib(ff: Field, lol: Liblib::Lol) {
+    lol.match(ff);
+}
+"#;
+
+const MAIN: &str = r#"
+use mimoo::lib;
 
 fn main(pub xx: Field, yy: Field) {
-  let y2 = field::new();
-  let y3 = y2.tt();
-  let zz = field::add(y3, 1);
-  assert_eq(zz, xx);
-}"#;
+    // use a library's function
+    assert_eq(lib::add(xx, yy), 2);
+
+    // use a library's type
+    let y2 = lib::new();
+    let y3 = y2.tt();
+    let zz = lib::add(y3, 1);
+    assert_eq(zz, xx);
+
+    // use a transitive dependency
+    let lol = lib::new_liblib();
+    lib::test_liblib(1, lol);
+}
+"#;
 
 #[test]
 fn test_simple_module() -> miette::Result<()> {
-    // parse the lib
     let mut deps_tasts = Dependencies::default();
+
+    // parse the transitive dependency
+    let tast = get_tast("liblib.no".to_string(), LIBLIB.to_string(), &deps_tasts)?;
+    deps_tasts.add_type_checker(UserRepo::new("mimoo/liblib"), "liblib.no".to_string(), tast);
+
+    // parse the lib
     let tast = get_tast("lib.no".to_string(), LIB.to_string(), &deps_tasts)?;
-    deps_tasts.add_type_checker(UserRepo::new("mimoo/field"), "lib.no".to_string(), tast);
+    deps_tasts.add_type_checker(UserRepo::new("mimoo/lib"), "lib.no".to_string(), tast);
 
     // parse the main
     let tast = get_tast("main.no".to_string(), MAIN.to_string(), &deps_tasts)?;

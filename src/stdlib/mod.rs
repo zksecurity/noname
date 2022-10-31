@@ -34,11 +34,13 @@ pub fn get_std_fn(submodule: &str, fn_name: &str, span: Span) -> Result<FnInfo> 
             .cloned()
             .ok_or_else(|| {
                 Error::new(
+                    "type-checker",
                     ErrorKind::UnknownExternalFn(submodule.to_string(), fn_name.to_string()),
                     span,
                 )
             }),
         _ => Err(Error::new(
+            "type-checker",
             ErrorKind::StdImport(submodule.to_string()),
             span,
         )),
@@ -113,7 +115,11 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
         // two constants
         (ConstOrCell::Const(a), ConstOrCell::Const(b)) => {
             if a != b {
-                return Err(Error::new(ErrorKind::AssertionFailed, span));
+                return Err(Error::new(
+                    "constraint-generation",
+                    ErrorKind::AssertionFailed,
+                    span,
+                ));
             }
         }
 

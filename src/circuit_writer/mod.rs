@@ -291,7 +291,7 @@ impl CircuitWriter {
         let file: String = self.get_current_file().to_string();
         let src: String = self.get_current_source().to_string();
         let named_source = NamedSource::new(file, src);
-        Error::new_with_source(kind, named_source, span)
+        Error::new_with_source("constraint-generation", kind, named_source, span)
     }
 }
 
