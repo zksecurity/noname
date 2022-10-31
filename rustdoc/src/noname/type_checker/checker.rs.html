@@ -769,6 +769,7 @@
 <span id="769">769</span>
 <span id="770">770</span>
 <span id="771">771</span>
+<span id="772">772</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -965,6 +966,7 @@
                 </span><span class="kw">let </span>fn_sig: FnSig = <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
                     <span class="comment">// check module present in the scope
                     </span><span class="kw">let </span>module_val = <span class="kw-2">&amp;</span>module.value;
+
                     <span class="kw">let </span>imported_module = <span class="self">self</span>.modules.get(module_val).ok_or_else(|| {
                         Error::new(ErrorKind::UndefinedModule(module_val.clone()), module.span)
                     })<span class="question-mark">?</span>;

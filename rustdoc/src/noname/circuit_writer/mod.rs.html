@@ -407,6 +407,29 @@
 <span id="407">407</span>
 <span id="408">408</span>
 <span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
@@ -420,6 +443,7 @@
 };
 
 <span class="kw">pub use </span>fn_env::{FnEnv, VarInfo};
+<span class="kw">use </span>miette::NamedSource;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="comment">//use serde::{Deserialize, Serialize};
 </span><span class="kw">pub use </span>writer::{Gate, GateKind, Wiring};
@@ -561,12 +585,15 @@
 
     <span class="kw">pub fn </span>resolve_module(<span class="kw-2">&amp;</span><span class="self">self</span>, module: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span>UsePath&gt; {
         <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
-        curr_type_checker.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
-            Error::new(
+
+        <span class="kw">let </span>res = curr_type_checker.modules.get(<span class="kw-2">&amp;</span>module.value).ok_or_else(|| {
+            <span class="self">self</span>.error(
                 ErrorKind::UndefinedModule(module.value.clone()),
                 module.span,
             )
-        })
+        });
+
+        res
     }
 
     <span class="kw">pub fn </span>get_fn(<span class="kw-2">&amp;</span><span class="self">self</span>, module: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Ident&gt;, fn_name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Result</span>&lt;FnInfo&gt; {
@@ -582,7 +609,7 @@
                 .get(<span class="kw-2">&amp;</span>fn_name.value)
                 .cloned()
                 .ok_or_else(|| {
-                    Error::new(
+                    <span class="self">self</span>.error(
                         ErrorKind::UndefinedFunction(fn_name.value.clone()),
                         fn_name.span,
                     )
@@ -601,7 +628,7 @@
             <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
             <span class="kw">let </span>struct_info = curr_type_checker
                 .struct_info(<span class="kw-2">&amp;</span>struct_name.value)
-                .ok_or(Error::new(
+                .ok_or(<span class="self">self</span>.error(
                     ErrorKind::UndefinedStruct(struct_name.value.clone()),
                     struct_name.span,
                 ))<span class="question-mark">?
@@ -632,6 +659,14 @@
         } <span class="kw">else </span>{
             <span class="kw-2">&amp;</span><span class="self">self</span>.typed.filename
         }
+    }
+
+    <span class="kw">pub fn </span>get_current_source(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="self">self</span>.get_source(<span class="kw-2">&amp;</span><span class="self">self</span>.current_module)
+    }
+
+    <span class="kw">pub fn </span>get_current_file(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="self">self</span>.get_file(<span class="kw-2">&amp;</span><span class="self">self</span>.current_module)
     }
 
     <span class="kw">pub fn </span>add_local_var(<span class="kw-2">&amp;</span><span class="self">self</span>, fn_env: <span class="kw-2">&amp;mut </span>FnEnv, var_name: String, var_info: VarInfo) {
@@ -667,6 +702,13 @@
             .fn_info(<span class="string">&quot;main&quot;</span>)
             .expect(<span class="string">&quot;bug in the compiler: main not found&quot;</span>)
     }
+
+    <span class="kw">pub fn </span>error(<span class="kw-2">&amp;</span><span class="self">self</span>, kind: ErrorKind, span: Span) -&gt; Error {
+        <span class="kw">let </span>file: String = <span class="self">self</span>.get_current_file().to_string();
+        <span class="kw">let </span>src: String = <span class="self">self</span>.get_current_source().to_string();
+        <span class="kw">let </span>named_source = NamedSource::new(file, src);
+        Error::new_with_source(kind, named_source, span)
+    }
 }
 
 <span class="kw">impl </span>CircuitWriter {
@@ -696,12 +738,20 @@
         <span class="comment">// create circuit writer
         </span><span class="kw">let </span><span class="kw-2">mut </span>circuit_writer = CircuitWriter::new(typed, deps);
 
+        <span class="kw">let </span>res = circuit_writer.generate_circuit_inner();
+
+        res<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(CompiledCircuit::new(circuit_writer))
+    }
+
+    <span class="kw">fn </span>generate_circuit_inner(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="comment">// get main function
-        </span><span class="kw">let </span>main_fn_info = circuit_writer
-            .typed
+        </span><span class="kw">let </span>main_fn_info = <span class="self">self
+            </span>.typed
             .functions
             .get(<span class="string">&quot;main&quot;</span>)
-            .ok_or(Error::new(ErrorKind::NoMainFunction, Span::default()))<span class="question-mark">?</span>;
+            .ok_or(<span class="self">self</span>.error(ErrorKind::NoMainFunction, Span::default()))<span class="question-mark">?</span>;
 
         <span class="kw">let </span>function = <span class="kw">match </span><span class="kw-2">&amp;</span>main_fn_info.kind {
             <span class="kw">crate</span>::imports::FnKind::BuiltIn(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
@@ -729,20 +779,17 @@
                     <span class="kw-2">*</span>len <span class="kw">as </span>usize
                 }
                 TyKind::Bool =&gt; <span class="number">1</span>,
-                typ =&gt; circuit_writer.size_of(typ)<span class="question-mark">?</span>,
+                typ =&gt; <span class="self">self</span>.size_of(typ)<span class="question-mark">?</span>,
             };
 
             <span class="comment">// create the variable
             </span><span class="kw">let </span>var = <span class="kw">if let </span><span class="prelude-val">Some</span>(attr) = attribute {
                 <span class="kw">if </span>!<span class="macro">matches!</span>(attr.kind, AttributeKind::Pub) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                        ErrorKind::InvalidAttribute(attr.kind),
-                        attr.span,
-                    ));
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::InvalidAttribute(attr.kind), attr.span));
                 }
-                circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
+                <span class="self">self</span>.add_public_inputs(name.value.clone(), len, name.span)
             } <span class="kw">else </span>{
-                circuit_writer.add_private_inputs(name.value.clone(), len, name.span)
+                <span class="self">self</span>.add_private_inputs(name.value.clone(), len, name.span)
             };
 
             <span class="comment">// constrain what needs to be constrained
@@ -752,12 +799,12 @@
             // but we are being extra cautious due to attacks
             // where the prover gives the verifier malformed inputs that look legit.
             // (See short address attacks in Ethereum.)
-            </span>circuit_writer.constrain_inputs_to_main(<span class="kw-2">&amp;</span>var.cvars, <span class="kw-2">&amp;</span>typ.kind, typ.span)<span class="question-mark">?</span>;
+            </span><span class="self">self</span>.constrain_inputs_to_main(<span class="kw-2">&amp;</span>var.cvars, <span class="kw-2">&amp;</span>typ.kind, typ.span)<span class="question-mark">?</span>;
 
             <span class="comment">// add argument variable to the ast env
             </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>; <span class="comment">// TODO: should we add a mut keyword in arguments as well?
             </span><span class="kw">let </span>var_info = VarInfo::new(var, mutable, <span class="prelude-val">Some</span>(typ.kind.clone()));
-            circuit_writer.add_local_var(fn_env, name.value.clone(), var_info);
+            <span class="self">self</span>.add_local_var(fn_env, name.value.clone(), var_info);
         }
 
         <span class="comment">// create public output
@@ -767,15 +814,15 @@
             }
 
             <span class="comment">// create it
-            </span>circuit_writer.add_public_outputs(<span class="number">1</span>, typ.span);
+            </span><span class="self">self</span>.add_public_outputs(<span class="number">1</span>, typ.span);
         }
 
         <span class="comment">// compile function
-        </span>circuit_writer.compile_main_function(fn_env, <span class="kw-2">&amp;</span>function)<span class="question-mark">?</span>;
+        </span><span class="self">self</span>.compile_main_function(fn_env, <span class="kw-2">&amp;</span>function)<span class="question-mark">?</span>;
 
         <span class="comment">// important: there might still be a pending generic gate
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(pending) = circuit_writer.pending_generic_gate.take() {
-            circuit_writer.add_gate(
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(pending) = <span class="self">self</span>.pending_generic_gate.take() {
+            <span class="self">self</span>.add_gate(
                 pending.label,
                 GateKind::DoubleGeneric,
                 pending.vars,
@@ -786,34 +833,33 @@
 
         <span class="comment">// for sanity check, we make sure that every cellvar created has ended up in a gate
         </span><span class="kw">let </span><span class="kw-2">mut </span>written_vars = HashSet::new();
-        <span class="kw">for </span>row <span class="kw">in </span><span class="kw-2">&amp;</span>circuit_writer.rows_of_vars {
+        <span class="kw">for </span>row <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.rows_of_vars {
             row.iter().flatten().for_each(|cvar| {
                 written_vars.insert(cvar.index);
             });
         }
 
-        <span class="kw">for </span>var <span class="kw">in </span><span class="number">0</span>..circuit_writer.next_variable {
+        <span class="kw">for </span>var <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.next_variable {
             <span class="kw">if </span>!written_vars.contains(<span class="kw-2">&amp;</span>var) {
-                <span class="kw">if </span>circuit_writer.private_input_indices.contains(<span class="kw-2">&amp;</span>var) {
+                <span class="kw">if </span><span class="self">self</span>.private_input_indices.contains(<span class="kw-2">&amp;</span>var) {
                     <span class="comment">// compute main sig
                     </span><span class="kw">let </span>(_main_sig, main_span) = {
-                        <span class="kw">let </span>fn_info = circuit_writer.typed.functions.get(<span class="string">&quot;main&quot;</span>).cloned().unwrap();
+                        <span class="kw">let </span>fn_info = <span class="self">self</span>.typed.functions.get(<span class="string">&quot;main&quot;</span>).cloned().unwrap();
 
                         (fn_info.sig().clone(), fn_info.span)
                     };
 
                     <span class="comment">// TODO: is this error useful?
-                    </span><span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::PrivateInputNotUsed, main_span));
+                    </span><span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::PrivateInputNotUsed, main_span));
                 } <span class="kw">else </span>{
-                    <span class="macro">panic!</span>(<span class="string">&quot;there&#39;s a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!&quot;</span>);
+                    <span class="macro">panic!</span>(<span class="string">&quot;there&#39;s a bug in the self, some cellvar does not end up being a cellvar in the circuit!&quot;</span>);
                 }
             }
         }
 
         <span class="comment">// we finalized!
-        </span>circuit_writer.finalized = <span class="bool-val">true</span>;
-
-        <span class="prelude-val">Ok</span>(CompiledCircuit::new(circuit_writer))
+        </span><span class="self">self</span>.finalized = <span class="bool-val">true</span>;
+        <span class="prelude-val">Ok</span>(())
     }
 }
 </code></pre></div>

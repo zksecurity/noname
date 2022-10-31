@@ -380,6 +380,21 @@
 <span id="380">380</span>
 <span id="381">381</span>
 <span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -396,6 +411,7 @@
 
 <span class="kw">pub use </span>checker::{FnInfo, StructInfo};
 <span class="kw">pub use </span>fn_env::{TypeInfo, TypedFnEnv};
+<span class="kw">use </span>miette::NamedSource;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>serde_with::serde_as;
 
@@ -532,10 +548,24 @@
         }
     }
 
+    <span class="kw">pub fn </span>analyze(filename: String, code: String, ast: AST, deps: <span class="kw-2">&amp;</span>Dependencies) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>res = <span class="self">Self</span>::analyze_inner(filename.clone(), code.clone(), ast, deps);
+
+        res.map_err(|<span class="kw-2">mut </span>err| {
+            err.src = NamedSource::new(filename, code);
+            err
+        })
+    }
+
     <span class="doccomment">/// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    </span><span class="kw">pub fn </span>analyze(filename: String, code: String, ast: AST, deps: <span class="kw-2">&amp;</span>Dependencies) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+    </span><span class="kw">fn </span>analyze_inner(
+        filename: String,
+        code: String,
+        ast: AST,
+        deps: <span class="kw-2">&amp;</span>Dependencies,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="comment">//
         // inject some utility builtin functions in the scope
         //

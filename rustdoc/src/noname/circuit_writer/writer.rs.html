@@ -936,6 +936,9 @@
 <span id="936">936</span>
 <span id="937">937</span>
 <span id="938">938</span>
+<span id="939">939</span>
+<span id="940">940</span>
+<span id="941">941</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Display, Formatter},
     ops::Neg,
@@ -1065,7 +1068,7 @@
                 <span class="comment">// compute the rhs
                 </span><span class="kw">let </span>rhs_var = <span class="self">self
                     </span>.compute_expr(fn_env, rhs)<span class="question-mark">?
-                    </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))<span class="question-mark">?</span>;
+                    </span>.ok_or_else(|| <span class="self">self</span>.error(ErrorKind::CannotComputeExpression, stmt.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// obtain the actual values
                 </span><span class="kw">let </span>rhs_var = rhs_var.value(<span class="self">self</span>, fn_env);
@@ -1101,7 +1104,7 @@
             StmtKind::Return(expr) =&gt; {
                 <span class="kw">let </span>var = <span class="self">self
                     </span>.compute_expr(fn_env, expr)<span class="question-mark">?
-                    </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, stmt.span))<span class="question-mark">?</span>;
+                    </span>.ok_or_else(|| <span class="self">self</span>.error(ErrorKind::CannotComputeExpression, stmt.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// we already checked in type checking that this is not an early return
                 </span><span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var));
@@ -1203,8 +1206,8 @@
         <span class="comment">// we&#39;re expecting something returned?
         </span><span class="kw">match </span>(function.sig.return_type.as_ref(), returned) {
             (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; <span class="prelude-val">Ok</span>(()),
-            (<span class="prelude-val">Some</span>(expected), <span class="prelude-val">None</span>) =&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::MissingReturn, expected.span)),
-            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(returned)) =&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::UnexpectedReturn, returned.span)),
+            (<span class="prelude-val">Some</span>(expected), <span class="prelude-val">None</span>) =&gt; <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::MissingReturn, expected.span)),
+            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(returned)) =&gt; <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::UnexpectedReturn, returned.span)),
             (<span class="prelude-val">Some</span>(_expected), <span class="prelude-val">Some</span>(returned)) =&gt; {
                 <span class="comment">// make sure there are no constants in the returned value
                 </span><span class="kw">let </span><span class="kw-2">mut </span>returned_cells = <span class="macro">vec!</span>[];
@@ -1212,7 +1215,7 @@
                     <span class="kw">match </span>r {
                         ConstOrCell::Cell(c) =&gt; returned_cells.push(c),
                         ConstOrCell::Const(<span class="kw">_</span>) =&gt; {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::ConstantInOutput, returned.span))
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::ConstantInOutput, returned.span))
                         }
                     }
                 }
@@ -1258,21 +1261,11 @@
             } =&gt; {
                 <span class="comment">// sanity check
                 </span><span class="kw">if </span>fn_name.value == <span class="string">&quot;main&quot; </span>{
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(ErrorKind::RecursiveMain, expr.span));
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::RecursiveMain, expr.span));
                 }
 
-                <span class="comment">// module::fn_name(args)
-                // ^^^^^^
-                </span><span class="kw">let </span>prev_current_module = <span class="self">self</span>.current_module.clone();
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-                    <span class="comment">// TODO: find more elegant way to avoid std/crypto
-                    </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
-                        <span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
-
-                        <span class="comment">// change the current module
-                        </span><span class="self">self</span>.current_module = <span class="prelude-val">Some</span>(module.into());
-                    }
-                }
+                <span class="comment">// retrieve the function in the env
+                </span><span class="kw">let </span>fn_info = <span class="self">self</span>.get_fn(module, fn_name)<span class="question-mark">?</span>;
 
                 <span class="comment">// compute the arguments
                 // module::fn_name(args)
@@ -1282,7 +1275,7 @@
                     <span class="comment">// get the variable behind the expression
                     </span><span class="kw">let </span>var = <span class="self">self
                         </span>.compute_expr(fn_env, arg)<span class="question-mark">?
-                        </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))<span class="question-mark">?</span>;
+                        </span>.ok_or_else(|| <span class="self">self</span>.error(ErrorKind::CannotComputeExpression, arg.span))<span class="question-mark">?</span>;
 
                     <span class="comment">// we pass variables by values always
                     </span><span class="kw">let </span>var = var.value(<span class="self">self</span>, fn_env);
@@ -1294,9 +1287,6 @@
                     vars.push(var_info);
                 }
 
-                <span class="comment">// retrieve the function in the env
-                </span><span class="kw">let </span>fn_info = <span class="self">self</span>.get_fn(module, fn_name)<span class="question-mark">?</span>;
-
                 <span class="kw">let </span>res = <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
                     <span class="comment">// assert() &lt;-- for example
                     </span>FnKind::BuiltIn(_sig, handle) =&gt; {
@@ -1307,18 +1297,34 @@
                     <span class="comment">// fn_name(args)
                     // ^^^^^^^
                     </span>FnKind::Native(func) =&gt; {
-                        <span class="kw">let </span>res = <span class="self">self</span>.compile_native_function_call(<span class="kw-2">&amp;</span>func, vars);
-                        res.map(|r| r.map(VarOrRef::Var))
+                        <span class="comment">// module::fn_name(args)
+                        // ^^^^^^
+                        </span><span class="kw">let </span>prev_current_module = <span class="self">self</span>.current_module.clone();
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                            <span class="comment">// TODO: find more elegant way to avoid std/crypto
+                            </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
+                                <span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
+
+                                <span class="comment">// change the current module
+                                </span><span class="self">self</span>.current_module = <span class="prelude-val">Some</span>(module.into());
+                            }
+                        }
+
+                        <span class="kw">let </span>res = <span class="self">self
+                            </span>.compile_native_function_call(<span class="kw-2">&amp;</span>func, vars)
+                            .map(|r| r.map(VarOrRef::Var));
+
+                        <span class="comment">// revert the current module
+                        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                            <span class="comment">// TODO: find more elegant way to avoid std/crypto
+                            </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
+                                <span class="self">self</span>.current_module = prev_current_module;
+                            }
+                        }
+
+                        res
                     }
                 };
-
-                <span class="comment">// revert the current module
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-                    <span class="comment">// TODO: find more elegant way to avoid std/crypto
-                    </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
-                        <span class="self">self</span>.current_module = prev_current_module;
-                    }
-                }
 
                 <span class="comment">//
                 </span>res
@@ -1328,12 +1334,12 @@
                 <span class="comment">// get var behind lhs
                 </span><span class="kw">let </span>lhs_var = <span class="self">self
                     </span>.compute_expr(fn_env, lhs)<span class="question-mark">?
-                    </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))<span class="question-mark">?</span>;
+                    </span>.ok_or_else(|| <span class="self">self</span>.error(ErrorKind::CannotComputeExpression, lhs.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// get struct info behind lhs
                 </span><span class="kw">let </span>lhs_struct = <span class="self">self
                     </span>.expr_type(lhs)
-                    .ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, lhs.span))<span class="question-mark">?</span>;
+                    .ok_or_else(|| <span class="self">self</span>.error(ErrorKind::CannotComputeExpression, lhs.span))<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>(module, self_struct) = <span class="kw">match </span>lhs_struct {
                     TyKind::Custom { module, name } =&gt; (module, name),
@@ -1388,22 +1394,12 @@
                     .get(<span class="kw-2">&amp;</span>method_name.value)
                     .expect(<span class="string">&quot;could not find method&quot;</span>);
 
-                <span class="comment">// potentially modify the module we&#39;re in to process this function
-                </span><span class="kw">let </span>prev_current_module = <span class="self">self</span>.current_module.clone();
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-                    <span class="comment">// TODO: find more elegant way to avoid std/crypto
-                    </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
-                        <span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
-                        <span class="self">self</span>.current_module = <span class="prelude-val">Some</span>(module.into());
-                    }
-                }
-
                 <span class="comment">// if method has a `self` argument, manually add it to the list of argument
                 </span><span class="kw">let </span><span class="kw-2">mut </span>vars = <span class="macro">vec!</span>[];
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(first_arg) = func.sig.arguments.first() {
                     <span class="kw">if </span>first_arg.name.value == <span class="string">&quot;self&quot; </span>{
                         <span class="kw">let </span>self_var = self_var.ok_or_else(|| {
-                            Error::new(ErrorKind::NotAStaticMethod, method_name.span)
+                            <span class="self">self</span>.error(ErrorKind::NotAStaticMethod, method_name.span)
                         })<span class="question-mark">?</span>;
 
                         <span class="comment">// TODO: for now we pass `self` by value as well
@@ -1417,11 +1413,21 @@
                     <span class="macro">assert!</span>(self_var.is_none());
                 }
 
+                <span class="comment">// potentially modify the module we&#39;re in to process this function
+                </span><span class="kw">let </span>prev_current_module = <span class="self">self</span>.current_module.clone();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+                    <span class="comment">// TODO: find more elegant way to avoid std/crypto
+                    </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
+                        <span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
+                        <span class="self">self</span>.current_module = <span class="prelude-val">Some</span>(module.into());
+                    }
+                }
+
                 <span class="comment">// compute the arguments
                 </span><span class="kw">for </span>arg <span class="kw">in </span>args {
                     <span class="kw">let </span>var = <span class="self">self
                         </span>.compute_expr(fn_env, arg)<span class="question-mark">?
-                        </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, arg.span))<span class="question-mark">?</span>;
+                        </span>.ok_or_else(|| <span class="self">self</span>.error(ErrorKind::CannotComputeExpression, arg.span))<span class="question-mark">?</span>;
 
                     <span class="comment">// TODO: for now we pass `self` by value as well
                     </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>;
@@ -1543,7 +1549,7 @@
             ExprKind::BigInt(b) =&gt; {
                 <span class="kw">let </span>biguint = BigUint::from_str_radix(b, <span class="number">10</span>).expect(<span class="string">&quot;failed to parse number.&quot;</span>);
                 <span class="kw">let </span>ff = Field::try_from(biguint).map_err(|<span class="kw">_</span>| {
-                    Error::new(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
+                    <span class="self">self</span>.error(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
                 })<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>res = VarOrRef::Var(Var::new_constant(ff, expr.span));
@@ -1582,10 +1588,10 @@
                 <span class="comment">// compute the index
                 </span><span class="kw">let </span>idx_var = <span class="self">self
                     </span>.compute_expr(fn_env, idx)<span class="question-mark">?
-                    </span>.ok_or_else(|| Error::new(ErrorKind::CannotComputeExpression, expr.span))<span class="question-mark">?</span>;
+                    </span>.ok_or_else(|| <span class="self">self</span>.error(ErrorKind::CannotComputeExpression, expr.span))<span class="question-mark">?</span>;
                 <span class="kw">let </span>idx = idx_var
                     .constant()
-                    .ok_or_else(|| Error::new(ErrorKind::ExpectedConstant, expr.span))<span class="question-mark">?</span>;
+                    .ok_or_else(|| <span class="self">self</span>.error(ErrorKind::ExpectedConstant, expr.span))<span class="question-mark">?</span>;
                 <span class="kw">let </span>idx: BigUint = idx.into();
                 <span class="kw">let </span>idx: usize = idx.try_into().unwrap();
 
@@ -1595,7 +1601,7 @@
                 <span class="kw">let </span>elem_type = <span class="kw">match </span>array_typ {
                     TyKind::Array(ty, array_len) =&gt; {
                         <span class="kw">if </span>idx &gt;= (<span class="kw-2">*</span>array_len <span class="kw">as </span>usize) {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                                 ErrorKind::ArrayIndexOutOfBounds(idx, <span class="kw-2">*</span>array_len <span class="kw">as </span>usize - <span class="number">1</span>),
                                 expr.span,
                             ));
@@ -1613,7 +1619,7 @@
 
                 <span class="comment">// out-of-bound checks
                 </span><span class="kw">if </span>start &gt;= var.len() || start + len &gt; var.len() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                         ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
                         expr.span,
                     ));
@@ -1675,7 +1681,7 @@
                 <span class="kw">let </span>rhs = <span class="self">self</span>.compute_constant(<span class="kw-2">*</span>rhs, span)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(lhs * rhs)
             }
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(ErrorKind::ExpectedConstant, span)),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::ExpectedConstant, span)),
         }
     }
 
