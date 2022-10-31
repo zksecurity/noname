@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["compile",""],["get_tast",""]]};
+window.SIDEBAR_ITEMS = {"fn":[["compile_single",""],["get_tast",""],["get_tast_single",""]]};

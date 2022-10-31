@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/writer.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>writer.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/writer.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>writer.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -936,10 +936,7 @@
 <span id="936">936</span>
 <span id="937">937</span>
 <span id="938">938</span>
-<span id="939">939</span>
-<span id="940">940</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
-    collections::HashMap,
     fmt::{<span class="self">self</span>, Display, Formatter},
     ops::Neg,
 };
@@ -951,15 +948,14 @@
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use crate</span>::{
-    asm, boolean,
-    circuit_writer::{CircuitWriter, FnEnv, VarInfo},
+    boolean,
+    circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
     constants::{Field, Span, NUM_REGISTERS},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     field,
     imports::FnKind,
-    parser::{Expr, ExprKind, Function, Ident, Op2, Stmt, StmtKind, TyKind, UsePath},
+    parser::types::{Expr, ExprKind, Function, Op2, Stmt, StmtKind, TyKind},
     syntax::is_type,
-    type_checker::{Dependencies, FnInfo, StructInfo, TypeChecker},
     var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
 };
 
@@ -994,12 +990,6 @@
     <span class="doccomment">/// Coefficients
     </span><span class="attribute">#[serde(skip)]
     </span><span class="kw">pub </span>coeffs: Vec&lt;Field&gt;,
-
-    <span class="doccomment">/// The place in the original source code that created that gate.
-    </span><span class="kw">pub </span>span: Span,
-
-    <span class="doccomment">/// A note on why this was added
-    </span><span class="kw">pub </span>note: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
 }
 
 <span class="kw">impl </span>Gate {
@@ -1027,9 +1017,33 @@
 <span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>Wiring {
     <span class="doccomment">/// Not yet wired (just indicates the position of the cell itself)
-    </span>NotWired(Cell),
+    </span>NotWired(AnnotatedCell),
     <span class="doccomment">/// The wiring (associated to different spans)
-    </span>Wired(Vec&lt;(Cell, Span)&gt;),
+    </span>Wired(Vec&lt;AnnotatedCell&gt;),
+}
+
+<span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize, Eq)]
+</span><span class="kw">pub struct </span>AnnotatedCell {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) cell: Cell,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) debug: DebugInfo,
+}
+
+<span class="kw">impl </span>PartialEq <span class="kw">for </span>AnnotatedCell {
+    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="self">self</span>.cell == other.cell
+    }
+}
+
+<span class="kw">impl </span>PartialOrd <span class="kw">for </span>AnnotatedCell {
+    <span class="kw">fn </span>partial_cmp(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;std::cmp::Ordering&gt; {
+        <span class="self">self</span>.cell.partial_cmp(<span class="kw-2">&amp;</span>other.cell)
+    }
+}
+
+<span class="kw">impl </span>Ord <span class="kw">for </span>AnnotatedCell {
+    <span class="kw">fn </span>cmp(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; std::cmp::Ordering {
+        <span class="self">self</span>.cell.cmp(<span class="kw-2">&amp;</span>other.cell)
+    }
 }
 
 <span class="comment">//
@@ -1037,28 +1051,6 @@
 //
 
 </span><span class="kw">impl </span>CircuitWriter {
-    <span class="doccomment">/// Creates a global environment from the one created by the type checker.
-    </span><span class="kw">pub fn </span>new(code: <span class="kw-2">&amp;</span>str, typed: TypeChecker, dependencies: Dependencies) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            source: code.to_string(),
-            typed,
-            dependencies,
-            current_module: <span class="prelude-val">None</span>,
-            finalized: <span class="bool-val">false</span>,
-            next_variable: <span class="number">0</span>,
-            witness_vars: HashMap::new(),
-            rows_of_vars: <span class="macro">vec!</span>[],
-            gates: <span class="macro">vec!</span>[],
-            wiring: HashMap::new(),
-            public_input_size: <span class="number">0</span>,
-            public_output: <span class="prelude-val">None</span>,
-            private_input_indices: <span class="macro">vec!</span>[],
-            double_generic_gate_optimization: <span class="bool-val">false</span>,
-            pending_generic_gate: <span class="prelude-val">None</span>,
-            cached_constants: HashMap::new(),
-        }
-    }
-
     <span class="doccomment">/// Returns the compiled gates of the circuit.
     </span><span class="kw">pub fn </span>compiled_gates(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[Gate] {
         <span class="kw">if </span>!<span class="self">self</span>.finalized {
@@ -1243,10 +1235,6 @@
                 <span class="prelude-val">Ok</span>(())
             }
         }
-    }
-
-    <span class="kw">pub fn </span>asm(<span class="kw-2">&amp;</span><span class="self">self</span>, debug: bool) -&gt; String {
-        asm::generate_asm(<span class="kw-2">&amp;</span><span class="self">self</span>.source, <span class="kw-2">&amp;</span><span class="self">self</span>.gates, <span class="kw-2">&amp;</span><span class="self">self</span>.wiring, debug)
     }
 
     <span class="kw">pub fn </span>new_internal_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, val: Value, span: Span) -&gt; CellVar {
@@ -1744,28 +1732,36 @@
         </span><span class="kw">let </span>row = <span class="self">self</span>.gates.len();
 
         <span class="comment">// add gate
-        </span><span class="self">self</span>.gates.push(Gate {
-            typ,
-            coeffs,
+        </span><span class="self">self</span>.gates.push(Gate { typ, coeffs });
+
+        <span class="comment">// add debug info related to that gate
+        </span><span class="kw">let </span>debug_info = DebugInfo {
+            module: <span class="self">self</span>.current_module.clone(),
             span,
-            note,
-        });
+            note: note.to_string(),
+        };
+        <span class="self">self</span>.debug_info.push(debug_info.clone());
 
         <span class="comment">// wiring (based on vars)
         </span><span class="kw">for </span>(col, var) <span class="kw">in </span>vars.iter().enumerate() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(var) = var {
                 <span class="kw">let </span>curr_cell = Cell { row, col };
+                <span class="kw">let </span>annotated_cell = AnnotatedCell {
+                    cell: curr_cell,
+                    debug: debug_info.clone(),
+                };
+
                 <span class="self">self</span>.wiring
                     .entry(var.index)
                     .and_modify(|w| <span class="kw">match </span>w {
-                        Wiring::NotWired(cell) =&gt; {
-                            <span class="kw-2">*</span>w = Wiring::Wired(<span class="macro">vec!</span>[(<span class="kw-2">*</span>cell, var.span), (curr_cell, span)])
+                        Wiring::NotWired(old_cell) =&gt; {
+                            <span class="kw-2">*</span>w = Wiring::Wired(<span class="macro">vec!</span>[old_cell.clone(), annotated_cell.clone()])
                         }
                         Wiring::Wired(<span class="kw-2">ref mut </span>cells) =&gt; {
-                            cells.push((curr_cell, span));
+                            cells.push(annotated_cell.clone());
                         }
                     })
-                    .or_insert(Wiring::NotWired(curr_cell));
+                    .or_insert(Wiring::NotWired(annotated_cell));
             }
         }
     }
@@ -1879,4 +1875,4 @@
     <span class="kw">pub </span>span: Span,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9565dfeb4 2022-10-28)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (77e57db38 2022-10-30)" ></div></body></html>
