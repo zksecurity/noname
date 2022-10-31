@@ -14,6 +14,7 @@ use crate::{
 
 pub use checker::{FnInfo, StructInfo};
 pub use fn_env::{TypeInfo, TypedFnEnv};
+use miette::NamedSource;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -150,10 +151,24 @@ impl TypeChecker {
         }
     }
 
+    pub fn analyze(filename: String, code: String, ast: AST, deps: &Dependencies) -> Result<Self> {
+        let res = Self::analyze_inner(filename.clone(), code.clone(), ast, deps);
+
+        res.map_err(|mut err| {
+            err.src = NamedSource::new(filename, code);
+            err
+        })
+    }
+
     /// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    pub fn analyze(filename: String, code: String, ast: AST, deps: &Dependencies) -> Result<Self> {
+    fn analyze_inner(
+        filename: String,
+        code: String,
+        ast: AST,
+        deps: &Dependencies,
+    ) -> Result<Self> {
         //
         // inject some utility builtin functions in the scope
         //

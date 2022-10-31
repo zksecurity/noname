@@ -52,7 +52,7 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
 
     // create COMPILED_DIR
     let compiled_path = curr_dir.join(COMPILED_DIR);
-    if compiled_path.is_dir() {
+    if !compiled_path.is_dir() {
         miette::bail!("There's a filename called `{compiled_path}` which collides with noname. Please delete that file first." );
     }
 
@@ -86,6 +86,8 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
     .wrap_err(format!(
         "could not write prover params to `{prover_params}`"
     ))?;
+
+    println!("successfuly built");
 
     //
     Ok(())

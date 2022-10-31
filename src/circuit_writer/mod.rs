@@ -11,6 +11,7 @@ use crate::{
 };
 
 pub use fn_env::{FnEnv, VarInfo};
+use miette::NamedSource;
 use serde::{Deserialize, Serialize};
 //use serde::{Deserialize, Serialize};
 pub use writer::{Gate, GateKind, Wiring};
@@ -152,12 +153,15 @@ impl CircuitWriter {
 
     pub fn resolve_module(&self, module: &Ident) -> Result<&UsePath> {
         let curr_type_checker = self.current_type_checker();
-        curr_type_checker.modules.get(&module.value).ok_or_else(|| {
-            Error::new(
+
+        let res = curr_type_checker.modules.get(&module.value).ok_or_else(|| {
+            self.error(
                 ErrorKind::UndefinedModule(module.value.clone()),
                 module.span,
             )
-        })
+        });
+
+        res
     }
 
     pub fn get_fn(&self, module: &Option<Ident>, fn_name: &Ident) -> Result<FnInfo> {
@@ -173,7 +177,7 @@ impl CircuitWriter {
                 .get(&fn_name.value)
                 .cloned()
                 .ok_or_else(|| {
-                    Error::new(
+                    self.error(
                         ErrorKind::UndefinedFunction(fn_name.value.clone()),
                         fn_name.span,
                     )
@@ -192,7 +196,7 @@ impl CircuitWriter {
             let curr_type_checker = self.current_type_checker();
             let struct_info = curr_type_checker
                 .struct_info(&struct_name.value)
-                .ok_or(Error::new(
+                .ok_or(self.error(
                     ErrorKind::UndefinedStruct(struct_name.value.clone()),
                     struct_name.span,
                 ))?
@@ -223,6 +227,14 @@ impl CircuitWriter {
         } else {
             &self.typed.filename
         }
+    }
+
+    pub fn get_current_source(&self) -> &str {
+        self.get_source(&self.current_module)
+    }
+
+    pub fn get_current_file(&self) -> &str {
+        self.get_file(&self.current_module)
     }
 
     pub fn add_local_var(&self, fn_env: &mut FnEnv, var_name: String, var_info: VarInfo) {
@@ -258,6 +270,13 @@ impl CircuitWriter {
             .fn_info("main")
             .expect("bug in the compiler: main not found")
     }
+
+    pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
+        let file: String = self.get_current_file().to_string();
+        let src: String = self.get_current_source().to_string();
+        let named_source = NamedSource::new(file, src);
+        Error::new_with_source(kind, named_source, span)
+    }
 }
 
 impl CircuitWriter {
@@ -287,12 +306,20 @@ impl CircuitWriter {
         // create circuit writer
         let mut circuit_writer = CircuitWriter::new(typed, deps);
 
+        let res = circuit_writer.generate_circuit_inner();
+
+        res?;
+
+        Ok(CompiledCircuit::new(circuit_writer))
+    }
+
+    fn generate_circuit_inner(&mut self) -> Result<()> {
         // get main function
-        let main_fn_info = circuit_writer
+        let main_fn_info = self
             .typed
             .functions
             .get("main")
-            .ok_or(Error::new(ErrorKind::NoMainFunction, Span::default()))?;
+            .ok_or(self.error(ErrorKind::NoMainFunction, Span::default()))?;
 
         let function = match &main_fn_info.kind {
             crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
@@ -320,20 +347,17 @@ impl CircuitWriter {
                     *len as usize
                 }
                 TyKind::Bool => 1,
-                typ => circuit_writer.size_of(typ)?,
+                typ => self.size_of(typ)?,
             };
 
             // create the variable
             let var = if let Some(attr) = attribute {
                 if !matches!(attr.kind, AttributeKind::Pub) {
-                    return Err(Error::new(
-                        ErrorKind::InvalidAttribute(attr.kind),
-                        attr.span,
-                    ));
+                    return Err(self.error(ErrorKind::InvalidAttribute(attr.kind), attr.span));
                 }
-                circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
+                self.add_public_inputs(name.value.clone(), len, name.span)
             } else {
-                circuit_writer.add_private_inputs(name.value.clone(), len, name.span)
+                self.add_private_inputs(name.value.clone(), len, name.span)
             };
 
             // constrain what needs to be constrained
@@ -343,12 +367,12 @@ impl CircuitWriter {
             // but we are being extra cautious due to attacks
             // where the prover gives the verifier malformed inputs that look legit.
             // (See short address attacks in Ethereum.)
-            circuit_writer.constrain_inputs_to_main(&var.cvars, &typ.kind, typ.span)?;
+            self.constrain_inputs_to_main(&var.cvars, &typ.kind, typ.span)?;
 
             // add argument variable to the ast env
             let mutable = false; // TODO: should we add a mut keyword in arguments as well?
             let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
-            circuit_writer.add_local_var(fn_env, name.value.clone(), var_info);
+            self.add_local_var(fn_env, name.value.clone(), var_info);
         }
 
         // create public output
@@ -358,15 +382,15 @@ impl CircuitWriter {
             }
 
             // create it
-            circuit_writer.add_public_outputs(1, typ.span);
+            self.add_public_outputs(1, typ.span);
         }
 
         // compile function
-        circuit_writer.compile_main_function(fn_env, &function)?;
+        self.compile_main_function(fn_env, &function)?;
 
         // important: there might still be a pending generic gate
-        if let Some(pending) = circuit_writer.pending_generic_gate.take() {
-            circuit_writer.add_gate(
+        if let Some(pending) = self.pending_generic_gate.take() {
+            self.add_gate(
                 pending.label,
                 GateKind::DoubleGeneric,
                 pending.vars,
@@ -377,33 +401,32 @@ impl CircuitWriter {
 
         // for sanity check, we make sure that every cellvar created has ended up in a gate
         let mut written_vars = HashSet::new();
-        for row in &circuit_writer.rows_of_vars {
+        for row in &self.rows_of_vars {
             row.iter().flatten().for_each(|cvar| {
                 written_vars.insert(cvar.index);
             });
         }
 
-        for var in 0..circuit_writer.next_variable {
+        for var in 0..self.next_variable {
             if !written_vars.contains(&var) {
-                if circuit_writer.private_input_indices.contains(&var) {
+                if self.private_input_indices.contains(&var) {
                     // compute main sig
                     let (_main_sig, main_span) = {
-                        let fn_info = circuit_writer.typed.functions.get("main").cloned().unwrap();
+                        let fn_info = self.typed.functions.get("main").cloned().unwrap();
 
                         (fn_info.sig().clone(), fn_info.span)
                     };
 
                     // TODO: is this error useful?
-                    return Err(Error::new(ErrorKind::PrivateInputNotUsed, main_span));
+                    return Err(self.error(ErrorKind::PrivateInputNotUsed, main_span));
                 } else {
-                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
+                    panic!("there's a bug in the self, some cellvar does not end up being a cellvar in the circuit!");
                 }
             }
         }
 
         // we finalized!
-        circuit_writer.finalized = true;
-
-        Ok(CompiledCircuit::new(circuit_writer))
+        self.finalized = true;
+        Ok(())
     }
 }

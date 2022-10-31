@@ -194,6 +194,7 @@ impl TypeChecker {
                 let fn_sig: FnSig = if let Some(module) = module {
                     // check module present in the scope
                     let module_val = &module.value;
+
                     let imported_module = self.modules.get(module_val).ok_or_else(|| {
                         Error::new(ErrorKind::UndefinedModule(module_val.clone()), module.span)
                     })?;
