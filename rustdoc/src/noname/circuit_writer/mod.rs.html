@@ -430,6 +430,22 @@
 <span id="430">430</span>
 <span id="431">431</span>
 <span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
@@ -596,13 +612,29 @@
         res
     }
 
+    <span class="kw">pub fn </span>do_in_submodule&lt;T, F&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, module: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Ident&gt;, <span class="kw-2">mut </span>closure: F) -&gt; <span class="prelude-ty">Result</span>&lt;T&gt;
+    <span class="kw">where
+        </span>F: FnMut(<span class="kw-2">&amp;mut </span>CircuitWriter) -&gt; <span class="prelude-ty">Result</span>&lt;T&gt;,
+    {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
+            <span class="kw">let </span>prev_current_module = <span class="self">self</span>.current_module.clone();
+            <span class="kw">let </span>submodule = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
+            <span class="self">self</span>.current_module = <span class="prelude-val">Some</span>(submodule.into());
+            <span class="kw">let </span>res = closure(<span class="self">self</span>);
+            <span class="self">self</span>.current_module = prev_current_module;
+            res
+        } <span class="kw">else </span>{
+            closure(<span class="self">self</span>)
+        }
+    }
+
     <span class="kw">pub fn </span>get_fn(<span class="kw-2">&amp;</span><span class="self">self</span>, module: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Ident&gt;, fn_name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Result</span>&lt;FnInfo&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
             <span class="comment">// we may be parsing a function from a 3rd-party library
             // which might also come from another 3rd-party library
             </span><span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
-            <span class="self">self</span>.dependencies.get_fn(module, fn_name)
-        } <span class="kw">else </span>{
+            <span class="self">self</span>.dependencies.get_fn(module, fn_name) <span class="comment">// TODO: add source
+        </span>} <span class="kw">else </span>{
             <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
             <span class="kw">let </span>fn_info = curr_type_checker
                 .functions
@@ -623,8 +655,8 @@
             <span class="comment">// we may be parsing a struct from a 3rd-party library
             // which might also come from another 3rd-party library
             </span><span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
-            <span class="self">self</span>.dependencies.get_struct(module, struct_name)
-        } <span class="kw">else </span>{
+            <span class="self">self</span>.dependencies.get_struct(module, struct_name) <span class="comment">// TODO: add source
+        </span>} <span class="kw">else </span>{
             <span class="kw">let </span>curr_type_checker = <span class="self">self</span>.current_type_checker();
             <span class="kw">let </span>struct_info = curr_type_checker
                 .struct_info(<span class="kw-2">&amp;</span>struct_name.value)

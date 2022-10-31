@@ -939,6 +939,21 @@
 <span id="939">939</span>
 <span id="940">940</span>
 <span id="941">941</span>
+<span id="942">942</span>
+<span id="943">943</span>
+<span id="944">944</span>
+<span id="945">945</span>
+<span id="946">946</span>
+<span id="947">947</span>
+<span id="948">948</span>
+<span id="949">949</span>
+<span id="950">950</span>
+<span id="951">951</span>
+<span id="952">952</span>
+<span id="953">953</span>
+<span id="954">954</span>
+<span id="955">955</span>
+<span id="956">956</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Display, Formatter},
     ops::Neg,
@@ -1265,7 +1280,22 @@
                 }
 
                 <span class="comment">// retrieve the function in the env
-                </span><span class="kw">let </span>fn_info = <span class="self">self</span>.get_fn(module, fn_name)<span class="question-mark">?</span>;
+
+                // let fn_info = self.get_fn(module, fn_name)?;
+
+                </span><span class="kw">let </span>fn_info = <span class="self">self</span>.do_in_submodule(module, |circuit_writer| {
+                    <span class="kw">let </span>curr_type_checker = circuit_writer.current_type_checker();
+                    curr_type_checker
+                        .functions
+                        .get(<span class="kw-2">&amp;</span>fn_name.value)
+                        .cloned()
+                        .ok_or_else(|| {
+                            circuit_writer.error(
+                                ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                                fn_name.span,
+                            )
+                        })
+                })<span class="question-mark">?</span>;
 
                 <span class="comment">// compute the arguments
                 // module::fn_name(args)

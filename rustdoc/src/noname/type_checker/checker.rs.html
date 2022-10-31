@@ -943,7 +943,7 @@
                 <span class="comment">// get struct info
                 </span><span class="kw">let </span>struct_info = <span class="self">self
                     </span>.struct_info(<span class="kw-2">&amp;</span>struct_name.value)
-                    .expect(<span class="string">&quot;this struct is not defined&quot;</span>);
+                    .expect(<span class="string">&quot;this struct is not defined, or you&#39;re trying to access a field of a struct defined in a third-party library (TODO: better error)&quot;</span>);
 
                 <span class="comment">// find field type
                 </span><span class="kw">let </span>res = struct_info
