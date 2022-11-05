@@ -4,8 +4,11 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     syntax::{is_hexadecimal, is_identifier_or_type, is_numeric},
-    tokens::Tokens,
 };
+
+pub use tokens::Tokens;
+
+pub mod tokens;
 
 #[derive(Debug)]
 pub struct LexerCtx<'a> {

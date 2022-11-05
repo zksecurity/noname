@@ -3,13 +3,15 @@ use miette::NamedSource;
 use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
-    lexer::{Keyword, Token, TokenKind},
-    tokens::Tokens,
+    lexer::{Keyword, Token, TokenKind, Tokens},
 };
 
-use self::types::{Const, Function, Root, RootKind, Struct, UsePath};
+pub use self::types::{Const, Function, Root, RootKind, Struct, UsePath};
 
+pub mod expr;
 pub mod types;
+
+pub use expr::{Expr, ExprKind, Op2};
 
 //~
 //~ # Grammar

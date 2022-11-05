@@ -5,7 +5,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{Const, Function, RootKind, Struct, Ty, TyKind, UsePath},
+        types::{Const, Function, RootKind, Struct, Ty, TyKind, UsePath, FnSig},
         AST,
     },
 };

@@ -4,7 +4,10 @@ use crate::{
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    parser::types::{AttributeKind, Expr, FnArg, Ident, TyKind, UsePath},
+    parser::{
+        types::{AttributeKind, FnArg, Ident, TyKind, UsePath},
+        Expr,
+    },
     type_checker::{Dependencies, FnInfo, StructInfo, TypeChecker},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,

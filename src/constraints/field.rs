@@ -1,9 +1,10 @@
 use crate::{
-    boolean,
     circuit_writer::CircuitWriter,
     constants::{Field, Span},
     var::{ConstOrCell, Value, Var},
 };
+
+use super::boolean;
 
 use ark_ff::{One, Zero};
 

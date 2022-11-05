@@ -8,7 +8,7 @@ The compilation of noname programs goes through the following flow:
    - **Built-in functions**. Functions like `assert_eq` are injected into the environment.
    - **Custom imports**. Modules imported via the `use` keyword are resolved and added to the environment. For now, these can only be built-in functions, and noname functions or libraries are not supported (of course it is essential to support them in the future).
    - **Type checking**. The type checker verifies that the types of each variables and expressions in the AST make sense. It is a very simple type checker that can do some simple type inference. Temporary type information (type of an expression) is not stored, and is thrown away as soon as the type checker can afford it. a TAST for typed AST is returned, but it mostly contains resolved imports and most type information has been thrown away.
-4. **Gate construction**. The TAST produced by the type checker is passed to the circuit writer (`circuit_writer.rs`) which goes through it one more time and converts it into:
+4. **Gate construction**. The TAST produced by the type checker is passed to the circuit writer (`circuit_writer.rs`), also called the constraint writer, which goes through it one more time and converts it into:
    - **compiled circuit**: a series of gates and wires
    - **prover instructions**: instructions on how to run the function for the witness generation (used by the prover)
 

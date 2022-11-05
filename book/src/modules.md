@@ -62,3 +62,225 @@ TAST: contains <some_lib -> a::some_lib>
 
 Once type checking is done, the circuit writer is given access to all of the dependencies' TAST (which also contain their AST). 
 This way, it can jump from AST to AST to generate an unrolled circuit.
+
+## Another solution
+
+This is a bit annoying. We need a context switcher in both the constraint writer and the type checker, and it's almost the same code.
+
+### Type Checker
+
+### Constraint Writer
+
+```rust
+pub struct CircuitWriter {
+    /// The type checker state for the main module.
+    // Important: this field must not be used directly.
+    // This is because, depending on the value of [current_module],
+    // the type checker state might be this one, or one of the ones in [dependencies].
+    typed: TypeChecker,
+
+    /// The type checker state and source for the dependencies.
+    // TODO: perhaps merge {source, typed} in this type?
+    dependencies: Dependencies,
+
+    /// The current module. If not set, the main module.
+    // Note: this can be an alias that came from a 3rd party library.
+    // For example, a 3rd party library might have written `use a::b as c;`.
+    // For this reason we must store this as a fully-qualified module.
+    pub(crate) current_module: Option<UserRepo>,
+```
+
+and then access to the TAST is gated so we can switch context on demand, or figure out what's the current context:
+
+```rust
+impl CircuitWriter {
+    /// Retrieves the type checker associated to the current module being parsed.
+    /// It is possible, when we jump to third-party libraries' code,
+    /// that we need access to their type checker state instead of the main module one.
+    pub fn current_type_checker(&self) -> &TypeChecker {
+        if let Some(current_module) = &self.current_module {
+            self.dependencies
+                .get_type_checker(current_module)
+                .expect(&format!(
+                    "bug in the compiler: couldn't find current module: {:?}",
+                    current_module
+                ))
+        } else {
+            &self.typed
+        }
+    }
+
+    pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
+        let curr_type_checker = self.current_type_checker();
+        curr_type_checker.node_types.get(&expr.node_id)
+    }
+
+    pub fn node_type(&self, node_id: usize) -> Option<&TyKind> {
+        let curr_type_checker = self.current_type_checker();
+        curr_type_checker.node_types.get(&node_id)
+    }
+
+    pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
+        let curr_type_checker = self.current_type_checker();
+        curr_type_checker.struct_info(name)
+    }
+
+    pub fn fn_info(&self, name: &str) -> Option<&FnInfo> {
+        let curr_type_checker = self.current_type_checker();
+        curr_type_checker.functions.get(name)
+    }
+
+    pub fn size_of(&self, typ: &TyKind) -> Result<usize> {
+        let curr_type_checker = self.current_type_checker();
+        curr_type_checker.size_of(&self.dependencies, typ)
+    }
+
+    pub fn resolve_module(&self, module: &Ident) -> Result<&UsePath> {
+        let curr_type_checker = self.current_type_checker();
+
+        let res = curr_type_checker.modules.get(&module.value).ok_or_else(|| {
+            self.error(
+                ErrorKind::UndefinedModule(module.value.clone()),
+                module.span,
+            )
+        });
+
+        res
+    }
+
+    pub fn do_in_submodule<T, F>(&mut self, module: &Option<Ident>, mut closure: F) -> Result<T>
+    where
+        F: FnMut(&mut CircuitWriter) -> Result<T>,
+    {
+        if let Some(module) = module {
+            let prev_current_module = self.current_module.clone();
+            let submodule = self.resolve_module(module)?;
+            self.current_module = Some(submodule.into());
+            let res = closure(self);
+            self.current_module = prev_current_module;
+            res
+        } else {
+            closure(self)
+        }
+    }
+
+    pub fn get_fn(&self, module: &Option<Ident>, fn_name: &Ident) -> Result<FnInfo> {
+        if let Some(module) = module {
+            // we may be parsing a function from a 3rd-party library
+            // which might also come from another 3rd-party library
+            let module = self.resolve_module(module)?;
+            self.dependencies.get_fn(module, fn_name) // TODO: add source
+        } else {
+            let curr_type_checker = self.current_type_checker();
+            let fn_info = curr_type_checker
+                .functions
+                .get(&fn_name.value)
+                .cloned()
+                .ok_or_else(|| {
+                    self.error(
+                        ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                        fn_name.span,
+                    )
+                })?;
+            Ok(fn_info)
+        }
+    }
+
+    pub fn get_struct(&self, module: &Option<Ident>, struct_name: &Ident) -> Result<StructInfo> {
+        if let Some(module) = module {
+            // we may be parsing a struct from a 3rd-party library
+            // which might also come from another 3rd-party library
+            let module = self.resolve_module(module)?;
+            self.dependencies.get_struct(module, struct_name) // TODO: add source
+        } else {
+            let curr_type_checker = self.current_type_checker();
+            let struct_info = curr_type_checker
+                .struct_info(&struct_name.value)
+                .ok_or(self.error(
+                    ErrorKind::UndefinedStruct(struct_name.value.clone()),
+                    struct_name.span,
+                ))?
+                .clone();
+            Ok(struct_info)
+        }
+    }
+
+    pub fn get_source(&self, module: &Option<UserRepo>) -> &str {
+        if let Some(module) = module {
+            &self
+                .dependencies
+                .get_type_checker(module)
+                .expect(&format!(
+                    "type checker bug: can't find current module's (`{module:?}`) file"
+                ))
+                .src
+        } else {
+            &self.typed.src
+        }
+    }
+
+    pub fn get_file(&self, module: &Option<UserRepo>) -> &str {
+        if let Some(module) = module {
+            &self.dependencies.get_file(module).expect(&format!(
+                "type checker bug: can't find current module's (`{module:?}`) file"
+            ))
+        } else {
+            &self.typed.filename
+        }
+    }
+
+    pub fn get_current_source(&self) -> &str {
+        self.get_source(&self.current_module)
+    }
+
+    pub fn get_current_file(&self) -> &str {
+        self.get_file(&self.current_module)
+    }
+
+    pub fn add_local_var(&self, fn_env: &mut FnEnv, var_name: String, var_info: VarInfo) {
+        // check for consts first
+        let type_checker = self.current_type_checker();
+        if let Some(_cst_info) = type_checker.constants.get(&var_name) {
+            panic!(
+                "type checker bug: we already have a constant with the same name (`{var_name}`)!"
+            );
+        }
+
+        //
+        fn_env.add_local_var(var_name, var_info)
+    }
+
+    pub fn get_local_var(&self, fn_env: &FnEnv, var_name: &str) -> VarInfo {
+        // check for consts first
+        let type_checker = self.current_type_checker();
+        if let Some(cst_info) = type_checker.constants.get(var_name) {
+            let var = Var::new_constant(cst_info.value, cst_info.typ.span);
+            return VarInfo::new(var, false, Some(TyKind::Field));
+        }
+
+        // then check for local variables
+        fn_env.get_local_var(var_name)
+    }
+```
+
+we basically have to implement the same in the type checker... It always sort of looks the same. A handy function is either called with `get_fn` or `expr_type` or `node_type` etc. or we call a block of code with `do_in_submodule`.
+
+all of these basically start by figuring out the `curr_type_checker`:
+
+- what's the current module (`self.current_module`)?
+  - if there is none, use the main TAST (`self.typed`)
+  - otherwise find that TAST (in `self.dependencies`)
+  - btw all of this logic is implemented in `self.current_type_checker()`
+  - the returned TAST is called `curr_type_checker`
+
+then, if we're handling something that has a module:
+
+- do name resolution (implemented in `resolve_module()`):
+  - use `curr_type_checker` to resolve the fully-qualified module name
+
+or if we're executing a block within a module:
+
+- save the current module (`self.current_module`)
+- replace it with the module we're using (we have used `resolve_module()` at this point)
+- execute in the closure where `self` is passed
+- when we return, reset the current module to its previous saved state

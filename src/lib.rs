@@ -3,13 +3,12 @@
 //!
 
 pub mod asm;
-pub mod boolean;
 pub mod circuit_writer;
 pub mod cli;
 pub mod compiler;
 pub mod constants;
+pub mod constraints;
 pub mod error;
-pub mod field;
 pub mod imports;
 pub mod inputs;
 pub mod lexer;
@@ -18,7 +17,6 @@ pub mod prover;
 pub mod serialization;
 pub mod stdlib;
 pub mod syntax;
-pub mod tokens;
 pub mod type_checker;
 pub mod var;
 pub mod witness;

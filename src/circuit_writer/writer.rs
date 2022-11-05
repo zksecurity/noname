@@ -10,13 +10,15 @@ use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    boolean,
     circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
     constants::{Field, Span, NUM_REGISTERS},
+    constraints::{boolean, field},
     error::{ErrorKind, Result},
-    field,
     imports::FnKind,
-    parser::types::{Expr, ExprKind, Function, Op2, Stmt, StmtKind, TyKind},
+    parser::{
+        types::{Function, Stmt, StmtKind, TyKind},
+        Expr, ExprKind, Op2,
+    },
     syntax::is_type,
     var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
 };

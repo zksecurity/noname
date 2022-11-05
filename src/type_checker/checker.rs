@@ -6,7 +6,10 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     imports::{resolve_builtin_functions, FnKind},
-    parser::types::{Expr, ExprKind, FnSig, Function, Op2, Stmt, StmtKind, Ty, TyKind, UsePath},
+    parser::{
+        types::{FnSig, Function, Stmt, StmtKind, Ty, TyKind, UsePath},
+        Expr, ExprKind, Op2,
+    },
     syntax::is_type,
 };
 
