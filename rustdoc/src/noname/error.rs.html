@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/error.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>error.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../noname/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/error.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>error.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-49323347f582d396.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-9955804613a78ba1.css"><link rel="stylesheet" disabled href="../../static.files/dark-3ab293e416bb6031.css"><link rel="stylesheet" disabled href="../../static.files/ayu-bba9ad31fb006b67.css"><script id="default-settings" ></script><script src="../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../static.files/source-script-74087aa2e88f4475.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-0dede64717b247ca.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-201a7e04dc4c6fce.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../noname/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -287,44 +287,6 @@
 <span id="287">287</span>
 <span id="288">288</span>
 <span id="289">289</span>
-<span id="290">290</span>
-<span id="291">291</span>
-<span id="292">292</span>
-<span id="293">293</span>
-<span id="294">294</span>
-<span id="295">295</span>
-<span id="296">296</span>
-<span id="297">297</span>
-<span id="298">298</span>
-<span id="299">299</span>
-<span id="300">300</span>
-<span id="301">301</span>
-<span id="302">302</span>
-<span id="303">303</span>
-<span id="304">304</span>
-<span id="305">305</span>
-<span id="306">306</span>
-<span id="307">307</span>
-<span id="308">308</span>
-<span id="309">309</span>
-<span id="310">310</span>
-<span id="311">311</span>
-<span id="312">312</span>
-<span id="313">313</span>
-<span id="314">314</span>
-<span id="315">315</span>
-<span id="316">316</span>
-<span id="317">317</span>
-<span id="318">318</span>
-<span id="319">319</span>
-<span id="320">320</span>
-<span id="321">321</span>
-<span id="322">322</span>
-<span id="323">323</span>
-<span id="324">324</span>
-<span id="325">325</span>
-<span id="326">326</span>
-<span id="327">327</span>
 </pre><pre class="rust"><code><span class="kw">use </span>miette::{Diagnostic, NamedSource};
 <span class="kw">use </span>thiserror::Error;
 
@@ -338,179 +300,141 @@
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
 
 <span class="doccomment">/// An error in noname.
-</span><span class="attribute">#[derive(Diagnostic, Debug, Error)]
+</span><span class="attr">#[derive(Diagnostic, Debug, Error)]
 #[error(<span class="string">&quot;Looks like something went wrong in {label}&quot;</span>)]
 </span><span class="kw">pub struct </span>Error {
     <span class="doccomment">/// A hint as to where the error happened (e.g. type-checker, parser, lexer, etc.)
     </span><span class="kw">pub </span>label: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
 
     <span class="doccomment">/// The type of error.
-    </span><span class="attribute">#[help]
+    </span><span class="attr">#[help]
     </span><span class="kw">pub </span>kind: ErrorKind,
 
     <span class="doccomment">/// Indicate where the error occurred in the source code.
-    </span><span class="attribute">#[label(<span class="string">&quot;here&quot;</span>)]
+    </span><span class="attr">#[label(<span class="string">&quot;here&quot;</span>)]
     </span><span class="kw">pub </span>span: Span,
-
-    <span class="doccomment">/// The actual (full) source code where this error happened.
-    </span><span class="attribute">#[source_code]
-    </span><span class="kw">pub </span>src: NamedSource,
 }
 
 <span class="kw">impl </span>Error {
     <span class="doccomment">/// Creates a new [Error] from an [ErrorKind].
     </span><span class="kw">pub fn </span>new(label: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, kind: ErrorKind, span: Span) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            label,
-            kind,
-            span,
-            src: NamedSource::new(<span class="string">&quot;&quot;</span>, <span class="string">&quot;&quot;</span>.to_string()),
-        }
-    }
-
-    <span class="kw">pub fn </span>new_with_source(
-        label: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
-        kind: ErrorKind,
-        src: NamedSource,
-        span: Span,
-    ) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            label,
-            kind,
-            span,
-            src,
-        }
-    }
-
-    <span class="kw">pub fn </span>new_with_code(
-        label: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
-        kind: ErrorKind,
-        source_file: <span class="kw-2">&amp;</span>str,
-        code: String,
-        span: Span,
-    ) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            label,
-            kind,
-            span,
-            src: NamedSource::new(source_file, code),
-        }
+        <span class="self">Self </span>{ label, kind, span }
     }
 }
 
 <span class="doccomment">/// The type of error.
-</span><span class="attribute">#[derive(Error, Diagnostic, Debug)]
+</span><span class="attr">#[derive(Error, Diagnostic, Debug)]
 </span><span class="kw">pub enum </span>ErrorKind {
-    <span class="attribute">#[error(<span class="string">&quot;variable is not mutable. You must set the `mut` keyword to make it mutable&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;variable is not mutable. You must set the `mut` keyword to make it mutable&quot;</span>)]
     </span>AssignmentToImmutableVariable,
 
-    <span class="attribute">#[error(
+    <span class="attr">#[error(
         <span class="string">&quot;the dependency `{0}` does not appear to be listed in your manifest file `Noname.toml`&quot;
     </span>)]
     </span>UnknownDependency(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;the function `{1}` does not exist in the module `{0}`&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the function `{1}` does not exist in the module `{0}`&quot;</span>)]
     </span>UnknownExternalFn(String, String),
 
-    <span class="attribute">#[error(<span class="string">&quot;the struct `{1}` does not exist in the module `{0}`&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the struct `{1}` does not exist in the module `{0}`&quot;</span>)]
     </span>UnknownExternalStruct(String, String),
 
-    <span class="attribute">#[error(transparent)]
-    </span>ParsingError(<span class="attribute">#[from] </span>ParsingError),
+    <span class="attr">#[error(transparent)]
+    </span>ParsingError(<span class="attr">#[from] </span>ParsingError),
 
-    <span class="attribute">#[error(<span class="string">&quot;the `const` attribute cannot be used for arguments of the main function&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the `const` attribute cannot be used for arguments of the main function&quot;</span>)]
     </span>ConstArgumentNotForMain,
 
-    <span class="attribute">#[error(<span class="string">&quot;a field access or a method call can only be applied on a field of another struct, a struct, or an array access&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;a field access or a method call can only be applied on a field of another struct, a struct, or an array access&quot;</span>)]
     </span>InvalidFieldAccessExpression,
 
-    <span class="attribute">#[error(<span class="string">&quot;the method called is not a static method&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the method called is not a static method&quot;</span>)]
     </span>NotAStaticMethod,
 
-    <span class="attribute">#[error(<span class="string">&quot;{0} arguments are passed when {1} were expected&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;{0} arguments are passed when {1} were expected&quot;</span>)]
     </span>MismatchFunctionArguments(usize, usize),
 
-    <span class="attribute">#[error(<span class="string">&quot;constants must be declared before any structs or functions&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;constants must be declared before any structs or functions&quot;</span>)]
     </span>OrderOfConstDeclaration,
 
-    <span class="attribute">#[error(
+    <span class="attr">#[error(
         <span class="string">&quot;the `use` keyword must be used before anything else (consts, structs, functions, etc.)&quot;
     </span>)]
     </span>OrderOfUseDeclaration,
 
-    <span class="attribute">#[error(<span class="string">&quot;cannot chain arithmetic operations without using parenthesis&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;cannot chain arithmetic operations without using parenthesis&quot;</span>)]
     </span>MissingParenthesis,
 
-    <span class="attribute">#[error(<span class="string">&quot;the `pub` keyword is reserved for arguments of the main function&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the `pub` keyword is reserved for arguments of the main function&quot;</span>)]
     </span>PubArgumentOutsideMain,
 
-    <span class="attribute">#[error(<span class="string">&quot;the function main is not recursive&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the function main is not recursive&quot;</span>)]
     </span>RecursiveMain,
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid token&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid token&quot;</span>)]
     </span>InvalidToken,
 
-    <span class="attribute">#[error(<span class="string">&quot;missing type&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;missing type&quot;</span>)]
     </span>MissingType,
 
-    <span class="attribute">#[error(<span class="string">&quot;missing token&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;missing token&quot;</span>)]
     </span>MissingToken,
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid token, expected: {0}&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid token, expected: {0}&quot;</span>)]
     </span>ExpectedToken(TokenKind),
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid path: {0}&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid path: {0}&quot;</span>)]
     </span>InvalidPath(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str),
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid end of line&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid end of line&quot;</span>)]
     </span>InvalidEndOfLine,
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid module&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid module&quot;</span>)]
     </span>InvalidModule,
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid function signature: {0}&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid function signature: {0}&quot;</span>)]
     </span>InvalidFunctionSignature(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str),
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid function name&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid function name&quot;</span>)]
     </span>InvalidFunctionName,
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid type name&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid type name&quot;</span>)]
     </span>InvalidTypeName,
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid type, expected an array or a type name (starting with an uppercase letter, and only containing alphanumeric characters)&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid type, expected an array or a type name (starting with an uppercase letter, and only containing alphanumeric characters)&quot;</span>)]
     </span>InvalidType,
 
-    <span class="attribute">#[error(<span class="string">&quot;the custom type name used: `{0}` is a reserved type name&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the custom type name used: `{0}` is a reserved type name&quot;</span>)]
     </span>ReservedType(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid array size, expected [_; x] with x in [0,2^32]&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid array size, expected [_; x] with x in [0,2^32]&quot;</span>)]
     </span>InvalidArraySize,
 
-    <span class="attribute">#[error(<span class="string">&quot;the value passed could not be converted to a field element&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the value passed could not be converted to a field element&quot;</span>)]
     </span>InvalidField(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid range size, expected x..y with x and y integers in [0,2^32]&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid range size, expected x..y with x and y integers in [0,2^32]&quot;</span>)]
     </span>InvalidRangeSize,
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid statement&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid statement&quot;</span>)]
     </span>InvalidStatement,
 
-    <span class="attribute">#[error(<span class="string">&quot;missing expression&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;missing expression&quot;</span>)]
     </span>MissingExpression,
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid expression&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid expression&quot;</span>)]
     </span>InvalidExpression,
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid identifier `{0}`, expected lowercase alphanumeric string (including underscore `_`) and starting with a letter&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid identifier `{0}`, expected lowercase alphanumeric string (including underscore `_`) and starting with a letter&quot;</span>)]
     </span>InvalidIdentifier(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid function call: {0}&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid function call: {0}&quot;</span>)]
     </span>InvalidFnCall(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str),
 
-    <span class="attribute">#[error(<span class="string">&quot;imports via `use` keyword must appear before anything else&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;imports via `use` keyword must appear before anything else&quot;</span>)]
     </span>UseAfterFn,
 
-    <span class="attribute">#[error(<span class="string">&quot;argument `{arg_name}` of function {fn_name} was passed a type {observed_ty} when it expected a {expected_ty}&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;argument `{arg_name}` of function {fn_name} was passed a type {observed_ty} when it expected a {expected_ty}&quot;</span>)]
     </span>WrongArgumentType {
         fn_name: String,
         arg_name: String,
@@ -518,139 +442,139 @@
         observed_ty: String,
     },
 
-    <span class="attribute">#[error(<span class="string">&quot;cannot compute the expression&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;cannot compute the expression&quot;</span>)]
     </span>CannotComputeExpression,
 
-    <span class="attribute">#[error(<span class="string">&quot;type &#39;{0}&#39; and &#39;{1}&#39; are not compatible&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;type &#39;{0}&#39; and &#39;{1}&#39; are not compatible&quot;</span>)]
     </span>MismatchType(TyKind, TyKind),
 
-    <span class="attribute">#[error(<span class="string">&quot;variable used is not defined anywhere&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;variable used is not defined anywhere&quot;</span>)]
     </span>UndefinedVariable,
 
-    <span class="attribute">#[error(<span class="string">&quot;unexpected argument type in function call. Expected: {0} and got {1}&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;unexpected argument type in function call. Expected: {0} and got {1}&quot;</span>)]
     </span>ArgumentTypeMismatch(TyKind, TyKind),
 
-    <span class="attribute">#[error(<span class="string">&quot;the function `{0}` return value must be used&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the function `{0}` return value must be used&quot;</span>)]
     </span>FunctionReturnsType(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;you need to pass the following public argument: `{0}`&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;you need to pass the following public argument: `{0}`&quot;</span>)]
     </span>MissingPublicArg(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;you need to pass the following private argument: `{0}`&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;you need to pass the following private argument: `{0}`&quot;</span>)]
     </span>MissingPrivateArg(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;cannot convert `{0}` to field element&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;cannot convert `{0}` to field element&quot;</span>)]
     </span>CannotConvertToField(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;a return value was expected by the function signature&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;a return value was expected by the function signature&quot;</span>)]
     </span>MissingReturn,
 
-    <span class="attribute">#[error(<span class="string">&quot;no return value was expected as part of this function signature&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;no return value was expected as part of this function signature&quot;</span>)]
     </span>NoReturnExpected,
 
-    <span class="attribute">#[error(<span class="string">&quot;the `self` argument cannot have attributes&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the `self` argument cannot have attributes&quot;</span>)]
     </span>SelfHasAttribute,
 
-    <span class="attribute">#[error(<span class="string">&quot;the return type observed (`{0}`) doesn&#39;t match what the function expected as return type (`{1}`)&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the return type observed (`{0}`) doesn&#39;t match what the function expected as return type (`{1}`)&quot;</span>)]
     </span>ReturnTypeMismatch(TyKind, TyKind),
 
-    <span class="attribute">#[error(<span class="string">&quot;missing return type in the function signature&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;missing return type in the function signature&quot;</span>)]
     </span>UnexpectedReturn,
 
-    <span class="attribute">#[error(<span class="string">&quot;error while importing std path: {0}&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;error while importing std path: {0}&quot;</span>)]
     </span>StdImport(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;tried to import the same module `{0}` twice&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;tried to import the same module `{0}` twice&quot;</span>)]
     </span>DuplicateModule(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;`{0}` is a reserved argument name&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;`{0}` is a reserved argument name&quot;</span>)]
     </span>PublicOutputReserved(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;function `{0}` not present in scope (did you misspell it?)&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;function `{0}` not present in scope (did you misspell it?)&quot;</span>)]
     </span>UndefinedFunction(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;module `{0}` not present in scope (are you sure you imported it?)&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;module `{0}` not present in scope (are you sure you imported it?)&quot;</span>)]
     </span>UndefinedModule(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;attribute not recognized: `{0:?}`&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;attribute not recognized: `{0:?}`&quot;</span>)]
     </span>InvalidAttribute(AttributeKind),
 
-    <span class="attribute">#[error(<span class="string">&quot;A return value is not used&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;A return value is not used&quot;</span>)]
     </span>UnusedReturnValue,
 
-    <span class="attribute">#[error(<span class="string">&quot;array accessed at index {0} is out of bounds (max allowed index is {1})&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;array accessed at index {0} is out of bounds (max allowed index is {1})&quot;</span>)]
     </span>ArrayIndexOutOfBounds(usize, usize),
 
-    <span class="attribute">#[error(
+    <span class="attr">#[error(
         <span class="string">&quot;one-letter variables or types are not allowed. Best practice is to use descriptive names&quot;
     </span>)]
     </span>NoOneLetterVariable,
 
-    <span class="attribute">#[error(<span class="string">&quot;array indexes must be constants in circuits&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;array indexes must be constants in circuits&quot;</span>)]
     </span>ExpectedConstant,
 
-    <span class="attribute">#[error(<span class="string">&quot;kimchi setup: {0}&quot;</span>)]
-    </span>KimchiSetup(<span class="attribute">#[from] </span>kimchi::error::SetupError),
+    <span class="attr">#[error(<span class="string">&quot;kimchi setup: {0}&quot;</span>)]
+    </span>KimchiSetup(<span class="attr">#[from] </span>kimchi::error::SetupError),
 
-    <span class="attribute">#[error(<span class="string">&quot;kimchi prover: {0}&quot;</span>)]
-    </span>KimchiProver(<span class="attribute">#[from] </span>kimchi::error::ProverError),
+    <span class="attr">#[error(<span class="string">&quot;kimchi prover: {0}&quot;</span>)]
+    </span>KimchiProver(<span class="attr">#[from] </span>kimchi::error::ProverError),
 
-    <span class="attribute">#[error(<span class="string">&quot;kimchi verifier: {0}&quot;</span>)]
-    </span>KimchiVerifier(<span class="attribute">#[from] </span>kimchi::error::VerifyError),
+    <span class="attr">#[error(<span class="string">&quot;kimchi verifier: {0}&quot;</span>)]
+    </span>KimchiVerifier(<span class="attr">#[from] </span>kimchi::error::VerifyError),
 
-    <span class="attribute">#[error(<span class="string">&quot;the program did not run to completion with the given private and/or public inputs (row {0} of the witness failed to verify)&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the program did not run to completion with the given private and/or public inputs (row {0} of the witness failed to verify)&quot;</span>)]
     </span>InvalidWitness(usize),
 
-    <span class="attribute">#[error(<span class="string">&quot;user provided input `{0}` is not defined in the main function&#39;s arguments&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;user provided input `{0}` is not defined in the main function&#39;s arguments&quot;</span>)]
     </span>UnusedInput(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;private input not used in the circuit&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;private input not used in the circuit&quot;</span>)]
     </span>PrivateInputNotUsed,
 
-    <span class="attribute">#[error(<span class="string">&quot;the variable `{0}` is declared twice&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the variable `{0}` is declared twice&quot;</span>)]
     </span>DuplicateDefinition(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;only variables and arrays can be mutated&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;only variables and arrays can be mutated&quot;</span>)]
     </span>InvalidAssignmentExpression,
 
-    <span class="attribute">#[error(<span class="string">&quot;the main function must have at least one argument&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the main function must have at least one argument&quot;</span>)]
     </span>NoArgsInMain,
 
-    <span class="attribute">#[error(<span class="string">&quot;local variable `{0}` couldn&#39;t be found&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;local variable `{0}` couldn&#39;t be found&quot;</span>)]
     </span>LocalVariableNotFound(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;the public output cannot contain constants&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;the public output cannot contain constants&quot;</span>)]
     </span>ConstantInOutput,
 
-    <span class="attribute">#[error(<span class="string">&quot;incorrect number of fields declared for the `{0}` struct declaration&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;incorrect number of fields declared for the `{0}` struct declaration&quot;</span>)]
     </span>MismatchStructFields(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid field, expected `{0}` and got `{1}`&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid field, expected `{0}` and got `{1}`&quot;</span>)]
     </span>InvalidStructField(String, String),
 
-    <span class="attribute">#[error(<span class="string">&quot;invalid type for the field, expected `{0}` and got `{1}`&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;invalid type for the field, expected `{0}` and got `{1}`&quot;</span>)]
     </span>InvalidStructFieldType(TyKind, TyKind),
 
-    <span class="attribute">#[error(<span class="string">&quot;method call can only be applied on custom structs&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;method call can only be applied on custom structs&quot;</span>)]
     </span>MethodCallOnNonCustomStruct,
 
-    <span class="attribute">#[error(<span class="string">&quot;array access can only be performed on arrays&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;array access can only be performed on arrays&quot;</span>)]
     </span>ArrayAccessOnNonArray,
 
-    <span class="attribute">#[error(<span class="string">&quot;struct `{0}` is never defined&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;struct `{0}` is never defined&quot;</span>)]
     </span>UndefinedStruct(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;struct `{0}` does not have a field called `{1}`&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;struct `{0}` does not have a field called `{1}`&quot;</span>)]
     </span>UndefinedField(String, String),
 
-    <span class="attribute">#[error(<span class="string">&quot;this assertion failed&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;this assertion failed&quot;</span>)]
     </span>AssertionFailed,
 
-    <span class="attribute">#[error(<span class="string">&quot;constants can only have a literal decimal value&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;constants can only have a literal decimal value&quot;</span>)]
     </span>InvalidConstType,
 
-    <span class="attribute">#[error(<span class="string">&quot;cannot compile a module without a main function&quot;</span>)]
+    <span class="attr">#[error(<span class="string">&quot;cannot compile a module without a main function&quot;</span>)]
     </span>NoMainFunction,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (77e57db38 2022-10-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (1286ee23e 2022-11-05)" data-search-js="search-39ee4160c7dc16c9.js" data-settings-js="settings-3a0b9947ba1bd99a.js" data-settings-css="settings-a66f7524084a489a.css" ></div></body></html>

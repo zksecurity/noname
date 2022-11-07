@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":[["Keyword",""],["TokenKind",""]],"struct":[["LexerCtx",""],["Token",""]]};
+window.SIDEBAR_ITEMS = {"enum":[["Keyword",""],["TokenKind",""]],"mod":[["tokens","Since [std::iter::Peekable] in Rust advances the iterator, I can’t use it for peeking tokens. I haven’t found a better way than implementing a wrapper that allows me to peek…"]],"struct":[["LexerCtx",""],["Token",""]]};

@@ -159,6 +159,9 @@
 <li>the second numebr if the length of the span (e.g. 1 character)</li>
 </ul>
 <p>We start tracking spans in the lexer, and then pass them around to the parser, and then to the compiler. Even gates and wirings have spans associated with them so that we can easily debug those.</p>
+<h2 id="filename"><a class="header" href="#filename">Filename</a></h2>
+<p>The filename is currently missing from the <code>Span</code>, it is annoying to add it as a <code>String</code> because then we can’t easily copy the span around (<code>String</code> is not <code>Copy</code> but <code>Clone</code>).</p>
+<p>One way to solve this, is to add the filenames in a <code>Hashmap&lt;usize, String&gt;</code>, and have the <code>usize</code> be in the <code>Span</code>.</p>
 
                     </main>
 

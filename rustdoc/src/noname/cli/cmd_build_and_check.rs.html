@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cli/cmd_build_and_check.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>cmd_build_and_check.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cli/cmd_build_and_check.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>cmd_build_and_check.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-49323347f582d396.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-9955804613a78ba1.css"><link rel="stylesheet" disabled href="../../../static.files/dark-3ab293e416bb6031.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-bba9ad31fb006b67.css"><script id="default-settings" ></script><script src="../../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../../static.files/source-script-74087aa2e88f4475.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-0dede64717b247ca.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-201a7e04dc4c6fce.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -251,13 +251,20 @@
 <span id="251">251</span>
 <span id="252">252</span>
 <span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
 </pre><pre class="rust"><code><span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
-<span class="kw">use </span>miette::{Context, IntoDiagnostic, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span>miette::{Context, IntoDiagnostic};
 
 <span class="kw">use crate</span>::{
-    circuit_writer::CircuitWriter,
     cli::packages::path_to_package,
-    compiler::{compile_single, get_tast},
+    compiler::{compile, get_tast, Sources},
     inputs::{parse_inputs, JsonInputs},
     prover::{compile_to_indexes, ProverIndex, VerifierIndex},
     type_checker::{Dependencies, TypeChecker},
@@ -269,30 +276,30 @@
 
 <span class="kw">const </span>COMPILED_DIR: <span class="kw-2">&amp;</span>str = <span class="string">&quot;compiled&quot;</span>;
 
-<span class="attribute">#[derive(clap::Parser)]
+<span class="attr">#[derive(clap::Parser)]
 </span><span class="kw">pub struct </span>CmdBuild {
     <span class="doccomment">/// Path to the directory to create.
-    </span><span class="attribute">#[clap(short, long, value_parser)]
+    </span><span class="attr">#[clap(short, long, value_parser)]
     </span>path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 
     <span class="doccomment">/// Prints an assembly-like encoding of the circuit.
-    </span><span class="attribute">#[clap(long)]
+    </span><span class="attr">#[clap(long)]
     </span>asm: bool,
 
     <span class="doccomment">/// Prints a debug version of the assembly. To be used in conjunction with `--asm`.
-    </span><span class="attribute">#[clap(long)]
+    </span><span class="attr">#[clap(long)]
     </span>debug: bool,
 
     <span class="doccomment">/// In case the path points to a binary,
     /// outputs the prover parameters to the given file.
     /// Defaults to `prover.nope`
-    </span><span class="attribute">#[clap(long, value_parser)]
+    </span><span class="attr">#[clap(long, value_parser)]
     </span>prover_params: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 
     <span class="doccomment">/// In case the path points to a binary,
     /// outputs the verifier parameters to the given file.
     /// Defaults to `verifier.nope`
-    </span><span class="attribute">#[clap(long, value_parser)]
+    </span><span class="attr">#[clap(long, value_parser)]
     </span>verifier_params: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 }
 
@@ -301,7 +308,7 @@
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    <span class="kw">let </span>(prover_index, verifier_index) = build(<span class="kw-2">&amp;</span>curr_dir, args.asm, args.debug)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(sources, prover_index, verifier_index) = build(<span class="kw-2">&amp;</span>curr_dir, args.asm, args.debug)<span class="question-mark">?</span>;
 
     <span class="comment">// create COMPILED_DIR
     </span><span class="kw">let </span>compiled_path = curr_dir.join(COMPILED_DIR);
@@ -346,14 +353,14 @@
     </span><span class="prelude-val">Ok</span>(())
 }
 
-<span class="attribute">#[derive(clap::Parser)]
+<span class="attr">#[derive(clap::Parser)]
 </span><span class="kw">pub struct </span>CmdCheck {
     <span class="doccomment">/// path to the directory to create
-    </span><span class="attribute">#[clap(short, long, value_parser)]
+    </span><span class="attr">#[clap(short, long, value_parser)]
     </span>path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 }
 
-<span class="kw">pub fn </span>cmd_check(args: CmdCheck) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<span class="kw">pub fn </span>cmd_check(args: CmdCheck) -&gt; miette::Result&lt;()&gt; {
     <span class="kw">let </span>curr_dir = args
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
@@ -365,7 +372,7 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn </span>produce_all_asts(path: <span class="kw-2">&amp;</span>PathBuf) -&gt; <span class="prelude-ty">Result</span>&lt;(TypeChecker, Dependencies)&gt; {
+<span class="kw">fn </span>produce_all_asts(path: <span class="kw-2">&amp;</span>PathBuf) -&gt; miette::Result&lt;(Sources, TypeChecker, Dependencies)&gt; {
     <span class="comment">// find manifest
     </span><span class="kw">let </span>manifest = validate_package_and_get_manifest(<span class="kw-2">&amp;</span>path, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
@@ -384,7 +391,9 @@
     <span class="kw">let </span>dep_graph = DependencyGraph::new_from_manifest(this, <span class="kw-2">&amp;</span>manifest)<span class="question-mark">?</span>;
 
     <span class="comment">// produce artifacts for each dependency, starting from leaf dependencies
-    </span><span class="kw">let </span><span class="kw-2">mut </span>deps_tasts = Dependencies::default();
+    </span><span class="kw">let </span><span class="kw-2">mut </span>sources = Sources::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>deps = Dependencies::default();
+
     <span class="kw">for </span>dep <span class="kw">in </span>dep_graph.from_leaves_to_roots() {
         <span class="kw">let </span>path = path_to_package(<span class="kw-2">&amp;</span>dep);
 
@@ -394,8 +403,8 @@
             .wrap_err_with(|| <span class="macro">format!</span>(<span class="string">&quot;could not read file `{path}`&quot;</span>))<span class="question-mark">?</span>;
 
         <span class="kw">let </span>lib_file_str = lib_file.to_string();
-        <span class="kw">let </span>tast = get_tast(lib_file_str.clone(), code, <span class="kw-2">&amp;</span>deps_tasts)<span class="question-mark">?</span>;
-        deps_tasts.add_type_checker(dep, lib_file_str, tast);
+        <span class="kw">let </span>tast = get_tast(<span class="kw-2">&amp;mut </span>sources, lib_file_str.clone(), code, <span class="kw-2">&amp;</span>deps)<span class="question-mark">?</span>;
+        deps.add_type_checker(dep, lib_file_str, tast);
     }
 
     <span class="comment">// produce artifact for this one
@@ -415,52 +424,54 @@
         .into_diagnostic()
         .wrap_err_with(|| <span class="macro">format!</span>(<span class="string">&quot;could not read file `{file_path}`&quot;</span>))<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>tast = get_tast(file_path.to_string(), code, <span class="kw-2">&amp;</span>deps_tasts)<span class="question-mark">?</span>;
+    <span class="kw">let </span>tast = get_tast(<span class="kw-2">&amp;mut </span>sources, file_path.to_string(), code, <span class="kw-2">&amp;</span>deps)<span class="question-mark">?</span>;
 
-    <span class="prelude-val">Ok</span>((tast, deps_tasts))
+    <span class="prelude-val">Ok</span>((sources, tast, deps))
 }
 
 <span class="kw">pub fn </span>build(
     curr_dir: <span class="kw-2">&amp;</span>PathBuf,
     asm: bool,
     debug: bool,
-) -&gt; miette::Result&lt;(ProverIndex, VerifierIndex)&gt; {
+) -&gt; miette::Result&lt;(Sources, ProverIndex, VerifierIndex)&gt; {
     <span class="comment">// produce all TASTs
-    </span><span class="kw">let </span>(tast, deps_tasts) = produce_all_asts(curr_dir)<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>(sources, tast, deps) = produce_all_asts(curr_dir)<span class="question-mark">?</span>;
 
     <span class="comment">// produce indexes
-    </span><span class="kw">let </span>compiled_circuit = CircuitWriter::generate_circuit(tast, deps_tasts).into_diagnostic()<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, deps)<span class="question-mark">?</span>;
 
     <span class="kw">if </span>asm {
-        <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, compiled_circuit.asm(debug));
+        <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, compiled_circuit.asm(<span class="kw-2">&amp;</span>sources, debug));
     }
 
     <span class="comment">// TODO: cache artifacts
 
     // produce indexes
-    </span>compile_to_indexes(compiled_circuit)
+    </span><span class="kw">let </span>(prover_index, verifier_index) = compile_to_indexes(compiled_circuit)<span class="question-mark">?</span>;
+
+    <span class="prelude-val">Ok</span>((sources, prover_index, verifier_index))
 }
 
-<span class="attribute">#[derive(clap::Parser)]
+<span class="attr">#[derive(clap::Parser)]
 </span><span class="kw">pub struct </span>CmdTest {
     <span class="doccomment">/// path to the .no file
-    </span><span class="attribute">#[clap(short, long, value_parser)]
+    </span><span class="attr">#[clap(short, long, value_parser)]
     </span>path: PathBuf,
 
     <span class="doccomment">/// public inputs in a JSON format using decimal values (e.g. {&quot;a&quot;: &quot;1&quot;, &quot;b&quot;: &quot;2&quot;})
-    </span><span class="attribute">#[clap(long)]
+    </span><span class="attr">#[clap(long)]
     </span>public_inputs: <span class="prelude-ty">Option</span>&lt;String&gt;,
 
     <span class="doccomment">/// private inputs in a JSON format using decimal values (e.g. {&quot;a&quot;: &quot;1&quot;, &quot;b&quot;: &quot;2&quot;})
-    </span><span class="attribute">#[clap(long)]
+    </span><span class="attr">#[clap(long)]
     </span>private_inputs: <span class="prelude-ty">Option</span>&lt;String&gt;,
 
     <span class="doccomment">/// prints debug information (defaults to false)
-    </span><span class="attribute">#[clap(short, long)]
+    </span><span class="attr">#[clap(short, long)]
     </span>debug: bool,
 }
 
-<span class="kw">pub fn </span>cmd_test(args: CmdTest) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<span class="kw">pub fn </span>cmd_test(args: CmdTest) -&gt; miette::Result&lt;()&gt; {
     <span class="comment">// read source code
     </span><span class="kw">let </span>code = std::fs::read_to_string(<span class="kw-2">&amp;</span>args.path)
         .into_diagnostic()
@@ -485,17 +496,22 @@
     };
 
     <span class="comment">// compile
-    </span><span class="kw">let </span>compiled_circuit = compile_single(args.path.to_string(), code)<span class="question-mark">?</span>;
+    </span><span class="kw">let </span><span class="kw-2">mut </span>sources = Sources::new();
+    <span class="kw">let </span>deps = Dependencies::default();
+
+    <span class="kw">let </span>tast = get_tast(<span class="kw-2">&amp;mut </span>sources, args.path.to_string(), code, <span class="kw-2">&amp;</span>deps)<span class="question-mark">?</span>;
+    <span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, deps)<span class="question-mark">?</span>;
+
     <span class="kw">let </span>(prover_index, verifier_index) = compile_to_indexes(compiled_circuit)<span class="question-mark">?</span>;
     <span class="macro">println!</span>(<span class="string">&quot;successfuly compiled&quot;</span>);
 
     <span class="comment">// print ASM
-    </span><span class="kw">let </span>asm = prover_index.asm(args.debug);
+    </span><span class="kw">let </span>asm = prover_index.asm(<span class="kw-2">&amp;</span>sources, args.debug);
     <span class="macro">println!</span>(<span class="string">&quot;{asm}&quot;</span>);
 
     <span class="comment">// create proof
     </span><span class="kw">let </span>(proof, full_public_inputs, _public_output) =
-        prover_index.prove(public_inputs, private_inputs, args.debug)<span class="question-mark">?</span>;
+        prover_index.prove(<span class="kw-2">&amp;</span>sources, public_inputs, private_inputs, args.debug)<span class="question-mark">?</span>;
     <span class="macro">println!</span>(<span class="string">&quot;proof created&quot;</span>);
 
     <span class="comment">// verify proof
@@ -505,4 +521,4 @@
     <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (77e57db38 2022-10-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (1286ee23e 2022-11-05)" data-search-js="search-39ee4160c7dc16c9.js" data-settings-js="settings-3a0b9947ba1bd99a.js" data-settings-css="settings-a66f7524084a489a.css" ></div></body></html>

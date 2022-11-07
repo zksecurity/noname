@@ -158,7 +158,7 @@
 <li><strong>Type checking</strong>. The type checker verifies that the types of each variables and expressions in the AST make sense. It is a very simple type checker that can do some simple type inference. Temporary type information (type of an expression) is not stored, and is thrown away as soon as the type checker can afford it. a TAST for typed AST is returned, but it mostly contains resolved imports and most type information has been thrown away.</li>
 </ul>
 </li>
-<li><strong>Gate construction</strong>. The TAST produced by the type checker is passed to the circuit writer (<code>circuit_writer.rs</code>) which goes through it one more time and converts it into:
+<li><strong>Gate construction</strong>. The TAST produced by the type checker is passed to the circuit writer (<code>circuit_writer.rs</code>), also called the constraint writer, which goes through it one more time and converts it into:
 <ul>
 <li><strong>compiled circuit</strong>: a series of gates and wires</li>
 <li><strong>prover instructions</strong>: instructions on how to run the function for the witness generation (used by the prover)</li>

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-49323347f582d396.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-9955804613a78ba1.css"><link rel="stylesheet" disabled href="../../../static.files/dark-3ab293e416bb6031.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-bba9ad31fb006b67.css"><script id="default-settings" ></script><script src="../../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../../static.files/source-script-74087aa2e88f4475.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-0dede64717b247ca.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-201a7e04dc4c6fce.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -412,47 +412,16 @@
 <span id="412">412</span>
 <span id="413">413</span>
 <span id="414">414</span>
-<span id="415">415</span>
-<span id="416">416</span>
-<span id="417">417</span>
-<span id="418">418</span>
-<span id="419">419</span>
-<span id="420">420</span>
-<span id="421">421</span>
-<span id="422">422</span>
-<span id="423">423</span>
-<span id="424">424</span>
-<span id="425">425</span>
-<span id="426">426</span>
-<span id="427">427</span>
-<span id="428">428</span>
-<span id="429">429</span>
-<span id="430">430</span>
-<span id="431">431</span>
-<span id="432">432</span>
-<span id="433">433</span>
-<span id="434">434</span>
-<span id="435">435</span>
-<span id="436">436</span>
-<span id="437">437</span>
-<span id="438">438</span>
-<span id="439">439</span>
-<span id="440">440</span>
-<span id="441">441</span>
-<span id="442">442</span>
-<span id="443">443</span>
-<span id="444">444</span>
-<span id="445">445</span>
-<span id="446">446</span>
-<span id="447">447</span>
-<span id="448">448</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
-    parser::types::{AttributeKind, Expr, FnArg, Ident, TyKind, UsePath},
+    parser::{
+        types::{AttributeKind, FnArg, Ident, TyKind, UsePath},
+        Expr,
+    },
     type_checker::{Dependencies, FnInfo, StructInfo, TypeChecker},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,
@@ -470,7 +439,7 @@
 <span class="kw">pub mod </span>writer;
 
 <span class="comment">//#[derive(Debug, Serialize, Deserialize)]
-</span><span class="attribute">#[derive(Debug)]
+</span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>CircuitWriter {
     <span class="doccomment">/// The type checker state for the main module.
     </span><span class="comment">// Important: this field must not be used directly.
@@ -545,11 +514,8 @@
 }
 
 <span class="doccomment">/// Debug information related to a single row in a circuit.
-</span><span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+</span><span class="attr">#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>DebugInfo {
-    <span class="doccomment">/// The file in which the source comes from
-    </span><span class="kw">pub </span>module: <span class="prelude-ty">Option</span>&lt;UserRepo&gt;,
-
     <span class="doccomment">/// The place in the original source code that created that gate.
     </span><span class="kw">pub </span>span: Span,
 
@@ -669,38 +635,6 @@
         }
     }
 
-    <span class="kw">pub fn </span>get_source(<span class="kw-2">&amp;</span><span class="self">self</span>, module: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;UserRepo&gt;) -&gt; <span class="kw-2">&amp;</span>str {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-            <span class="kw-2">&amp;</span><span class="self">self
-                </span>.dependencies
-                .get_type_checker(module)
-                .expect(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
-                    <span class="string">&quot;type checker bug: can&#39;t find current module&#39;s (`{module:?}`) file&quot;
-                </span>))
-                .src
-        } <span class="kw">else </span>{
-            <span class="kw-2">&amp;</span><span class="self">self</span>.typed.src
-        }
-    }
-
-    <span class="kw">pub fn </span>get_file(<span class="kw-2">&amp;</span><span class="self">self</span>, module: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;UserRepo&gt;) -&gt; <span class="kw-2">&amp;</span>str {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-            <span class="kw-2">&amp;</span><span class="self">self</span>.dependencies.get_file(module).expect(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
-                <span class="string">&quot;type checker bug: can&#39;t find current module&#39;s (`{module:?}`) file&quot;
-            </span>))
-        } <span class="kw">else </span>{
-            <span class="kw-2">&amp;</span><span class="self">self</span>.typed.filename
-        }
-    }
-
-    <span class="kw">pub fn </span>get_current_source(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
-        <span class="self">self</span>.get_source(<span class="kw-2">&amp;</span><span class="self">self</span>.current_module)
-    }
-
-    <span class="kw">pub fn </span>get_current_file(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
-        <span class="self">self</span>.get_file(<span class="kw-2">&amp;</span><span class="self">self</span>.current_module)
-    }
-
     <span class="kw">pub fn </span>add_local_var(<span class="kw-2">&amp;</span><span class="self">self</span>, fn_env: <span class="kw-2">&amp;mut </span>FnEnv, var_name: String, var_info: VarInfo) {
         <span class="comment">// check for consts first
         </span><span class="kw">let </span>type_checker = <span class="self">self</span>.current_type_checker();
@@ -736,10 +670,7 @@
     }
 
     <span class="kw">pub fn </span>error(<span class="kw-2">&amp;</span><span class="self">self</span>, kind: ErrorKind, span: Span) -&gt; Error {
-        <span class="kw">let </span>file: String = <span class="self">self</span>.get_current_file().to_string();
-        <span class="kw">let </span>src: String = <span class="self">self</span>.get_current_source().to_string();
-        <span class="kw">let </span>named_source = NamedSource::new(file, src);
-        Error::new_with_source(<span class="string">&quot;constraint-generation&quot;</span>, kind, named_source, span)
+        Error::new(<span class="string">&quot;constraint-generation&quot;</span>, kind, span)
     }
 }
 
@@ -770,20 +701,12 @@
         <span class="comment">// create circuit writer
         </span><span class="kw">let </span><span class="kw-2">mut </span>circuit_writer = CircuitWriter::new(typed, deps);
 
-        <span class="kw">let </span>res = circuit_writer.generate_circuit_inner();
-
-        res<span class="question-mark">?</span>;
-
-        <span class="prelude-val">Ok</span>(CompiledCircuit::new(circuit_writer))
-    }
-
-    <span class="kw">fn </span>generate_circuit_inner(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="comment">// get main function
-        </span><span class="kw">let </span>main_fn_info = <span class="self">self
-            </span>.typed
+        </span><span class="kw">let </span>main_fn_info = circuit_writer
+            .typed
             .functions
             .get(<span class="string">&quot;main&quot;</span>)
-            .ok_or(<span class="self">self</span>.error(ErrorKind::NoMainFunction, Span::default()))<span class="question-mark">?</span>;
+            .ok_or(circuit_writer.error(ErrorKind::NoMainFunction, Span::default()))<span class="question-mark">?</span>;
 
         <span class="kw">let </span>function = <span class="kw">match </span><span class="kw-2">&amp;</span>main_fn_info.kind {
             <span class="kw">crate</span>::imports::FnKind::BuiltIn(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
@@ -811,17 +734,19 @@
                     <span class="kw-2">*</span>len <span class="kw">as </span>usize
                 }
                 TyKind::Bool =&gt; <span class="number">1</span>,
-                typ =&gt; <span class="self">self</span>.size_of(typ)<span class="question-mark">?</span>,
+                typ =&gt; circuit_writer.size_of(typ)<span class="question-mark">?</span>,
             };
 
             <span class="comment">// create the variable
             </span><span class="kw">let </span>var = <span class="kw">if let </span><span class="prelude-val">Some</span>(attr) = attribute {
                 <span class="kw">if </span>!<span class="macro">matches!</span>(attr.kind, AttributeKind::Pub) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::InvalidAttribute(attr.kind), attr.span));
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(
+                        circuit_writer.error(ErrorKind::InvalidAttribute(attr.kind), attr.span)
+                    );
                 }
-                <span class="self">self</span>.add_public_inputs(name.value.clone(), len, name.span)
+                circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
             } <span class="kw">else </span>{
-                <span class="self">self</span>.add_private_inputs(name.value.clone(), len, name.span)
+                circuit_writer.add_private_inputs(name.value.clone(), len, name.span)
             };
 
             <span class="comment">// constrain what needs to be constrained
@@ -831,12 +756,12 @@
             // but we are being extra cautious due to attacks
             // where the prover gives the verifier malformed inputs that look legit.
             // (See short address attacks in Ethereum.)
-            </span><span class="self">self</span>.constrain_inputs_to_main(<span class="kw-2">&amp;</span>var.cvars, <span class="kw-2">&amp;</span>typ.kind, typ.span)<span class="question-mark">?</span>;
+            </span>circuit_writer.constrain_inputs_to_main(<span class="kw-2">&amp;</span>var.cvars, <span class="kw-2">&amp;</span>typ.kind, typ.span)<span class="question-mark">?</span>;
 
             <span class="comment">// add argument variable to the ast env
             </span><span class="kw">let </span>mutable = <span class="bool-val">false</span>; <span class="comment">// TODO: should we add a mut keyword in arguments as well?
             </span><span class="kw">let </span>var_info = VarInfo::new(var, mutable, <span class="prelude-val">Some</span>(typ.kind.clone()));
-            <span class="self">self</span>.add_local_var(fn_env, name.value.clone(), var_info);
+            circuit_writer.add_local_var(fn_env, name.value.clone(), var_info);
         }
 
         <span class="comment">// create public output
@@ -846,15 +771,15 @@
             }
 
             <span class="comment">// create it
-            </span><span class="self">self</span>.add_public_outputs(<span class="number">1</span>, typ.span);
+            </span>circuit_writer.add_public_outputs(<span class="number">1</span>, typ.span);
         }
 
         <span class="comment">// compile function
-        </span><span class="self">self</span>.compile_main_function(fn_env, <span class="kw-2">&amp;</span>function)<span class="question-mark">?</span>;
+        </span>circuit_writer.compile_main_function(fn_env, <span class="kw-2">&amp;</span>function)<span class="question-mark">?</span>;
 
         <span class="comment">// important: there might still be a pending generic gate
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(pending) = <span class="self">self</span>.pending_generic_gate.take() {
-            <span class="self">self</span>.add_gate(
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(pending) = circuit_writer.pending_generic_gate.take() {
+            circuit_writer.add_gate(
                 pending.label,
                 GateKind::DoubleGeneric,
                 pending.vars,
@@ -865,34 +790,41 @@
 
         <span class="comment">// for sanity check, we make sure that every cellvar created has ended up in a gate
         </span><span class="kw">let </span><span class="kw-2">mut </span>written_vars = HashSet::new();
-        <span class="kw">for </span>row <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.rows_of_vars {
+        <span class="kw">for </span>row <span class="kw">in </span><span class="kw-2">&amp;</span>circuit_writer.rows_of_vars {
             row.iter().flatten().for_each(|cvar| {
                 written_vars.insert(cvar.index);
             });
         }
 
-        <span class="kw">for </span>var <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.next_variable {
+        <span class="kw">for </span>var <span class="kw">in </span><span class="number">0</span>..circuit_writer.next_variable {
             <span class="kw">if </span>!written_vars.contains(<span class="kw-2">&amp;</span>var) {
-                <span class="kw">if </span><span class="self">self</span>.private_input_indices.contains(<span class="kw-2">&amp;</span>var) {
+                <span class="kw">if </span>circuit_writer.private_input_indices.contains(<span class="kw-2">&amp;</span>var) {
                     <span class="comment">// compute main sig
                     </span><span class="kw">let </span>(_main_sig, main_span) = {
-                        <span class="kw">let </span>fn_info = <span class="self">self</span>.typed.functions.get(<span class="string">&quot;main&quot;</span>).cloned().unwrap();
+                        <span class="kw">let </span>fn_info = circuit_writer.typed.functions.get(<span class="string">&quot;main&quot;</span>).cloned().unwrap();
 
                         (fn_info.sig().clone(), fn_info.span)
                     };
 
                     <span class="comment">// TODO: is this error useful?
-                    </span><span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::PrivateInputNotUsed, main_span));
+                    </span><span class="kw">return </span><span class="prelude-val">Err</span>(circuit_writer.error(ErrorKind::PrivateInputNotUsed, main_span));
                 } <span class="kw">else </span>{
-                    <span class="macro">panic!</span>(<span class="string">&quot;there&#39;s a bug in the self, some cellvar does not end up being a cellvar in the circuit!&quot;</span>);
+                    <span class="macro">panic!</span>(<span class="string">&quot;there&#39;s a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!&quot;</span>);
                 }
             }
         }
 
+        <span class="comment">// kimchi hack
+        </span><span class="kw">if </span>circuit_writer.gates.len() &lt;= <span class="number">2 </span>{
+            <span class="macro">panic!</span>(<span class="string">&quot;the circuit is either too small or does not constrain anything (TODO: better error)&quot;</span>);
+        }
+
         <span class="comment">// we finalized!
-        </span><span class="self">self</span>.finalized = <span class="bool-val">true</span>;
-        <span class="prelude-val">Ok</span>(())
+        </span>circuit_writer.finalized = <span class="bool-val">true</span>;
+
+        <span class="comment">//
+        </span><span class="prelude-val">Ok</span>(CompiledCircuit::new(circuit_writer))
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="noname" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (77e57db38 2022-10-30)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (1286ee23e 2022-11-05)" data-search-js="search-39ee4160c7dc16c9.js" data-settings-js="settings-3a0b9947ba1bd99a.js" data-settings-css="settings-a66f7524084a489a.css" ></div></body></html>
