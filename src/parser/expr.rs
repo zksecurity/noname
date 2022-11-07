@@ -1,14 +1,11 @@
+use crate::syntax::is_type;
 use crate::{
     constants::Span,
     error::{ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind, Tokens},
 };
 
-use std::fmt::Display;
-
 use serde::{Deserialize, Serialize};
-
-use crate::{cli::packages::UserRepo, constants::Field, syntax::is_type};
 
 use super::{
     types::{parse_fn_call_args, parse_type_declaration, Ident},
@@ -145,7 +142,7 @@ impl Expr {
 
             // identifier
             TokenKind::Identifier(value) => {
-                let maybe_module = Ident { value, span };
+                let maybe_module = Ident::new(value, span);
 
                 // is it a qualified identifier?
                 // name::other_name
@@ -163,7 +160,7 @@ impl Expr {
                             Some(Token {
                                 kind: TokenKind::Identifier(value),
                                 span,
-                            }) => Ident { value, span },
+                            }) => Ident::new(value, span),
                             _ => panic!("cannot qualify a non-identifier"),
                         };
 

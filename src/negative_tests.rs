@@ -1,4 +1,8 @@
-use crate::{compiler::get_tast_single, error::ErrorKind};
+use crate::{
+    compiler::{get_tast_inner, Sources},
+    error::ErrorKind,
+    type_checker::Dependencies,
+};
 
 #[test]
 fn test_return() {
@@ -9,7 +13,15 @@ fn test_return() {
     }
     "#;
 
-    let res = get_tast_single("example.no".to_string(), code.to_string());
+    let mut sources = Sources::new();
+    let deps = &Dependencies::default();
+
+    let res = get_tast_inner(
+        &mut sources,
+        "example.no".to_string(),
+        code.to_string(),
+        deps,
+    );
 
     assert!(matches!(res.unwrap_err().kind, ErrorKind::NoReturnExpected));
 
@@ -20,7 +32,12 @@ fn test_return() {
     }
     "#;
 
-    let res = get_tast_single("example.no".to_string(), code.to_string());
+    let res = get_tast_inner(
+        &mut sources,
+        "example.no".to_string(),
+        code.to_string(),
+        deps,
+    );
 
     assert!(matches!(res.unwrap_err().kind, ErrorKind::MissingReturn));
 
@@ -31,7 +48,12 @@ fn test_return() {
         }
         "#;
 
-    let res = get_tast_single("example.no".to_string(), code.to_string());
+    let res = get_tast_inner(
+        &mut sources,
+        "example.no".to_string(),
+        code.to_string(),
+        deps,
+    );
 
     assert!(matches!(
         res.unwrap_err().kind,

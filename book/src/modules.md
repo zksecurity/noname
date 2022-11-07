@@ -284,3 +284,13 @@ or if we're executing a block within a module:
 - replace it with the module we're using (we have used `resolve_module()` at this point)
 - execute in the closure where `self` is passed
 - when we return, reset the current module to its previous saved state
+
+note that when we return an error, we always try to figure out which file it came from, which can be resolved via `self.current_module`.
+
+## Name resolution approach
+
+If we have a name resolution phase, we could do this:
+
+- fully qualify all things that need to be fully qualified: structs, functions, methods (which are defined as function currently, should we not do that?), consts. And that's it?
+- create a `Hashmap<usize, String>` to store all the filenames
+- add the `usize` in all `Span` 

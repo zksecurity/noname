@@ -1,10 +1,9 @@
 use camino::Utf8PathBuf as PathBuf;
-use miette::{Context, IntoDiagnostic, Result};
+use miette::{Context, IntoDiagnostic};
 
 use crate::{
-    circuit_writer::CircuitWriter,
     cli::packages::path_to_package,
-    compiler::{compile_single, get_tast},
+    compiler::{compile, get_tast, Sources},
     inputs::{parse_inputs, JsonInputs},
     prover::{compile_to_indexes, ProverIndex, VerifierIndex},
     type_checker::{Dependencies, TypeChecker},
@@ -48,7 +47,7 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let (prover_index, verifier_index) = build(&curr_dir, args.asm, args.debug)?;
+    let (sources, prover_index, verifier_index) = build(&curr_dir, args.asm, args.debug)?;
 
     // create COMPILED_DIR
     let compiled_path = curr_dir.join(COMPILED_DIR);
@@ -100,7 +99,7 @@ pub struct CmdCheck {
     path: Option<PathBuf>,
 }
 
-pub fn cmd_check(args: CmdCheck) -> Result<()> {
+pub fn cmd_check(args: CmdCheck) -> miette::Result<()> {
     let curr_dir = args
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
@@ -112,7 +111,7 @@ pub fn cmd_check(args: CmdCheck) -> Result<()> {
     Ok(())
 }
 
-fn produce_all_asts(path: &PathBuf) -> Result<(TypeChecker, Dependencies)> {
+fn produce_all_asts(path: &PathBuf) -> miette::Result<(Sources, TypeChecker, Dependencies)> {
     // find manifest
     let manifest = validate_package_and_get_manifest(&path, false)?;
 
@@ -131,7 +130,9 @@ fn produce_all_asts(path: &PathBuf) -> Result<(TypeChecker, Dependencies)> {
     let dep_graph = DependencyGraph::new_from_manifest(this, &manifest)?;
 
     // produce artifacts for each dependency, starting from leaf dependencies
-    let mut deps_tasts = Dependencies::default();
+    let mut sources = Sources::new();
+    let mut deps = Dependencies::default();
+
     for dep in dep_graph.from_leaves_to_roots() {
         let path = path_to_package(&dep);
 
@@ -141,8 +142,8 @@ fn produce_all_asts(path: &PathBuf) -> Result<(TypeChecker, Dependencies)> {
             .wrap_err_with(|| format!("could not read file `{path}`"))?;
 
         let lib_file_str = lib_file.to_string();
-        let tast = get_tast(lib_file_str.clone(), code, &deps_tasts)?;
-        deps_tasts.add_type_checker(dep, lib_file_str, tast);
+        let tast = get_tast(&mut sources, lib_file_str.clone(), code, &deps)?;
+        deps.add_type_checker(dep, lib_file_str, tast);
     }
 
     // produce artifact for this one
@@ -162,30 +163,32 @@ fn produce_all_asts(path: &PathBuf) -> Result<(TypeChecker, Dependencies)> {
         .into_diagnostic()
         .wrap_err_with(|| format!("could not read file `{file_path}`"))?;
 
-    let tast = get_tast(file_path.to_string(), code, &deps_tasts)?;
+    let tast = get_tast(&mut sources, file_path.to_string(), code, &deps)?;
 
-    Ok((tast, deps_tasts))
+    Ok((sources, tast, deps))
 }
 
 pub fn build(
     curr_dir: &PathBuf,
     asm: bool,
     debug: bool,
-) -> miette::Result<(ProverIndex, VerifierIndex)> {
+) -> miette::Result<(Sources, ProverIndex, VerifierIndex)> {
     // produce all TASTs
-    let (tast, deps_tasts) = produce_all_asts(curr_dir)?;
+    let (sources, tast, deps) = produce_all_asts(curr_dir)?;
 
     // produce indexes
-    let compiled_circuit = CircuitWriter::generate_circuit(tast, deps_tasts).into_diagnostic()?;
+    let compiled_circuit = compile(&sources, tast, deps)?;
 
     if asm {
-        println!("{}", compiled_circuit.asm(debug));
+        println!("{}", compiled_circuit.asm(&sources, debug));
     }
 
     // TODO: cache artifacts
 
     // produce indexes
-    compile_to_indexes(compiled_circuit)
+    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
+
+    Ok((sources, prover_index, verifier_index))
 }
 
 #[derive(clap::Parser)]
@@ -207,7 +210,7 @@ pub struct CmdTest {
     debug: bool,
 }
 
-pub fn cmd_test(args: CmdTest) -> Result<()> {
+pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
     // read source code
     let code = std::fs::read_to_string(&args.path)
         .into_diagnostic()
@@ -232,17 +235,22 @@ pub fn cmd_test(args: CmdTest) -> Result<()> {
     };
 
     // compile
-    let compiled_circuit = compile_single(args.path.to_string(), code)?;
+    let mut sources = Sources::new();
+    let deps = Dependencies::default();
+
+    let tast = get_tast(&mut sources, args.path.to_string(), code, &deps)?;
+    let compiled_circuit = compile(&sources, tast, deps)?;
+
     let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
     println!("successfuly compiled");
 
     // print ASM
-    let asm = prover_index.asm(args.debug);
+    let asm = prover_index.asm(&sources, args.debug);
     println!("{asm}");
 
     // create proof
     let (proof, full_public_inputs, _public_output) =
-        prover_index.prove(public_inputs, private_inputs, args.debug)?;
+        prover_index.prove(&sources, public_inputs, private_inputs, args.debug)?;
     println!("proof created");
 
     // verify proof

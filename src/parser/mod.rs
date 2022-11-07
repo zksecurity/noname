@@ -1,5 +1,3 @@
-use miette::NamedSource;
-
 use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
@@ -57,24 +55,20 @@ pub struct ParserCtx {
     pub last_token: Option<Token>,
 
     /// The file we're parsing
-    filename: String,
-
-    /// The code we're parsing
-    code: String,
+    pub filename_id: usize,
 }
 
 impl ParserCtx {
-    pub fn new(filename: String, code: String) -> Self {
+    pub fn new(filename_id: usize) -> Self {
         Self {
             node_id: 0,
             last_token: None,
-            filename,
-            code,
+            filename_id,
         }
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
-        Error::new_with_code("parser", kind, &self.filename, self.code.clone(), span)
+        Error::new("parser", kind, span)
     }
 
     /// Returns a new unique node id.
@@ -89,8 +83,8 @@ impl ParserCtx {
             .last_token
             .as_ref()
             .map(|token| token.span)
-            .unwrap_or(Span(0, 0));
-        Span(span.end(), 0)
+            .unwrap_or(Span::new(self.filename_id, 0, 0));
+        Span::new(self.filename_id, span.end(), 0)
     }
 }
 
@@ -102,16 +96,9 @@ impl ParserCtx {
 pub struct AST(pub Vec<Root>);
 
 impl AST {
-    pub fn parse(filename: &str, code: &str, tokens: Tokens) -> Result<AST> {
-        Self::parse_inner(tokens).map_err(|mut e| {
-            e.src = NamedSource::new(filename, code.to_string());
-            e
-        })
-    }
-
-    fn parse_inner(mut tokens: Tokens) -> Result<AST> {
+    pub fn parse(filename_id: usize, mut tokens: Tokens) -> Result<AST> {
         let mut ast = vec![];
-        let ctx = &mut ParserCtx::default();
+        let ctx = &mut ParserCtx::new(filename_id);
 
         // use statements must appear first
         let mut function_observed = false;
@@ -204,7 +191,7 @@ mod tests {
     #[test]
     fn fn_signature() {
         let code = r#"main(pub public_input: [Fel; 3], private_input: [Fel; 3]) -> [Fel; 3] { return public_input; }"#;
-        let tokens = &mut Token::parse("example.no", code).unwrap();
+        let tokens = &mut Token::parse(0, code).unwrap();
         let ctx = &mut ParserCtx::default();
         let parsed = Function::parse(ctx, tokens).unwrap();
         println!("{:?}", parsed);
@@ -213,7 +200,7 @@ mod tests {
     #[test]
     fn statement_assign() {
         let code = r#"let digest = poseidon(private_input);"#;
-        let tokens = &mut Token::parse("example.no", code).unwrap();
+        let tokens = &mut Token::parse(0, code).unwrap();
         let ctx = &mut ParserCtx::default();
         let parsed = Stmt::parse(ctx, tokens).unwrap();
         println!("{:?}", parsed);
@@ -222,7 +209,7 @@ mod tests {
     #[test]
     fn statement_assert() {
         let code = r#"assert(digest == public_input);"#;
-        let tokens = &mut Token::parse("example.no", code).unwrap();
+        let tokens = &mut Token::parse(0, code).unwrap();
         let ctx = &mut ParserCtx::default();
         let parsed = Stmt::parse(ctx, tokens).unwrap();
         println!("{:?}", parsed);

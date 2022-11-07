@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use crate::{
-    constants::Field,
+    constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{Const, Function, RootKind, Struct, Ty, TyKind, UsePath, FnSig},
+        types::{Const, Function, RootKind, Struct, Ty, TyKind, UsePath},
         AST,
     },
 };
@@ -14,7 +14,6 @@ pub use checker::{FnInfo, StructInfo};
 pub use dependencies::Dependencies;
 pub use fn_env::{TypeInfo, TypedFnEnv};
 
-use miette::NamedSource;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -35,12 +34,6 @@ pub struct ConstInfo {
 /// The environment we use to type check a noname program.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TypeChecker {
-    /// The filename containining the code
-    pub filename: String,
-
-    /// The source code
-    pub src: String,
-
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
     pub functions: HashMap<String, FnInfo>,
@@ -60,10 +53,8 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
-    fn new(filename: String, src: String) -> Self {
+    fn new() -> Self {
         Self {
-            filename,
-            src,
             functions: HashMap::new(),
             modules: HashMap::new(),
             structs: HashMap::new(),
@@ -72,29 +63,19 @@ impl TypeChecker {
         }
     }
 
-    pub fn analyze(filename: String, code: String, ast: AST, deps: &Dependencies) -> Result<Self> {
-        let res = Self::analyze_inner(filename.clone(), code.clone(), ast, deps);
-
-        res.map_err(|mut err| {
-            err.src = NamedSource::new(filename, code);
-            err
-        })
+    pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
+        Error::new("type-checker", kind, span)
     }
 
     /// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    fn analyze_inner(
-        filename: String,
-        code: String,
-        ast: AST,
-        deps: &Dependencies,
-    ) -> Result<Self> {
+    pub fn analyze(ast: AST, deps: &Dependencies) -> Result<Self> {
         //
         // inject some utility builtin functions in the scope
         //
 
-        let mut type_checker = TypeChecker::new(filename, code);
+        let mut type_checker = TypeChecker::new();
 
         // TODO: should we really import them by default?
         type_checker.resolve_global_imports()?;

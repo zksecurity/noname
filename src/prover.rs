@@ -3,7 +3,11 @@
 use std::iter::once;
 
 use crate::{
-    circuit_writer::Wiring, constants::Field, inputs::JsonInputs, witness::CompiledCircuit,
+    circuit_writer::Wiring,
+    compiler::{generate_witness, Sources},
+    constants::Field,
+    inputs::JsonInputs,
+    witness::CompiledCircuit,
 };
 
 use itertools::chain;
@@ -126,8 +130,8 @@ pub fn compile_to_indexes(
 //
 
 impl ProverIndex {
-    pub fn asm(&self, debug: bool) -> String {
-        self.compiled_circuit.asm(debug)
+    pub fn asm(&self, sources: &Sources, debug: bool) -> String {
+        self.compiled_circuit.asm(sources, debug)
     }
 
     pub fn len(&self) -> usize {
@@ -141,14 +145,18 @@ impl ProverIndex {
     /// returns a proof and a public output
     pub fn prove(
         &self,
+        sources: &Sources,
         public_inputs: JsonInputs,
         private_inputs: JsonInputs,
         debug: bool,
     ) -> miette::Result<(ProverProof<Curve>, Vec<Field>, Vec<Field>)> {
         // generate the witness
-        let (witness, full_public_inputs, public_output) = self
-            .compiled_circuit
-            .generate_witness(public_inputs, private_inputs)?;
+        let (witness, full_public_inputs, public_output) = generate_witness(
+            &self.compiled_circuit,
+            sources,
+            public_inputs,
+            private_inputs,
+        )?;
 
         if debug {
             println!("# witness\n");

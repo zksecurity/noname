@@ -1,5 +1,6 @@
 use crate::{
-    circuit_writer::CircuitWriter, cli::packages::UserRepo, compiler::get_tast,
+    cli::packages::UserRepo,
+    compiler::{compile, get_tast, Sources},
     type_checker::Dependencies,
 };
 
@@ -81,21 +82,37 @@ fn main(pub xx: Field, yy: Field) {
 
 #[test]
 fn test_simple_module() -> miette::Result<()> {
+    let mut sources = Sources::new();
     let mut deps_tasts = Dependencies::default();
 
     // parse the transitive dependency
-    let tast = get_tast("liblib.no".to_string(), LIBLIB.to_string(), &deps_tasts)?;
+    let tast = get_tast(
+        &mut sources,
+        "liblib.no".to_string(),
+        LIBLIB.to_string(),
+        &deps_tasts,
+    )?;
     deps_tasts.add_type_checker(UserRepo::new("mimoo/liblib"), "liblib.no".to_string(), tast);
 
     // parse the lib
-    let tast = get_tast("lib.no".to_string(), LIB.to_string(), &deps_tasts)?;
+    let tast = get_tast(
+        &mut sources,
+        "lib.no".to_string(),
+        LIB.to_string(),
+        &deps_tasts,
+    )?;
     deps_tasts.add_type_checker(UserRepo::new("mimoo/lib"), "lib.no".to_string(), tast);
 
     // parse the main
-    let tast = get_tast("main.no".to_string(), MAIN.to_string(), &deps_tasts)?;
+    let tast = get_tast(
+        &mut sources,
+        "main.no".to_string(),
+        MAIN.to_string(),
+        &deps_tasts,
+    )?;
 
     // compile
-    CircuitWriter::generate_circuit(tast, deps_tasts)?;
+    compile(&sources, tast, deps_tasts)?;
 
     Ok(())
 }

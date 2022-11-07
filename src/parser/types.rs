@@ -21,6 +21,8 @@ pub fn parse_type_declaration(
         panic!("this looks like a type declaration but not on a type (types start with an uppercase) (TODO: better error)");
     }
 
+    let mut span = ident.span;
+
     // Thing { x: 1, y: 2 }
     //       ^
     tokens.bump(ctx);
@@ -52,6 +54,7 @@ pub fn parse_type_declaration(
         // Thing { x: 1, y: 2 }
         //            ^
         let field_value = Expr::parse(ctx, tokens)?;
+        span = span.merge_with(field_value.span);
         fields.push((field_name, field_value));
 
         // Thing { x: 1, y: 2 }
@@ -68,8 +71,6 @@ pub fn parse_type_declaration(
             _ => return Err(ctx.error(ErrorKind::InvalidEndOfLine, ctx.last_span())),
         };
     }
-
-    let span = ident.span.merge_with(ctx.last_span());
 
     Ok(Expr::new(
         ctx,
@@ -299,7 +300,7 @@ impl Ty {
             // [type; size]
             // ^
             TokenKind::LeftBracket => {
-                let span = Span(token.span.0, 0);
+                let span = token.span;
 
                 // [type; size]
                 //   ^
@@ -738,7 +739,7 @@ impl Function {
         // here's the last token, that is if the function is not empty (maybe we should disallow empty functions?)
 
         if let Some(t) = body.last() {
-            span.1 = (t.span.0 + t.span.1) - span.0;
+            span = span.merge_with(t.span);
         } else {
             return Err(ctx.error(
                 ErrorKind::InvalidFunctionSignature("expected function body"),
@@ -884,8 +885,7 @@ impl Stmt {
                 // let mut x = 5;
                 //             ^
                 let rhs = Box::new(Expr::parse(ctx, tokens)?);
-
-                span.1 = rhs.span.1 + rhs.span.0 - span.0;
+                span = span.merge_with(rhs.span);
 
                 // let mut x = 5;
                 //              ^
@@ -1186,7 +1186,7 @@ pub struct Struct {
 impl Struct {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         // ghetto way of getting the span of the function: get the span of the first token (name), then try to get the span of the last token
-        let span = tokens
+        let mut span = tokens
             .peek()
             .ok_or_else(|| {
                 ctx.error(
@@ -1228,6 +1228,7 @@ impl Struct {
             // struct Foo { a: Field, b: Field }
             //                 ^^^^^
             let field_ty = Ty::parse(ctx, tokens)?;
+            span = span.merge_with(field_ty.span);
             fields.push((field_name, field_ty));
 
             // struct Foo { a: Field, b: Field }
@@ -1253,9 +1254,6 @@ impl Struct {
                 }
             }
         }
-
-        // figure out the span
-        let span = span.merge_with(ctx.last_span());
 
         //
         Ok(Struct { name, fields, span })

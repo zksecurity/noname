@@ -29,6 +29,7 @@ use itertools::Itertools;
 
 use crate::circuit_writer::writer::AnnotatedCell;
 use crate::circuit_writer::{CircuitWriter, DebugInfo};
+use crate::compiler::Sources;
 use crate::{
     circuit_writer::{Gate, Wiring},
     constants::{Field, Span},
@@ -36,7 +37,7 @@ use crate::{
 };
 
 impl CircuitWriter {
-    pub fn generate_asm(&self, debug: bool) -> String {
+    pub fn generate_asm(&self, sources: &Sources, debug: bool) -> String {
         let mut res = "".to_string();
 
         // version
@@ -90,7 +91,7 @@ impl CircuitWriter {
 
             if debug {
                 // source
-                self.display_source(&mut res, &[debug_info.clone()]);
+                self.display_source(&mut res, sources, &[debug_info.clone()]);
 
                 // note
                 res.push_str("    ▲\n");
@@ -128,7 +129,7 @@ impl CircuitWriter {
                 .unzip();
 
             if debug {
-                self.display_source(&mut res, &debug_infos);
+                self.display_source(&mut res, sources, &debug_infos);
             }
 
             let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
@@ -142,11 +143,10 @@ impl CircuitWriter {
         res
     }
 
-    fn display_source(&self, res: &mut String, debug_infos: &[DebugInfo]) {
-        for DebugInfo { module, span, note } in debug_infos {
+    fn display_source(&self, res: &mut String, sources: &Sources, debug_infos: &[DebugInfo]) {
+        for DebugInfo { span, note } in debug_infos {
             // find filename and source
-            let file = self.get_file(module);
-            let source = self.get_source(module);
+            let (file, source) = sources.get(&span.filename_id).expect("source not found");
 
             // top corner
             res.push('╭');
@@ -165,8 +165,8 @@ impl CircuitWriter {
 
             // caption
             res.push('│');
-            res.push_str(&" ".repeat(header.len() + 1 + span.0 - start));
-            res.push_str(&"^".repeat(span.1));
+            res.push_str(&" ".repeat(header.len() + 1 + span.start - start));
+            res.push_str(&"^".repeat(span.len));
             res.push('\n');
         }
 
@@ -210,8 +210,8 @@ fn parse_coeffs(vars: &OrderedHashSet<Field>, coeffs: &[Field]) -> Vec<String> {
 
 fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
     let ss = source.as_bytes();
-    let mut start = span.0;
-    let mut end = span.0 + span.1;
+    let mut start = span.start;
+    let mut end = span.end();
     while start > 0 && (ss[start - 1] as char) != '\n' {
         start -= 1;
     }
@@ -286,6 +286,9 @@ qrst
 uvwx
 yz
 ";
-        assert_eq!(find_exact_line(&SRC, Span(5, 6)), (2, 5, "efgh\nijkl"));
+        assert_eq!(
+            find_exact_line(&SRC, Span::new(0, 5, 6)),
+            (2, 5, "efgh\nijkl")
+        );
     }
 }

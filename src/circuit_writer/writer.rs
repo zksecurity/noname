@@ -818,7 +818,6 @@ impl CircuitWriter {
 
         // add debug info related to that gate
         let debug_info = DebugInfo {
-            module: self.current_module.clone(),
             span,
             note: note.to_string(),
         };

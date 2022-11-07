@@ -6,7 +6,8 @@ use itertools::{chain, izip, Itertools};
 
 use crate::{
     circuit_writer::{CircuitWriter, Gate},
-    constants::{Field, Span, NUM_REGISTERS},
+    compiler::Sources,
+    constants::{Field, NUM_REGISTERS},
     error::{Error, ErrorKind, Result},
     helpers::PrettyField as _,
     inputs::JsonInputs,
@@ -32,6 +33,7 @@ impl WitnessEnv {
     }
 }
 
+#[derive(Debug)]
 pub struct Witness(Vec<[Field; NUM_REGISTERS]>);
 
 impl Witness {
@@ -78,8 +80,8 @@ impl CompiledCircuit {
         self.circuit.main_info()
     }
 
-    pub fn asm(&self, debug: bool) -> String {
-        self.circuit.generate_asm(debug)
+    pub fn asm(&self, sources: &Sources, debug: bool) -> String {
+        self.circuit.generate_asm(sources, debug)
     }
 
     pub fn compiled_gates(&self) -> &[Gate] {
@@ -124,8 +126,9 @@ impl CompiledCircuit {
             }
             Value::External(name, idx) => Ok(env.get_external(name)[*idx]),
             Value::PublicOutput(var) => {
+                let span = self.main_info().span;
                 let var =
-                    var.ok_or_else(|| Error::new("runtime", ErrorKind::MissingReturn, Span(0, 0)))?;
+                    var.ok_or_else(|| Error::new("runtime", ErrorKind::MissingReturn, span))?;
                 self.compute_var(env, var)
             }
             Value::Scale(scalar, var) => {

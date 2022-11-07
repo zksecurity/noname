@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     constants::Span,
-    error::{Error, ErrorKind, Result},
+    error::{ErrorKind, Result},
     imports::{resolve_builtin_functions, FnKind},
     parser::{
         types::{FnSig, Function, Stmt, StmtKind, Ty, TyKind, UsePath},
@@ -98,25 +98,17 @@ impl TypeChecker {
                     // check module present in the scope
                     let module_val = &module.value;
                     let imported_module = self.modules.get(module_val).ok_or_else(|| {
-                        Error::new(
-                            "type-checker",
-                            ErrorKind::UndefinedModule(module_val.clone()),
-                            module.span,
-                        )
+                        self.error(ErrorKind::UndefinedModule(module_val.clone()), module.span)
                     })?;
 
                     deps.get_struct(imported_module, name)?
                 } else {
-                    dbg!("here");
                     self.struct_info(struct_name)
-                        .ok_or(Error::new(
-                            "type-checker",
-                            ErrorKind::UndefinedStruct(struct_name.clone()),
-                            name.span,
-                        ))?
+                        .ok_or(
+                            self.error(ErrorKind::UndefinedStruct(struct_name.clone()), name.span),
+                        )?
                         .clone()
                 };
-                dbg!("here");
 
                 let mut sum = 0;
 
@@ -150,8 +142,7 @@ impl TypeChecker {
             .insert(path.submodule.value.clone(), path.clone())
             .is_some()
         {
-            return Err(Error::new(
-                "type-checker",
+            return Err(self.error(
                 ErrorKind::DuplicateModule(path.submodule.value.clone()),
                 path.submodule.span,
             ));
@@ -211,11 +202,7 @@ impl TypeChecker {
                     let module_val = &module.value;
 
                     let imported_module = self.modules.get(module_val).ok_or_else(|| {
-                        Error::new(
-                            "type-checker",
-                            ErrorKind::UndefinedModule(module_val.clone()),
-                            module.span,
-                        )
+                        self.error(ErrorKind::UndefinedModule(module_val.clone()), module.span)
                     })?;
 
                     let fn_info = deps.get_fn(imported_module, fn_name)?;
@@ -224,8 +211,7 @@ impl TypeChecker {
                 } else {
                     // functions present in the scope
                     let fn_info = self.functions.get(&fn_name.value).ok_or_else(|| {
-                        Error::new(
-                            "type-checker",
+                        self.error(
                             ErrorKind::UndefinedFunction(fn_name.value.clone()),
                             fn_name.span,
                         )
@@ -249,25 +235,15 @@ impl TypeChecker {
             } => {
                 // retrieve struct name on the lhs
                 let lhs_type = self.compute_type(lhs, typed_fn_env, deps)?;
-                dbg!(&lhs_type);
                 let (module, struct_name) = match lhs_type.map(|t| t.typ) {
                     Some(TyKind::Custom { module, name }) => (module, name),
-                    _ => {
-                        return Err(Error::new(
-                            "type-checker",
-                            ErrorKind::MethodCallOnNonCustomStruct,
-                            expr.span,
-                        ))
-                    }
+                    _ => return Err(self.error(ErrorKind::MethodCallOnNonCustomStruct, expr.span)),
                 };
-
-                dbg!(&module);
 
                 // get struct info
                 let struct_info = if let Some(module) = module {
                     let imported_module = self.modules.get(&module.value).ok_or_else(|| {
-                        Error::new(
-                            "type-checker",
+                        self.error(
                             ErrorKind::UndefinedModule(module.value.clone()),
                             module.span,
                         )
@@ -275,16 +251,13 @@ impl TypeChecker {
 
                     deps.get_struct(imported_module, &struct_name)?
                 } else {
-                    dbg!("here");
                     self.struct_info(&struct_name.value)
-                        .ok_or(Error::new(
-                            "type-checker",
+                        .ok_or(self.error(
                             ErrorKind::UndefinedStruct(struct_name.value.clone()),
                             struct_name.span,
                         ))?
                         .clone()
                 };
-                dbg!("here");
 
                 // get method info
                 let method_type = struct_info
@@ -311,7 +284,6 @@ impl TypeChecker {
                 let lhs_node = self
                     .compute_type(lhs, typed_fn_env, deps)?
                     .expect("type-checker bug: lhs access on an empty var");
-                dbg!(&lhs_node);
 
                 // lhs can be a local variable or a path to an array
                 let lhs_name = match &lhs.kind {
@@ -358,11 +330,7 @@ impl TypeChecker {
 
                 // and is mutable
                 if !lhs_info.mutable {
-                    return Err(Error::new(
-                        "type-checker",
-                        ErrorKind::AssignmentToImmutableVariable,
-                        expr.span,
-                    ));
+                    return Err(self.error(ErrorKind::AssignmentToImmutableVariable, expr.span));
                 }
 
                 // and is of the same type as the rhs
@@ -388,8 +356,7 @@ impl TypeChecker {
                     match (&lhs_node.typ, &rhs_node.typ) {
                         (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => (),
                         _ => {
-                            return Err(Error::new(
-                                "type-checker",
+                            return Err(self.error(
                                 ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
                                 expr.span,
                             ))
@@ -413,8 +380,7 @@ impl TypeChecker {
             ExprKind::Negated(inner) => {
                 let inner_typ = self.compute_type(inner, typed_fn_env, deps)?.unwrap();
                 if !matches!(inner_typ.typ, TyKind::Field | TyKind::BigInt) {
-                    return Err(Error::new(
-                        "type-checker",
+                    return Err(self.error(
                         ErrorKind::MismatchType(TyKind::Field, inner_typ.typ),
                         expr.span,
                     ));
@@ -426,8 +392,7 @@ impl TypeChecker {
             ExprKind::Not(inner) => {
                 let inner_typ = self.compute_type(inner, typed_fn_env, deps)?.unwrap();
                 if !matches!(inner_typ.typ, TyKind::Bool) {
-                    return Err(Error::new(
-                        "type-checker",
+                    return Err(self.error(
                         ErrorKind::MismatchType(TyKind::Bool, inner_typ.typ),
                         expr.span,
                     ));
@@ -468,9 +433,7 @@ impl TypeChecker {
                         // otherwise it's a local variable
                         let typ = typed_fn_env
                             .get_type(&name.value)
-                            .ok_or_else(|| {
-                                Error::new("type-checker", ErrorKind::UndefinedVariable, name.span)
-                            })?
+                            .ok_or_else(|| self.error(ErrorKind::UndefinedVariable, name.span))?
                             .clone();
                         // if it's a field, we need to convert it to a bigint
                         if matches!(typ, TyKind::Field) {
@@ -491,24 +454,14 @@ impl TypeChecker {
 
                 // check that it is an array
                 if !matches!(typ.typ, TyKind::Array(..)) {
-                    return Err(Error::new(
-                        "type-checker",
-                        ErrorKind::ArrayAccessOnNonArray,
-                        expr.span,
-                    ));
+                    return Err(self.error(ErrorKind::ArrayAccessOnNonArray, expr.span));
                 }
 
                 // check that expression is a bigint
                 let idx_typ = self.compute_type(idx, typed_fn_env, deps)?;
                 match idx_typ.map(|t| t.typ) {
                     Some(TyKind::BigInt) => (),
-                    _ => {
-                        return Err(Error::new(
-                            "type-checker",
-                            ErrorKind::ExpectedConstant,
-                            expr.span,
-                        ))
-                    }
+                    _ => return Err(self.error(ErrorKind::ExpectedConstant, expr.span)),
                 };
 
                 // get type of element
@@ -533,8 +486,7 @@ impl TypeChecker {
 
                     if let Some(tykind) = &tykind {
                         if !tykind.same_as(&item_typ.typ) {
-                            return Err(Error::new(
-                                "type-checker",
+                            return Err(self.error(
                                 ErrorKind::MismatchType(tykind.clone(), item_typ.typ),
                                 expr.span,
                             ));
@@ -600,30 +552,21 @@ impl TypeChecker {
                 fields,
             } => {
                 let name = &struct_name.value;
-                dbg!("here");
                 let struct_info = self.structs.get(name).ok_or_else(|| {
-                    Error::new(
-                        "type-checker",
-                        ErrorKind::UndefinedStruct(name.clone()),
-                        expr.span,
-                    )
+                    self.error(ErrorKind::UndefinedStruct(name.clone()), expr.span)
                 })?;
-                dbg!("here");
 
                 let defined_fields = &struct_info.fields.clone();
 
                 if defined_fields.len() != fields.len() {
-                    return Err(Error::new(
-                        "type-checker",
-                        ErrorKind::MismatchStructFields(name.clone()),
-                        expr.span,
-                    ));
+                    return Err(
+                        self.error(ErrorKind::MismatchStructFields(name.clone()), expr.span)
+                    );
                 }
 
                 for (defined, observed) in defined_fields.iter().zip(fields) {
                     if defined.0 != observed.0.value {
-                        return Err(Error::new(
-                            "type-checker",
+                        return Err(self.error(
                             ErrorKind::InvalidStructField(
                                 defined.0.clone(),
                                 observed.0.value.clone(),
@@ -637,8 +580,7 @@ impl TypeChecker {
                         .expect("expected a value (TODO: better error)");
 
                     if !observed_typ.typ.match_expected(&defined.1) {
-                        return Err(Error::new(
-                            "type-checker",
+                        return Err(self.error(
                             ErrorKind::InvalidStructFieldType(defined.1.clone(), observed_typ.typ),
                             expr.span,
                         ));
@@ -686,23 +628,14 @@ impl TypeChecker {
         match (expected_return, return_typ) {
             (None, None) => (),
             (Some(expected), None) => {
-                return Err(Error::new(
-                    "type-checker",
-                    ErrorKind::MissingReturn,
-                    expected.span,
-                ))
+                return Err(self.error(ErrorKind::MissingReturn, expected.span))
             }
             (None, Some(_)) => {
-                return Err(Error::new(
-                    "type-checker",
-                    ErrorKind::NoReturnExpected,
-                    stmts.last().unwrap().span,
-                ))
+                return Err(self.error(ErrorKind::NoReturnExpected, stmts.last().unwrap().span))
             }
             (Some(expected), Some(observed)) => {
                 if !observed.match_expected(&expected.kind) {
-                    return Err(Error::new(
-                        "type-checker",
+                    return Err(self.error(
                         ErrorKind::ReturnTypeMismatch(expected.kind.clone(), observed.clone()),
                         expected.span,
                     ));
@@ -728,8 +661,6 @@ impl TypeChecker {
 
                 // but first we need to compute the type of the rhs expression
                 let node = self.compute_type(rhs, typed_fn_env, deps)?.unwrap();
-
-                dbg!(&node);
 
                 let type_info = if *mutable {
                     TypeInfo::new_mut(node.typ, lhs.span)
@@ -765,11 +696,7 @@ impl TypeChecker {
 
                 let typ = self.compute_type(expr, typed_fn_env, deps)?;
                 if typ.is_some() {
-                    return Err(Error::new(
-                        "type-checker",
-                        ErrorKind::UnusedReturnValue,
-                        expr.span,
-                    ));
+                    return Err(self.error(ErrorKind::UnusedReturnValue, expr.span));
                 }
             }
             StmtKind::Return(res) => {
@@ -811,18 +738,13 @@ impl TypeChecker {
             if let Some(node) = self.compute_type(arg, typed_fn_env, deps)? {
                 observed.push((node.typ.clone(), arg.span));
             } else {
-                return Err(Error::new(
-                    "type-checker",
-                    ErrorKind::CannotComputeExpression,
-                    arg.span,
-                ));
+                return Err(self.error(ErrorKind::CannotComputeExpression, arg.span));
             }
         }
 
         // check argument length
         if expected.len() != observed.len() {
-            return Err(Error::new(
-                "type-checker",
+            return Err(self.error(
                 ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
                 span,
             ));
@@ -831,8 +753,7 @@ impl TypeChecker {
         // compare argument types with the function signature
         for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
             if !typ.match_expected(&sig_arg.typ.kind) {
-                return Err(Error::new(
-                    "type-checker",
+                return Err(self.error(
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                     span,
                 ));

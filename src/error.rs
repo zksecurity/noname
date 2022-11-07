@@ -24,50 +24,12 @@ pub struct Error {
     /// Indicate where the error occurred in the source code.
     #[label("here")]
     pub span: Span,
-
-    /// The actual (full) source code where this error happened.
-    #[source_code]
-    pub src: NamedSource,
 }
 
 impl Error {
     /// Creates a new [Error] from an [ErrorKind].
     pub fn new(label: &'static str, kind: ErrorKind, span: Span) -> Self {
-        Self {
-            label,
-            kind,
-            span,
-            src: NamedSource::new("", "".to_string()),
-        }
-    }
-
-    pub fn new_with_source(
-        label: &'static str,
-        kind: ErrorKind,
-        src: NamedSource,
-        span: Span,
-    ) -> Self {
-        Self {
-            label,
-            kind,
-            span,
-            src,
-        }
-    }
-
-    pub fn new_with_code(
-        label: &'static str,
-        kind: ErrorKind,
-        source_file: &str,
-        code: String,
-        span: Span,
-    ) -> Self {
-        Self {
-            label,
-            kind,
-            span,
-            src: NamedSource::new(source_file, code),
-        }
+        Self { label, kind, span }
     }
 }
 

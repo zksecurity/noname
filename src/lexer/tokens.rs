@@ -6,6 +6,7 @@
 use std::vec::IntoIter;
 
 use crate::{
+    constants::Span,
     error::{ErrorKind, Result},
     lexer::{Token, TokenKind},
     parser::{types::Ident, ParserCtx},
@@ -64,7 +65,8 @@ impl Tokens {
         if token.kind == typ {
             Ok(token)
         } else {
-            Err(ctx.error(ErrorKind::ExpectedToken(typ), ctx.last_span()))
+            let span = ctx.last_span();
+            Err(ctx.error(ErrorKind::ExpectedToken(typ), span))
         }
     }
 

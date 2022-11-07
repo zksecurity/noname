@@ -54,7 +54,8 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> HashMap<String, FnInfo> {
     let ctx = &mut ParserCtx::default();
 
     for (sig, fn_ptr) in fn_sigs {
-        let mut tokens = Token::parse("<BUILTIN>", sig).unwrap();
+        // filename_id 0 is for builtins
+        let mut tokens = Token::parse(0, sig).unwrap();
 
         let sig = FnSig::parse(ctx, &mut tokens).unwrap();
 
