@@ -1,11 +1,11 @@
 use std::path::Path;
 
 use crate::{
-    compiler::{compile, get_tast, Sources},
+    compiler::{compile, typecheck_next_file, Sources},
     constants::Field,
     inputs::{parse_inputs, ExtField},
     prover::compile_to_indexes,
-    type_checker::Dependencies,
+    type_checker::TypeChecker,
 };
 
 fn test_file(
@@ -22,9 +22,18 @@ fn test_file(
 
     // compile
     let mut sources = Sources::new();
-    let deps = &Dependencies::default();
-    let tast = get_tast(&mut sources, file_name.to_string(), code.clone(), deps).unwrap();
-    let compiled_circuit = compile(&sources, tast, Dependencies::default())?;
+    let mut tast = TypeChecker::default();
+    let this_module = None;
+    let _node_id = typecheck_next_file(
+        &mut tast,
+        this_module,
+        &mut sources,
+        file_name.to_string(),
+        code.clone(),
+        0,
+    )
+    .unwrap();
+    let compiled_circuit = compile(&sources, tast)?;
 
     let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit).unwrap();
 

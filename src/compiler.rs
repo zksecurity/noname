@@ -6,16 +6,18 @@
 
 use std::collections::HashMap;
 
-use miette::{IntoDiagnostic, NamedSource};
+use miette::NamedSource;
 
 use crate::{
     circuit_writer::CircuitWriter,
+    cli::packages::UserRepo,
     constants::Field,
     error::Result,
     inputs::JsonInputs,
     lexer::Token,
+    name_resolution::NAST,
     parser::AST,
-    type_checker::{Dependencies, TypeChecker},
+    type_checker::TypeChecker,
     witness::{CompiledCircuit, Witness},
 };
 
@@ -77,40 +79,61 @@ impl<T> IntoMiette<T> for Result<T> {
     }
 }
 
-pub fn get_tast(
+pub fn typecheck_next_file(
+    typechecker: &mut TypeChecker,
+    this_module: Option<UserRepo>,
     sources: &mut Sources,
     filename: String,
     code: String,
-    deps: &Dependencies,
-) -> miette::Result<TypeChecker> {
-    get_tast_inner(sources, filename, code, deps).into_miette(sources)
+    node_id: usize,
+) -> miette::Result<usize> {
+    typecheck_next_file_inner(typechecker, this_module, sources, filename, code, node_id)
+        .into_miette(sources)
 }
 
 /// This should not be used directly. Check [get_tast] instead.
-pub fn get_tast_inner(
+pub fn typecheck_next_file_inner(
+    typechecker: &mut TypeChecker,
+    this_module: Option<UserRepo>,
     sources: &mut Sources,
     filename: String,
     code: String,
-    deps: &Dependencies,
-) -> Result<TypeChecker> {
+    node_id: usize,
+) -> Result<usize> {
+    let is_lib = this_module.is_some();
+
+    // parsing to name resolution
+    let (nast, new_node_id) = get_nast(this_module, sources, filename, code, node_id)?;
+
+    // type checker
+    typechecker.analyze(nast, is_lib)?;
+
+    Ok(new_node_id)
+}
+
+pub fn get_nast(
+    this_module: Option<UserRepo>,
+    sources: &mut Sources,
+    filename: String,
+    code: String,
+    node_id: usize,
+) -> Result<(NAST, usize)> {
     // save filename and source code
     let filename_id = sources.add(filename, code);
     let code = &sources.map[&filename_id].1;
 
     // parse
     let tokens = Token::parse(filename_id, &code)?;
-    let ast = AST::parse(filename_id, tokens)?;
+    let (ast, new_node_id) = AST::parse(filename_id, tokens, node_id)?;
 
-    // get AST
-    TypeChecker::analyze(ast, deps)
+    // name resolution
+    let nast = NAST::resolve_modules(this_module, ast)?;
+
+    Ok((nast, new_node_id))
 }
 
-pub fn compile(
-    sources: &Sources,
-    tast: TypeChecker,
-    deps: Dependencies,
-) -> miette::Result<CompiledCircuit> {
-    CircuitWriter::generate_circuit(tast, deps).into_miette(sources)
+pub fn compile(sources: &Sources, tast: TypeChecker) -> miette::Result<CompiledCircuit> {
+    CircuitWriter::generate_circuit(tast).into_miette(sources)
 }
 
 pub fn generate_witness(

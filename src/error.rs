@@ -50,6 +50,9 @@ pub enum ErrorKind {
     #[error("the struct `{1}` does not exist in the module `{0}`")]
     UnknownExternalStruct(String, String),
 
+    #[error("you cannot have a function called `main` in a library")]
+    MainFunctionInLib,
+
     #[error(transparent)]
     ParsingError(#[from] ParsingError),
 
@@ -99,9 +102,6 @@ pub enum ErrorKind {
 
     #[error("invalid end of line")]
     InvalidEndOfLine,
-
-    #[error("invalid module")]
-    InvalidModule,
 
     #[error("invalid function signature: {0}")]
     InvalidFunctionSignature(&'static str),
@@ -272,7 +272,7 @@ pub enum ErrorKind {
     #[error("array access can only be performed on arrays")]
     ArrayAccessOnNonArray,
 
-    #[error("struct `{0}` is never defined")]
+    #[error("struct `{0}` does not exist (are you sure it is defined?)")]
     UndefinedStruct(String),
 
     #[error("struct `{0}` does not have a field called `{1}`")]

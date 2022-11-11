@@ -8,8 +8,8 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    types::{parse_fn_call_args, parse_type_declaration, Ident},
-    ParserCtx,
+    types::{parse_fn_call_args, parse_type_declaration, Ident, ModulePath},
+    CustomType, ParserCtx,
 };
 
 //~
@@ -54,7 +54,7 @@ impl Expr {
 pub enum ExprKind {
     /// `lhs(args)`
     FnCall {
-        module: Option<Ident>,
+        module: ModulePath,
         fn_name: Ident,
         args: Vec<Expr>,
     },
@@ -93,7 +93,7 @@ pub enum ExprKind {
 
     /// a variable or a type. For example, `mod::A`, `x`, `y`, etc.
     // TODO: change to `identifier` or `path`?
-    Variable { module: Option<Ident>, name: Ident },
+    Variable { module: ModulePath, name: Ident },
 
     /// An array access, for example:
     /// `lhs[idx]`
@@ -104,7 +104,7 @@ pub enum ExprKind {
 
     /// `name { fields }`
     CustomTypeDeclaration {
-        struct_name: Ident,
+        custom: CustomType,
         fields: Vec<(Ident, Expr)>,
     },
 
@@ -167,7 +167,7 @@ impl Expr {
                         Expr::new(
                             ctx,
                             ExprKind::Variable {
-                                module: Some(maybe_module),
+                                module: ModulePath::Alias(maybe_module),
                                 name,
                             },
                             span,
@@ -178,7 +178,7 @@ impl Expr {
                     _ => Expr::new(
                         ctx,
                         ExprKind::Variable {
-                            module: None,
+                            module: ModulePath::Local,
                             name: maybe_module,
                         },
                         span,
@@ -445,8 +445,8 @@ impl Expr {
                             return Ok(self);
                         }
 
-                        if module.is_some() {
-                            panic!("a type declaration cannot be qualified");
+                        if !matches!(module, ModulePath::Local) {
+                            panic!("a type declaration cannot be qualified (TODO: better error)");
                         }
 
                         name.clone()

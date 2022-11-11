@@ -2,7 +2,6 @@ use crate::{
     cli::packages::UserRepo,
     error::{Error, ErrorKind, Result},
     parser::{ConstDef, FunctionDef, RootKind, StructDef, AST},
-    type_checker::Dependencies,
 };
 
 use self::context::NameResCtx;
@@ -19,11 +18,7 @@ impl NAST {
         Self { ast }
     }
 
-    pub fn resolve_modules(
-        this_module: Option<UserRepo>,
-        mut ast: AST,
-        deps: &Dependencies,
-    ) -> Result<NAST> {
+    pub fn resolve_modules(this_module: Option<UserRepo>, mut ast: AST) -> Result<NAST> {
         let mut ctx = NameResCtx::new(this_module);
 
         // create a map of the imported modules (and how they are aliases)

@@ -77,7 +77,9 @@ impl CompiledCircuit {
     }
 
     pub fn main_info(&self) -> &FnInfo {
-        self.circuit.main_info()
+        self.circuit
+            .main_info()
+            .expect("constrait-writer bug: no main function found in witness generation")
     }
 
     pub fn asm(&self, sources: &Sources, debug: bool) -> String {

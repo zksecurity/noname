@@ -6,11 +6,12 @@ use crate::{
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{ErrorKind, Result},
+    imports::BUILTIN_FNS,
     lexer::{Keyword, Token, TokenKind, Tokens},
     syntax::is_type,
 };
 
-use super::{Expr, ExprKind, ParserCtx};
+use super::{CustomType, Expr, ExprKind, ParserCtx, StructDef};
 
 pub fn parse_type_declaration(
     ctx: &mut ParserCtx,
@@ -75,7 +76,11 @@ pub fn parse_type_declaration(
     Ok(Expr::new(
         ctx,
         ExprKind::CustomTypeDeclaration {
-            struct_name: ident,
+            custom: CustomType {
+                module: ModulePath::Local,
+                name: ident.value,
+                span: ident.span,
+            },
             fields,
         },
         span,
@@ -142,9 +147,30 @@ pub struct Ty {
     pub span: Span,
 }
 
-pub enum TypeModule {
+/// The module preceding structs, functions, or variables.
+// TODO: Hash should probably be implemented manually, right now two alias might have different span and so this will give different hashes
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
+pub enum ModulePath {
+    #[default]
+    /// This is a local type, not imported from another module.
+    Local,
+
+    /// This is a type imported from another module.
     Alias(Ident),
-    Absolute(UsePath),
+
+    /// This is a type imported from another module,
+    /// fully-qualified (as `user::repo`) thanks to the name resolution pass of the compiler.
+    Absolute(UserRepo),
+}
+
+// TODO: do we want to implement this on Ident instead?
+impl PartialEq for ModulePath {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (ModulePath::Alias(a), ModulePath::Alias(b)) => a.value == b.value,
+            (x, y) => x == y,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -154,7 +180,7 @@ pub enum TyKind {
     Field,
 
     /// Custom / user-defined types
-    Custom { module: Option<Ident>, name: Ident },
+    Custom { module: ModulePath, name: String },
 
     /// This could be the same as Field, but we use this to also track the fact that it's a constant.
     // TODO: get rid of this type tho no?
@@ -186,13 +212,7 @@ impl TyKind {
                     module: expected_module,
                     name: expected_name,
                 },
-            ) => {
-                module
-                    .as_ref()
-                    .zip(expected_module.as_ref())
-                    .map_or(true, |(a, b)| a == b)
-                    && name.value == expected_name.value
-            }
+            ) => module == expected_module && name == expected_name,
             (x, y) if x == y => true,
             _ => false,
         }
@@ -210,13 +230,7 @@ impl TyKind {
                     module: expected_module,
                     name: expected_name,
                 },
-            ) => {
-                module
-                    .as_ref()
-                    .zip(expected_module.as_ref())
-                    .map_or(true, |(a, b)| a == b)
-                    && name.value == expected_name.value
-            }
+            ) => module == expected_module && name == expected_name,
             (x, y) if x == y => true,
             _ => false,
         }
@@ -226,17 +240,22 @@ impl TyKind {
 impl Display for TyKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TyKind::Custom { module, name } => {
-                if let Some(module) = module {
-                    write!(
-                        f,
-                        "a `{}` struct from module `{}`",
-                        name.value, module.value
-                    )
-                } else {
-                    write!(f, "a `{}` struct", name.value)
-                }
-            }
+            TyKind::Custom { module, name } => match module {
+                ModulePath::Absolute(user_repo) => write!(
+                    f,
+                    "a `{module}::{submodule}::{name}` struct",
+                    name = name,
+                    module = user_repo.user,
+                    submodule = user_repo.repo
+                ),
+                ModulePath::Alias(module) => write!(
+                    f,
+                    "a `{module}::{name}` struct",
+                    name = name,
+                    module = module.value
+                ),
+                ModulePath::Local => write!(f, "a `{}` struct", name),
+            },
             TyKind::Field => write!(f, "Field"),
             TyKind::BigInt => write!(f, "BigInt"),
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
@@ -246,14 +265,17 @@ impl Display for TyKind {
 }
 
 impl Ty {
-    pub fn reserved_types(module: Option<Ident>, name: Ident) -> TyKind {
+    pub fn reserved_types(module: ModulePath, name: Ident) -> TyKind {
         match name.value.as_ref() {
-            "Field" | "Bool" if module.is_some() => {
+            "Field" | "Bool" if !matches!(module, ModulePath::Local) => {
                 panic!("reserved types cannot be in a module (TODO: better error)")
             }
             "Field" => TyKind::Field,
             "Bool" => TyKind::Bool,
-            _ => TyKind::Custom { module, name },
+            _ => TyKind::Custom {
+                module,
+                name: name.value,
+            },
         }
     }
 
@@ -267,7 +289,7 @@ impl Ty {
                 let (module, name, _span) = if is_type(&ty_name) {
                     // Type
                     // ^^^^
-                    (None, maybe_module, token.span)
+                    (ModulePath::Local, maybe_module, token.span)
                 } else {
                     // module::Type
                     //       ^^
@@ -285,7 +307,7 @@ impl Ty {
                     let name = Ident::new(name, span);
                     let span = token.span.merge_with(span);
 
-                    (Some(maybe_module), name, span)
+                    (ModulePath::Alias(maybe_module), name, span)
                 };
 
                 let ty_kind = Self::reserved_types(module, name);
@@ -353,25 +375,16 @@ impl Ty {
 //~ param ::= { "pub" } ident ":" type
 //~
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct FnSig {
-    pub name: FnNameDef,
-
-    /// (pub, ident, type)
-    pub arguments: Vec<FnArg>,
-
-    pub return_type: Option<Ty>,
-}
-
 impl FnSig {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
-        let name = FnNameDef::parse(ctx, tokens)?;
+        let (name, kind) = FuncOrMethod::parse(ctx, tokens)?;
 
-        let arguments = Function::parse_args(ctx, tokens, name.self_name.as_ref())?;
+        let arguments = FunctionDef::parse_args(ctx, tokens, &kind)?;
 
-        let return_type = Function::parse_fn_return_type(ctx, tokens)?;
+        let return_type = FunctionDef::parse_fn_return_type(ctx, tokens)?;
 
         Ok(Self {
+            kind,
             name,
             arguments,
             return_type,
@@ -440,12 +453,51 @@ impl Attribute {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Function {
+pub struct FunctionDef {
     pub sig: FnSig,
-
     pub body: Vec<Stmt>,
-
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FuncOrMethod {
+    /// Function.
+    Function(
+        /// Set during name resolution.
+        ModulePath,
+    ),
+    /// Method defined on a custom type.
+    Method(CustomType),
+}
+
+impl Default for FuncOrMethod {
+    fn default() -> Self {
+        unreachable!()
+    }
+}
+
+// TODO: remove default here?
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct FnSig {
+    pub kind: FuncOrMethod,
+    pub name: Ident,
+    /// (pub, ident, type)
+    pub arguments: Vec<FnArg>,
+    pub return_type: Option<Ty>,
+}
+
+pub struct Method {
+    pub sig: MethodSig,
+    pub body: Vec<Stmt>,
+    pub span: Span,
+}
+
+pub struct MethodSig {
+    pub self_name: CustomType,
+    pub name: Ident,
+    /// (pub, ident, type)
+    pub arguments: Vec<FnArg>,
+    pub return_type: Option<Ty>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -472,32 +524,19 @@ impl FnArg {
     }
 }
 
-/// Represents the name of a function.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct FnNameDef {
-    /// The name of the type that this function is implemented on.
-    pub self_name: Option<Ident>,
-
-    /// The name of the function.
-    pub name: Ident,
-
-    /// The span of the function.
-    pub span: Span,
-}
-
-impl FnNameDef {
-    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+impl FuncOrMethod {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<(Ident, Self)> {
         // fn House.verify(   or   fn verify(
         //    ^^^^^                   ^^^^^
         let maybe_self_name = tokens.bump_ident(
             ctx,
             ErrorKind::InvalidFunctionSignature("expected function name"),
         )?;
-        let span = maybe_self_name.span;
 
         // fn House.verify(
         //    ^^^^^
         if is_type(&maybe_self_name.value) {
+            let struct_name = maybe_self_name;
             // fn House.verify(
             //         ^
             tokens.bump_expected(ctx, TokenKind::Dot)?;
@@ -509,34 +548,38 @@ impl FnNameDef {
                 ErrorKind::InvalidFunctionSignature("expected function name"),
             )?;
 
-            let span = span.merge_with(name.span);
-
-            Ok(Self {
-                self_name: Some(maybe_self_name),
+            Ok((
                 name,
-                span,
-            })
+                FuncOrMethod::Method(CustomType {
+                    module: ModulePath::Local,
+                    name: struct_name.value,
+                    span: struct_name.span,
+                }),
+            ))
         } else {
             // fn verify(
             //    ^^^^^^
-            Ok(Self {
-                self_name: None,
-                name: maybe_self_name,
-                span,
-            })
+
+            // check that it is not shadowing a builtin
+            let fn_name = maybe_self_name;
+            if BUILTIN_FNS.get(&fn_name.value).is_some() {
+                panic!("you cannot call your function `{}` because it would shadow a built-in function (try renaming your function)", fn_name.value);
+            }
+
+            Ok((fn_name, FuncOrMethod::Function(ModulePath::Local)))
         }
     }
 }
 
-impl Function {
+impl FunctionDef {
     pub fn is_main(&self) -> bool {
-        self.sig.name.name.value == "main"
+        self.sig.name.value == "main"
     }
 
     pub fn parse_args(
         ctx: &mut ParserCtx,
         tokens: &mut Tokens,
-        self_name: Option<&Ident>,
+        fn_kind: &FuncOrMethod,
     ) -> Result<Vec<FnArg>> {
         // (pub arg1: type1, arg2: type2)
         // ^
@@ -596,14 +639,17 @@ impl Function {
 
             // self takes no value
             let arg_typ = if arg_name.value == "self" {
-                let self_name = self_name.ok_or_else(|| {
-                    ctx.error(
-                        ErrorKind::InvalidFunctionSignature(
-                            "the `self` argument is only allowed in struct methods",
-                        ),
-                        arg_name.span,
-                    )
-                })?;
+                let self_name = match fn_kind {
+                    FuncOrMethod::Function(_) => {
+                        return Err(ctx.error(
+                            ErrorKind::InvalidFunctionSignature(
+                                "the `self` argument is only allowed in methods, not functions",
+                            ),
+                            arg_name.span,
+                        ));
+                    }
+                    FuncOrMethod::Method(self_name) => self_name,
+                };
 
                 if !args.is_empty() {
                     return Err(ctx.error(
@@ -614,8 +660,8 @@ impl Function {
 
                 Ty {
                     kind: TyKind::Custom {
-                        module: None,
-                        name: Ident::new(self_name.value.clone(), self_name.span),
+                        module: ModulePath::Local,
+                        name: self_name.name.clone(),
                     },
                     span: self_name.span,
                 }
@@ -731,9 +777,8 @@ impl Function {
             })?
             .span;
 
-        let name = FnNameDef::parse(ctx, tokens)?;
-        let arguments = Self::parse_args(ctx, tokens, name.self_name.as_ref())?;
-        let return_type = Self::parse_fn_return_type(ctx, tokens)?;
+        let sig = FnSig::parse(ctx, tokens)?;
+
         let body = Self::parse_fn_body(ctx, tokens)?;
 
         // here's the last token, that is if the function is not empty (maybe we should disallow empty functions?)
@@ -747,15 +792,7 @@ impl Function {
             ));
         }
 
-        let func = Self {
-            sig: FnSig {
-                name,
-                arguments,
-                return_type,
-            },
-            body,
-            span,
-        };
+        let func = Self { sig, body, span };
 
         Ok(func)
     }
@@ -1122,10 +1159,10 @@ impl UsePath {
 #[derive(Debug)]
 pub enum RootKind {
     Use(UsePath),
-    Function(Function),
+    FunctionDef(FunctionDef),
     Comment(String),
-    Struct(Struct),
-    Const(Const),
+    StructDef(StructDef),
+    ConstDef(ConstDef),
 }
 
 //
@@ -1133,13 +1170,14 @@ pub enum RootKind {
 //
 
 #[derive(Debug)]
-pub struct Const {
+pub struct ConstDef {
+    pub module: ModulePath, // name resolution
     pub name: Ident,
     pub value: Field,
     pub span: Span,
 }
 
-impl Const {
+impl ConstDef {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         // const foo = 42;
         //       ^^^
@@ -1167,128 +1205,11 @@ impl Const {
 
         //
         let span = name.span;
-        Ok(Const { name, value, span })
-    }
-}
-
-//
-// Custom Struct
-//
-
-#[derive(Debug)]
-pub struct Struct {
-    //pub attribute: Attribute,
-    pub name: CustomType,
-    pub fields: Vec<(Ident, Ty)>,
-    pub span: Span,
-}
-
-impl Struct {
-    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
-        // ghetto way of getting the span of the function: get the span of the first token (name), then try to get the span of the last token
-        let mut span = tokens
-            .peek()
-            .ok_or_else(|| {
-                ctx.error(
-                    ErrorKind::InvalidFunctionSignature("expected function name"),
-                    ctx.last_span(),
-                )
-            })?
-            .span;
-
-        // struct Foo { a: Field, b: Field }
-        //        ^^^
-
-        let name = CustomType::parse(ctx, tokens)?;
-
-        // struct Foo { a: Field, b: Field }
-        //            ^
-        tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
-
-        let mut fields = vec![];
-        loop {
-            // struct Foo { a: Field, b: Field }
-            //                                 ^
-            if let Some(Token {
-                kind: TokenKind::RightCurlyBracket,
-                ..
-            }) = tokens.peek()
-            {
-                tokens.bump(ctx);
-                break;
-            }
-            // struct Foo { a: Field, b: Field }
-            //              ^
-            let field_name = Ident::parse(ctx, tokens)?;
-
-            // struct Foo { a: Field, b: Field }
-            //               ^
-            tokens.bump_expected(ctx, TokenKind::Colon)?;
-
-            // struct Foo { a: Field, b: Field }
-            //                 ^^^^^
-            let field_ty = Ty::parse(ctx, tokens)?;
-            span = span.merge_with(field_ty.span);
-            fields.push((field_name, field_ty));
-
-            // struct Foo { a: Field, b: Field }
-            //                      ^          ^
-            match tokens.peek() {
-                Some(Token {
-                    kind: TokenKind::Comma,
-                    ..
-                }) => {
-                    tokens.bump(ctx);
-                }
-                Some(Token {
-                    kind: TokenKind::RightCurlyBracket,
-                    ..
-                }) => {
-                    tokens.bump(ctx);
-                    break;
-                }
-                _ => {
-                    return Err(
-                        ctx.error(ErrorKind::ExpectedToken(TokenKind::Comma), ctx.last_span())
-                    )
-                }
-            }
-        }
-
-        //
-        Ok(Struct { name, fields, span })
-    }
-}
-
-//
-// CustomType
-//
-
-#[derive(Debug)]
-pub struct CustomType {
-    pub value: String,
-    pub span: Span,
-}
-
-impl CustomType {
-    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
-        let ty_name = tokens.bump_ident(ctx, ErrorKind::InvalidType)?;
-
-        if !is_type(&ty_name.value) {
-            panic!("type name should start with uppercase letter (TODO: better error");
-        }
-
-        // make sure that this type is allowed
-        if !matches!(
-            Ty::reserved_types(None, ty_name.clone()),
-            TyKind::Custom { .. }
-        ) {
-            return Err(ctx.error(ErrorKind::ReservedType(ty_name.value), ty_name.span));
-        }
-
-        Ok(Self {
-            value: ty_name.value,
-            span: ty_name.span,
+        Ok(ConstDef {
+            module: ModulePath::Local,
+            name,
+            value,
+            span,
         })
     }
 }

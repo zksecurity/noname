@@ -4,7 +4,7 @@ use crate::{
     lexer::{Keyword, Token, TokenKind, Tokens},
 };
 
-pub use self::types::{Const, Function, Root, RootKind, Struct, UsePath};
+pub use self::types::{ConstDef, FunctionDef, Root, RootKind, UsePath};
 
 pub mod expr;
 pub mod structs;
@@ -61,9 +61,9 @@ pub struct ParserCtx {
 }
 
 impl ParserCtx {
-    pub fn new(filename_id: usize) -> Self {
+    pub fn new(filename_id: usize, node_id: usize) -> Self {
         Self {
-            node_id: 0,
+            node_id,
             last_token: None,
             filename_id,
         }
@@ -98,9 +98,9 @@ impl ParserCtx {
 pub struct AST(pub Vec<Root>);
 
 impl AST {
-    pub fn parse(filename_id: usize, mut tokens: Tokens) -> Result<AST> {
+    pub fn parse(filename_id: usize, mut tokens: Tokens, node_id: usize) -> Result<(AST, usize)> {
         let mut ast = vec![];
-        let ctx = &mut ParserCtx::new(filename_id);
+        let ctx = &mut ParserCtx::new(filename_id, node_id);
 
         // use statements must appear first
         let mut function_observed = false;
@@ -134,10 +134,10 @@ impl AST {
 
                 // `const FOO = 42;`
                 TokenKind::Keyword(Keyword::Const) => {
-                    let cst = Const::parse(ctx, &mut tokens)?;
+                    let cst = ConstDef::parse(ctx, &mut tokens)?;
 
                     ast.push(Root {
-                        kind: RootKind::Const(cst),
+                        kind: RootKind::ConstDef(cst),
                         span: token.span,
                     });
                 }
@@ -146,18 +146,18 @@ impl AST {
                 TokenKind::Keyword(Keyword::Fn) => {
                     function_observed = true;
 
-                    let func = Function::parse(ctx, &mut tokens)?;
+                    let func = FunctionDef::parse(ctx, &mut tokens)?;
                     ast.push(Root {
-                        kind: RootKind::Function(func),
+                        kind: RootKind::FunctionDef(func),
                         span: token.span,
                     });
                 }
 
                 // `struct Foo { a: Field, b: Field }`
                 TokenKind::Keyword(Keyword::Struct) => {
-                    let s = Struct::parse(ctx, &mut tokens)?;
+                    let s = StructDef::parse(ctx, &mut tokens)?;
                     ast.push(Root {
-                        kind: RootKind::Struct(s),
+                        kind: RootKind::StructDef(s),
                         span: token.span,
                     });
                 }
@@ -177,7 +177,7 @@ impl AST {
             }
         }
 
-        Ok(Self(ast))
+        Ok((Self(ast), ctx.node_id))
     }
 }
 
@@ -195,7 +195,7 @@ mod tests {
         let code = r#"main(pub public_input: [Fel; 3], private_input: [Fel; 3]) -> [Fel; 3] { return public_input; }"#;
         let tokens = &mut Token::parse(0, code).unwrap();
         let ctx = &mut ParserCtx::default();
-        let parsed = Function::parse(ctx, tokens).unwrap();
+        let parsed = FunctionDef::parse(ctx, tokens).unwrap();
         println!("{:?}", parsed);
     }
 

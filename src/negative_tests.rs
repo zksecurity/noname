@@ -1,7 +1,7 @@
 use crate::{
-    compiler::{get_tast_inner, Sources},
+    compiler::{typecheck_next_file_inner, Sources},
     error::ErrorKind,
-    type_checker::Dependencies,
+    type_checker::TypeChecker,
 };
 
 #[test]
@@ -13,18 +13,21 @@ fn test_return() {
     }
     "#;
 
-    let mut sources = Sources::new();
-    let deps = &Dependencies::default();
-
-    let res = get_tast_inner(
-        &mut sources,
+    let mut tast = TypeChecker::default();
+    let res = typecheck_next_file_inner(
+        &mut tast,
+        None,
+        &mut Sources::new(),
         "example.no".to_string(),
         code.to_string(),
-        deps,
+        0,
     );
 
     assert!(matches!(res.unwrap_err().kind, ErrorKind::NoReturnExpected));
+}
 
+#[test]
+fn test_return_expected() {
     // return expected
     let code = r#"
     fn thing(xx: Field) -> Field {
@@ -32,15 +35,21 @@ fn test_return() {
     }
     "#;
 
-    let res = get_tast_inner(
-        &mut sources,
+    let mut tast = TypeChecker::default();
+    let res = typecheck_next_file_inner(
+        &mut tast,
+        None,
+        &mut Sources::new(),
         "example.no".to_string(),
         code.to_string(),
-        deps,
+        0,
     );
 
     assert!(matches!(res.unwrap_err().kind, ErrorKind::MissingReturn));
+}
 
+#[test]
+fn test_return_mismatch() {
     // return type mismatch
     let code = r#"
         fn thing(xx: Field) -> Field {
@@ -48,11 +57,14 @@ fn test_return() {
         }
         "#;
 
-    let res = get_tast_inner(
-        &mut sources,
+    let mut tast = TypeChecker::default();
+    let res = typecheck_next_file_inner(
+        &mut tast,
+        None,
+        &mut Sources::new(),
         "example.no".to_string(),
         code.to_string(),
-        deps,
+        0,
     );
 
     assert!(matches!(

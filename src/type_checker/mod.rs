@@ -1,24 +1,24 @@
 use std::collections::HashMap;
 
 use crate::{
+    cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    imports::FnKind,
+    imports::{FnKind, BUILTIN_FNS},
+    name_resolution::NAST,
     parser::{
-        types::{Const, Function, RootKind, Struct, Ty, TyKind, UsePath},
-        AST,
+        types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
+        CustomType, Expr, StructDef,
     },
 };
 
 pub use checker::{FnInfo, StructInfo};
-pub use dependencies::Dependencies;
 pub use fn_env::{TypeInfo, TypedFnEnv};
 
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 pub mod checker;
-pub mod dependencies;
 pub mod fn_env;
 
 const RESERVED_ARGS: [&str; 1] = ["public_output"];
@@ -31,36 +31,106 @@ pub struct ConstInfo {
     pub typ: Ty,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct FullyQualified {
+    /// Set to `None` if the function is defined in the main module.
+    pub module: Option<UserRepo>,
+    pub name: String,
+}
+
+impl FullyQualified {
+    pub fn local(name: String) -> Self {
+        Self { module: None, name }
+    }
+
+    pub fn new(module: &ModulePath, name: &String) -> Self {
+        let module = match module {
+            ModulePath::Local => None,
+            ModulePath::Alias(_) => unreachable!(),
+            ModulePath::Absolute(user_repo) => Some(user_repo.clone()),
+        };
+        Self {
+            module,
+            name: name.clone(),
+        }
+    }
+}
+
 /// The environment we use to type check a noname program.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct TypeChecker {
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
-    pub functions: HashMap<String, FnInfo>,
-
-    /// maps `module` to its original `use a::module`
-    pub modules: HashMap<String, UsePath>,
+    functions: HashMap<FullyQualified, FnInfo>,
 
     /// Custom structs type information and ASTs for methods.
-    pub structs: HashMap<String, StructInfo>,
+    structs: HashMap<FullyQualified, StructInfo>,
 
     /// Constants declared in this module.
-    pub constants: HashMap<String, ConstInfo>,
+    constants: HashMap<FullyQualified, ConstInfo>,
 
     /// Mapping from node id to TyKind.
     /// This can be used by the circuit-writer when it needs type information.
-    pub node_types: HashMap<usize, TyKind>,
+    // TODO: I think we should get rid of this if we can
+    node_types: HashMap<usize, TyKind>,
+}
+
+impl TypeChecker {
+    pub(crate) fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
+        self.node_types.get(&expr.node_id)
+    }
+
+    // TODO: can we get rid of this?
+    pub(crate) fn node_type(&self, node_id: usize) -> Option<&TyKind> {
+        self.node_types.get(&node_id)
+    }
+
+    pub(crate) fn struct_info(&self, qualified: &FullyQualified) -> Option<&StructInfo> {
+        self.structs.get(qualified)
+    }
+
+    pub(crate) fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo> {
+        if qualified.module == Some(UserRepo::new("std/builtins")) {
+            // if it's a built-in: get it from a global
+            BUILTIN_FNS.get(&qualified.name)
+        } else {
+            self.functions.get(qualified)
+        }
+    }
+
+    pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo> {
+        self.constants.get(&qualified)
+    }
+
+    /// Returns the number of field elements contained in the given type.
+    // TODO: might want to memoize that at some point
+    pub(crate) fn size_of(&self, typ: &TyKind) -> usize {
+        match typ {
+            TyKind::Field => 1,
+            TyKind::Custom { module, name } => {
+                let qualified = FullyQualified::new(&module, &name);
+                let struct_info = self
+                    .struct_info(&qualified)
+                    .expect("bug in the type checker: cannot find struct info");
+
+                let mut sum = 0;
+
+                for (_, t) in &struct_info.fields {
+                    sum += self.size_of(t);
+                }
+
+                sum
+            }
+            TyKind::BigInt => 1,
+            TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
+            TyKind::Bool => 1,
+        }
+    }
 }
 
 impl TypeChecker {
     fn new() -> Self {
-        Self {
-            functions: HashMap::new(),
-            modules: HashMap::new(),
-            structs: HashMap::new(),
-            constants: HashMap::new(),
-            node_types: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
@@ -70,43 +140,7 @@ impl TypeChecker {
     /// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    pub fn analyze(ast: AST, deps: &Dependencies) -> Result<Self> {
-        //
-        // inject some utility builtin functions in the scope
-        //
-
-        let mut type_checker = TypeChecker::new();
-
-        // TODO: should we really import them by default?
-        type_checker.resolve_global_imports()?;
-
-        //
-        // Resolve imports
-        //
-
-        let mut abort = None;
-
-        for root in &ast.0 {
-            match &root.kind {
-                // `use crypto::poseidon;`
-                RootKind::Use(path) => {
-                    // important: no struct or function definition must appear before a use declaration
-                    if let Some(span) = abort {
-                        return Err(Error::new(
-                            "type-checker",
-                            ErrorKind::OrderOfUseDeclaration,
-                            span,
-                        ));
-                    }
-                    type_checker.import(path)?
-                }
-                RootKind::Function(Function { span, .. })
-                | RootKind::Struct(Struct { span, .. })
-                | RootKind::Const(Const { span, .. }) => abort = Some(*span),
-                RootKind::Comment(_) => (),
-            }
-        }
-
+    pub fn analyze(&mut self, nast: NAST, is_lib: bool) -> Result<()> {
         //
         // Process constants
         //
@@ -114,9 +148,9 @@ impl TypeChecker {
         // we detect struct or function definition
         let mut abort = None;
 
-        for root in &ast.0 {
+        for root in &nast.ast.0 {
             match &root.kind {
-                RootKind::Const(cst) => {
+                RootKind::ConstDef(cst) => {
                     // important: no struct or function definition must appear before a constant declaration
                     if let Some(span) = abort {
                         return Err(Error::new(
@@ -126,10 +160,12 @@ impl TypeChecker {
                         ));
                     }
 
-                    if type_checker
+                    let qualified = FullyQualified::new(&cst.module, &cst.name.value);
+
+                    if self
                         .constants
                         .insert(
-                            cst.name.value.clone(),
+                            qualified,
                             ConstInfo {
                                 value: cst.value,
                                 typ: Ty {
@@ -148,8 +184,8 @@ impl TypeChecker {
                     }
                 }
 
-                RootKind::Function(Function { span, .. })
-                | RootKind::Struct(Struct { span, .. }) => abort = Some(*span),
+                RootKind::FunctionDef(FunctionDef { span, .. })
+                | RootKind::StructDef(StructDef { span, .. }) => abort = Some(*span),
 
                 RootKind::Use(_) | RootKind::Comment(_) => (),
             }
@@ -159,11 +195,16 @@ impl TypeChecker {
         // Type check structs
         //
 
-        for root in &ast.0 {
+        for root in &nast.ast.0 {
             match &root.kind {
-                // `use crypto::poseidon;`
-                RootKind::Struct(struct_) => {
-                    let Struct { name, fields, .. } = struct_;
+                // `use user::repo;`
+                RootKind::StructDef(struct_def) => {
+                    let StructDef {
+                        module,
+                        name,
+                        fields,
+                        ..
+                    } = struct_def;
 
                     let fields: Vec<_> = fields
                         .iter()
@@ -174,36 +215,44 @@ impl TypeChecker {
                         .collect();
 
                     let struct_info = StructInfo {
-                        name: name.value.clone(),
+                        name: name.name.clone(),
                         fields,
                         methods: HashMap::new(),
                     };
 
-                    type_checker.structs.insert(name.value.clone(), struct_info);
+                    let qualified = FullyQualified::new(module, &name.name);
+                    self.structs.insert(qualified, struct_info);
                 }
 
-                RootKind::Const(_)
+                RootKind::ConstDef(_)
                 | RootKind::Use(_)
-                | RootKind::Function(_)
+                | RootKind::FunctionDef(_)
                 | RootKind::Comment(_) => (),
             }
         }
 
         //
-        // Semantic analysis includes:
-        // - type checking
-        // - ?
+        // Type check functions and methods
         //
 
-        for root in &ast.0 {
+        for root in &nast.ast.0 {
             match &root.kind {
                 // `fn main() { ... }`
-                RootKind::Function(function) => {
+                RootKind::FunctionDef(function) => {
                     // create a new typed fn environment to type check the function
                     let mut typed_fn_env = TypedFnEnv::default();
 
-                    // if this is the main function check that it has arguments
+                    // if we're expecting a library, this should not be the main function
                     let is_main = function.is_main();
+                    if is_main && is_lib {
+                        return Err(Error::new(
+                            "type-checker",
+                            ErrorKind::MainFunctionInLib,
+                            function.span,
+                        ));
+                    }
+
+                    // if this is the main function check that it has arguments
                     if is_main && function.sig.arguments.is_empty() {
                         return Err(Error::new(
                             "type-checker",
@@ -219,20 +268,24 @@ impl TypeChecker {
                         span: function.span,
                     };
 
-                    if let Some(self_name) = &function.sig.name.self_name {
-                        let struct_info = type_checker
-                            .structs
-                            .get_mut(&self_name.value)
-                            .expect("couldn't find the struct for storing the method");
+                    match &function.sig.kind {
+                        FuncOrMethod::Method(custom) => {
+                            let CustomType { module, name, span } = custom;
+                            let qualified = FullyQualified::new(module, name);
+                            let struct_info = self
+                                .structs
+                                .get_mut(&qualified)
+                                .expect("couldn't find the struct for storing the method");
 
-                        struct_info
-                            .methods
-                            .insert(function.sig.name.name.value.clone(), function.clone());
-                    } else {
-                        type_checker
-                            .functions
-                            .insert(function.sig.name.name.value.clone(), fn_info);
-                    }
+                            struct_info
+                                .methods
+                                .insert(function.sig.name.value.clone(), function.clone());
+                        }
+                        FuncOrMethod::Function(module) => {
+                            let qualified = FullyQualified::new(module, &function.sig.name.value);
+                            self.functions.insert(qualified, fn_info);
+                        }
+                    };
 
                     // store variables and their types in the fn_env
                     for arg in &function.sig.arguments {
@@ -294,22 +347,21 @@ impl TypeChecker {
                         }
                     }
 
-                    // type system pass
-                    type_checker.check_block(
+                    // type system pass on the function body
+                    self.check_block(
                         &mut typed_fn_env,
-                        deps,
                         &function.body,
                         function.sig.return_type.as_ref(),
                     )?;
                 }
 
                 RootKind::Use(_)
-                | RootKind::Const(_)
-                | RootKind::Struct(_)
+                | RootKind::ConstDef(_)
+                | RootKind::StructDef(_)
                 | RootKind::Comment(_) => (),
             }
         }
 
-        Ok(type_checker)
+        Ok(())
     }
 }

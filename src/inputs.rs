@@ -7,7 +7,12 @@ use miette::Diagnostic;
 use num_bigint::BigUint;
 use thiserror::Error;
 
-use crate::{constants::Field, parser::types::TyKind, witness::CompiledCircuit};
+use crate::{
+    constants::Field,
+    parser::types::{ModulePath, TyKind},
+    type_checker::FullyQualified,
+    witness::CompiledCircuit,
+};
 
 //
 // Errors
@@ -85,14 +90,15 @@ impl CompiledCircuit {
                 },
                 Value::Object(mut map),
             ) => {
-                if module.is_some() {
+                if !matches!(module, ModulePath::Local) {
                     unimplemented!();
                 }
 
                 // get fields of struct
+                let qualified = FullyQualified::new(module, struct_name);
                 let struct_info = self
                     .circuit
-                    .struct_info(&struct_name.value)
+                    .struct_info(&qualified)
                     .expect("compiler bug: couldn't find struct given as input");
                 let fields = &struct_info.fields;
 

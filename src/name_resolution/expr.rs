@@ -1,6 +1,8 @@
 use crate::{
+    cli::packages::UserRepo,
     error::Result,
-    parser::{CustomType, Expr, ExprKind},
+    imports::BUILTIN_FNS,
+    parser::{types::ModulePath, CustomType, Expr, ExprKind},
 };
 
 use super::context::NameResCtx;
@@ -16,10 +18,17 @@ impl NameResCtx {
         match kind {
             ExprKind::FnCall {
                 module,
-                fn_name: _,
+                fn_name,
                 args,
             } => {
-                self.resolve(module, false)?;
+                if matches!(module, ModulePath::Local) && BUILTIN_FNS.get(&fn_name.value).is_some()
+                {
+                    // if it's a builtin, use `std::builtin`
+                    *module = ModulePath::Absolute(UserRepo::new("std/builtins"));
+                } else {
+                    self.resolve(module, false)?;
+                }
+
                 for arg in args {
                     self.resolve_expr(arg)?;
                 }
@@ -70,7 +79,7 @@ impl NameResCtx {
                 }
             }
             ExprKind::CustomTypeDeclaration {
-                struct_name,
+                custom: struct_name,
                 fields,
             } => {
                 let CustomType {

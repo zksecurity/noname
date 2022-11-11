@@ -117,7 +117,6 @@ impl FnEnv {
     /// If the variable is not in scope, return false.
     // TODO: return an error no?
     pub fn get_local_var(&self, var_name: &str) -> VarInfo {
-        // if not found, then look into local variables
         let (scope, var_info) = self
             .vars
             .get(var_name)

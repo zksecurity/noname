@@ -16,10 +16,11 @@ use crate::{
     error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{Function, Stmt, StmtKind, TyKind},
+        types::{FunctionDef, ModulePath, Stmt, StmtKind, TyKind},
         Expr, ExprKind, Op2,
     },
     syntax::is_type,
+    type_checker::FullyQualified,
     var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
 };
 
@@ -195,7 +196,7 @@ impl CircuitWriter {
 
     fn compile_native_function_call(
         &mut self,
-        function: &Function,
+        function: &FunctionDef,
         args: Vec<VarInfo>,
     ) -> Result<Option<Var>> {
         assert!(!function.is_main());
@@ -220,8 +221,6 @@ impl CircuitWriter {
         input_typ: &TyKind,
         span: Span,
     ) -> Result<()> {
-        assert!(self.current_module.is_none());
-
         match input_typ {
             TyKind::Field => (),
             TyKind::Bool => {
@@ -229,7 +228,7 @@ impl CircuitWriter {
                 boolean::check(self, &input[0], span);
             }
             TyKind::Array(tykind, _) => {
-                let el_size = self.size_of(tykind)?;
+                let el_size = self.size_of(tykind);
                 for el in input.chunks(el_size) {
                     self.constrain_inputs_to_main(el, tykind, span)?;
                 }
@@ -238,11 +237,15 @@ impl CircuitWriter {
                 module,
                 name: struct_name,
             } => {
-                let struct_info = self.get_struct(module, &struct_name)?;
+                let qualified = FullyQualified::new(module, &struct_name);
+                let struct_info = self
+                    .struct_info(&qualified)
+                    .expect("struct not found (TODO: better error)")
+                    .clone();
 
                 let mut offset = 0;
                 for (_field_name, field_typ) in &struct_info.fields {
-                    let len = self.size_of(field_typ)?;
+                    let len = self.size_of(field_typ);
                     let range = offset..(offset + len);
                     self.constrain_inputs_to_main(&input[range], field_typ, span)?;
                     offset += len;
@@ -257,7 +260,7 @@ impl CircuitWriter {
     pub(crate) fn compile_main_function(
         &mut self,
         fn_env: &mut FnEnv,
-        function: &Function,
+        function: &FunctionDef,
     ) -> Result<()> {
         assert!(function.is_main());
 
@@ -326,22 +329,16 @@ impl CircuitWriter {
                 }
 
                 // retrieve the function in the env
-
-                // let fn_info = self.get_fn(module, fn_name)?;
-
-                let fn_info = self.do_in_submodule(module, |circuit_writer| {
-                    let curr_type_checker = circuit_writer.current_type_checker();
-                    curr_type_checker
-                        .functions
-                        .get(&fn_name.value)
-                        .cloned()
-                        .ok_or_else(|| {
-                            circuit_writer.error(
-                                ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                                fn_name.span,
-                            )
-                        })
-                })?;
+                let qualified = FullyQualified::new(module, &fn_name.value);
+                let fn_info = self
+                    .fn_info(&qualified)
+                    .ok_or_else(|| {
+                        self.error(
+                            ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                            fn_name.span,
+                        )
+                    })?
+                    .clone();
 
                 // compute the arguments
                 // module::fn_name(args)
@@ -375,30 +372,8 @@ impl CircuitWriter {
                     FnKind::Native(func) => {
                         // module::fn_name(args)
                         // ^^^^^^
-                        let prev_current_module = self.current_module.clone();
-                        if let Some(module) = module {
-                            // TODO: find more elegant way to avoid std/crypto
-                            if module.value != "crypto" {
-                                let module = self.resolve_module(module)?;
-
-                                // change the current module
-                                self.current_module = Some(module.into());
-                            }
-                        }
-
-                        let res = self
-                            .compile_native_function_call(&func, vars)
-                            .map(|r| r.map(VarOrRef::Var));
-
-                        // revert the current module
-                        if let Some(module) = module {
-                            // TODO: find more elegant way to avoid std/crypto
-                            if module.value != "crypto" {
-                                self.current_module = prev_current_module;
-                            }
-                        }
-
-                        res
+                        self.compile_native_function_call(&func, vars)
+                            .map(|r| r.map(VarOrRef::Var))
                     }
                 };
 
@@ -424,8 +399,9 @@ impl CircuitWriter {
                     }
                 };
 
+                let qualified = FullyQualified::new(module, self_struct);
                 let struct_info = self
-                    .get_struct(module, &self_struct)
+                    .struct_info(&qualified)
                     .expect("struct info not found for custom struct");
 
                 // find range of field
@@ -433,11 +409,11 @@ impl CircuitWriter {
                 let mut len = 0;
                 for (field, field_typ) in &struct_info.fields {
                     if field == &rhs.value {
-                        len = self.size_of(field_typ)?;
+                        len = self.size_of(field_typ);
                         break;
                     }
 
-                    start += self.size_of(field_typ)?;
+                    start += self.size_of(field_typ);
                 }
 
                 // narrow the variable to the given range
@@ -464,7 +440,11 @@ impl CircuitWriter {
                 let self_var = self.compute_expr(fn_env, lhs)?;
 
                 // find method info
-                let struct_info = self.get_struct(module, &struct_name)?;
+                let qualified = FullyQualified::new(module, struct_name);
+                let struct_info = self
+                    .struct_info(&qualified)
+                    .expect("struct not found (TODO: better error)")
+                    .clone();
                 let func = struct_info
                     .methods
                     .get(&method_name.value)
@@ -489,16 +469,6 @@ impl CircuitWriter {
                     assert!(self_var.is_none());
                 }
 
-                // potentially modify the module we're in to process this function
-                let prev_current_module = self.current_module.clone();
-                if let Some(module) = module {
-                    // TODO: find more elegant way to avoid std/crypto
-                    if module.value != "crypto" {
-                        let module = self.resolve_module(module)?;
-                        self.current_module = Some(module.into());
-                    }
-                }
-
                 // compute the arguments
                 for arg in args {
                     let var = self
@@ -516,20 +486,8 @@ impl CircuitWriter {
                 }
 
                 // execute method
-                let res = self
-                    .compile_native_function_call(func, vars)
-                    .map(|r| r.map(VarOrRef::Var));
-
-                // revert the current module
-                if let Some(module) = module {
-                    // TODO: find more elegant way to avoid std/crypto
-                    if module.value != "crypto" {
-                        self.current_module = prev_current_module;
-                    }
-                }
-
-                //
-                res
+                self.compile_native_function_call(func, vars)
+                    .map(|r| r.map(VarOrRef::Var))
             }
 
             ExprKind::IfElse { cond, then_, else_ } => {
@@ -639,7 +597,7 @@ impl CircuitWriter {
             }
 
             ExprKind::Variable { module, name } => {
-                if module.is_some() {
+                if !matches!(module, ModulePath::Local) {
                     panic!("accessing module variables not supported yet");
                 }
 
@@ -688,7 +646,7 @@ impl CircuitWriter {
                 };
 
                 // compute the size of each element in the array
-                let len = self.size_of(elem_type)?;
+                let len = self.size_of(elem_type);
 
                 // compute the real index
                 let start = idx * len;
@@ -722,10 +680,7 @@ impl CircuitWriter {
                 Ok(Some(var))
             }
 
-            ExprKind::CustomTypeDeclaration {
-                struct_name: _,
-                fields,
-            } => {
+            ExprKind::CustomTypeDeclaration { custom: _, fields } => {
                 // create the struct by just concatenating all of its cvars
                 let mut cvars = vec![];
                 for (_field, rhs) in fields {

@@ -8,7 +8,7 @@ use crate::{
         types::{AttributeKind, FnArg, Ident, TyKind, UsePath},
         Expr,
     },
-    type_checker::{Dependencies, FnInfo, StructInfo, TypeChecker},
+    type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
     var::{CellVar, Value, Var},
     witness::CompiledCircuit,
 };
@@ -32,16 +32,6 @@ pub struct CircuitWriter {
     // This is because, depending on the value of [current_module],
     // the type checker state might be this one, or one of the ones in [dependencies].
     typed: TypeChecker,
-
-    /// The type checker state and source for the dependencies.
-    // TODO: perhaps merge {source, typed} in this type?
-    dependencies: Dependencies,
-
-    /// The current module. If not set, the main module.
-    // Note: this can be an alias that came from a 3rd party library.
-    // For example, a 3rd party library might have written `use a::b as c;`.
-    // For this reason we must store this as a fully-qualified module.
-    pub(crate) current_module: Option<UserRepo>,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
     // Note: I don't think we need this, but it acts as a nice redundant failsafe.
@@ -110,121 +100,35 @@ pub struct DebugInfo {
 }
 
 impl CircuitWriter {
-    /// Retrieves the type checker associated to the current module being parsed.
-    /// It is possible, when we jump to third-party libraries' code,
-    /// that we need access to their type checker state instead of the main module one.
-    pub fn current_type_checker(&self) -> &TypeChecker {
-        if let Some(current_module) = &self.current_module {
-            self.dependencies
-                .get_type_checker(current_module)
-                .expect(&format!(
-                    "bug in the compiler: couldn't find current module: {:?}",
-                    current_module
-                ))
-        } else {
-            &self.typed
-        }
-    }
-
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
-        let curr_type_checker = self.current_type_checker();
-        curr_type_checker.node_types.get(&expr.node_id)
+        self.typed.expr_type(expr)
     }
 
+    // TODO: can we get rid of this?
     pub fn node_type(&self, node_id: usize) -> Option<&TyKind> {
-        let curr_type_checker = self.current_type_checker();
-        curr_type_checker.node_types.get(&node_id)
+        self.typed.node_type(node_id)
     }
 
-    pub fn struct_info(&self, name: &str) -> Option<&StructInfo> {
-        let curr_type_checker = self.current_type_checker();
-        curr_type_checker.struct_info(name)
+    pub fn struct_info(&self, qualified: &FullyQualified) -> Option<&StructInfo> {
+        self.typed.struct_info(qualified)
     }
 
-    pub fn fn_info(&self, name: &str) -> Option<&FnInfo> {
-        let curr_type_checker = self.current_type_checker();
-        curr_type_checker.functions.get(name)
+    pub fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo> {
+        self.typed.fn_info(qualified)
     }
 
-    pub fn size_of(&self, typ: &TyKind) -> Result<usize> {
-        let curr_type_checker = self.current_type_checker();
-        curr_type_checker.size_of(&self.dependencies, typ)
+    pub fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo> {
+        self.typed.const_info(qualified)
     }
 
-    pub fn resolve_module(&self, module: &Ident) -> Result<&UsePath> {
-        let curr_type_checker = self.current_type_checker();
-
-        let res = curr_type_checker.modules.get(&module.value).ok_or_else(|| {
-            self.error(
-                ErrorKind::UndefinedModule(module.value.clone()),
-                module.span,
-            )
-        });
-
-        res
-    }
-
-    pub fn do_in_submodule<T, F>(&mut self, module: &Option<Ident>, mut closure: F) -> Result<T>
-    where
-        F: FnMut(&mut CircuitWriter) -> Result<T>,
-    {
-        if let Some(module) = module {
-            let prev_current_module = self.current_module.clone();
-            let submodule = self.resolve_module(module)?;
-            self.current_module = Some(submodule.into());
-            let res = closure(self);
-            self.current_module = prev_current_module;
-            res
-        } else {
-            closure(self)
-        }
-    }
-
-    pub fn get_fn(&self, module: &Option<Ident>, fn_name: &Ident) -> Result<FnInfo> {
-        if let Some(module) = module {
-            // we may be parsing a function from a 3rd-party library
-            // which might also come from another 3rd-party library
-            let module = self.resolve_module(module)?;
-            self.dependencies.get_fn(module, fn_name) // TODO: add source
-        } else {
-            let curr_type_checker = self.current_type_checker();
-            let fn_info = curr_type_checker
-                .functions
-                .get(&fn_name.value)
-                .cloned()
-                .ok_or_else(|| {
-                    self.error(
-                        ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                        fn_name.span,
-                    )
-                })?;
-            Ok(fn_info)
-        }
-    }
-
-    pub fn get_struct(&self, module: &Option<Ident>, struct_name: &Ident) -> Result<StructInfo> {
-        if let Some(module) = module {
-            // we may be parsing a struct from a 3rd-party library
-            // which might also come from another 3rd-party library
-            let module = self.resolve_module(module)?;
-            self.dependencies.get_struct(module, struct_name) // TODO: add source
-        } else {
-            let curr_type_checker = self.current_type_checker();
-            let struct_info = curr_type_checker
-                .struct_info(&struct_name.value)
-                .ok_or(self.error(
-                    ErrorKind::UndefinedStruct(struct_name.value.clone()),
-                    struct_name.span,
-                ))?
-                .clone();
-            Ok(struct_info)
-        }
+    pub fn size_of(&self, typ: &TyKind) -> usize {
+        self.typed.size_of(typ)
     }
 
     pub fn add_local_var(&self, fn_env: &mut FnEnv, var_name: String, var_info: VarInfo) {
         // check for consts first
-        let type_checker = self.current_type_checker();
-        if let Some(_cst_info) = type_checker.constants.get(&var_name) {
+        let qualified = FullyQualified::local(var_name.clone());
+        if let Some(_cst_info) = self.typed.const_info(&qualified) {
             panic!(
                 "type checker bug: we already have a constant with the same name (`{var_name}`)!"
             );
@@ -236,8 +140,8 @@ impl CircuitWriter {
 
     pub fn get_local_var(&self, fn_env: &FnEnv, var_name: &str) -> VarInfo {
         // check for consts first
-        let type_checker = self.current_type_checker();
-        if let Some(cst_info) = type_checker.constants.get(var_name) {
+        let qualified = FullyQualified::local(var_name.to_string());
+        if let Some(cst_info) = self.typed.const_info(&qualified) {
             let var = Var::new_constant(cst_info.value, cst_info.typ.span);
             return VarInfo::new(var, false, Some(TyKind::Field));
         }
@@ -249,10 +153,11 @@ impl CircuitWriter {
     /// Retrieves the [FnInfo] for the `main()` function.
     /// This function should only be called if we know there's a main function,
     /// if there's no main function it'll panic.
-    pub fn main_info(&self) -> &FnInfo {
+    pub fn main_info(&self) -> Result<&FnInfo> {
+        let qualified = FullyQualified::local("main".to_string());
         self.typed
-            .fn_info("main")
-            .expect("bug in the compiler: main not found")
+            .fn_info(&qualified)
+            .ok_or(self.error(ErrorKind::NoMainFunction, Span::default()))
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
@@ -262,11 +167,9 @@ impl CircuitWriter {
 
 impl CircuitWriter {
     /// Creates a global environment from the one created by the type checker.
-    fn new(typed: TypeChecker, dependencies: Dependencies) -> Self {
+    fn new(typed: TypeChecker) -> Self {
         Self {
             typed,
-            dependencies,
-            current_module: None,
             finalized: false,
             next_variable: 0,
             witness_vars: HashMap::new(),
@@ -283,16 +186,13 @@ impl CircuitWriter {
         }
     }
 
-    pub fn generate_circuit(typed: TypeChecker, deps: Dependencies) -> Result<CompiledCircuit> {
+    pub fn generate_circuit(typed: TypeChecker) -> Result<CompiledCircuit> {
         // create circuit writer
-        let mut circuit_writer = CircuitWriter::new(typed, deps);
+        let mut circuit_writer = CircuitWriter::new(typed);
 
         // get main function
-        let main_fn_info = circuit_writer
-            .typed
-            .functions
-            .get("main")
-            .ok_or(circuit_writer.error(ErrorKind::NoMainFunction, Span::default()))?;
+        let qualified = FullyQualified::local("main".to_string());
+        let main_fn_info = circuit_writer.main_info()?;
 
         let function = match &main_fn_info.kind {
             crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
@@ -320,7 +220,7 @@ impl CircuitWriter {
                     *len as usize
                 }
                 TyKind::Bool => 1,
-                typ => circuit_writer.size_of(typ)?,
+                typ => circuit_writer.size_of(typ),
             };
 
             // create the variable
@@ -387,7 +287,7 @@ impl CircuitWriter {
                 if circuit_writer.private_input_indices.contains(&var) {
                     // compute main sig
                     let (_main_sig, main_span) = {
-                        let fn_info = circuit_writer.typed.functions.get("main").cloned().unwrap();
+                        let fn_info = circuit_writer.main_info()?.clone();
 
                         (fn_info.sig().clone(), fn_info.span)
                     };

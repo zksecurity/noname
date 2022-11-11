@@ -1,13 +1,14 @@
 use std::{collections::HashMap, fmt};
 
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
     error::Result,
-    parser::types::{FnSig, Function},
-    stdlib::{parse_fn_sigs, BUILTIN_FNS},
+    parser::types::{FnSig, FunctionDef},
+    stdlib::{parse_fn_sigs, BUILTIN_FNS_DEFS},
     type_checker::{FnInfo, TypeChecker},
     var::Var,
 };
@@ -63,7 +64,7 @@ pub enum FnKind {
     BuiltIn(FnSig, FnHandle),
 
     /// A native function is represented as an AST.
-    Native(Function),
+    Native(FunctionDef),
 }
 
 impl fmt::Debug for FnKind {
@@ -72,6 +73,6 @@ impl fmt::Debug for FnKind {
     }
 }
 
-pub fn resolve_builtin_functions() -> HashMap<String, FnInfo> {
-    parse_fn_sigs(&BUILTIN_FNS)
-}
+// static of built-in functions
+pub static BUILTIN_FNS: Lazy<HashMap<String, FnInfo>> =
+    Lazy::new(|| parse_fn_sigs(&BUILTIN_FNS_DEFS));

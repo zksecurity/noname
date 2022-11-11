@@ -60,7 +60,7 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> HashMap<String, FnInfo> {
         let sig = FnSig::parse(ctx, &mut tokens).unwrap();
 
         functions.insert(
-            sig.name.name.value.clone(),
+            sig.name.value.clone(),
             FnInfo {
                 kind: FnKind::BuiltIn(sig, *fn_ptr),
                 span: Span::default(),
@@ -79,7 +79,8 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> HashMap<String, FnInfo> {
 const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(lhs: Field, rhs: Field)";
 
-pub const BUILTIN_FNS: [(&str, FnHandle); 2] = [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
+pub const BUILTIN_FNS_DEFS: [(&str, FnHandle); 2] =
+    [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
 
 /// Asserts that two vars are equal.
 fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {

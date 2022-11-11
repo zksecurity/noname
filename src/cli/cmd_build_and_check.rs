@@ -3,10 +3,10 @@ use miette::{Context, IntoDiagnostic};
 
 use crate::{
     cli::packages::path_to_package,
-    compiler::{compile, get_tast, Sources},
+    compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, JsonInputs},
     prover::{compile_to_indexes, ProverIndex, VerifierIndex},
-    type_checker::{Dependencies, TypeChecker},
+    type_checker::TypeChecker,
 };
 
 use super::packages::{
@@ -111,7 +111,7 @@ pub fn cmd_check(args: CmdCheck) -> miette::Result<()> {
     Ok(())
 }
 
-fn produce_all_asts(path: &PathBuf) -> miette::Result<(Sources, TypeChecker, Dependencies)> {
+fn produce_all_asts(path: &PathBuf) -> miette::Result<(Sources, TypeChecker)> {
     // find manifest
     let manifest = validate_package_and_get_manifest(&path, false)?;
 
@@ -131,7 +131,9 @@ fn produce_all_asts(path: &PathBuf) -> miette::Result<(Sources, TypeChecker, Dep
 
     // produce artifacts for each dependency, starting from leaf dependencies
     let mut sources = Sources::new();
-    let mut deps = Dependencies::default();
+    let mut node_id = 0;
+
+    let mut tast = TypeChecker::default();
 
     for dep in dep_graph.from_leaves_to_roots() {
         let path = path_to_package(&dep);
@@ -142,8 +144,14 @@ fn produce_all_asts(path: &PathBuf) -> miette::Result<(Sources, TypeChecker, Dep
             .wrap_err_with(|| format!("could not read file `{path}`"))?;
 
         let lib_file_str = lib_file.to_string();
-        let tast = get_tast(&mut sources, lib_file_str.clone(), code, &deps)?;
-        deps.add_type_checker(dep, lib_file_str, tast);
+        node_id = typecheck_next_file(
+            &mut tast,
+            Some(dep),
+            &mut sources,
+            lib_file_str.clone(),
+            code,
+            node_id,
+        )?;
     }
 
     // produce artifact for this one
@@ -163,9 +171,16 @@ fn produce_all_asts(path: &PathBuf) -> miette::Result<(Sources, TypeChecker, Dep
         .into_diagnostic()
         .wrap_err_with(|| format!("could not read file `{file_path}`"))?;
 
-    let tast = get_tast(&mut sources, file_path.to_string(), code, &deps)?;
+    let _node_id = typecheck_next_file(
+        &mut tast,
+        None,
+        &mut sources,
+        file_path.to_string(),
+        code,
+        node_id,
+    )?;
 
-    Ok((sources, tast, deps))
+    Ok((sources, tast))
 }
 
 pub fn build(
@@ -174,10 +189,10 @@ pub fn build(
     debug: bool,
 ) -> miette::Result<(Sources, ProverIndex, VerifierIndex)> {
     // produce all TASTs
-    let (sources, tast, deps) = produce_all_asts(curr_dir)?;
+    let (sources, tast) = produce_all_asts(curr_dir)?;
 
     // produce indexes
-    let compiled_circuit = compile(&sources, tast, deps)?;
+    let compiled_circuit = compile(&sources, tast)?;
 
     if asm {
         println!("{}", compiled_circuit.asm(&sources, debug));
@@ -236,10 +251,16 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
 
     // compile
     let mut sources = Sources::new();
-    let deps = Dependencies::default();
-
-    let tast = get_tast(&mut sources, args.path.to_string(), code, &deps)?;
-    let compiled_circuit = compile(&sources, tast, deps)?;
+    let mut tast = TypeChecker::default();
+    let _node_id = typecheck_next_file(
+        &mut tast,
+        None,
+        &mut sources,
+        args.path.to_string(),
+        code,
+        0,
+    )?;
+    let compiled_circuit = compile(&sources, tast)?;
 
     let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
     println!("successfuly compiled");

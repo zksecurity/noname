@@ -1,7 +1,7 @@
 use crate::{
     cli::packages::UserRepo,
-    compiler::{compile, get_tast, Sources},
-    type_checker::Dependencies,
+    compiler::{compile, typecheck_next_file, Sources},
+    type_checker::TypeChecker,
 };
 
 //
@@ -83,36 +83,41 @@ fn main(pub xx: Field, yy: Field) {
 #[test]
 fn test_simple_module() -> miette::Result<()> {
     let mut sources = Sources::new();
-    let mut deps_tasts = Dependencies::default();
 
     // parse the transitive dependency
-    let tast = get_tast(
+    let mut tast = TypeChecker::default();
+    let mut node_id = 0;
+    node_id = typecheck_next_file(
+        &mut tast,
+        Some(UserRepo::new("mimoo/liblib")),
         &mut sources,
         "liblib.no".to_string(),
         LIBLIB.to_string(),
-        &deps_tasts,
+        node_id,
     )?;
-    deps_tasts.add_type_checker(UserRepo::new("mimoo/liblib"), "liblib.no".to_string(), tast);
 
     // parse the lib
-    let tast = get_tast(
+    node_id = typecheck_next_file(
+        &mut tast,
+        Some(UserRepo::new("mimoo/lib")),
         &mut sources,
         "lib.no".to_string(),
         LIB.to_string(),
-        &deps_tasts,
+        node_id,
     )?;
-    deps_tasts.add_type_checker(UserRepo::new("mimoo/lib"), "lib.no".to_string(), tast);
 
     // parse the main
-    let tast = get_tast(
+    node_id = typecheck_next_file(
+        &mut tast,
+        None,
         &mut sources,
         "main.no".to_string(),
         MAIN.to_string(),
-        &deps_tasts,
+        node_id,
     )?;
 
     // compile
-    compile(&sources, tast, deps_tasts)?;
+    compile(&sources, tast)?;
 
     Ok(())
 }
