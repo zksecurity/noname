@@ -7,9 +7,11 @@ use crate::{
 pub use self::types::{Const, Function, Root, RootKind, Struct, UsePath};
 
 pub mod expr;
+pub mod structs;
 pub mod types;
 
 pub use expr::{Expr, ExprKind, Op2};
+pub use structs::{CustomType, StructDef};
 
 //~
 //~ # Grammar
