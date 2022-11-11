@@ -12,6 +12,7 @@ pub mod error;
 pub mod imports;
 pub mod inputs;
 pub mod lexer;
+pub mod name_resolution;
 pub mod parser;
 pub mod prover;
 pub mod serialization;
