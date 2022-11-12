@@ -321,7 +321,9 @@ impl Expr {
                 }
 
                 if items.is_empty() {
-                    panic!("empty array declaration (TODO: better error)");
+                    return Err(
+                        ctx.error(ErrorKind::UnexpectedError("empty array declaration"), span)
+                    );
                 }
 
                 Expr::new(
@@ -446,7 +448,12 @@ impl Expr {
                         }
 
                         if !matches!(module, ModulePath::Local) {
-                            panic!("a type declaration cannot be qualified (TODO: better error)");
+                            return Err(ctx.error(
+                                ErrorKind::UnexpectedError(
+                                    "a type declaration cannot be qualified",
+                                ),
+                                name.span,
+                            ));
                         }
 
                         name.clone()

@@ -19,7 +19,10 @@ pub fn parse_type_declaration(
     ident: Ident,
 ) -> Result<Expr> {
     if !is_type(&ident.value) {
-        panic!("this looks like a type declaration but not on a type (types start with an uppercase) (TODO: better error)");
+        return Err(ctx.error(
+            ErrorKind::UnexpectedError(
+                "this looks like a type declaration but not on a type (types start with an uppercase)",
+            ), ident.span));
     }
 
     let mut span = ident.span;

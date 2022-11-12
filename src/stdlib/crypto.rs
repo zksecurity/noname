@@ -11,7 +11,7 @@ use kimchi::{
 use crate::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
     constants::{self, Field, Span},
-    error::Result,
+    error::{ErrorKind, Result},
     imports::FnHandle,
     parser::types::TyKind,
     var::{ConstOrCell, Value, Var},
@@ -44,7 +44,10 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
 
     // hashing a full-constant input is not a good idea
     if input[0].is_const() && input[1].is_const() {
-        panic!("cannot hash a full-constant input (TODO: better error)");
+        return Err(compiler.error(
+            ErrorKind::UnexpectedError("cannot hash a full-constant input"),
+            span,
+        ));
     }
 
     // IMPORTANT: time to constrain any constants

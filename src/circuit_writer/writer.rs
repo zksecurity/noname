@@ -240,7 +240,7 @@ impl CircuitWriter {
                 let qualified = FullyQualified::new(module, &struct_name);
                 let struct_info = self
                     .struct_info(&qualified)
-                    .expect("struct not found (TODO: better error)")
+                    .ok_or(self.error(ErrorKind::UnexpectedError("struct not found"), span))?
                     .clone();
 
                 let mut offset = 0;
@@ -432,7 +432,12 @@ impl CircuitWriter {
 
                 let (module, struct_name) = match &lhs_typ {
                     TyKind::Custom { module, name } => (module, name),
-                    _ => panic!("method call only work on custom types (TODO: better error)"),
+                    _ => {
+                        return Err(self.error(
+                            ErrorKind::UnexpectedError("method call only work on custom types"),
+                            lhs.span,
+                        ))
+                    }
                 };
 
                 // get var of `self`
@@ -443,7 +448,10 @@ impl CircuitWriter {
                 let qualified = FullyQualified::new(module, struct_name);
                 let struct_info = self
                     .struct_info(&qualified)
-                    .expect("struct not found (TODO: better error)")
+                    .ok_or(self.error(
+                        ErrorKind::UnexpectedError("struct not found"),
+                        method_name.span,
+                    ))?
                     .clone();
                 let func = struct_info
                     .methods
