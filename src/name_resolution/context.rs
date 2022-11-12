@@ -138,13 +138,18 @@ impl NameResCtx {
     pub(crate) fn resolve_struct_def(&self, struct_def: &mut StructDef) -> Result<()> {
         let StructDef {
             module,
-            name,
+            name: _,
             fields,
-            span,
+            span: _,
         } = struct_def;
 
         // we set the fully-qualified name of the struct
         self.resolve(module, true)?;
+
+        // we resolve the fully-qualified types of the fields
+        for (_field_name, field_typ) in fields {
+            self.resolve_typ_kind(&mut field_typ.kind)?;
+        }
 
         Ok(())
     }

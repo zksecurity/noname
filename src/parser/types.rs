@@ -562,9 +562,6 @@ impl FuncOrMethod {
 
             // check that it is not shadowing a builtin
             let fn_name = maybe_self_name;
-            if BUILTIN_FNS.get(&fn_name.value).is_some() {
-                panic!("you cannot call your function `{}` because it would shadow a built-in function (try renaming your function)", fn_name.value);
-            }
 
             Ok((fn_name, FuncOrMethod::Function(ModulePath::Local)))
         }
@@ -777,8 +774,15 @@ impl FunctionDef {
             })?
             .span;
 
+        // parse signature
         let sig = FnSig::parse(ctx, tokens)?;
 
+        // make sure that it doesn't shadow a builtin
+        if BUILTIN_FNS.get(&sig.name.value).is_some() {
+            panic!("you cannot call your function `{}` because it would shadow a built-in function (try renaming your function)", sig.name.value);
+        }
+
+        // parse body
         let body = Self::parse_fn_body(ctx, tokens)?;
 
         // here's the last token, that is if the function is not empty (maybe we should disallow empty functions?)

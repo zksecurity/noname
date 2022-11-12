@@ -68,3 +68,131 @@ impl NAST {
         Ok(NAST::new(ast))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        lexer::Token,
+        parser::{
+            types::{ModulePath, StmtKind},
+            ExprKind,
+        },
+    };
+
+    use super::*;
+
+    const CODE: &str = r#"
+    use user::repo;
+
+    const some_cst = 0;
+
+    struct Thing {
+        bb: Field,
+    }
+
+    fn some_func(xx: [Field; 3], yy: Field) -> [Field; 3] {
+        let aa = Thing { bb: yy };
+        return repo::thing(xx, aa);
+    }
+"#;
+
+    #[test]
+    fn test_name_res() {
+        let tokens = Token::parse(0, CODE).unwrap();
+        let (ast, _node_id) = AST::parse(0, tokens, 0).unwrap();
+        let nast = NAST::resolve_modules(None, ast).unwrap();
+
+        // find constant declaration
+        let mut roots = nast
+            .ast
+            .0
+            .iter()
+            .skip_while(|r| !matches!(r.kind, RootKind::ConstDef(_)));
+        let cst = match &roots.next().unwrap().kind {
+            RootKind::ConstDef(c) => c,
+            _ => panic!("expected const def"),
+        };
+        assert!(matches!(cst.module, ModulePath::Local));
+
+        // struct definition
+        let struct_def = match &roots.next().unwrap().kind {
+            RootKind::StructDef(d) => d,
+            _ => panic!("expected const def"),
+        };
+        assert!(matches!(struct_def.module, ModulePath::Local));
+
+        // return statement
+        let fn_def = match &roots.next().unwrap().kind {
+            RootKind::FunctionDef(d) => d,
+            _ => panic!("expected const def"),
+        };
+        let fn_call = match &fn_def.body[1].kind {
+            StmtKind::Return(e) => e,
+            _ => panic!("expected assignment"),
+        };
+        let module = match &fn_call.kind {
+            ExprKind::FnCall { module, .. } => module,
+            _ => panic!("expected struct"),
+        };
+
+        match module {
+            ModulePath::Absolute(u) if u == &UserRepo::new("user/repo") => (),
+            _ => panic!("expected absolute module path"),
+        };
+    }
+
+    #[test]
+    fn test_name_res_for_library() {
+        let user_repo = UserRepo::new("mimoo/example");
+
+        let tokens = Token::parse(0, CODE).unwrap();
+        let (ast, _node_id) = AST::parse(0, tokens, 0).unwrap();
+        let nast = NAST::resolve_modules(Some(user_repo.clone()), ast).unwrap();
+
+        // find constant declaration
+        let mut roots = nast
+            .ast
+            .0
+            .iter()
+            .skip_while(|r| !matches!(r.kind, RootKind::ConstDef(_)));
+        let cst = match &roots.next().unwrap().kind {
+            RootKind::ConstDef(c) => c,
+            _ => panic!("expected const def"),
+        };
+
+        match &cst.module {
+            ModulePath::Absolute(u) if u == &UserRepo::new("mimoo/example") => (),
+            _ => panic!("expected absolute module path"),
+        };
+
+        // struct definition
+        let struct_def = match &roots.next().unwrap().kind {
+            RootKind::StructDef(d) => d,
+            _ => panic!("expected const def"),
+        };
+
+        match &struct_def.module {
+            ModulePath::Absolute(u) if u == &UserRepo::new("mimoo/example") => (),
+            _ => panic!("expected absolute module path"),
+        };
+
+        // return statement
+        let fn_def = match &roots.next().unwrap().kind {
+            RootKind::FunctionDef(d) => d,
+            _ => panic!("expected const def"),
+        };
+        let fn_call = match &fn_def.body[1].kind {
+            StmtKind::Return(e) => e,
+            _ => panic!("expected assignment"),
+        };
+        let module = match &fn_call.kind {
+            ExprKind::FnCall { module, .. } => module,
+            _ => panic!("expected struct"),
+        };
+
+        match module {
+            ModulePath::Absolute(u) if u == &UserRepo::new("user/repo") => (),
+            _ => panic!("expected absolute module path"),
+        };
+    }
+}
