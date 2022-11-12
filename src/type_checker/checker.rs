@@ -178,8 +178,16 @@ impl TypeChecker {
                 let lhs_name = match &lhs.kind {
                     // `name = <rhs>`
                     ExprKind::Variable { module, name } => {
-                        if !matches!(module, ModulePath::Local) {
-                            panic!("cannot assign to an external variable");
+                        // we first check if it's a constant
+                        // note: the only way to check that atm is to check in the constants hashmap
+                        // this is because we don't differentiate const vars from normal variables
+                        // (perhaps we should)
+                        let qualified = FullyQualified::new(&module, &name.value);
+                        if let Some(_cst_info) = self.const_info(&qualified) {
+                            return Err(self.error(
+                                ErrorKind::UnexpectedError("cannot assign to an external variable"),
+                                lhs.span,
+                            ));
                         }
 
                         name.value.clone()
@@ -439,7 +447,11 @@ impl TypeChecker {
             }
 
             ExprKind::CustomTypeDeclaration { custom, fields } => {
-                let CustomType { module, name, span } = custom;
+                let CustomType {
+                    module,
+                    name,
+                    span: _,
+                } = custom;
                 let qualified = FullyQualified::new(module, name);
                 let struct_info = self.struct_info(&qualified).ok_or_else(|| {
                     self.error(ErrorKind::UndefinedStruct(name.clone()), expr.span)

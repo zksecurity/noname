@@ -11,23 +11,19 @@ pub use tokens::Tokens;
 pub mod tokens;
 
 #[derive(Debug)]
-pub struct LexerCtx<'a> {
+pub struct LexerCtx {
     /// the offset of what we've read so far in the file
     offset: usize,
 
     /// the file we're reading
     filename_id: usize,
-
-    /// the source code we're reading
-    code: &'a str,
 }
 
-impl<'a> LexerCtx<'a> {
-    pub fn new(filename_id: usize, code: &'a str) -> Self {
+impl LexerCtx {
+    pub fn new(filename_id: usize) -> Self {
         Self {
             offset: 0,
             filename_id,
-            code,
         }
     }
 
@@ -219,10 +215,6 @@ pub struct Token {
 }
 
 impl Token {
-    fn new(kind: TokenKind, span: Span) -> Self {
-        Self { kind, span }
-    }
-
     fn parse_line(ctx: &mut LexerCtx, line: &str) -> Result<Vec<Self>> {
         let mut tokens = vec![];
 
@@ -423,7 +415,7 @@ impl Token {
     }
 
     pub fn parse(filename_id: usize, code: &str) -> Result<Tokens> {
-        let mut ctx = LexerCtx::new(filename_id, code);
+        let mut ctx = LexerCtx::new(filename_id);
         let mut tokens = vec![];
 
         for line in code.lines() {

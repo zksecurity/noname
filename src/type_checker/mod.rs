@@ -306,7 +306,11 @@ impl TypeChecker {
 
                     match &function.sig.kind {
                         FuncOrMethod::Method(custom) => {
-                            let CustomType { module, name, span } = custom;
+                            let CustomType {
+                                module,
+                                name,
+                                span: _,
+                            } = custom;
                             let qualified = FullyQualified::new(module, name);
                             let struct_info = self
                                 .structs

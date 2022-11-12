@@ -124,7 +124,7 @@ impl NameResCtx {
     fn resolve_typ_kind(&self, typ_kind: &mut TyKind) -> Result<()> {
         match typ_kind {
             TyKind::Field => (),
-            TyKind::Custom { module, name } => {
+            TyKind::Custom { module, name: _ } => {
                 self.resolve(module, false)?;
             }
             TyKind::BigInt => (),
@@ -168,7 +168,7 @@ impl NameResCtx {
     }
 
     fn resolve_stmt(&self, stmt: &mut Stmt) -> Result<()> {
-        let Stmt { kind, span } = stmt;
+        let Stmt { kind, span: _ } = stmt;
 
         match kind {
             StmtKind::Assign {
@@ -181,7 +181,11 @@ impl NameResCtx {
             StmtKind::Expr(expr) => self.resolve_expr(expr)?,
             StmtKind::Return(expr) => self.resolve_expr(expr)?,
             StmtKind::Comment(_) => (),
-            StmtKind::ForLoop { var, range, body } => {
+            StmtKind::ForLoop {
+                var: _,
+                range: _,
+                body,
+            } => {
                 for stmt in body {
                     self.resolve_stmt(stmt)?;
                 }

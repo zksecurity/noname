@@ -90,10 +90,6 @@ impl CompiledCircuit {
                 },
                 Value::Object(mut map),
             ) => {
-                if !matches!(module, ModulePath::Local) {
-                    unimplemented!();
-                }
-
                 // get fields of struct
                 let qualified = FullyQualified::new(module, struct_name);
                 let struct_info = self

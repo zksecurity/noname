@@ -48,7 +48,7 @@ impl NameResCtx {
                 self.resolve_expr(lhs)?;
                 self.resolve_expr(rhs)?;
             }
-            ExprKind::FieldAccess { lhs, rhs } => {
+            ExprKind::FieldAccess { lhs, rhs: _ } => {
                 self.resolve_expr(lhs)?;
             }
             ExprKind::BinaryOp {
