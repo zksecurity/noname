@@ -312,6 +312,9 @@
 <span id="312">312</span>
 <span id="313">313</span>
 <span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use crate</span>::{
@@ -481,7 +484,7 @@
 
 <span class="kw">impl </span>CircuitWriter {
     <span class="doccomment">/// Creates a global environment from the one created by the type checker.
-    </span><span class="kw">fn </span>new(typed: TypeChecker) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">fn </span>new(typed: TypeChecker, double_generic_gate_optimization: bool) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             typed,
             finalized: <span class="bool-val">false</span>,
@@ -493,16 +496,19 @@
             public_input_size: <span class="number">0</span>,
             public_output: <span class="prelude-val">None</span>,
             private_input_indices: <span class="macro">vec!</span>[],
-            double_generic_gate_optimization: <span class="bool-val">false</span>,
+            double_generic_gate_optimization,
             pending_generic_gate: <span class="prelude-val">None</span>,
             cached_constants: HashMap::new(),
             debug_info: <span class="macro">vec!</span>[],
         }
     }
 
-    <span class="kw">pub fn </span>generate_circuit(typed: TypeChecker) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledCircuit&gt; {
+    <span class="kw">pub fn </span>generate_circuit(
+        typed: TypeChecker,
+        double_generic_gate_optimization: bool,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledCircuit&gt; {
         <span class="comment">// create circuit writer
-        </span><span class="kw">let </span><span class="kw-2">mut </span>circuit_writer = CircuitWriter::new(typed);
+        </span><span class="kw">let </span><span class="kw-2">mut </span>circuit_writer = CircuitWriter::new(typed, double_generic_gate_optimization);
 
         <span class="comment">// get main function
         </span><span class="kw">let </span>qualified = FullyQualified::local(<span class="string">&quot;main&quot;</span>.to_string());

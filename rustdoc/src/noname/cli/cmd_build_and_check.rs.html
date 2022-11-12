@@ -474,7 +474,7 @@
     </span><span class="kw">let </span>(sources, tast) = produce_all_asts(curr_dir)<span class="question-mark">?</span>;
 
     <span class="comment">// produce indexes
-    </span><span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast)<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
 
     <span class="kw">if </span>asm {
         <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, compiled_circuit.asm(<span class="kw-2">&amp;</span>sources, debug));
@@ -542,7 +542,7 @@
         code,
         <span class="number">0</span>,
     )<span class="question-mark">?</span>;
-    <span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast)<span class="question-mark">?</span>;
+    <span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>(prover_index, verifier_index) = compile_to_indexes(compiled_circuit)<span class="question-mark">?</span>;
     <span class="macro">println!</span>(<span class="string">&quot;successfuly compiled&quot;</span>);

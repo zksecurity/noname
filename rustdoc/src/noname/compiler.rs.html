@@ -157,6 +157,10 @@
 <span id="157">157</span>
 <span id="158">158</span>
 <span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module is a wrapper API around noname.
 //! It is important that user-facing features use the functions here,
 //! as they attach the correct filename and source code to errors.
@@ -302,8 +306,12 @@
     <span class="prelude-val">Ok</span>((nast, new_node_id))
 }
 
-<span class="kw">pub fn </span>compile(sources: <span class="kw-2">&amp;</span>Sources, tast: TypeChecker) -&gt; miette::Result&lt;CompiledCircuit&gt; {
-    CircuitWriter::generate_circuit(tast).into_miette(sources)
+<span class="kw">pub fn </span>compile(
+    sources: <span class="kw-2">&amp;</span>Sources,
+    tast: TypeChecker,
+    double_generic_gate_optimization: bool,
+) -&gt; miette::Result&lt;CompiledCircuit&gt; {
+    CircuitWriter::generate_circuit(tast, double_generic_gate_optimization).into_miette(sources)
 }
 
 <span class="kw">pub fn </span>generate_witness(
