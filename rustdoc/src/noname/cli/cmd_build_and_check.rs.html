@@ -333,8 +333,8 @@
 
     <span class="comment">// create COMPILED_DIR
     </span><span class="kw">let </span>compiled_path = curr_dir.join(COMPILED_DIR);
-    <span class="kw">if </span>!compiled_path.is_dir() {
-        <span class="macro">miette::bail!</span>(<span class="string">&quot;There&#39;s a filename called `{compiled_path}` which collides with noname. Please delete that file first.&quot; </span>);
+    <span class="kw">if </span>compiled_path.exists() &amp;&amp; !compiled_path.is_dir() {
+        <span class="macro">miette::bail!</span>(<span class="string">&quot;There&#39;s a filename called `{}` which collides with noname. Please delete that file first.&quot;</span>, compiled_path);
     }
 
     <span class="kw">if </span>args.prover_params.is_none() &amp;&amp; args.verifier_params.is_none() &amp;&amp; !compiled_path.exists() {
