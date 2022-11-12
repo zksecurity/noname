@@ -51,8 +51,8 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
 
     // create COMPILED_DIR
     let compiled_path = curr_dir.join(COMPILED_DIR);
-    if !compiled_path.is_dir() {
-        miette::bail!("There's a filename called `{compiled_path}` which collides with noname. Please delete that file first." );
+    if compiled_path.exists() && !compiled_path.is_dir() {
+        miette::bail!("There's a filename called `{}` which collides with noname. Please delete that file first.", compiled_path);
     }
 
     if args.prover_params.is_none() && args.verifier_params.is_none() && !compiled_path.exists() {
