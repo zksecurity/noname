@@ -33,7 +33,7 @@ fn test_file(
         0,
     )
     .unwrap();
-    let compiled_circuit = compile(&sources, tast)?;
+    let compiled_circuit = compile(&sources, tast, false)?;
 
     let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit).unwrap();
 

@@ -143,8 +143,12 @@ pub fn get_nast(
     Ok((nast, new_node_id))
 }
 
-pub fn compile(sources: &Sources, tast: TypeChecker) -> miette::Result<CompiledCircuit> {
-    CircuitWriter::generate_circuit(tast).into_miette(sources)
+pub fn compile(
+    sources: &Sources,
+    tast: TypeChecker,
+    double_generic_gate_optimization: bool,
+) -> miette::Result<CompiledCircuit> {
+    CircuitWriter::generate_circuit(tast, double_generic_gate_optimization).into_miette(sources)
 }
 
 pub fn generate_witness(

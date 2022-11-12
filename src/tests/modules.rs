@@ -117,7 +117,7 @@ fn test_simple_module() -> miette::Result<()> {
     )?;
 
     // compile
-    compile(&sources, tast)?;
+    compile(&sources, tast, false)?;
 
     Ok(())
 }

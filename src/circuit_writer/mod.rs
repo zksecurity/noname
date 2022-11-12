@@ -167,7 +167,7 @@ impl CircuitWriter {
 
 impl CircuitWriter {
     /// Creates a global environment from the one created by the type checker.
-    fn new(typed: TypeChecker) -> Self {
+    fn new(typed: TypeChecker, double_generic_gate_optimization: bool) -> Self {
         Self {
             typed,
             finalized: false,
@@ -179,16 +179,19 @@ impl CircuitWriter {
             public_input_size: 0,
             public_output: None,
             private_input_indices: vec![],
-            double_generic_gate_optimization: false,
+            double_generic_gate_optimization,
             pending_generic_gate: None,
             cached_constants: HashMap::new(),
             debug_info: vec![],
         }
     }
 
-    pub fn generate_circuit(typed: TypeChecker) -> Result<CompiledCircuit> {
+    pub fn generate_circuit(
+        typed: TypeChecker,
+        double_generic_gate_optimization: bool,
+    ) -> Result<CompiledCircuit> {
         // create circuit writer
-        let mut circuit_writer = CircuitWriter::new(typed);
+        let mut circuit_writer = CircuitWriter::new(typed, double_generic_gate_optimization);
 
         // get main function
         let qualified = FullyQualified::local("main".to_string());

@@ -192,7 +192,7 @@ pub fn build(
     let (sources, tast) = produce_all_asts(curr_dir)?;
 
     // produce indexes
-    let compiled_circuit = compile(&sources, tast)?;
+    let compiled_circuit = compile(&sources, tast, true)?;
 
     if asm {
         println!("{}", compiled_circuit.asm(&sources, debug));
@@ -260,7 +260,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         code,
         0,
     )?;
-    let compiled_circuit = compile(&sources, tast)?;
+    let compiled_circuit = compile(&sources, tast, true)?;
 
     let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
     println!("successfuly compiled");
