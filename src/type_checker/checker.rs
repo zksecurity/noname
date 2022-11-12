@@ -116,11 +116,8 @@ impl TypeChecker {
                 fn_name,
                 args,
             } => {
-                dbg!("expr fn call");
                 // retrieve the function signature
                 let qualified = FullyQualified::new(&module, &fn_name.value);
-                dbg!(&self.functions);
-                dbg!(&qualified);
                 let fn_info = self.fn_info(&qualified).ok_or_else(|| {
                     self.error(
                         ErrorKind::UndefinedFunction(fn_name.value.clone()),
@@ -128,7 +125,6 @@ impl TypeChecker {
                     )
                 })?;
                 let fn_sig = fn_info.sig().clone();
-                dbg!("yo");
 
                 // type check the function call
                 let method_call = false;
@@ -507,7 +503,6 @@ impl TypeChecker {
         stmts: &[Stmt],
         expected_return: Option<&Ty>,
     ) -> Result<()> {
-        dbg!("check_block");
         // enter the scope
         typed_fn_env.nest();
 
@@ -551,7 +546,6 @@ impl TypeChecker {
         typed_fn_env: &mut TypedFnEnv,
         stmt: &Stmt,
     ) -> Result<Option<TyKind>> {
-        dbg!("check_stmt", stmt);
         match &stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } => {
                 // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
@@ -617,7 +611,6 @@ impl TypeChecker {
         args: &[Expr],
         span: Span,
     ) -> Result<Option<TyKind>> {
-        dbg!("check_fn_call");
         // canonicalize the arguments depending on method call or not
         let expected: Vec<_> = if method_call {
             fn_sig
@@ -630,7 +623,6 @@ impl TypeChecker {
         };
 
         // compute the observed arguments types
-        dbg!("yo");
         let mut observed = Vec::with_capacity(args.len());
         for arg in args {
             if let Some(node) = self.compute_type(arg, typed_fn_env)? {
@@ -641,7 +633,6 @@ impl TypeChecker {
         }
 
         // check argument length
-        dbg!("yo");
         if expected.len() != observed.len() {
             return Err(self.error(
                 ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
@@ -650,18 +641,14 @@ impl TypeChecker {
         }
 
         // compare argument types with the function signature
-        dbg!("yo");
         for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
-            dbg!("hm");
             if !typ.match_expected(&sig_arg.typ.kind) {
                 return Err(self.error(
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                     span,
                 ));
             }
-            dbg!("hm");
         }
-        dbg!("yo");
 
         // return the return type of the function
         Ok(fn_sig.return_type.as_ref().map(|ty| ty.kind.clone()))

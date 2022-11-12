@@ -107,7 +107,7 @@ fn test_simple_module() -> miette::Result<()> {
     )?;
 
     // parse the main
-    node_id = typecheck_next_file(
+    typecheck_next_file(
         &mut tast,
         None,
         &mut sources,

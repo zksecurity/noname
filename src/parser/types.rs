@@ -203,7 +203,6 @@ pub enum TyKind {
 
 impl TyKind {
     pub fn match_expected(&self, expected: &TyKind) -> bool {
-        dbg!(self, expected);
         match (self, expected) {
             (TyKind::BigInt, TyKind::Field) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
