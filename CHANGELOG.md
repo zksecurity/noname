@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0] - 2022-11-11
+
+- implemented name resolution to support third-party libraries
+- CLI now supports creating executables and libraries
+- support for downloading third-party libraries from Github
+- errors now show which files the error comes from
+- better errors in general
+- constants are now cached to decrease number of constraints
+- prevent libraries with `main` functions
+- prevent duplicate constant names
+- update kimchi to latest version
 - fix negated (e.g. `-5`) and not (e.g. `!true`) expressions
 - bugfix: arguments to the main functions are now constrained
 - enforce parenthesis when chaining arithmetic operations

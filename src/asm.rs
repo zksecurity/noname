@@ -1,7 +1,7 @@
 //! ASM-like language:
 //!
 //! ```ignore
-//! @ noname.0.6.0
+//! @ noname.0.7.0
 //!
 //! # vars
 //!
@@ -41,7 +41,7 @@ impl CircuitWriter {
         let mut res = "".to_string();
 
         // version
-        res.push_str("@ noname.0.6.0\n\n");
+        res.push_str("@ noname.0.7.0\n\n");
 
         // vars
         let mut vars = OrderedHashSet::default();
