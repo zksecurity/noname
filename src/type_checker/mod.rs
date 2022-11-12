@@ -10,6 +10,7 @@ use crate::{
         types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
         CustomType, Expr, StructDef,
     },
+    stdlib::{CRYPTO_MODULE, QUALIFIED_BUILTINS},
 };
 
 pub use checker::{FnInfo, StructInfo};
@@ -57,7 +58,7 @@ impl FullyQualified {
 }
 
 /// The environment we use to type check a noname program.
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TypeChecker {
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
@@ -129,8 +130,43 @@ impl TypeChecker {
 }
 
 impl TypeChecker {
-    fn new() -> Self {
-        Self::default()
+    // TODO: we can probably lazy const this
+    pub fn new() -> Self {
+        let mut type_checker = Self {
+            functions: HashMap::new(),
+            structs: HashMap::new(),
+            constants: HashMap::new(),
+            node_types: HashMap::new(),
+        };
+
+        // initialize it with the builtins
+        let builtin_module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));
+        for (fn_name, fn_info) in BUILTIN_FNS.iter() {
+            let qualified = FullyQualified::new(&builtin_module, fn_name);
+            if type_checker
+                .functions
+                .insert(qualified, fn_info.clone())
+                .is_some()
+            {
+                panic!("type-checker bug: global imports conflict");
+            }
+        }
+
+        // initialize it with the standard library
+        let crypto_module = ModulePath::Absolute(UserRepo::new("std/crypto"));
+        for (fn_name, fn_info) in CRYPTO_MODULE.functions.iter() {
+            let qualified = FullyQualified::new(&crypto_module, fn_name);
+            if type_checker
+                .functions
+                .insert(qualified, fn_info.clone())
+                .is_some()
+            {
+                panic!("type-checker bug: global imports conflict");
+            }
+        }
+
+        //
+        type_checker
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {

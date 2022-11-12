@@ -85,7 +85,7 @@ fn test_simple_module() -> miette::Result<()> {
     let mut sources = Sources::new();
 
     // parse the transitive dependency
-    let mut tast = TypeChecker::default();
+    let mut tast = TypeChecker::new();
     let mut node_id = 0;
     node_id = typecheck_next_file(
         &mut tast,

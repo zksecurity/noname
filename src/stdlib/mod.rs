@@ -21,7 +21,7 @@ use self::crypto::CRYPTO_FNS;
 
 pub mod crypto;
 
-static CRYPTO_MODULE: Lazy<BuiltinModule> = Lazy::new(|| {
+pub static CRYPTO_MODULE: Lazy<BuiltinModule> = Lazy::new(|| {
     let functions = parse_fn_sigs(&CRYPTO_FNS);
     BuiltinModule { functions }
 });
@@ -75,6 +75,8 @@ pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> HashMap<String, FnInfo> {
 // Builtins or utils (imported by default)
 // TODO: give a name that's useful for the user,
 //       not something descriptive internally like "builtins"
+
+pub const QUALIFIED_BUILTINS: &str = "std/builtins";
 
 const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(lhs: Field, rhs: Field)";

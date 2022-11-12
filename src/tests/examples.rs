@@ -22,7 +22,7 @@ fn test_file(
 
     // compile
     let mut sources = Sources::new();
-    let mut tast = TypeChecker::default();
+    let mut tast = TypeChecker::new();
     let this_module = None;
     let _node_id = typecheck_next_file(
         &mut tast,

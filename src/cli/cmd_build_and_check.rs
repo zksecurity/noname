@@ -133,7 +133,7 @@ fn produce_all_asts(path: &PathBuf) -> miette::Result<(Sources, TypeChecker)> {
     let mut sources = Sources::new();
     let mut node_id = 0;
 
-    let mut tast = TypeChecker::default();
+    let mut tast = TypeChecker::new();
 
     for dep in dep_graph.from_leaves_to_roots() {
         let path = path_to_package(&dep);
@@ -251,7 +251,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
 
     // compile
     let mut sources = Sources::new();
-    let mut tast = TypeChecker::default();
+    let mut tast = TypeChecker::new();
     let _node_id = typecheck_next_file(
         &mut tast,
         None,

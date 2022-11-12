@@ -13,7 +13,7 @@ fn test_return() {
     }
     "#;
 
-    let mut tast = TypeChecker::default();
+    let mut tast = TypeChecker::new();
     let res = typecheck_next_file_inner(
         &mut tast,
         None,
@@ -35,7 +35,7 @@ fn test_return_expected() {
     }
     "#;
 
-    let mut tast = TypeChecker::default();
+    let mut tast = TypeChecker::new();
     let res = typecheck_next_file_inner(
         &mut tast,
         None,
@@ -57,7 +57,7 @@ fn test_return_mismatch() {
         }
         "#;
 
-    let mut tast = TypeChecker::default();
+    let mut tast = TypeChecker::new();
     let res = typecheck_next_file_inner(
         &mut tast,
         None,

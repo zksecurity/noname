@@ -119,6 +119,8 @@ impl TypeChecker {
                 dbg!("expr fn call");
                 // retrieve the function signature
                 let qualified = FullyQualified::new(&module, &fn_name.value);
+                dbg!(&self.functions);
+                dbg!(&qualified);
                 let fn_info = self.fn_info(&qualified).ok_or_else(|| {
                     self.error(
                         ErrorKind::UndefinedFunction(fn_name.value.clone()),

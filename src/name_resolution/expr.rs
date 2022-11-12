@@ -3,6 +3,7 @@ use crate::{
     error::Result,
     imports::BUILTIN_FNS,
     parser::{types::ModulePath, CustomType, Expr, ExprKind},
+    stdlib::QUALIFIED_BUILTINS,
 };
 
 use super::context::NameResCtx;
@@ -24,7 +25,7 @@ impl NameResCtx {
                 if matches!(module, ModulePath::Local) && BUILTIN_FNS.get(&fn_name.value).is_some()
                 {
                     // if it's a builtin, use `std::builtin`
-                    *module = ModulePath::Absolute(UserRepo::new("std/builtins"));
+                    *module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));
                 } else {
                     self.resolve(module, false)?;
                 }
