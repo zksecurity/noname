@@ -910,6 +910,19 @@
 <span id="910">910</span>
 <span id="911">911</span>
 <span id="912">912</span>
+<span id="913">913</span>
+<span id="914">914</span>
+<span id="915">915</span>
+<span id="916">916</span>
+<span id="917">917</span>
+<span id="918">918</span>
+<span id="919">919</span>
+<span id="920">920</span>
+<span id="921">921</span>
+<span id="922">922</span>
+<span id="923">923</span>
+<span id="924">924</span>
+<span id="925">925</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Display, Formatter},
     ops::Neg,
@@ -932,7 +945,7 @@
         Expr, ExprKind, Op2,
     },
     syntax::is_type,
-    type_checker::FullyQualified,
+    type_checker::{ConstInfo, FullyQualified},
     var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
 };
 
@@ -1152,8 +1165,8 @@
                 <span class="kw">let </span>qualified = FullyQualified::new(module, <span class="kw-2">&amp;</span>struct_name);
                 <span class="kw">let </span>struct_info = <span class="self">self
                     </span>.struct_info(<span class="kw-2">&amp;</span>qualified)
-                    .expect(<span class="string">&quot;struct not found (TODO: better error)&quot;</span>)
-                    .clone();
+                    .ok_or(<span class="self">self</span>.error(ErrorKind::UnexpectedError(<span class="string">&quot;struct not found&quot;</span>), span))<span class="question-mark">?
+                    </span>.clone();
 
                 <span class="kw">let </span><span class="kw-2">mut </span>offset = <span class="number">0</span>;
                 <span class="kw">for </span>(_field_name, field_typ) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
@@ -1344,7 +1357,12 @@
 
                 <span class="kw">let </span>(module, struct_name) = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs_typ {
                     TyKind::Custom { module, name } =&gt; (module, name),
-                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;method call only work on custom types (TODO: better error)&quot;</span>),
+                    <span class="kw">_ </span>=&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                            ErrorKind::UnexpectedError(<span class="string">&quot;method call only work on custom types&quot;</span>),
+                            lhs.span,
+                        ))
+                    }
                 };
 
                 <span class="comment">// get var of `self`
@@ -1355,8 +1373,11 @@
                 </span><span class="kw">let </span>qualified = FullyQualified::new(module, struct_name);
                 <span class="kw">let </span>struct_info = <span class="self">self
                     </span>.struct_info(<span class="kw-2">&amp;</span>qualified)
-                    .expect(<span class="string">&quot;struct not found (TODO: better error)&quot;</span>)
-                    .clone();
+                    .ok_or(<span class="self">self</span>.error(
+                        ErrorKind::UnexpectedError(<span class="string">&quot;struct not found&quot;</span>),
+                        method_name.span,
+                    ))<span class="question-mark">?
+                    </span>.clone();
                 <span class="kw">let </span>func = struct_info
                     .methods
                     .get(<span class="kw-2">&amp;</span>method_name.value)
@@ -1509,20 +1530,25 @@
             }
 
             ExprKind::Variable { module, name } =&gt; {
-                <span class="kw">if </span>!<span class="macro">matches!</span>(module, ModulePath::Local) {
-                    <span class="macro">panic!</span>(<span class="string">&quot;accessing module variables not supported yet&quot;</span>);
+                <span class="comment">// if it&#39;s a type we return nothing
+                // (most likely what follows is a static method call)
+                </span><span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>name.value) {
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
                 }
 
-                <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>name.value) {
-                    <span class="comment">// if it&#39;s a type we return nothing
-                    // (most likely what follows is a static method call)
-                    </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+                <span class="comment">// search for constants first
+                </span><span class="kw">let </span>qualified = FullyQualified::new(module, <span class="kw-2">&amp;</span>name.value);
+                <span class="kw">let </span>var_info = <span class="kw">if let </span><span class="prelude-val">Some</span>(cst_info) = <span class="self">self</span>.const_info(<span class="kw-2">&amp;</span>qualified) {
+                    <span class="kw">let </span>var = Var::new_constant_typ(cst_info, name.span);
+                    VarInfo::new(var, <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(cst_info.typ.kind.clone()))
                 } <span class="kw">else </span>{
-                    <span class="kw">let </span>var_info = <span class="self">self</span>.get_local_var(fn_env, <span class="kw-2">&amp;</span>name.value);
+                    <span class="comment">// if no constant found, look in the function&#39;s scope
+                    // remember: we can do this because the type checker already checked that we didn&#39;t shadow constant vars
+                    </span><span class="self">self</span>.get_local_var(fn_env, <span class="kw-2">&amp;</span>name.value)
+                };
 
-                    <span class="kw">let </span>res = VarOrRef::from_var_info(name.value.clone(), var_info);
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(res))
-                }
+                <span class="kw">let </span>res = VarOrRef::from_var_info(name.value.clone(), var_info);
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(res))
             }
 
             ExprKind::ArrayAccess { array, idx } =&gt; {

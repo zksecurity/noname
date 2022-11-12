@@ -1219,6 +1219,14 @@
 <span id="1219">1219</span>
 <span id="1220">1220</span>
 <span id="1221">1221</span>
+<span id="1222">1222</span>
+<span id="1223">1223</span>
+<span id="1224">1224</span>
+<span id="1225">1225</span>
+<span id="1226">1226</span>
+<span id="1227">1227</span>
+<span id="1228">1228</span>
+<span id="1229">1229</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -1240,7 +1248,10 @@
     ident: Ident,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Expr&gt; {
     <span class="kw">if </span>!is_type(<span class="kw-2">&amp;</span>ident.value) {
-        <span class="macro">panic!</span>(<span class="string">&quot;this looks like a type declaration but not on a type (types start with an uppercase) (TODO: better error)&quot;</span>);
+        <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(
+            ErrorKind::UnexpectedError(
+                <span class="string">&quot;this looks like a type declaration but not on a type (types start with an uppercase)&quot;</span>,
+            ), ident.span));
     }
 
     <span class="kw">let </span><span class="kw-2">mut </span>span = ident.span;
@@ -1504,6 +1515,7 @@
 
     <span class="kw">pub fn </span>parse(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>token = tokens.bump_err(ctx, ErrorKind::MissingType)<span class="question-mark">?</span>;
+        <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>token.kind);
         <span class="kw">match </span>token.kind {
             <span class="comment">// module::Type or Type
             // ^^^^^^^^^^^^    ^^^^
@@ -1527,6 +1539,7 @@
                         }) =&gt; (name, span),
                         <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(ErrorKind::MissingType, ctx.last_span())),
                     };
+
                     <span class="kw">let </span>name = Ident::new(name, span);
                     <span class="kw">let </span>span = token.span.merge_with(span);
 
@@ -2002,7 +2015,10 @@
 
         <span class="comment">// make sure that it doesn&#39;t shadow a builtin
         </span><span class="kw">if </span>BUILTIN_FNS.get(<span class="kw-2">&amp;</span>sig.name.value).is_some() {
-            <span class="macro">panic!</span>(<span class="string">&quot;you cannot call your function `{}` because it would shadow a built-in function (try renaming your function)&quot;</span>, sig.name.value);
+            <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(
+                ErrorKind::ShadowingBuiltIn(sig.name.value.clone()),
+                sig.name.span,
+            ));
         }
 
         <span class="comment">// parse body

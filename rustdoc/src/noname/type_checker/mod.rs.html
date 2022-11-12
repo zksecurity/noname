@@ -431,7 +431,7 @@
 #[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>ConstInfo {
     <span class="attr">#[serde_as(<span class="kw">as </span>= <span class="string">&quot;crate::serialization::SerdeAs&quot;</span>)]
-    </span><span class="kw">pub </span>value: Field,
+    </span><span class="kw">pub </span>value: Vec&lt;Field&gt;,
     <span class="kw">pub </span>typ: Ty,
 }
 
@@ -606,7 +606,7 @@
                         .insert(
                             qualified,
                             ConstInfo {
-                                value: cst.value,
+                                value: <span class="macro">vec!</span>[cst.value],
                                 typ: Ty {
                                     kind: TyKind::Field,
                                     span: cst.span,

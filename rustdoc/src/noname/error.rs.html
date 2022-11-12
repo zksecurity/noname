@@ -287,6 +287,15 @@
 <span id="287">287</span>
 <span id="288">288</span>
 <span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
 </pre><pre class="rust"><code><span class="kw">use </span>miette::{Diagnostic, NamedSource};
 <span class="kw">use </span>thiserror::Error;
 
@@ -325,6 +334,12 @@
 <span class="doccomment">/// The type of error.
 </span><span class="attr">#[derive(Error, Diagnostic, Debug)]
 </span><span class="kw">pub enum </span>ErrorKind {
+    <span class="doccomment">/// this error is for testing. You can use it when you want to quickly see in what file and what line of code the error is.
+    </span><span class="attr">#[error(
+        <span class="string">&quot;Unexpected error: {0}. Please report this error on https://github.com/mimoo/noname/issues&quot;
+    </span>)]
+    </span>UnexpectedError(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str),
+
     <span class="attr">#[error(<span class="string">&quot;variable is not mutable. You must set the `mut` keyword to make it mutable&quot;</span>)]
     </span>AssignmentToImmutableVariable,
 
@@ -341,6 +356,9 @@
 
     <span class="attr">#[error(<span class="string">&quot;you cannot have a function called `main` in a library&quot;</span>)]
     </span>MainFunctionInLib,
+
+    <span class="attr">#[error(<span class="string">&quot;you cannot call your function `{0}`, as it already exists as a builtin function (try renaming your function)&quot;</span>)]
+    </span>ShadowingBuiltIn(String),
 
     <span class="attr">#[error(transparent)]
     </span>ParsingError(<span class="attr">#[from] </span>ParsingError),

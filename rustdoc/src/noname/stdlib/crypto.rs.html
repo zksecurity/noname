@@ -172,6 +172,9 @@
 <span id="172">172</span>
 <span id="173">173</span>
 <span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
 </pre><pre class="rust"><code><span class="kw">use </span>ark_ff::Zero;
 <span class="kw">use </span>kimchi::{
     circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW},
@@ -185,7 +188,7 @@
 <span class="kw">use crate</span>::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
     constants::{<span class="self">self</span>, Field, Span},
-    error::Result,
+    error::{ErrorKind, <span class="prelude-ty">Result</span>},
     imports::FnHandle,
     parser::types::TyKind,
     var::{ConstOrCell, Value, Var},
@@ -218,7 +221,10 @@
 
     <span class="comment">// hashing a full-constant input is not a good idea
     </span><span class="kw">if </span>input[<span class="number">0</span>].is_const() &amp;&amp; input[<span class="number">1</span>].is_const() {
-        <span class="macro">panic!</span>(<span class="string">&quot;cannot hash a full-constant input (TODO: better error)&quot;</span>);
+        <span class="kw">return </span><span class="prelude-val">Err</span>(compiler.error(
+            ErrorKind::UnexpectedError(<span class="string">&quot;cannot hash a full-constant input&quot;</span>),
+            span,
+        ));
     }
 
     <span class="comment">// IMPORTANT: time to constrain any constants

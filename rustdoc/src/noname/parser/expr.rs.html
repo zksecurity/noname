@@ -594,6 +594,13 @@
 <span id="594">594</span>
 <span id="595">595</span>
 <span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
 </pre><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::syntax::is_type;
 <span class="kw">use crate</span>::{
     constants::Span,
@@ -917,7 +924,9 @@
                 }
 
                 <span class="kw">if </span>items.is_empty() {
-                    <span class="macro">panic!</span>(<span class="string">&quot;empty array declaration (TODO: better error)&quot;</span>);
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(
+                        ctx.error(ErrorKind::UnexpectedError(<span class="string">&quot;empty array declaration&quot;</span>), span)
+                    );
                 }
 
                 Expr::new(
@@ -1042,7 +1051,12 @@
                         }
 
                         <span class="kw">if </span>!<span class="macro">matches!</span>(module, ModulePath::Local) {
-                            <span class="macro">panic!</span>(<span class="string">&quot;a type declaration cannot be qualified (TODO: better error)&quot;</span>);
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(
+                                ErrorKind::UnexpectedError(
+                                    <span class="string">&quot;a type declaration cannot be qualified&quot;</span>,
+                                ),
+                                name.span,
+                            ));
                         }
 
                         name.clone()

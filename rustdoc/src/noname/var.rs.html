@@ -309,6 +309,14 @@
 <span id="309">309</span>
 <span id="310">310</span>
 <span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -317,6 +325,7 @@
     circuit_writer::{CircuitWriter, FnEnv, VarInfo},
     constants::{Field, Span},
     error::Result,
+    type_checker::ConstInfo,
     witness::{CompiledCircuit, WitnessEnv},
 };
 
@@ -472,6 +481,13 @@
             cvars: <span class="macro">vec!</span>[ConstOrCell::Const(cst)],
             span,
         }
+    }
+
+    <span class="kw">pub fn </span>new_constant_typ(cst_info: <span class="kw-2">&amp;</span>ConstInfo, span: Span) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>ConstInfo { value, typ: <span class="kw">_ </span>} = cst_info;
+        <span class="kw">let </span>cvars = value.into_iter().cloned().map(ConstOrCell::Const).collect();
+
+        <span class="self">Self </span>{ cvars, span }
     }
 
     <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
