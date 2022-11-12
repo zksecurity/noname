@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cli::packages::UserRepo,
     constants::Span,
     error::{ErrorKind, Result},
     lexer::{Token, TokenKind, Tokens},

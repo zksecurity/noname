@@ -7,7 +7,7 @@ use crate::{
     error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FnSig, FunctionDef, ModulePath, Stmt, StmtKind, Ty, TyKind},
+        types::{FnSig, FunctionDef, Stmt, StmtKind, Ty, TyKind},
         CustomType, Expr, ExprKind, Op2,
     },
     syntax::is_type,

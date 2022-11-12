@@ -1,4 +1,4 @@
-use miette::{Diagnostic, NamedSource};
+use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::{

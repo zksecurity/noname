@@ -6,7 +6,6 @@
 use std::vec::IntoIter;
 
 use crate::{
-    constants::Span,
     error::{ErrorKind, Result},
     lexer::{Token, TokenKind},
     parser::{types::Ident, ParserCtx},

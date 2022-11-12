@@ -16,11 +16,11 @@ use crate::{
     error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FunctionDef, ModulePath, Stmt, StmtKind, TyKind},
+        types::{FunctionDef, Stmt, StmtKind, TyKind},
         Expr, ExprKind, Op2,
     },
     syntax::is_type,
-    type_checker::{ConstInfo, FullyQualified},
+    type_checker::FullyQualified,
     var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
 };
 

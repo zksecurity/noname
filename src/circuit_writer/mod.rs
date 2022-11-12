@@ -1,11 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     parser::{
-        types::{AttributeKind, FnArg, Ident, TyKind, UsePath},
+        types::{AttributeKind, FnArg, TyKind},
         Expr,
     },
     type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
@@ -14,7 +13,6 @@ use crate::{
 };
 
 pub use fn_env::{FnEnv, VarInfo};
-use miette::NamedSource;
 use serde::{Deserialize, Serialize};
 //use serde::{Deserialize, Serialize};
 pub use writer::{Gate, GateKind, Wiring};

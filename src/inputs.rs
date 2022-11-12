@@ -8,10 +8,7 @@ use num_bigint::BigUint;
 use thiserror::Error;
 
 use crate::{
-    constants::Field,
-    parser::types::{ModulePath, TyKind},
-    type_checker::FullyQualified,
-    witness::CompiledCircuit,
+    constants::Field, parser::types::TyKind, type_checker::FullyQualified, witness::CompiledCircuit,
 };
 
 //
