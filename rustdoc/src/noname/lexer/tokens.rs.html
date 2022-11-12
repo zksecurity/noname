@@ -80,7 +80,6 @@
 <span id="80">80</span>
 <span id="81">81</span>
 <span id="82">82</span>
-<span id="83">83</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Since [std::iter::Peekable] in Rust advances the iterator,
 //! I can&#39;t use it for peeking tokens.
 //! I haven&#39;t found a better way than implementing a wrapper
@@ -89,7 +88,6 @@
 </span><span class="kw">use </span>std::vec::IntoIter;
 
 <span class="kw">use crate</span>::{
-    constants::Span,
     error::{ErrorKind, <span class="prelude-ty">Result</span>},
     lexer::{Token, TokenKind},
     parser::{types::Ident, ParserCtx},

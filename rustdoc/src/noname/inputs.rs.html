@@ -150,9 +150,6 @@
 <span id="150">150</span>
 <span id="151">151</span>
 <span id="152">152</span>
-<span id="153">153</span>
-<span id="154">154</span>
-<span id="155">155</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Used to parse public and private inputs to a program.
 
 </span><span class="kw">use </span>std::{collections::HashMap, str::FromStr};
@@ -163,10 +160,7 @@
 <span class="kw">use </span>thiserror::Error;
 
 <span class="kw">use crate</span>::{
-    constants::Field,
-    parser::types::{ModulePath, TyKind},
-    type_checker::FullyQualified,
-    witness::CompiledCircuit,
+    constants::Field, parser::types::TyKind, type_checker::FullyQualified, witness::CompiledCircuit,
 };
 
 <span class="comment">//
