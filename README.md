@@ -121,7 +121,7 @@ As this is work in progress, you need to install the compiler from source using 
 You can do this by running the following command:
 
 ```console
-$ cargo install --path https://www.github.com/mimoo/noname
+$ cargo install --git https://www.github.com/mimoo/noname
 ```
 
 ## Usage

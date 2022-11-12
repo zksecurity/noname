@@ -286,7 +286,7 @@ impl Ty {
 
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
-        dbg!(&token.kind);
+
         match token.kind {
             // module::Type or Type
             // ^^^^^^^^^^^^    ^^^^
