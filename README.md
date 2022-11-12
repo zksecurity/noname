@@ -60,52 +60,11 @@ DoubleGeneric<1,-1>
 
 If you run the command with `--debug` it should show you what lines created what gates:
 
-```
-
-╭────────────────────────────────────────────────────────────────────────────────
-│ GATE 0 - DoubleGeneric<1>
-╭────────────────────────────────────────────────────────────────────────────────
-│ 3: fn main(pub public_input: Field, private_input: [Field; 2]) {
-│                ^^^^^^^^^^^^
-╰────────────────────────────────────────────────────────────────────────────────
-    ▲
-    ╰── add public input
-
-
-╭────────────────────────────────────────────────────────────────────────────────
-│ GATE 1 - DoubleGeneric<1,1,-1>
-╭────────────────────────────────────────────────────────────────────────────────
-│ 4:     let x = private_input[0] + private_input[1];
-│                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-╰────────────────────────────────────────────────────────────────────────────────
-    ▲
-    ╰── add two variables together
-```
+<img width="871" alt="Screen Shot 2022-11-11 at 11 01 45 PM" src="https://user-images.githubusercontent.com/1316043/201461923-8d6d6756-9faa-40fe-8f71-16334a4cb98d.png">
 
 and what lines created what wiring:
 
-```
-╭────────────────────────────────────────────────────────────────────────────────
-│ 3: fn main(pub public_input: Field, private_input: [Field; 2]) {
-│                ^^^^^^^^^^^^
-╰────────────────────────────────────────────────────────────────────────────────
-╭────────────────────────────────────────────────────────────────────────────────
-│ 8:     assert_eq(digest[0], public_input);
-│        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-╰────────────────────────────────────────────────────────────────────────────────
-(0,0) -> (17,1)
-
-
-╭────────────────────────────────────────────────────────────────────────────────
-│ 3: fn main(pub public_input: Field, private_input: [Field; 2]) {
-│                                     ^^^^^^^^^^^^^
-╰────────────────────────────────────────────────────────────────────────────────
-╭────────────────────────────────────────────────────────────────────────────────
-│ 7:     let digest = crypto::poseidon(private_input);
-│                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-╰────────────────────────────────────────────────────────────────────────────────
-(1,0) -> (5,0)
-```
+<img width="871" alt="Screen Shot 2022-11-11 at 11 02 38 PM" src="https://user-images.githubusercontent.com/1316043/201461945-09121d99-1e7c-4204-962f-99cb24e26b50.png">
 
 If you pass an invalid input it should fail with an error:
 
@@ -113,7 +72,7 @@ If you pass an invalid input it should fail with an error:
 $ noname test --path examples/example.no --private-inputs '{"private_input": ["2", "1"]}' --public-inputs '{"public_input": "3654913405619483358804575553468071097765421484960111776885779739261304758583"}'
 ```
 
-<img width="487" alt="Screen Shot 2022-09-02 at 12 08 41 PM" src="https://user-images.githubusercontent.com/1316043/188221355-4342b99c-3894-45f9-8bad-0f9477d93a63.png">
+<img width="864" alt="Screen Shot 2022-11-11 at 11 03 09 PM" src="https://user-images.githubusercontent.com/1316043/201461958-43677bef-d251-4075-8314-3b22fc3ba05c.png">
 
 ## Installation
 
