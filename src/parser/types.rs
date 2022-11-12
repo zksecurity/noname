@@ -283,6 +283,7 @@ impl Ty {
 
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
+        dbg!(&token.kind);
         match token.kind {
             // module::Type or Type
             // ^^^^^^^^^^^^    ^^^^
@@ -306,6 +307,7 @@ impl Ty {
                         }) => (name, span),
                         _ => return Err(ctx.error(ErrorKind::MissingType, ctx.last_span())),
                     };
+
                     let name = Ident::new(name, span);
                     let span = token.span.merge_with(span);
 
@@ -781,7 +783,10 @@ impl FunctionDef {
 
         // make sure that it doesn't shadow a builtin
         if BUILTIN_FNS.get(&sig.name.value).is_some() {
-            panic!("you cannot call your function `{}` because it would shadow a built-in function (try renaming your function)", sig.name.value);
+            return Err(ctx.error(
+                ErrorKind::ShadowingBuiltIn(sig.name.value.clone()),
+                sig.name.span,
+            ));
         }
 
         // parse body

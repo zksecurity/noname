@@ -20,7 +20,7 @@ use crate::{
         Expr, ExprKind, Op2,
     },
     syntax::is_type,
-    type_checker::FullyQualified,
+    type_checker::{ConstInfo, FullyQualified},
     var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
 };
 
@@ -597,20 +597,25 @@ impl CircuitWriter {
             }
 
             ExprKind::Variable { module, name } => {
-                if !matches!(module, ModulePath::Local) {
-                    panic!("accessing module variables not supported yet");
-                }
-
+                // if it's a type we return nothing
+                // (most likely what follows is a static method call)
                 if is_type(&name.value) {
-                    // if it's a type we return nothing
-                    // (most likely what follows is a static method call)
-                    Ok(None)
-                } else {
-                    let var_info = self.get_local_var(fn_env, &name.value);
-
-                    let res = VarOrRef::from_var_info(name.value.clone(), var_info);
-                    Ok(Some(res))
+                    return Ok(None);
                 }
+
+                // search for constants first
+                let qualified = FullyQualified::new(module, &name.value);
+                let var_info = if let Some(cst_info) = self.const_info(&qualified) {
+                    let var = Var::new_constant_typ(cst_info, name.span);
+                    VarInfo::new(var, false, Some(cst_info.typ.kind.clone()))
+                } else {
+                    // if no constant found, look in the function's scope
+                    // remember: we can do this because the type checker already checked that we didn't shadow constant vars
+                    self.get_local_var(fn_env, &name.value)
+                };
+
+                let res = VarOrRef::from_var_info(name.value.clone(), var_info);
+                Ok(Some(res))
             }
 
             ExprKind::ArrayAccess { array, idx } => {

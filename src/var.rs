@@ -6,6 +6,7 @@ use crate::{
     circuit_writer::{CircuitWriter, FnEnv, VarInfo},
     constants::{Field, Span},
     error::Result,
+    type_checker::ConstInfo,
     witness::{CompiledCircuit, WitnessEnv},
 };
 
@@ -161,6 +162,13 @@ impl Var {
             cvars: vec![ConstOrCell::Const(cst)],
             span,
         }
+    }
+
+    pub fn new_constant_typ(cst_info: &ConstInfo, span: Span) -> Self {
+        let ConstInfo { value, typ: _ } = cst_info;
+        let cvars = value.into_iter().cloned().map(ConstOrCell::Const).collect();
+
+        Self { cvars, span }
     }
 
     pub fn len(&self) -> usize {

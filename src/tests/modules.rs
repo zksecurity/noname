@@ -52,11 +52,11 @@ fn new() -> Lib {
 }
 
 // a transitive dependency
-fn new_liblib() -> Liblib::Lol {}
-    Liblib::Lol.new();
+fn new_liblib() -> liblib::Lol {
+    return liblib::Lol.new();
 }
 
-fn test_liblib(ff: Field, lol: Liblib::Lol) {
+fn test_liblib(ff: Field, lol: liblib::Lol) {
     lol.match(ff);
 }
 "#;

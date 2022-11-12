@@ -142,7 +142,7 @@ impl CircuitWriter {
         // check for consts first
         let qualified = FullyQualified::local(var_name.to_string());
         if let Some(cst_info) = self.typed.const_info(&qualified) {
-            let var = Var::new_constant(cst_info.value, cst_info.typ.span);
+            let var = Var::new_constant_typ(cst_info, cst_info.typ.span);
             return VarInfo::new(var, false, Some(TyKind::Field));
         }
 

@@ -28,7 +28,7 @@ const RESERVED_ARGS: [&str; 1] = ["public_output"];
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConstInfo {
     #[serde_as(as = "crate::serialization::SerdeAs")]
-    pub value: Field,
+    pub value: Vec<Field>,
     pub typ: Ty,
 }
 
@@ -203,7 +203,7 @@ impl TypeChecker {
                         .insert(
                             qualified,
                             ConstInfo {
-                                value: cst.value,
+                                value: vec![cst.value],
                                 typ: Ty {
                                     kind: TyKind::Field,
                                     span: cst.span,

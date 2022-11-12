@@ -36,6 +36,12 @@ impl Error {
 /// The type of error.
 #[derive(Error, Diagnostic, Debug)]
 pub enum ErrorKind {
+    /// this error is for testing. You can use it when you want to quickly see in what file and what line of code the error is.
+    #[error(
+        "Unexpected error: {0}. Please report this error on https://github.com/mimoo/noname/issues"
+    )]
+    UnexpectedError(&'static str),
+
     #[error("variable is not mutable. You must set the `mut` keyword to make it mutable")]
     AssignmentToImmutableVariable,
 
@@ -52,6 +58,9 @@ pub enum ErrorKind {
 
     #[error("you cannot have a function called `main` in a library")]
     MainFunctionInLib,
+
+    #[error("you cannot call your function `{0}`, as it already exists as a builtin function (try renaming your function)")]
+    ShadowingBuiltIn(String),
 
     #[error(transparent)]
     ParsingError(#[from] ParsingError),

@@ -89,10 +89,6 @@ impl TypeChecker {
                     _ => panic!("field access must be done on a custom struct"),
                 };
 
-                if !matches!(module, ModulePath::Local) {
-                    unimplemented!();
-                }
-
                 // get struct info
                 let qualified = FullyQualified::new(&module, &struct_name);
                 let struct_info = self
