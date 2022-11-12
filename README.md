@@ -10,15 +10,17 @@ I invite you to try to [install](#installation) and [play](#usage) with noname. 
 
 ## Examples
 
-For example, here's a circuit that has one public input and one private input, checks that they can add up to 2, then return their sum with 6 as public output:
+For example, here's a circuit that has one public input and one private input:
 
 ```rust
 use std::crypto;
 
 fn main(pub public_input: Field, private_input: [Field; 2]) {
+    // checks that they add up to 2
     let x = private_input[0] + private_input[1];
     assert_eq(x, 2);
     
+    // checks that one is the hash of the other
     let digest = crypto::poseidon(private_input);
     assert_eq(digest[0], public_input);
 }
