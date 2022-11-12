@@ -141,6 +141,7 @@ impl TypeChecker {
     /// - resolves imports
     /// - type checks
     pub fn analyze(&mut self, nast: NAST, is_lib: bool) -> Result<()> {
+        dbg!("analyze");
         //
         // Process constants
         //
@@ -148,6 +149,7 @@ impl TypeChecker {
         // we detect struct or function definition
         let mut abort = None;
 
+        dbg!("constants starting");
         for root in &nast.ast.0 {
             match &root.kind {
                 RootKind::ConstDef(cst) => {
@@ -195,6 +197,7 @@ impl TypeChecker {
         // Type check structs
         //
 
+        dbg!("structs starting");
         for root in &nast.ast.0 {
             match &root.kind {
                 // `use user::repo;`
@@ -235,6 +238,7 @@ impl TypeChecker {
         // Type check functions and methods
         //
 
+        dbg!("fns and methods starting");
         for root in &nast.ast.0 {
             match &root.kind {
                 // `fn main() { ... }`
@@ -260,6 +264,7 @@ impl TypeChecker {
                             function.span,
                         ));
                     }
+                    dbg!("yo");
 
                     // save the function in the typed global env
                     let fn_kind = FnKind::Native(function.clone());
@@ -286,6 +291,7 @@ impl TypeChecker {
                             self.functions.insert(qualified, fn_info);
                         }
                     };
+                    dbg!("yo");
 
                     // store variables and their types in the fn_env
                     for arg in &function.sig.arguments {
@@ -332,6 +338,7 @@ impl TypeChecker {
                             )?;
                         }
                     }
+                    dbg!("yo");
 
                     // the output value returned by the main function is also a main_args with a special name (public_output)
                     if let Some(typ) = &function.sig.return_type {
@@ -346,6 +353,7 @@ impl TypeChecker {
                             )?;
                         }
                     }
+                    dbg!("yo");
 
                     // type system pass on the function body
                     self.check_block(
@@ -359,8 +367,9 @@ impl TypeChecker {
                 | RootKind::ConstDef(_)
                 | RootKind::StructDef(_)
                 | RootKind::Comment(_) => (),
-            }
+            };
         }
+        dbg!("yo");
 
         Ok(())
     }

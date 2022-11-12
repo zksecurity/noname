@@ -168,7 +168,9 @@ impl PartialEq for ModulePath {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (ModulePath::Alias(a), ModulePath::Alias(b)) => a.value == b.value,
-            (x, y) => x == y,
+            (ModulePath::Local, ModulePath::Local) => true,
+            (ModulePath::Absolute(a), ModulePath::Absolute(b)) => a == b,
+            _ => false,
         }
     }
 }
@@ -201,6 +203,7 @@ pub enum TyKind {
 
 impl TyKind {
     pub fn match_expected(&self, expected: &TyKind) -> bool {
+        dbg!(self, expected);
         match (self, expected) {
             (TyKind::BigInt, TyKind::Field) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {

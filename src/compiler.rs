@@ -122,12 +122,23 @@ pub fn get_nast(
     let filename_id = sources.add(filename, code);
     let code = &sources.map[&filename_id].1;
 
-    // parse
+    // lexer
     let tokens = Token::parse(filename_id, &code)?;
+    if std::env::var("NONAME_VERBOSE").is_ok() {
+        println!("lexer succeeded");
+    }
+
+    // parser
     let (ast, new_node_id) = AST::parse(filename_id, tokens, node_id)?;
+    if std::env::var("NONAME_VERBOSE").is_ok() {
+        println!("parser succeeded");
+    }
 
     // name resolution
     let nast = NAST::resolve_modules(this_module, ast)?;
+    if std::env::var("NONAME_VERBOSE").is_ok() {
+        println!("name resolution succeeded");
+    }
 
     Ok((nast, new_node_id))
 }
