@@ -153,10 +153,6 @@
 <span id="153">153</span>
 <span id="154">154</span>
 <span id="155">155</span>
-<span id="156">156</span>
-<span id="157">157</span>
-<span id="158">158</span>
-<span id="159">159</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Used to parse public and private inputs to a program.
 
 </span><span class="kw">use </span>std::{collections::HashMap, str::FromStr};
@@ -249,10 +245,6 @@
                 },
                 Value::Object(<span class="kw-2">mut </span>map),
             ) =&gt; {
-                <span class="kw">if </span>!<span class="macro">matches!</span>(module, ModulePath::Local) {
-                    <span class="macro">unimplemented!</span>();
-                }
-
                 <span class="comment">// get fields of struct
                 </span><span class="kw">let </span>qualified = FullyQualified::new(module, struct_name);
                 <span class="kw">let </span>struct_info = <span class="self">self

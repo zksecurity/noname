@@ -191,6 +191,10 @@
 <span id="191">191</span>
 <span id="192">192</span>
 <span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -317,7 +321,7 @@
     <span class="kw">fn </span>resolve_typ_kind(<span class="kw-2">&amp;</span><span class="self">self</span>, typ_kind: <span class="kw-2">&amp;mut </span>TyKind) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">match </span>typ_kind {
             TyKind::Field =&gt; (),
-            TyKind::Custom { module, name } =&gt; {
+            TyKind::Custom { module, name: <span class="kw">_ </span>} =&gt; {
                 <span class="self">self</span>.resolve(module, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
             }
             TyKind::BigInt =&gt; (),
@@ -361,7 +365,7 @@
     }
 
     <span class="kw">fn </span>resolve_stmt(<span class="kw-2">&amp;</span><span class="self">self</span>, stmt: <span class="kw-2">&amp;mut </span>Stmt) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>Stmt { kind, span } = stmt;
+        <span class="kw">let </span>Stmt { kind, span: <span class="kw">_ </span>} = stmt;
 
         <span class="kw">match </span>kind {
             StmtKind::Assign {
@@ -374,7 +378,11 @@
             StmtKind::Expr(expr) =&gt; <span class="self">self</span>.resolve_expr(expr)<span class="question-mark">?</span>,
             StmtKind::Return(expr) =&gt; <span class="self">self</span>.resolve_expr(expr)<span class="question-mark">?</span>,
             StmtKind::Comment(<span class="kw">_</span>) =&gt; (),
-            StmtKind::ForLoop { var, range, body } =&gt; {
+            StmtKind::ForLoop {
+                var: <span class="kw">_</span>,
+                range: <span class="kw">_</span>,
+                body,
+            } =&gt; {
                 <span class="kw">for </span>stmt <span class="kw">in </span>body {
                     <span class="self">self</span>.resolve_stmt(stmt)<span class="question-mark">?</span>;
                 }

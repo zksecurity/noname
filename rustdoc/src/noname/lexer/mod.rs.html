@@ -452,14 +452,6 @@
 <span id="452">452</span>
 <span id="453">453</span>
 <span id="454">454</span>
-<span id="455">455</span>
-<span id="456">456</span>
-<span id="457">457</span>
-<span id="458">458</span>
-<span id="459">459</span>
-<span id="460">460</span>
-<span id="461">461</span>
-<span id="462">462</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
@@ -473,23 +465,19 @@
 <span class="kw">pub mod </span>tokens;
 
 <span class="attr">#[derive(Debug)]
-</span><span class="kw">pub struct </span>LexerCtx&lt;<span class="lifetime">&#39;a</span>&gt; {
+</span><span class="kw">pub struct </span>LexerCtx {
     <span class="doccomment">/// the offset of what we&#39;ve read so far in the file
     </span>offset: usize,
 
     <span class="doccomment">/// the file we&#39;re reading
     </span>filename_id: usize,
-
-    <span class="doccomment">/// the source code we&#39;re reading
-    </span>code: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; LexerCtx&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">pub fn </span>new(filename_id: usize, code: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str) -&gt; <span class="self">Self </span>{
+<span class="kw">impl </span>LexerCtx {
+    <span class="kw">pub fn </span>new(filename_id: usize) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             offset: <span class="number">0</span>,
             filename_id,
-            code,
         }
     }
 
@@ -681,10 +669,6 @@
 }
 
 <span class="kw">impl </span>Token {
-    <span class="kw">fn </span>new(kind: TokenKind, span: Span) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ kind, span }
-    }
-
     <span class="kw">fn </span>parse_line(ctx: <span class="kw-2">&amp;mut </span>LexerCtx, line: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="self">Self</span>&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>tokens = <span class="macro">vec!</span>[];
 
@@ -885,7 +869,7 @@
     }
 
     <span class="kw">pub fn </span>parse(filename_id: usize, code: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Tokens&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>ctx = LexerCtx::new(filename_id, code);
+        <span class="kw">let </span><span class="kw-2">mut </span>ctx = LexerCtx::new(filename_id);
         <span class="kw">let </span><span class="kw-2">mut </span>tokens = <span class="macro">vec!</span>[];
 
         <span class="kw">for </span>line <span class="kw">in </span>code.lines() {

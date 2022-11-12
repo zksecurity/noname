@@ -401,6 +401,10 @@
 <span id="401">401</span>
 <span id="402">402</span>
 <span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -709,7 +713,11 @@
 
                     <span class="kw">match </span><span class="kw-2">&amp;</span>function.sig.kind {
                         FuncOrMethod::Method(custom) =&gt; {
-                            <span class="kw">let </span>CustomType { module, name, span } = custom;
+                            <span class="kw">let </span>CustomType {
+                                module,
+                                name,
+                                span: <span class="kw">_</span>,
+                            } = custom;
                             <span class="kw">let </span>qualified = FullyQualified::new(module, name);
                             <span class="kw">let </span>struct_info = <span class="self">self
                                 </span>.structs

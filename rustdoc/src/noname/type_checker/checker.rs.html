@@ -650,6 +650,18 @@
 <span id="650">650</span>
 <span id="651">651</span>
 <span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -830,8 +842,16 @@
                 </span><span class="kw">let </span>lhs_name = <span class="kw">match </span><span class="kw-2">&amp;</span>lhs.kind {
                     <span class="comment">// `name = &lt;rhs&gt;`
                     </span>ExprKind::Variable { module, name } =&gt; {
-                        <span class="kw">if </span>!<span class="macro">matches!</span>(module, ModulePath::Local) {
-                            <span class="macro">panic!</span>(<span class="string">&quot;cannot assign to an external variable&quot;</span>);
+                        <span class="comment">// we first check if it&#39;s a constant
+                        // note: the only way to check that atm is to check in the constants hashmap
+                        // this is because we don&#39;t differentiate const vars from normal variables
+                        // (perhaps we should)
+                        </span><span class="kw">let </span>qualified = FullyQualified::new(<span class="kw-2">&amp;</span>module, <span class="kw-2">&amp;</span>name.value);
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(_cst_info) = <span class="self">self</span>.const_info(<span class="kw-2">&amp;</span>qualified) {
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                                ErrorKind::UnexpectedError(<span class="string">&quot;cannot assign to an external variable&quot;</span>),
+                                lhs.span,
+                            ));
                         }
 
                         name.value.clone()
@@ -1091,7 +1111,11 @@
             }
 
             ExprKind::CustomTypeDeclaration { custom, fields } =&gt; {
-                <span class="kw">let </span>CustomType { module, name, span } = custom;
+                <span class="kw">let </span>CustomType {
+                    module,
+                    name,
+                    span: <span class="kw">_</span>,
+                } = custom;
                 <span class="kw">let </span>qualified = FullyQualified::new(module, name);
                 <span class="kw">let </span>struct_info = <span class="self">self</span>.struct_info(<span class="kw-2">&amp;</span>qualified).ok_or_else(|| {
                     <span class="self">self</span>.error(ErrorKind::UndefinedStruct(name.clone()), expr.span)

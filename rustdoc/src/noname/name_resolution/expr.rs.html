@@ -154,7 +154,7 @@
                 <span class="self">self</span>.resolve_expr(lhs)<span class="question-mark">?</span>;
                 <span class="self">self</span>.resolve_expr(rhs)<span class="question-mark">?</span>;
             }
-            ExprKind::FieldAccess { lhs, rhs } =&gt; {
+            ExprKind::FieldAccess { lhs, rhs: <span class="kw">_ </span>} =&gt; {
                 <span class="self">self</span>.resolve_expr(lhs)<span class="question-mark">?</span>;
             }
             ExprKind::BinaryOp {
