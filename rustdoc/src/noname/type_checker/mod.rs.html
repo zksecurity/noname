@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-49323347f582d396.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-9955804613a78ba1.css"><link rel="stylesheet" disabled href="../../../static.files/dark-3ab293e416bb6031.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-bba9ad31fb006b67.css"><script id="default-settings" ></script><script src="../../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../../static.files/source-script-74087aa2e88f4475.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-0dede64717b247ca.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-201a7e04dc4c6fce.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-eabf764633b9d7be.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-777f3e9583f8c92d.css"><link rel="stylesheet" disabled href="../../../static.files/dark-e2f4109f2e82e3af.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-c360e709a65bed99.css"><script id="default-settings" ></script><script src="../../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../../static.files/source-script-74087aa2e88f4475.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-c2d2a5dbaed13e6b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -313,27 +313,116 @@
 <span id="313">313</span>
 <span id="314">314</span>
 <span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
+    cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
-    imports::FnKind,
+    imports::{FnKind, BUILTIN_FNS},
+    name_resolution::NAST,
     parser::{
-        types::{Const, Function, RootKind, Struct, Ty, TyKind, UsePath},
-        AST,
+        types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
+        CustomType, Expr, StructDef,
     },
+    stdlib::{CRYPTO_MODULE, QUALIFIED_BUILTINS},
 };
 
 <span class="kw">pub use </span>checker::{FnInfo, StructInfo};
-<span class="kw">pub use </span>dependencies::Dependencies;
 <span class="kw">pub use </span>fn_env::{TypeInfo, TypedFnEnv};
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>serde_with::serde_as;
 
 <span class="kw">pub mod </span>checker;
-<span class="kw">pub mod </span>dependencies;
 <span class="kw">pub mod </span>fn_env;
 
 <span class="kw">const </span>RESERVED_ARGS: [<span class="kw-2">&amp;</span>str; <span class="number">1</span>] = [<span class="string">&quot;public_output&quot;</span>];
@@ -346,36 +435,141 @@
     <span class="kw">pub </span>typ: Ty,
 }
 
+<span class="attr">#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+</span><span class="kw">pub struct </span>FullyQualified {
+    <span class="doccomment">/// Set to `None` if the function is defined in the main module.
+    </span><span class="kw">pub </span>module: <span class="prelude-ty">Option</span>&lt;UserRepo&gt;,
+    <span class="kw">pub </span>name: String,
+}
+
+<span class="kw">impl </span>FullyQualified {
+    <span class="kw">pub fn </span>local(name: String) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ module: <span class="prelude-val">None</span>, name }
+    }
+
+    <span class="kw">pub fn </span>new(module: <span class="kw-2">&amp;</span>ModulePath, name: <span class="kw-2">&amp;</span>String) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>module = <span class="kw">match </span>module {
+            ModulePath::Local =&gt; <span class="prelude-val">None</span>,
+            ModulePath::Alias(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
+            ModulePath::Absolute(user_repo) =&gt; <span class="prelude-val">Some</span>(user_repo.clone()),
+        };
+        <span class="self">Self </span>{
+            module,
+            name: name.clone(),
+        }
+    }
+}
+
 <span class="doccomment">/// The environment we use to type check a noname program.
 </span><span class="attr">#[derive(Debug, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>TypeChecker {
     <span class="doccomment">/// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
-    </span><span class="kw">pub </span>functions: HashMap&lt;String, FnInfo&gt;,
-
-    <span class="doccomment">/// maps `module` to its original `use a::module`
-    </span><span class="kw">pub </span>modules: HashMap&lt;String, UsePath&gt;,
+    </span>functions: HashMap&lt;FullyQualified, FnInfo&gt;,
 
     <span class="doccomment">/// Custom structs type information and ASTs for methods.
-    </span><span class="kw">pub </span>structs: HashMap&lt;String, StructInfo&gt;,
+    </span>structs: HashMap&lt;FullyQualified, StructInfo&gt;,
 
     <span class="doccomment">/// Constants declared in this module.
-    </span><span class="kw">pub </span>constants: HashMap&lt;String, ConstInfo&gt;,
+    </span>constants: HashMap&lt;FullyQualified, ConstInfo&gt;,
 
     <span class="doccomment">/// Mapping from node id to TyKind.
     /// This can be used by the circuit-writer when it needs type information.
-    </span><span class="kw">pub </span>node_types: HashMap&lt;usize, TyKind&gt;,
+    </span><span class="comment">// TODO: I think we should get rid of this if we can
+    </span>node_types: HashMap&lt;usize, TyKind&gt;,
 }
 
 <span class="kw">impl </span>TypeChecker {
-    <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expr_type(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expr) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TyKind&gt; {
+        <span class="self">self</span>.node_types.get(<span class="kw-2">&amp;</span>expr.node_id)
+    }
+
+    <span class="comment">// TODO: can we get rid of this?
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>node_type(<span class="kw-2">&amp;</span><span class="self">self</span>, node_id: usize) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TyKind&gt; {
+        <span class="self">self</span>.node_types.get(<span class="kw-2">&amp;</span>node_id)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>struct_info(<span class="kw-2">&amp;</span><span class="self">self</span>, qualified: <span class="kw-2">&amp;</span>FullyQualified) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>StructInfo&gt; {
+        <span class="self">self</span>.structs.get(qualified)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fn_info(<span class="kw-2">&amp;</span><span class="self">self</span>, qualified: <span class="kw-2">&amp;</span>FullyQualified) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>FnInfo&gt; {
+        <span class="kw">if </span>qualified.module == <span class="prelude-val">Some</span>(UserRepo::new(<span class="string">&quot;std/builtins&quot;</span>)) {
+            <span class="comment">// if it&#39;s a built-in: get it from a global
+            </span>BUILTIN_FNS.get(<span class="kw-2">&amp;</span>qualified.name)
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.functions.get(qualified)
+        }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>const_info(<span class="kw-2">&amp;</span><span class="self">self</span>, qualified: <span class="kw-2">&amp;</span>FullyQualified) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ConstInfo&gt; {
+        <span class="self">self</span>.constants.get(<span class="kw-2">&amp;</span>qualified)
+    }
+
+    <span class="doccomment">/// Returns the number of field elements contained in the given type.
+    </span><span class="comment">// TODO: might want to memoize that at some point
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>size_of(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>TyKind) -&gt; usize {
+        <span class="kw">match </span>typ {
+            TyKind::Field =&gt; <span class="number">1</span>,
+            TyKind::Custom { module, name } =&gt; {
+                <span class="kw">let </span>qualified = FullyQualified::new(<span class="kw-2">&amp;</span>module, <span class="kw-2">&amp;</span>name);
+                <span class="kw">let </span>struct_info = <span class="self">self
+                    </span>.struct_info(<span class="kw-2">&amp;</span>qualified)
+                    .expect(<span class="string">&quot;bug in the type checker: cannot find struct info&quot;</span>);
+
+                <span class="kw">let </span><span class="kw-2">mut </span>sum = <span class="number">0</span>;
+
+                <span class="kw">for </span>(<span class="kw">_</span>, t) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
+                    sum += <span class="self">self</span>.size_of(t);
+                }
+
+                sum
+            }
+            TyKind::BigInt =&gt; <span class="number">1</span>,
+            TyKind::Array(typ, len) =&gt; (<span class="kw-2">*</span>len <span class="kw">as </span>usize) * <span class="self">self</span>.size_of(typ),
+            TyKind::Bool =&gt; <span class="number">1</span>,
+        }
+    }
+}
+
+<span class="kw">impl </span>TypeChecker {
+    <span class="comment">// TODO: we can probably lazy const this
+    </span><span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>type_checker = <span class="self">Self </span>{
             functions: HashMap::new(),
-            modules: HashMap::new(),
             structs: HashMap::new(),
             constants: HashMap::new(),
             node_types: HashMap::new(),
+        };
+
+        <span class="comment">// initialize it with the builtins
+        </span><span class="kw">let </span>builtin_module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));
+        <span class="kw">for </span>(fn_name, fn_info) <span class="kw">in </span>BUILTIN_FNS.iter() {
+            <span class="kw">let </span>qualified = FullyQualified::new(<span class="kw-2">&amp;</span>builtin_module, fn_name);
+            <span class="kw">if </span>type_checker
+                .functions
+                .insert(qualified, fn_info.clone())
+                .is_some()
+            {
+                <span class="macro">panic!</span>(<span class="string">&quot;type-checker bug: global imports conflict&quot;</span>);
+            }
         }
+
+        <span class="comment">// initialize it with the standard library
+        </span><span class="kw">let </span>crypto_module = ModulePath::Absolute(UserRepo::new(<span class="string">&quot;std/crypto&quot;</span>));
+        <span class="kw">for </span>(fn_name, fn_info) <span class="kw">in </span>CRYPTO_MODULE.functions.iter() {
+            <span class="kw">let </span>qualified = FullyQualified::new(<span class="kw-2">&amp;</span>crypto_module, fn_name);
+            <span class="kw">if </span>type_checker
+                .functions
+                .insert(qualified, fn_info.clone())
+                .is_some()
+            {
+                <span class="macro">panic!</span>(<span class="string">&quot;type-checker bug: global imports conflict&quot;</span>);
+            }
+        }
+
+        <span class="comment">//
+        </span>type_checker
     }
 
     <span class="kw">pub fn </span>error(<span class="kw-2">&amp;</span><span class="self">self</span>, kind: ErrorKind, span: Span) -&gt; Error {
@@ -385,43 +579,7 @@
     <span class="doccomment">/// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    </span><span class="kw">pub fn </span>analyze(ast: AST, deps: <span class="kw-2">&amp;</span>Dependencies) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="comment">//
-        // inject some utility builtin functions in the scope
-        //
-
-        </span><span class="kw">let </span><span class="kw-2">mut </span>type_checker = TypeChecker::new();
-
-        <span class="comment">// TODO: should we really import them by default?
-        </span>type_checker.resolve_global_imports()<span class="question-mark">?</span>;
-
-        <span class="comment">//
-        // Resolve imports
-        //
-
-        </span><span class="kw">let </span><span class="kw-2">mut </span>abort = <span class="prelude-val">None</span>;
-
-        <span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
-            <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
-                <span class="comment">// `use crypto::poseidon;`
-                </span>RootKind::Use(path) =&gt; {
-                    <span class="comment">// important: no struct or function definition must appear before a use declaration
-                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(span) = abort {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                            <span class="string">&quot;type-checker&quot;</span>,
-                            ErrorKind::OrderOfUseDeclaration,
-                            span,
-                        ));
-                    }
-                    type_checker.import(path)<span class="question-mark">?
-                </span>}
-                RootKind::Function(Function { span, .. })
-                | RootKind::Struct(Struct { span, .. })
-                | RootKind::Const(Const { span, .. }) =&gt; abort = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>span),
-                RootKind::Comment(<span class="kw">_</span>) =&gt; (),
-            }
-        }
-
+    </span><span class="kw">pub fn </span>analyze(<span class="kw-2">&amp;mut </span><span class="self">self</span>, nast: NAST, is_lib: bool) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="comment">//
         // Process constants
         //
@@ -429,9 +587,9 @@
         // we detect struct or function definition
         </span><span class="kw">let </span><span class="kw-2">mut </span>abort = <span class="prelude-val">None</span>;
 
-        <span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
+        <span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>nast.ast.<span class="number">0 </span>{
             <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
-                RootKind::Const(cst) =&gt; {
+                RootKind::ConstDef(cst) =&gt; {
                     <span class="comment">// important: no struct or function definition must appear before a constant declaration
                     </span><span class="kw">if let </span><span class="prelude-val">Some</span>(span) = abort {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
@@ -441,10 +599,12 @@
                         ));
                     }
 
-                    <span class="kw">if </span>type_checker
-                        .constants
+                    <span class="kw">let </span>qualified = FullyQualified::new(<span class="kw-2">&amp;</span>cst.module, <span class="kw-2">&amp;</span>cst.name.value);
+
+                    <span class="kw">if </span><span class="self">self
+                        </span>.constants
                         .insert(
-                            cst.name.value.clone(),
+                            qualified,
                             ConstInfo {
                                 value: cst.value,
                                 typ: Ty {
@@ -463,8 +623,8 @@
                     }
                 }
 
-                RootKind::Function(Function { span, .. })
-                | RootKind::Struct(Struct { span, .. }) =&gt; abort = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>span),
+                RootKind::FunctionDef(FunctionDef { span, .. })
+                | RootKind::StructDef(StructDef { span, .. }) =&gt; abort = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>span),
 
                 RootKind::Use(<span class="kw">_</span>) | RootKind::Comment(<span class="kw">_</span>) =&gt; (),
             }
@@ -474,11 +634,16 @@
         // Type check structs
         //
 
-        </span><span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
+        </span><span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>nast.ast.<span class="number">0 </span>{
             <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
-                <span class="comment">// `use crypto::poseidon;`
-                </span>RootKind::Struct(struct_) =&gt; {
-                    <span class="kw">let </span>Struct { name, fields, .. } = struct_;
+                <span class="comment">// `use user::repo;`
+                </span>RootKind::StructDef(struct_def) =&gt; {
+                    <span class="kw">let </span>StructDef {
+                        module,
+                        name,
+                        fields,
+                        ..
+                    } = struct_def;
 
                     <span class="kw">let </span>fields: Vec&lt;<span class="kw">_</span>&gt; = fields
                         .iter()
@@ -489,37 +654,45 @@
                         .collect();
 
                     <span class="kw">let </span>struct_info = StructInfo {
-                        name: name.value.clone(),
+                        name: name.name.clone(),
                         fields,
                         methods: HashMap::new(),
                     };
 
-                    type_checker.structs.insert(name.value.clone(), struct_info);
+                    <span class="kw">let </span>qualified = FullyQualified::new(module, <span class="kw-2">&amp;</span>name.name);
+                    <span class="self">self</span>.structs.insert(qualified, struct_info);
                 }
 
-                RootKind::Const(<span class="kw">_</span>)
+                RootKind::ConstDef(<span class="kw">_</span>)
                 | RootKind::Use(<span class="kw">_</span>)
-                | RootKind::Function(<span class="kw">_</span>)
+                | RootKind::FunctionDef(<span class="kw">_</span>)
                 | RootKind::Comment(<span class="kw">_</span>) =&gt; (),
             }
         }
 
         <span class="comment">//
-        // Semantic analysis includes:
-        // - type checking
-        // - ?
+        // Type check functions and methods
         //
 
-        </span><span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>ast.<span class="number">0 </span>{
+        </span><span class="kw">for </span>root <span class="kw">in </span><span class="kw-2">&amp;</span>nast.ast.<span class="number">0 </span>{
             <span class="kw">match </span><span class="kw-2">&amp;</span>root.kind {
                 <span class="comment">// `fn main() { ... }`
-                </span>RootKind::Function(function) =&gt; {
+                </span>RootKind::FunctionDef(function) =&gt; {
                     <span class="comment">// create a new typed fn environment to type check the function
                     </span><span class="kw">let </span><span class="kw-2">mut </span>typed_fn_env = TypedFnEnv::default();
 
-                    <span class="comment">// if this is the main function check that it has arguments
+                    <span class="comment">// if we&#39;re expecting a library, this should not be the main function
                     </span><span class="kw">let </span>is_main = function.is_main();
-                    <span class="kw">if </span>is_main &amp;&amp; function.sig.arguments.is_empty() {
+                    <span class="kw">if </span>is_main &amp;&amp; is_lib {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            <span class="string">&quot;type-checker&quot;</span>,
+                            ErrorKind::MainFunctionInLib,
+                            function.span,
+                        ));
+                    }
+
+                    <span class="comment">// if this is the main function check that it has arguments
+                    </span><span class="kw">if </span>is_main &amp;&amp; function.sig.arguments.is_empty() {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
                             <span class="string">&quot;type-checker&quot;</span>,
                             ErrorKind::NoArgsInMain,
@@ -534,20 +707,24 @@
                         span: function.span,
                     };
 
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(self_name) = <span class="kw-2">&amp;</span>function.sig.name.self_name {
-                        <span class="kw">let </span>struct_info = type_checker
-                            .structs
-                            .get_mut(<span class="kw-2">&amp;</span>self_name.value)
-                            .expect(<span class="string">&quot;couldn&#39;t find the struct for storing the method&quot;</span>);
+                    <span class="kw">match </span><span class="kw-2">&amp;</span>function.sig.kind {
+                        FuncOrMethod::Method(custom) =&gt; {
+                            <span class="kw">let </span>CustomType { module, name, span } = custom;
+                            <span class="kw">let </span>qualified = FullyQualified::new(module, name);
+                            <span class="kw">let </span>struct_info = <span class="self">self
+                                </span>.structs
+                                .get_mut(<span class="kw-2">&amp;</span>qualified)
+                                .expect(<span class="string">&quot;couldn&#39;t find the struct for storing the method&quot;</span>);
 
-                        struct_info
-                            .methods
-                            .insert(function.sig.name.name.value.clone(), function.clone());
-                    } <span class="kw">else </span>{
-                        type_checker
-                            .functions
-                            .insert(function.sig.name.name.value.clone(), fn_info);
-                    }
+                            struct_info
+                                .methods
+                                .insert(function.sig.name.value.clone(), function.clone());
+                        }
+                        FuncOrMethod::Function(module) =&gt; {
+                            <span class="kw">let </span>qualified = FullyQualified::new(module, <span class="kw-2">&amp;</span>function.sig.name.value);
+                            <span class="self">self</span>.functions.insert(qualified, fn_info);
+                        }
+                    };
 
                     <span class="comment">// store variables and their types in the fn_env
                     </span><span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span>function.sig.arguments {
@@ -609,24 +786,23 @@
                         }
                     }
 
-                    <span class="comment">// type system pass
-                    </span>type_checker.check_block(
+                    <span class="comment">// type system pass on the function body
+                    </span><span class="self">self</span>.check_block(
                         <span class="kw-2">&amp;mut </span>typed_fn_env,
-                        deps,
                         <span class="kw-2">&amp;</span>function.body,
                         function.sig.return_type.as_ref(),
                     )<span class="question-mark">?</span>;
                 }
 
                 RootKind::Use(<span class="kw">_</span>)
-                | RootKind::Const(<span class="kw">_</span>)
-                | RootKind::Struct(<span class="kw">_</span>)
+                | RootKind::ConstDef(<span class="kw">_</span>)
+                | RootKind::StructDef(<span class="kw">_</span>)
                 | RootKind::Comment(<span class="kw">_</span>) =&gt; (),
-            }
+            };
         }
 
-        <span class="prelude-val">Ok</span>(type_checker)
+        <span class="prelude-val">Ok</span>(())
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (1286ee23e 2022-11-05)" data-search-js="search-39ee4160c7dc16c9.js" data-settings-js="settings-3a0b9947ba1bd99a.js" data-settings-css="settings-a66f7524084a489a.css" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (42325c525 2022-11-11)" data-search-js="search-39ee4160c7dc16c9.js" data-settings-js="settings-3a0b9947ba1bd99a.js" data-settings-css="settings-a66f7524084a489a.css" ></div></body></html>

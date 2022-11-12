@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/types.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>types.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-49323347f582d396.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-9955804613a78ba1.css"><link rel="stylesheet" disabled href="../../../static.files/dark-3ab293e416bb6031.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-bba9ad31fb006b67.css"><script id="default-settings" ></script><script src="../../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../../static.files/source-script-74087aa2e88f4475.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-0dede64717b247ca.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-201a7e04dc4c6fce.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/types.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>types.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-eabf764633b9d7be.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-777f3e9583f8c92d.css"><link rel="stylesheet" disabled href="../../../static.files/dark-e2f4109f2e82e3af.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-c360e709a65bed99.css"><script id="default-settings" ></script><script src="../../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../../static.files/source-script-74087aa2e88f4475.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-c2d2a5dbaed13e6b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -1219,79 +1219,6 @@
 <span id="1219">1219</span>
 <span id="1220">1220</span>
 <span id="1221">1221</span>
-<span id="1222">1222</span>
-<span id="1223">1223</span>
-<span id="1224">1224</span>
-<span id="1225">1225</span>
-<span id="1226">1226</span>
-<span id="1227">1227</span>
-<span id="1228">1228</span>
-<span id="1229">1229</span>
-<span id="1230">1230</span>
-<span id="1231">1231</span>
-<span id="1232">1232</span>
-<span id="1233">1233</span>
-<span id="1234">1234</span>
-<span id="1235">1235</span>
-<span id="1236">1236</span>
-<span id="1237">1237</span>
-<span id="1238">1238</span>
-<span id="1239">1239</span>
-<span id="1240">1240</span>
-<span id="1241">1241</span>
-<span id="1242">1242</span>
-<span id="1243">1243</span>
-<span id="1244">1244</span>
-<span id="1245">1245</span>
-<span id="1246">1246</span>
-<span id="1247">1247</span>
-<span id="1248">1248</span>
-<span id="1249">1249</span>
-<span id="1250">1250</span>
-<span id="1251">1251</span>
-<span id="1252">1252</span>
-<span id="1253">1253</span>
-<span id="1254">1254</span>
-<span id="1255">1255</span>
-<span id="1256">1256</span>
-<span id="1257">1257</span>
-<span id="1258">1258</span>
-<span id="1259">1259</span>
-<span id="1260">1260</span>
-<span id="1261">1261</span>
-<span id="1262">1262</span>
-<span id="1263">1263</span>
-<span id="1264">1264</span>
-<span id="1265">1265</span>
-<span id="1266">1266</span>
-<span id="1267">1267</span>
-<span id="1268">1268</span>
-<span id="1269">1269</span>
-<span id="1270">1270</span>
-<span id="1271">1271</span>
-<span id="1272">1272</span>
-<span id="1273">1273</span>
-<span id="1274">1274</span>
-<span id="1275">1275</span>
-<span id="1276">1276</span>
-<span id="1277">1277</span>
-<span id="1278">1278</span>
-<span id="1279">1279</span>
-<span id="1280">1280</span>
-<span id="1281">1281</span>
-<span id="1282">1282</span>
-<span id="1283">1283</span>
-<span id="1284">1284</span>
-<span id="1285">1285</span>
-<span id="1286">1286</span>
-<span id="1287">1287</span>
-<span id="1288">1288</span>
-<span id="1289">1289</span>
-<span id="1290">1290</span>
-<span id="1291">1291</span>
-<span id="1292">1292</span>
-<span id="1293">1293</span>
-<span id="1294">1294</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -1300,11 +1227,12 @@
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{ErrorKind, <span class="prelude-ty">Result</span>},
+    imports::BUILTIN_FNS,
     lexer::{Keyword, Token, TokenKind, Tokens},
     syntax::is_type,
 };
 
-<span class="kw">use super</span>::{Expr, ExprKind, ParserCtx};
+<span class="kw">use super</span>::{CustomType, Expr, ExprKind, ParserCtx, StructDef};
 
 <span class="kw">pub fn </span>parse_type_declaration(
     ctx: <span class="kw-2">&amp;mut </span>ParserCtx,
@@ -1369,7 +1297,11 @@
     <span class="prelude-val">Ok</span>(Expr::new(
         ctx,
         ExprKind::CustomTypeDeclaration {
-            struct_name: ident,
+            custom: CustomType {
+                module: ModulePath::Local,
+                name: ident.value,
+                span: ident.span,
+            },
             fields,
         },
         span,
@@ -1436,9 +1368,32 @@
     <span class="kw">pub </span>span: Span,
 }
 
-<span class="kw">pub enum </span>TypeModule {
-    Alias(Ident),
-    Absolute(UsePath),
+<span class="doccomment">/// The module preceding structs, functions, or variables.
+</span><span class="comment">// TODO: Hash should probably be implemented manually, right now two alias might have different span and so this will give different hashes
+</span><span class="attr">#[derive(Default, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
+</span><span class="kw">pub enum </span>ModulePath {
+    <span class="attr">#[default]
+    </span><span class="doccomment">/// This is a local type, not imported from another module.
+    </span>Local,
+
+    <span class="doccomment">/// This is a type imported from another module.
+    </span>Alias(Ident),
+
+    <span class="doccomment">/// This is a type imported from another module,
+    /// fully-qualified (as `user::repo`) thanks to the name resolution pass of the compiler.
+    </span>Absolute(UserRepo),
+}
+
+<span class="comment">// TODO: do we want to implement this on Ident instead?
+</span><span class="kw">impl </span>PartialEq <span class="kw">for </span>ModulePath {
+    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="kw">match </span>(<span class="self">self</span>, other) {
+            (ModulePath::Alias(a), ModulePath::Alias(b)) =&gt; a.value == b.value,
+            (ModulePath::Local, ModulePath::Local) =&gt; <span class="bool-val">true</span>,
+            (ModulePath::Absolute(a), ModulePath::Absolute(b)) =&gt; a == b,
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+        }
+    }
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -1448,7 +1403,7 @@
     </span>Field,
 
     <span class="doccomment">/// Custom / user-defined types
-    </span>Custom { module: <span class="prelude-ty">Option</span>&lt;Ident&gt;, name: Ident },
+    </span>Custom { module: ModulePath, name: String },
 
     <span class="doccomment">/// This could be the same as Field, but we use this to also track the fact that it&#39;s a constant.
     </span><span class="comment">// TODO: get rid of this type tho no?
@@ -1480,13 +1435,7 @@
                     module: expected_module,
                     name: expected_name,
                 },
-            ) =&gt; {
-                module
-                    .as_ref()
-                    .zip(expected_module.as_ref())
-                    .map_or(<span class="bool-val">true</span>, |(a, b)| a == b)
-                    &amp;&amp; name.value == expected_name.value
-            }
+            ) =&gt; module == expected_module &amp;&amp; name == expected_name,
             (x, y) <span class="kw">if </span>x == y =&gt; <span class="bool-val">true</span>,
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
@@ -1504,13 +1453,7 @@
                     module: expected_module,
                     name: expected_name,
                 },
-            ) =&gt; {
-                module
-                    .as_ref()
-                    .zip(expected_module.as_ref())
-                    .map_or(<span class="bool-val">true</span>, |(a, b)| a == b)
-                    &amp;&amp; name.value == expected_name.value
-            }
+            ) =&gt; module == expected_module &amp;&amp; name == expected_name,
             (x, y) <span class="kw">if </span>x == y =&gt; <span class="bool-val">true</span>,
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
@@ -1520,17 +1463,22 @@
 <span class="kw">impl </span>Display <span class="kw">for </span>TyKind {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
-            TyKind::Custom { module, name } =&gt; {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-                    <span class="macro">write!</span>(
-                        f,
-                        <span class="string">&quot;a `{}` struct from module `{}`&quot;</span>,
-                        name.value, module.value
-                    )
-                } <span class="kw">else </span>{
-                    <span class="macro">write!</span>(f, <span class="string">&quot;a `{}` struct&quot;</span>, name.value)
-                }
-            }
+            TyKind::Custom { module, name } =&gt; <span class="kw">match </span>module {
+                ModulePath::Absolute(user_repo) =&gt; <span class="macro">write!</span>(
+                    f,
+                    <span class="string">&quot;a `{module}::{submodule}::{name}` struct&quot;</span>,
+                    name = name,
+                    module = user_repo.user,
+                    submodule = user_repo.repo
+                ),
+                ModulePath::Alias(module) =&gt; <span class="macro">write!</span>(
+                    f,
+                    <span class="string">&quot;a `{module}::{name}` struct&quot;</span>,
+                    name = name,
+                    module = module.value
+                ),
+                ModulePath::Local =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;a `{}` struct&quot;</span>, name),
+            },
             TyKind::Field =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;Field&quot;</span>),
             TyKind::BigInt =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;BigInt&quot;</span>),
             TyKind::Array(ty, size) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;[{}; {}]&quot;</span>, ty, size),
@@ -1540,14 +1488,17 @@
 }
 
 <span class="kw">impl </span>Ty {
-    <span class="kw">pub fn </span>reserved_types(module: <span class="prelude-ty">Option</span>&lt;Ident&gt;, name: Ident) -&gt; TyKind {
+    <span class="kw">pub fn </span>reserved_types(module: ModulePath, name: Ident) -&gt; TyKind {
         <span class="kw">match </span>name.value.as_ref() {
-            <span class="string">&quot;Field&quot; </span>| <span class="string">&quot;Bool&quot; </span><span class="kw">if </span>module.is_some() =&gt; {
+            <span class="string">&quot;Field&quot; </span>| <span class="string">&quot;Bool&quot; </span><span class="kw">if </span>!<span class="macro">matches!</span>(module, ModulePath::Local) =&gt; {
                 <span class="macro">panic!</span>(<span class="string">&quot;reserved types cannot be in a module (TODO: better error)&quot;</span>)
             }
             <span class="string">&quot;Field&quot; </span>=&gt; TyKind::Field,
             <span class="string">&quot;Bool&quot; </span>=&gt; TyKind::Bool,
-            <span class="kw">_ </span>=&gt; TyKind::Custom { module, name },
+            <span class="kw">_ </span>=&gt; TyKind::Custom {
+                module,
+                name: name.value,
+            },
         }
     }
 
@@ -1561,7 +1512,7 @@
                 <span class="kw">let </span>(module, name, _span) = <span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>ty_name) {
                     <span class="comment">// Type
                     // ^^^^
-                    </span>(<span class="prelude-val">None</span>, maybe_module, token.span)
+                    </span>(ModulePath::Local, maybe_module, token.span)
                 } <span class="kw">else </span>{
                     <span class="comment">// module::Type
                     //       ^^
@@ -1579,7 +1530,7 @@
                     <span class="kw">let </span>name = Ident::new(name, span);
                     <span class="kw">let </span>span = token.span.merge_with(span);
 
-                    (<span class="prelude-val">Some</span>(maybe_module), name, span)
+                    (ModulePath::Alias(maybe_module), name, span)
                 };
 
                 <span class="kw">let </span>ty_kind = <span class="self">Self</span>::reserved_types(module, name);
@@ -1647,25 +1598,16 @@
 //~ param ::= { &quot;pub&quot; } ident &quot;:&quot; type
 //~
 
-</span><span class="attr">#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-</span><span class="kw">pub struct </span>FnSig {
-    <span class="kw">pub </span>name: FnNameDef,
-
-    <span class="doccomment">/// (pub, ident, type)
-    </span><span class="kw">pub </span>arguments: Vec&lt;FnArg&gt;,
-
-    <span class="kw">pub </span>return_type: <span class="prelude-ty">Option</span>&lt;Ty&gt;,
-}
-
-<span class="kw">impl </span>FnSig {
+</span><span class="kw">impl </span>FnSig {
     <span class="kw">pub fn </span>parse(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">let </span>name = FnNameDef::parse(ctx, tokens)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(name, kind) = FuncOrMethod::parse(ctx, tokens)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>arguments = Function::parse_args(ctx, tokens, name.self_name.as_ref())<span class="question-mark">?</span>;
+        <span class="kw">let </span>arguments = FunctionDef::parse_args(ctx, tokens, <span class="kw-2">&amp;</span>kind)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>return_type = Function::parse_fn_return_type(ctx, tokens)<span class="question-mark">?</span>;
+        <span class="kw">let </span>return_type = FunctionDef::parse_fn_return_type(ctx, tokens)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
+            kind,
             name,
             arguments,
             return_type,
@@ -1734,12 +1676,51 @@
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
-</span><span class="kw">pub struct </span>Function {
+</span><span class="kw">pub struct </span>FunctionDef {
     <span class="kw">pub </span>sig: FnSig,
-
     <span class="kw">pub </span>body: Vec&lt;Stmt&gt;,
-
     <span class="kw">pub </span>span: Span,
+}
+
+<span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
+</span><span class="kw">pub enum </span>FuncOrMethod {
+    <span class="doccomment">/// Function.
+    </span>Function(
+        <span class="doccomment">/// Set during name resolution.
+        </span>ModulePath,
+    ),
+    <span class="doccomment">/// Method defined on a custom type.
+    </span>Method(CustomType),
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>FuncOrMethod {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="macro">unreachable!</span>()
+    }
+}
+
+<span class="comment">// TODO: remove default here?
+</span><span class="attr">#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+</span><span class="kw">pub struct </span>FnSig {
+    <span class="kw">pub </span>kind: FuncOrMethod,
+    <span class="kw">pub </span>name: Ident,
+    <span class="doccomment">/// (pub, ident, type)
+    </span><span class="kw">pub </span>arguments: Vec&lt;FnArg&gt;,
+    <span class="kw">pub </span>return_type: <span class="prelude-ty">Option</span>&lt;Ty&gt;,
+}
+
+<span class="kw">pub struct </span>Method {
+    <span class="kw">pub </span>sig: MethodSig,
+    <span class="kw">pub </span>body: Vec&lt;Stmt&gt;,
+    <span class="kw">pub </span>span: Span,
+}
+
+<span class="kw">pub struct </span>MethodSig {
+    <span class="kw">pub </span>self_name: CustomType,
+    <span class="kw">pub </span>name: Ident,
+    <span class="doccomment">/// (pub, ident, type)
+    </span><span class="kw">pub </span>arguments: Vec&lt;FnArg&gt;,
+    <span class="kw">pub </span>return_type: <span class="prelude-ty">Option</span>&lt;Ty&gt;,
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1766,32 +1747,19 @@
     }
 }
 
-<span class="doccomment">/// Represents the name of a function.
-</span><span class="attr">#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-</span><span class="kw">pub struct </span>FnNameDef {
-    <span class="doccomment">/// The name of the type that this function is implemented on.
-    </span><span class="kw">pub </span>self_name: <span class="prelude-ty">Option</span>&lt;Ident&gt;,
-
-    <span class="doccomment">/// The name of the function.
-    </span><span class="kw">pub </span>name: Ident,
-
-    <span class="doccomment">/// The span of the function.
-    </span><span class="kw">pub </span>span: Span,
-}
-
-<span class="kw">impl </span>FnNameDef {
-    <span class="kw">pub fn </span>parse(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+<span class="kw">impl </span>FuncOrMethod {
+    <span class="kw">pub fn </span>parse(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;(Ident, <span class="self">Self</span>)&gt; {
         <span class="comment">// fn House.verify(   or   fn verify(
         //    ^^^^^                   ^^^^^
         </span><span class="kw">let </span>maybe_self_name = tokens.bump_ident(
             ctx,
             ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected function name&quot;</span>),
         )<span class="question-mark">?</span>;
-        <span class="kw">let </span>span = maybe_self_name.span;
 
         <span class="comment">// fn House.verify(
         //    ^^^^^
         </span><span class="kw">if </span>is_type(<span class="kw-2">&amp;</span>maybe_self_name.value) {
+            <span class="kw">let </span>struct_name = maybe_self_name;
             <span class="comment">// fn House.verify(
             //         ^
             </span>tokens.bump_expected(ctx, TokenKind::Dot)<span class="question-mark">?</span>;
@@ -1803,34 +1771,35 @@
                 ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected function name&quot;</span>),
             )<span class="question-mark">?</span>;
 
-            <span class="kw">let </span>span = span.merge_with(name.span);
-
-            <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
-                self_name: <span class="prelude-val">Some</span>(maybe_self_name),
+            <span class="prelude-val">Ok</span>((
                 name,
-                span,
-            })
+                FuncOrMethod::Method(CustomType {
+                    module: ModulePath::Local,
+                    name: struct_name.value,
+                    span: struct_name.span,
+                }),
+            ))
         } <span class="kw">else </span>{
             <span class="comment">// fn verify(
             //    ^^^^^^
-            </span><span class="prelude-val">Ok</span>(<span class="self">Self </span>{
-                self_name: <span class="prelude-val">None</span>,
-                name: maybe_self_name,
-                span,
-            })
+
+            // check that it is not shadowing a builtin
+            </span><span class="kw">let </span>fn_name = maybe_self_name;
+
+            <span class="prelude-val">Ok</span>((fn_name, FuncOrMethod::Function(ModulePath::Local)))
         }
     }
 }
 
-<span class="kw">impl </span>Function {
+<span class="kw">impl </span>FunctionDef {
     <span class="kw">pub fn </span>is_main(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.sig.name.name.value == <span class="string">&quot;main&quot;
+        <span class="self">self</span>.sig.name.value == <span class="string">&quot;main&quot;
     </span>}
 
     <span class="kw">pub fn </span>parse_args(
         ctx: <span class="kw-2">&amp;mut </span>ParserCtx,
         tokens: <span class="kw-2">&amp;mut </span>Tokens,
-        self_name: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Ident&gt;,
+        fn_kind: <span class="kw-2">&amp;</span>FuncOrMethod,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FnArg&gt;&gt; {
         <span class="comment">// (pub arg1: type1, arg2: type2)
         // ^
@@ -1890,14 +1859,17 @@
 
             <span class="comment">// self takes no value
             </span><span class="kw">let </span>arg_typ = <span class="kw">if </span>arg_name.value == <span class="string">&quot;self&quot; </span>{
-                <span class="kw">let </span>self_name = self_name.ok_or_else(|| {
-                    ctx.error(
-                        ErrorKind::InvalidFunctionSignature(
-                            <span class="string">&quot;the `self` argument is only allowed in struct methods&quot;</span>,
-                        ),
-                        arg_name.span,
-                    )
-                })<span class="question-mark">?</span>;
+                <span class="kw">let </span>self_name = <span class="kw">match </span>fn_kind {
+                    FuncOrMethod::Function(<span class="kw">_</span>) =&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(
+                            ErrorKind::InvalidFunctionSignature(
+                                <span class="string">&quot;the `self` argument is only allowed in methods, not functions&quot;</span>,
+                            ),
+                            arg_name.span,
+                        ));
+                    }
+                    FuncOrMethod::Method(self_name) =&gt; self_name,
+                };
 
                 <span class="kw">if </span>!args.is_empty() {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(
@@ -1908,8 +1880,8 @@
 
                 Ty {
                     kind: TyKind::Custom {
-                        module: <span class="prelude-val">None</span>,
-                        name: Ident::new(self_name.value.clone(), self_name.span),
+                        module: ModulePath::Local,
+                        name: self_name.name.clone(),
                     },
                     span: self_name.span,
                 }
@@ -2025,10 +1997,16 @@
             })<span class="question-mark">?
             </span>.span;
 
-        <span class="kw">let </span>name = FnNameDef::parse(ctx, tokens)<span class="question-mark">?</span>;
-        <span class="kw">let </span>arguments = <span class="self">Self</span>::parse_args(ctx, tokens, name.self_name.as_ref())<span class="question-mark">?</span>;
-        <span class="kw">let </span>return_type = <span class="self">Self</span>::parse_fn_return_type(ctx, tokens)<span class="question-mark">?</span>;
-        <span class="kw">let </span>body = <span class="self">Self</span>::parse_fn_body(ctx, tokens)<span class="question-mark">?</span>;
+        <span class="comment">// parse signature
+        </span><span class="kw">let </span>sig = FnSig::parse(ctx, tokens)<span class="question-mark">?</span>;
+
+        <span class="comment">// make sure that it doesn&#39;t shadow a builtin
+        </span><span class="kw">if </span>BUILTIN_FNS.get(<span class="kw-2">&amp;</span>sig.name.value).is_some() {
+            <span class="macro">panic!</span>(<span class="string">&quot;you cannot call your function `{}` because it would shadow a built-in function (try renaming your function)&quot;</span>, sig.name.value);
+        }
+
+        <span class="comment">// parse body
+        </span><span class="kw">let </span>body = <span class="self">Self</span>::parse_fn_body(ctx, tokens)<span class="question-mark">?</span>;
 
         <span class="comment">// here&#39;s the last token, that is if the function is not empty (maybe we should disallow empty functions?)
 
@@ -2041,15 +2019,7 @@
             ));
         }
 
-        <span class="kw">let </span>func = <span class="self">Self </span>{
-            sig: FnSig {
-                name,
-                arguments,
-                return_type,
-            },
-            body,
-            span,
-        };
+        <span class="kw">let </span>func = <span class="self">Self </span>{ sig, body, span };
 
         <span class="prelude-val">Ok</span>(func)
     }
@@ -2416,10 +2386,10 @@
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">pub enum </span>RootKind {
     Use(UsePath),
-    Function(Function),
+    FunctionDef(FunctionDef),
     Comment(String),
-    Struct(Struct),
-    Const(Const),
+    StructDef(StructDef),
+    ConstDef(ConstDef),
 }
 
 <span class="comment">//
@@ -2427,13 +2397,14 @@
 //
 
 </span><span class="attr">#[derive(Debug)]
-</span><span class="kw">pub struct </span>Const {
-    <span class="kw">pub </span>name: Ident,
+</span><span class="kw">pub struct </span>ConstDef {
+    <span class="kw">pub </span>module: ModulePath, <span class="comment">// name resolution
+    </span><span class="kw">pub </span>name: Ident,
     <span class="kw">pub </span>value: Field,
     <span class="kw">pub </span>span: Span,
 }
 
-<span class="kw">impl </span>Const {
+<span class="kw">impl </span>ConstDef {
     <span class="kw">pub fn </span>parse(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="comment">// const foo = 42;
         //       ^^^
@@ -2461,130 +2432,13 @@
 
         <span class="comment">//
         </span><span class="kw">let </span>span = name.span;
-        <span class="prelude-val">Ok</span>(Const { name, value, span })
-    }
-}
-
-<span class="comment">//
-// Custom Struct
-//
-
-</span><span class="attr">#[derive(Debug)]
-</span><span class="kw">pub struct </span>Struct {
-    <span class="comment">//pub attribute: Attribute,
-    </span><span class="kw">pub </span>name: CustomType,
-    <span class="kw">pub </span>fields: Vec&lt;(Ident, Ty)&gt;,
-    <span class="kw">pub </span>span: Span,
-}
-
-<span class="kw">impl </span>Struct {
-    <span class="kw">pub fn </span>parse(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="comment">// ghetto way of getting the span of the function: get the span of the first token (name), then try to get the span of the last token
-        </span><span class="kw">let </span><span class="kw-2">mut </span>span = tokens
-            .peek()
-            .ok_or_else(|| {
-                ctx.error(
-                    ErrorKind::InvalidFunctionSignature(<span class="string">&quot;expected function name&quot;</span>),
-                    ctx.last_span(),
-                )
-            })<span class="question-mark">?
-            </span>.span;
-
-        <span class="comment">// struct Foo { a: Field, b: Field }
-        //        ^^^
-
-        </span><span class="kw">let </span>name = CustomType::parse(ctx, tokens)<span class="question-mark">?</span>;
-
-        <span class="comment">// struct Foo { a: Field, b: Field }
-        //            ^
-        </span>tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)<span class="question-mark">?</span>;
-
-        <span class="kw">let </span><span class="kw-2">mut </span>fields = <span class="macro">vec!</span>[];
-        <span class="kw">loop </span>{
-            <span class="comment">// struct Foo { a: Field, b: Field }
-            //                                 ^
-            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(Token {
-                kind: TokenKind::RightCurlyBracket,
-                ..
-            }) = tokens.peek()
-            {
-                tokens.bump(ctx);
-                <span class="kw">break</span>;
-            }
-            <span class="comment">// struct Foo { a: Field, b: Field }
-            //              ^
-            </span><span class="kw">let </span>field_name = Ident::parse(ctx, tokens)<span class="question-mark">?</span>;
-
-            <span class="comment">// struct Foo { a: Field, b: Field }
-            //               ^
-            </span>tokens.bump_expected(ctx, TokenKind::Colon)<span class="question-mark">?</span>;
-
-            <span class="comment">// struct Foo { a: Field, b: Field }
-            //                 ^^^^^
-            </span><span class="kw">let </span>field_ty = Ty::parse(ctx, tokens)<span class="question-mark">?</span>;
-            span = span.merge_with(field_ty.span);
-            fields.push((field_name, field_ty));
-
-            <span class="comment">// struct Foo { a: Field, b: Field }
-            //                      ^          ^
-            </span><span class="kw">match </span>tokens.peek() {
-                <span class="prelude-val">Some</span>(Token {
-                    kind: TokenKind::Comma,
-                    ..
-                }) =&gt; {
-                    tokens.bump(ctx);
-                }
-                <span class="prelude-val">Some</span>(Token {
-                    kind: TokenKind::RightCurlyBracket,
-                    ..
-                }) =&gt; {
-                    tokens.bump(ctx);
-                    <span class="kw">break</span>;
-                }
-                <span class="kw">_ </span>=&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(
-                        ctx.error(ErrorKind::ExpectedToken(TokenKind::Comma), ctx.last_span())
-                    )
-                }
-            }
-        }
-
-        <span class="comment">//
-        </span><span class="prelude-val">Ok</span>(Struct { name, fields, span })
-    }
-}
-
-<span class="comment">//
-// CustomType
-//
-
-</span><span class="attr">#[derive(Debug)]
-</span><span class="kw">pub struct </span>CustomType {
-    <span class="kw">pub </span>value: String,
-    <span class="kw">pub </span>span: Span,
-}
-
-<span class="kw">impl </span>CustomType {
-    <span class="kw">pub fn </span>parse(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">let </span>ty_name = tokens.bump_ident(ctx, ErrorKind::InvalidType)<span class="question-mark">?</span>;
-
-        <span class="kw">if </span>!is_type(<span class="kw-2">&amp;</span>ty_name.value) {
-            <span class="macro">panic!</span>(<span class="string">&quot;type name should start with uppercase letter (TODO: better error&quot;</span>);
-        }
-
-        <span class="comment">// make sure that this type is allowed
-        </span><span class="kw">if </span>!<span class="macro">matches!</span>(
-            Ty::reserved_types(<span class="prelude-val">None</span>, ty_name.clone()),
-            TyKind::Custom { .. }
-        ) {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(ErrorKind::ReservedType(ty_name.value), ty_name.span));
-        }
-
-        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
-            value: ty_name.value,
-            span: ty_name.span,
+        <span class="prelude-val">Ok</span>(ConstDef {
+            module: ModulePath::Local,
+            name,
+            value,
+            span,
         })
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (1286ee23e 2022-11-05)" data-search-js="search-39ee4160c7dc16c9.js" data-settings-js="settings-3a0b9947ba1bd99a.js" data-settings-css="settings-a66f7524084a489a.css" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (42325c525 2022-11-11)" data-search-js="search-39ee4160c7dc16c9.js" data-settings-js="settings-3a0b9947ba1bd99a.js" data-settings-css="settings-a66f7524084a489a.css" ></div></body></html>

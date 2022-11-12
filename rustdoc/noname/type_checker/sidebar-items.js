@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":[["checker",""],["dependencies",""],["fn_env","This module defines the context (or environment) that gets created when type checking a function."]],"struct":[["ConstInfo",""],["TypeChecker","The environment we use to type check a noname program."]]};
+window.SIDEBAR_ITEMS = {"mod":[["checker",""],["fn_env","This module defines the context (or environment) that gets created when type checking a function."]],"struct":[["ConstInfo",""],["FullyQualified",""],["TypeChecker","The environment we use to type check a noname program."]]};

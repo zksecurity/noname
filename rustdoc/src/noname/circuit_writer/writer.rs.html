@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/writer.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>writer.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-49323347f582d396.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-9955804613a78ba1.css"><link rel="stylesheet" disabled href="../../../static.files/dark-3ab293e416bb6031.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-bba9ad31fb006b67.css"><script id="default-settings" ></script><script src="../../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../../static.files/source-script-74087aa2e88f4475.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-0dede64717b247ca.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-201a7e04dc4c6fce.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/writer.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>writer.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-eabf764633b9d7be.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-777f3e9583f8c92d.css"><link rel="stylesheet" disabled href="../../../static.files/dark-e2f4109f2e82e3af.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-c360e709a65bed99.css"><script id="default-settings" ></script><script src="../../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../../static.files/source-script-74087aa2e88f4475.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-c2d2a5dbaed13e6b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../noname/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -910,51 +910,6 @@
 <span id="910">910</span>
 <span id="911">911</span>
 <span id="912">912</span>
-<span id="913">913</span>
-<span id="914">914</span>
-<span id="915">915</span>
-<span id="916">916</span>
-<span id="917">917</span>
-<span id="918">918</span>
-<span id="919">919</span>
-<span id="920">920</span>
-<span id="921">921</span>
-<span id="922">922</span>
-<span id="923">923</span>
-<span id="924">924</span>
-<span id="925">925</span>
-<span id="926">926</span>
-<span id="927">927</span>
-<span id="928">928</span>
-<span id="929">929</span>
-<span id="930">930</span>
-<span id="931">931</span>
-<span id="932">932</span>
-<span id="933">933</span>
-<span id="934">934</span>
-<span id="935">935</span>
-<span id="936">936</span>
-<span id="937">937</span>
-<span id="938">938</span>
-<span id="939">939</span>
-<span id="940">940</span>
-<span id="941">941</span>
-<span id="942">942</span>
-<span id="943">943</span>
-<span id="944">944</span>
-<span id="945">945</span>
-<span id="946">946</span>
-<span id="947">947</span>
-<span id="948">948</span>
-<span id="949">949</span>
-<span id="950">950</span>
-<span id="951">951</span>
-<span id="952">952</span>
-<span id="953">953</span>
-<span id="954">954</span>
-<span id="955">955</span>
-<span id="956">956</span>
-<span id="957">957</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Display, Formatter},
     ops::Neg,
@@ -973,10 +928,11 @@
     error::{ErrorKind, <span class="prelude-ty">Result</span>},
     imports::FnKind,
     parser::{
-        types::{Function, Stmt, StmtKind, TyKind},
+        types::{FunctionDef, ModulePath, Stmt, StmtKind, TyKind},
         Expr, ExprKind, Op2,
     },
     syntax::is_type,
+    type_checker::FullyQualified,
     var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
 };
 
@@ -1152,7 +1108,7 @@
 
     <span class="kw">fn </span>compile_native_function_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        function: <span class="kw-2">&amp;</span>Function,
+        function: <span class="kw-2">&amp;</span>FunctionDef,
         args: Vec&lt;VarInfo&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&gt;&gt; {
         <span class="macro">assert!</span>(!function.is_main());
@@ -1177,8 +1133,6 @@
         input_typ: <span class="kw-2">&amp;</span>TyKind,
         span: Span,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="macro">assert!</span>(<span class="self">self</span>.current_module.is_none());
-
         <span class="kw">match </span>input_typ {
             TyKind::Field =&gt; (),
             TyKind::Bool =&gt; {
@@ -1186,7 +1140,7 @@
                 boolean::check(<span class="self">self</span>, <span class="kw-2">&amp;</span>input[<span class="number">0</span>], span);
             }
             TyKind::Array(tykind, <span class="kw">_</span>) =&gt; {
-                <span class="kw">let </span>el_size = <span class="self">self</span>.size_of(tykind)<span class="question-mark">?</span>;
+                <span class="kw">let </span>el_size = <span class="self">self</span>.size_of(tykind);
                 <span class="kw">for </span>el <span class="kw">in </span>input.chunks(el_size) {
                     <span class="self">self</span>.constrain_inputs_to_main(el, tykind, span)<span class="question-mark">?</span>;
                 }
@@ -1195,11 +1149,15 @@
                 module,
                 name: struct_name,
             } =&gt; {
-                <span class="kw">let </span>struct_info = <span class="self">self</span>.get_struct(module, <span class="kw-2">&amp;</span>struct_name)<span class="question-mark">?</span>;
+                <span class="kw">let </span>qualified = FullyQualified::new(module, <span class="kw-2">&amp;</span>struct_name);
+                <span class="kw">let </span>struct_info = <span class="self">self
+                    </span>.struct_info(<span class="kw-2">&amp;</span>qualified)
+                    .expect(<span class="string">&quot;struct not found (TODO: better error)&quot;</span>)
+                    .clone();
 
                 <span class="kw">let </span><span class="kw-2">mut </span>offset = <span class="number">0</span>;
                 <span class="kw">for </span>(_field_name, field_typ) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
-                    <span class="kw">let </span>len = <span class="self">self</span>.size_of(field_typ)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>len = <span class="self">self</span>.size_of(field_typ);
                     <span class="kw">let </span>range = offset..(offset + len);
                     <span class="self">self</span>.constrain_inputs_to_main(<span class="kw-2">&amp;</span>input[range], field_typ, span)<span class="question-mark">?</span>;
                     offset += len;
@@ -1214,7 +1172,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile_main_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         fn_env: <span class="kw-2">&amp;mut </span>FnEnv,
-        function: <span class="kw-2">&amp;</span>Function,
+        function: <span class="kw-2">&amp;</span>FunctionDef,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="macro">assert!</span>(function.is_main());
 
@@ -1283,22 +1241,16 @@
                 }
 
                 <span class="comment">// retrieve the function in the env
-
-                // let fn_info = self.get_fn(module, fn_name)?;
-
-                </span><span class="kw">let </span>fn_info = <span class="self">self</span>.do_in_submodule(module, |circuit_writer| {
-                    <span class="kw">let </span>curr_type_checker = circuit_writer.current_type_checker();
-                    curr_type_checker
-                        .functions
-                        .get(<span class="kw-2">&amp;</span>fn_name.value)
-                        .cloned()
-                        .ok_or_else(|| {
-                            circuit_writer.error(
-                                ErrorKind::UndefinedFunction(fn_name.value.clone()),
-                                fn_name.span,
-                            )
-                        })
-                })<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>qualified = FullyQualified::new(module, <span class="kw-2">&amp;</span>fn_name.value);
+                <span class="kw">let </span>fn_info = <span class="self">self
+                    </span>.fn_info(<span class="kw-2">&amp;</span>qualified)
+                    .ok_or_else(|| {
+                        <span class="self">self</span>.error(
+                            ErrorKind::UndefinedFunction(fn_name.value.clone()),
+                            fn_name.span,
+                        )
+                    })<span class="question-mark">?
+                    </span>.clone();
 
                 <span class="comment">// compute the arguments
                 // module::fn_name(args)
@@ -1332,30 +1284,8 @@
                     </span>FnKind::Native(func) =&gt; {
                         <span class="comment">// module::fn_name(args)
                         // ^^^^^^
-                        </span><span class="kw">let </span>prev_current_module = <span class="self">self</span>.current_module.clone();
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-                            <span class="comment">// TODO: find more elegant way to avoid std/crypto
-                            </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
-                                <span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
-
-                                <span class="comment">// change the current module
-                                </span><span class="self">self</span>.current_module = <span class="prelude-val">Some</span>(module.into());
-                            }
-                        }
-
-                        <span class="kw">let </span>res = <span class="self">self
-                            </span>.compile_native_function_call(<span class="kw-2">&amp;</span>func, vars)
-                            .map(|r| r.map(VarOrRef::Var));
-
-                        <span class="comment">// revert the current module
-                        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-                            <span class="comment">// TODO: find more elegant way to avoid std/crypto
-                            </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
-                                <span class="self">self</span>.current_module = prev_current_module;
-                            }
-                        }
-
-                        res
+                        </span><span class="self">self</span>.compile_native_function_call(<span class="kw-2">&amp;</span>func, vars)
+                            .map(|r| r.map(VarOrRef::Var))
                     }
                 };
 
@@ -1381,8 +1311,9 @@
                     }
                 };
 
+                <span class="kw">let </span>qualified = FullyQualified::new(module, self_struct);
                 <span class="kw">let </span>struct_info = <span class="self">self
-                    </span>.get_struct(module, <span class="kw-2">&amp;</span>self_struct)
+                    </span>.struct_info(<span class="kw-2">&amp;</span>qualified)
                     .expect(<span class="string">&quot;struct info not found for custom struct&quot;</span>);
 
                 <span class="comment">// find range of field
@@ -1390,11 +1321,11 @@
                 <span class="kw">let </span><span class="kw-2">mut </span>len = <span class="number">0</span>;
                 <span class="kw">for </span>(field, field_typ) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
                     <span class="kw">if </span>field == <span class="kw-2">&amp;</span>rhs.value {
-                        len = <span class="self">self</span>.size_of(field_typ)<span class="question-mark">?</span>;
+                        len = <span class="self">self</span>.size_of(field_typ);
                         <span class="kw">break</span>;
                     }
 
-                    start += <span class="self">self</span>.size_of(field_typ)<span class="question-mark">?</span>;
+                    start += <span class="self">self</span>.size_of(field_typ);
                 }
 
                 <span class="comment">// narrow the variable to the given range
@@ -1421,7 +1352,11 @@
                 </span><span class="kw">let </span>self_var = <span class="self">self</span>.compute_expr(fn_env, lhs)<span class="question-mark">?</span>;
 
                 <span class="comment">// find method info
-                </span><span class="kw">let </span>struct_info = <span class="self">self</span>.get_struct(module, <span class="kw-2">&amp;</span>struct_name)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>qualified = FullyQualified::new(module, struct_name);
+                <span class="kw">let </span>struct_info = <span class="self">self
+                    </span>.struct_info(<span class="kw-2">&amp;</span>qualified)
+                    .expect(<span class="string">&quot;struct not found (TODO: better error)&quot;</span>)
+                    .clone();
                 <span class="kw">let </span>func = struct_info
                     .methods
                     .get(<span class="kw-2">&amp;</span>method_name.value)
@@ -1446,16 +1381,6 @@
                     <span class="macro">assert!</span>(self_var.is_none());
                 }
 
-                <span class="comment">// potentially modify the module we&#39;re in to process this function
-                </span><span class="kw">let </span>prev_current_module = <span class="self">self</span>.current_module.clone();
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-                    <span class="comment">// TODO: find more elegant way to avoid std/crypto
-                    </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
-                        <span class="kw">let </span>module = <span class="self">self</span>.resolve_module(module)<span class="question-mark">?</span>;
-                        <span class="self">self</span>.current_module = <span class="prelude-val">Some</span>(module.into());
-                    }
-                }
-
                 <span class="comment">// compute the arguments
                 </span><span class="kw">for </span>arg <span class="kw">in </span>args {
                     <span class="kw">let </span>var = <span class="self">self
@@ -1473,20 +1398,8 @@
                 }
 
                 <span class="comment">// execute method
-                </span><span class="kw">let </span>res = <span class="self">self
-                    </span>.compile_native_function_call(func, vars)
-                    .map(|r| r.map(VarOrRef::Var));
-
-                <span class="comment">// revert the current module
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(module) = module {
-                    <span class="comment">// TODO: find more elegant way to avoid std/crypto
-                    </span><span class="kw">if </span>module.value != <span class="string">&quot;crypto&quot; </span>{
-                        <span class="self">self</span>.current_module = prev_current_module;
-                    }
-                }
-
-                <span class="comment">//
-                </span>res
+                </span><span class="self">self</span>.compile_native_function_call(func, vars)
+                    .map(|r| r.map(VarOrRef::Var))
             }
 
             ExprKind::IfElse { cond, then_, else_ } =&gt; {
@@ -1596,7 +1509,7 @@
             }
 
             ExprKind::Variable { module, name } =&gt; {
-                <span class="kw">if </span>module.is_some() {
+                <span class="kw">if </span>!<span class="macro">matches!</span>(module, ModulePath::Local) {
                     <span class="macro">panic!</span>(<span class="string">&quot;accessing module variables not supported yet&quot;</span>);
                 }
 
@@ -1645,7 +1558,7 @@
                 };
 
                 <span class="comment">// compute the size of each element in the array
-                </span><span class="kw">let </span>len = <span class="self">self</span>.size_of(elem_type)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>len = <span class="self">self</span>.size_of(elem_type);
 
                 <span class="comment">// compute the real index
                 </span><span class="kw">let </span>start = idx * len;
@@ -1679,10 +1592,7 @@
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
             }
 
-            ExprKind::CustomTypeDeclaration {
-                struct_name: <span class="kw">_</span>,
-                fields,
-            } =&gt; {
+            ExprKind::CustomTypeDeclaration { custom: <span class="kw">_</span>, fields } =&gt; {
                 <span class="comment">// create the struct by just concatenating all of its cvars
                 </span><span class="kw">let </span><span class="kw-2">mut </span>cvars = <span class="macro">vec!</span>[];
                 <span class="kw">for </span>(_field, rhs) <span class="kw">in </span>fields {
@@ -1913,4 +1823,4 @@
     <span class="kw">pub </span>span: Span,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (1286ee23e 2022-11-05)" data-search-js="search-39ee4160c7dc16c9.js" data-settings-js="settings-3a0b9947ba1bd99a.js" data-settings-css="settings-a66f7524084a489a.css" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (42325c525 2022-11-11)" data-search-js="search-39ee4160c7dc16c9.js" data-settings-js="settings-3a0b9947ba1bd99a.js" data-settings-css="settings-a66f7524084a489a.css" ></div></body></html>

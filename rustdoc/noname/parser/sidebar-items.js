@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":[["expr",""],["types",""]],"struct":[["AST",""],["ParserCtx","A context for the parser."]]};
+window.SIDEBAR_ITEMS = {"mod":[["expr",""],["structs",""],["types",""]],"struct":[["AST",""],["ParserCtx","A context for the parser."]]};

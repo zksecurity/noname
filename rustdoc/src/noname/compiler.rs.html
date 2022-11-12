@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/compiler.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>compiler.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-49323347f582d396.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-9955804613a78ba1.css"><link rel="stylesheet" disabled href="../../static.files/dark-3ab293e416bb6031.css"><link rel="stylesheet" disabled href="../../static.files/ayu-bba9ad31fb006b67.css"><script id="default-settings" ></script><script src="../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../static.files/source-script-74087aa2e88f4475.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-0dede64717b247ca.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-201a7e04dc4c6fce.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../noname/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/compiler.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>compiler.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-eabf764633b9d7be.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-777f3e9583f8c92d.css"><link rel="stylesheet" disabled href="../../static.files/dark-e2f4109f2e82e3af.css"><link rel="stylesheet" disabled href="../../static.files/ayu-c360e709a65bed99.css"><script id="default-settings" ></script><script src="../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../static.files/source-script-74087aa2e88f4475.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-c2d2a5dbaed13e6b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../noname/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -123,6 +123,40 @@
 <span id="123">123</span>
 <span id="124">124</span>
 <span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module is a wrapper API around noname.
 //! It is important that user-facing features use the functions here,
 //! as they attach the correct filename and source code to errors.
@@ -131,16 +165,18 @@
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
-<span class="kw">use </span>miette::{IntoDiagnostic, NamedSource};
+<span class="kw">use </span>miette::NamedSource;
 
 <span class="kw">use crate</span>::{
     circuit_writer::CircuitWriter,
+    cli::packages::UserRepo,
     constants::Field,
     error::Result,
     inputs::JsonInputs,
     lexer::Token,
+    name_resolution::NAST,
     parser::AST,
-    type_checker::{Dependencies, TypeChecker},
+    type_checker::TypeChecker,
     witness::{CompiledCircuit, Witness},
 };
 
@@ -202,40 +238,72 @@
     }
 }
 
-<span class="kw">pub fn </span>get_tast(
+<span class="kw">pub fn </span>typecheck_next_file(
+    typechecker: <span class="kw-2">&amp;mut </span>TypeChecker,
+    this_module: <span class="prelude-ty">Option</span>&lt;UserRepo&gt;,
     sources: <span class="kw-2">&amp;mut </span>Sources,
     filename: String,
     code: String,
-    deps: <span class="kw-2">&amp;</span>Dependencies,
-) -&gt; miette::Result&lt;TypeChecker&gt; {
-    get_tast_inner(sources, filename, code, deps).into_miette(sources)
+    node_id: usize,
+) -&gt; miette::Result&lt;usize&gt; {
+    typecheck_next_file_inner(typechecker, this_module, sources, filename, code, node_id)
+        .into_miette(sources)
 }
 
 <span class="doccomment">/// This should not be used directly. Check [get_tast] instead.
-</span><span class="kw">pub fn </span>get_tast_inner(
+</span><span class="kw">pub fn </span>typecheck_next_file_inner(
+    typechecker: <span class="kw-2">&amp;mut </span>TypeChecker,
+    this_module: <span class="prelude-ty">Option</span>&lt;UserRepo&gt;,
     sources: <span class="kw-2">&amp;mut </span>Sources,
     filename: String,
     code: String,
-    deps: <span class="kw-2">&amp;</span>Dependencies,
-) -&gt; <span class="prelude-ty">Result</span>&lt;TypeChecker&gt; {
+    node_id: usize,
+) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>is_lib = this_module.is_some();
+
+    <span class="comment">// parsing to name resolution
+    </span><span class="kw">let </span>(nast, new_node_id) = get_nast(this_module, sources, filename, code, node_id)<span class="question-mark">?</span>;
+
+    <span class="comment">// type checker
+    </span>typechecker.analyze(nast, is_lib)<span class="question-mark">?</span>;
+
+    <span class="prelude-val">Ok</span>(new_node_id)
+}
+
+<span class="kw">pub fn </span>get_nast(
+    this_module: <span class="prelude-ty">Option</span>&lt;UserRepo&gt;,
+    sources: <span class="kw-2">&amp;mut </span>Sources,
+    filename: String,
+    code: String,
+    node_id: usize,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(NAST, usize)&gt; {
     <span class="comment">// save filename and source code
     </span><span class="kw">let </span>filename_id = sources.add(filename, code);
     <span class="kw">let </span>code = <span class="kw-2">&amp;</span>sources.map[<span class="kw-2">&amp;</span>filename_id].<span class="number">1</span>;
 
-    <span class="comment">// parse
+    <span class="comment">// lexer
     </span><span class="kw">let </span>tokens = Token::parse(filename_id, <span class="kw-2">&amp;</span>code)<span class="question-mark">?</span>;
-    <span class="kw">let </span>ast = AST::parse(filename_id, tokens)<span class="question-mark">?</span>;
+    <span class="kw">if </span>std::env::var(<span class="string">&quot;NONAME_VERBOSE&quot;</span>).is_ok() {
+        <span class="macro">println!</span>(<span class="string">&quot;lexer succeeded&quot;</span>);
+    }
 
-    <span class="comment">// get AST
-    </span>TypeChecker::analyze(ast, deps)
+    <span class="comment">// parser
+    </span><span class="kw">let </span>(ast, new_node_id) = AST::parse(filename_id, tokens, node_id)<span class="question-mark">?</span>;
+    <span class="kw">if </span>std::env::var(<span class="string">&quot;NONAME_VERBOSE&quot;</span>).is_ok() {
+        <span class="macro">println!</span>(<span class="string">&quot;parser succeeded&quot;</span>);
+    }
+
+    <span class="comment">// name resolution
+    </span><span class="kw">let </span>nast = NAST::resolve_modules(this_module, ast)<span class="question-mark">?</span>;
+    <span class="kw">if </span>std::env::var(<span class="string">&quot;NONAME_VERBOSE&quot;</span>).is_ok() {
+        <span class="macro">println!</span>(<span class="string">&quot;name resolution succeeded&quot;</span>);
+    }
+
+    <span class="prelude-val">Ok</span>((nast, new_node_id))
 }
 
-<span class="kw">pub fn </span>compile(
-    sources: <span class="kw-2">&amp;</span>Sources,
-    tast: TypeChecker,
-    deps: Dependencies,
-) -&gt; miette::Result&lt;CompiledCircuit&gt; {
-    CircuitWriter::generate_circuit(tast, deps).into_miette(sources)
+<span class="kw">pub fn </span>compile(sources: <span class="kw-2">&amp;</span>Sources, tast: TypeChecker) -&gt; miette::Result&lt;CompiledCircuit&gt; {
+    CircuitWriter::generate_circuit(tast).into_miette(sources)
 }
 
 <span class="kw">pub fn </span>generate_witness(
@@ -249,4 +317,4 @@
         .into_miette(sources)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (1286ee23e 2022-11-05)" data-search-js="search-39ee4160c7dc16c9.js" data-settings-js="settings-3a0b9947ba1bd99a.js" data-settings-css="settings-a66f7524084a489a.css" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (42325c525 2022-11-11)" data-search-js="search-39ee4160c7dc16c9.js" data-settings-js="settings-3a0b9947ba1bd99a.js" data-settings-css="settings-a66f7524084a489a.css" ></div></body></html>
