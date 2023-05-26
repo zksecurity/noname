@@ -4,9 +4,9 @@ This is **work-in-progress** to implement a high-level (Rust and Golang-inspired
 
 If you don't know what zero-knowledge proofs, zkapps, or kimchi are, check out [that blogpost](https://minaprotocol.com/blog/kimchi-the-latest-update-to-minas-proof-system).
 
-You can read more about the project on the noname book: https://mimoo.github.io/noname or my [series of blogposts](https://cryptologie.net/#article_573).
+You can read more about the project on the noname book: https://zksecurity.github.io/noname or my [series of blogposts](https://cryptologie.net/#article_573).
 
-I invite you to try to [install](#installation) and [play](#usage) with noname. Please provide feedback and suggestions via the [issues](https://github.com/mimoo/noname/issues).
+I invite you to try to [install](#installation) and [play](#usage) with noname. Please provide feedback and suggestions via the [issues](https://github.com/zksecurity/noname/issues).
 
 ## Examples
 
@@ -82,7 +82,7 @@ As this is work in progress, you need to install the compiler from source using 
 You can do this by running the following command:
 
 ```console
-$ cargo install --git https://www.github.com/mimoo/noname
+$ cargo install --git https://www.github.com/zksecurity/noname
 ```
 
 ## Usage
@@ -133,4 +133,4 @@ It's not hard, it's just hasn't been prioritized.
 
 You can also not use third-party libraries (eventhough the CLI might suggest that it works). I think it's close to be working though.
 
-In general, there's a large number of missing features. I will prioritize what I think needs to be done, but if you have a feature request, please open an [issue](https://github.com/mimoo/noname/issues).
+In general, there's a large number of missing features. I will prioritize what I think needs to be done, but if you have a feature request, please open an [issue](https://github.com/zksecurity/noname/issues).

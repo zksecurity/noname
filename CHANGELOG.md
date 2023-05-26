@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- allow users to set double generic gate optimization
+- fix build error
+
 ## [0.7.0] - 2022-11-11
 
 - implemented name resolution to support third-party libraries
