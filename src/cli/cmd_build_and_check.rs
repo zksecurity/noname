@@ -192,7 +192,8 @@ pub fn build(
     let (sources, tast) = produce_all_asts(curr_dir)?;
 
     // produce indexes
-    let compiled_circuit = compile(&sources, tast, true)?;
+    let double_generic_gate_optimization = false;
+    let compiled_circuit = compile(&sources, tast, double_generic_gate_optimization)?;
 
     if asm {
         println!("{}", compiled_circuit.asm(&sources, debug));
@@ -223,6 +224,10 @@ pub struct CmdTest {
     /// prints debug information (defaults to false)
     #[clap(short, long)]
     debug: bool,
+
+    /// disable the double generic gate optimization of kimchi (by default noname uses that optimization)
+    #[clap(long)]
+    no_double: bool,
 }
 
 pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
@@ -260,7 +265,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         code,
         0,
     )?;
-    let compiled_circuit = compile(&sources, tast, true)?;
+    let compiled_circuit = compile(&sources, tast, !args.no_double)?;
 
     let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
     println!("successfuly compiled");
