@@ -1,12 +1,7 @@
 use ark_ff::Zero;
-use kimchi::{
-    circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW},
-    oracle::{
-        self,
-        constants::{PlonkSpongeConstantsKimchi, SpongeConstants},
-        permutation::full_round,
-    },
-};
+use kimchi::circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW};
+use kimchi::mina_poseidon::constants::{PlonkSpongeConstantsKimchi, SpongeConstants};
+use kimchi::mina_poseidon::permutation::full_round;
 
 use crate::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
@@ -64,7 +59,7 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
     }
 
     // get constants needed for poseidon
-    let poseidon_params = oracle::pasta::fp_kimchi::params();
+    let poseidon_params = kimchi::mina_poseidon::pasta::fp_kimchi::params();
 
     let rc = &poseidon_params.round_constants;
     let width = PlonkSpongeConstantsKimchi::SPONGE_WIDTH;
@@ -103,7 +98,7 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
 
                         // Do one full round on the previous value
                         full_round::<Field, PlonkSpongeConstantsKimchi>(
-                            &oracle::pasta::fp_kimchi::params(),
+                            &kimchi::mina_poseidon::pasta::fp_kimchi::params(),
                             &mut acc,
                             offset + i,
                         );
