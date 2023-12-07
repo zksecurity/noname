@@ -286,9 +286,11 @@ pub fn validate_package_and_get_manifest(path: &PathBuf, must_be_lib: bool) -> R
 
     match (lib_path.exists(), main_path.exists()) {
         (true, true) => miette::bail!(
-                    "package has both a `lib.no` and a `main.no` file. Only one of them is allowed"),
+            "package has both a `lib.no` and a `main.no` file. Only one of them is allowed"
+        ),
         (false, false) => miette::bail!(
-                    "package has neither a `lib.no` nor a `main.no` file. At least one of them is required"),
+            "package has neither a `lib.no` nor a `main.no` file. At least one of them is required"
+        ),
         (false, true) if must_be_lib => miette::bail!("package is missing a `lib.no` file"),
         _ => (),
     }
