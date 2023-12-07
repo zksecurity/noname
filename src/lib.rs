@@ -33,7 +33,11 @@ pub mod negative_tests;
 //
 
 pub mod helpers {
-    use kimchi::oracle::{constants::PlonkSpongeConstantsKimchi, poseidon::Sponge};
+    use kimchi::mina_poseidon::{
+        constants::PlonkSpongeConstantsKimchi,
+        pasta::fp_kimchi,
+        poseidon::{ArithmeticSponge, Sponge},
+    };
 
     use crate::constants::Field;
 
@@ -54,12 +58,8 @@ pub mod helpers {
     impl PrettyField for Field {}
 
     pub fn poseidon(input: [Field; 2]) -> Field {
-        let mut sponge: kimchi::oracle::poseidon::ArithmeticSponge<
-            Field,
-            PlonkSpongeConstantsKimchi,
-        > = kimchi::oracle::poseidon::ArithmeticSponge::new(
-            kimchi::oracle::pasta::fp_kimchi::static_params(),
-        );
+        let mut sponge: ArithmeticSponge<Field, PlonkSpongeConstantsKimchi> =
+            ArithmeticSponge::new(fp_kimchi::static_params());
         sponge.absorb(&input);
         sponge.squeeze()
     }

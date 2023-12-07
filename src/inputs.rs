@@ -129,7 +129,7 @@ impl CompiledCircuit {
 // Helpers
 //
 
-pub trait ExtField: PrimeField {
+pub trait ExtField /* : PrimeField*/ {
     fn to_dec_string(&self) -> String;
 }
 

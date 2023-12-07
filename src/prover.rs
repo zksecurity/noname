@@ -11,9 +11,17 @@ use crate::{
 };
 
 use itertools::chain;
-use kimchi::{
-    commitment_dlog::commitment::CommitmentCurve, groupmap::GroupMap, proof::ProverProof,
-};
+
+use kimchi::circuits::constraints::ConstraintSystem;
+use kimchi::groupmap::GroupMap;
+use kimchi::mina_curves::pasta::{Pallas, Vesta, VestaParameters};
+use kimchi::mina_poseidon::constants::PlonkSpongeConstantsKimchi;
+use kimchi::mina_poseidon::sponge::{DefaultFqSponge, DefaultFrSponge};
+use kimchi::poly_commitment::commitment::CommitmentCurve;
+use kimchi::poly_commitment::evaluation_proof::OpeningProof;
+use kimchi::poly_commitment::srs::SRS;
+use kimchi::proof::ProverProof;
+
 use miette::{Context, IntoDiagnostic};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -22,14 +30,11 @@ use serde::{Deserialize, Serialize};
 // aliases
 //
 
-type Curve = kimchi::mina_curves::pasta::Vesta;
-type OtherCurve = kimchi::mina_curves::pasta::Pallas;
-type SpongeParams = kimchi::oracle::constants::PlonkSpongeConstantsKimchi;
-type BaseSponge = kimchi::oracle::sponge::DefaultFqSponge<
-    kimchi::mina_curves::pasta::VestaParameters,
-    SpongeParams,
->;
-type ScalarSponge = kimchi::oracle::sponge::DefaultFrSponge<Field, SpongeParams>;
+type Curve = Vesta;
+type OtherCurve = Pallas;
+type SpongeParams = PlonkSpongeConstantsKimchi;
+type BaseSponge = DefaultFqSponge<VestaParameters, SpongeParams>;
+type ScalarSponge = DefaultFrSponge<Field, SpongeParams>;
 
 //
 // Lazy static
@@ -44,13 +49,13 @@ static GROUP_MAP: Lazy<<Curve as CommitmentCurve>::Map> =
 
 //#[derive(Serialize, Deserialize)]
 pub struct ProverIndex {
-    index: kimchi::prover_index::ProverIndex<Curve>,
+    index: kimchi::prover_index::ProverIndex<Curve, OpeningProof<Curve>>,
     compiled_circuit: CompiledCircuit,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct VerifierIndex {
-    index: kimchi::verifier_index::VerifierIndex<Curve>,
+    index: kimchi::verifier_index::VerifierIndex<Curve, OpeningProof<Curve>>,
 }
 
 //
@@ -91,23 +96,24 @@ pub fn compile_to_indexes(
     }
 
     // create constraint system
-    let cs = kimchi::circuits::constraints::ConstraintSystem::create(gates)
+    let cs = ConstraintSystem::create(gates)
         .public(compiled_circuit.circuit.public_input_size)
         .build()
         .into_diagnostic()
         .wrap_err("kimchi: could not create a constraint system with the given circuit and public input size")?;
 
     // create SRS (for vesta, as the circuit is in Fp)
-    let mut srs = kimchi::commitment_dlog::srs::SRS::<Curve>::create(cs.domain.d1.size as usize);
+    let mut srs = SRS::<Curve>::create(cs.domain.d1.size as usize);
     srs.add_lagrange_basis(cs.domain.d1);
     let srs = std::sync::Arc::new(srs);
 
     println!("using an SRS of size {}", srs.g.len());
 
     // create indexes
-    let (endo_q, _endo_r) = kimchi::commitment_dlog::srs::endos::<OtherCurve>();
+    let (endo_q, _endo_r) = kimchi::poly_commitment::srs::endos::<OtherCurve>();
 
-    let prover_index = kimchi::prover_index::ProverIndex::<Curve>::create(cs, endo_q, srs);
+    let prover_index =
+        kimchi::prover_index::ProverIndex::<Curve, OpeningProof<Curve>>::create(cs, endo_q, srs);
     let verifier_index = prover_index.verifier_index();
 
     // wrap
@@ -149,7 +155,11 @@ impl ProverIndex {
         public_inputs: JsonInputs,
         private_inputs: JsonInputs,
         debug: bool,
-    ) -> miette::Result<(ProverProof<Curve>, Vec<Field>, Vec<Field>)> {
+    ) -> miette::Result<(
+        ProverProof<Curve, OpeningProof<Curve>>,
+        Vec<Field>,
+        Vec<Field>,
+    )> {
         // generate the witness
         let (witness, full_public_inputs, public_output) = generate_witness(
             &self.compiled_circuit,
@@ -168,10 +178,7 @@ impl ProverIndex {
 
         // verify the witness
         if debug {
-            self.index
-                .cs
-                .verify::<Curve>(&witness, &full_public_inputs)
-                .unwrap();
+            self.index.verify(&witness, &full_public_inputs).unwrap();
         }
 
         // create proof
@@ -193,15 +200,16 @@ impl VerifierIndex {
     pub fn verify(
         &self,
         full_public_inputs: Vec<Field>,
-        proof: ProverProof<Curve>,
+        proof: ProverProof<Curve, OpeningProof<Curve>>,
     ) -> miette::Result<()> {
-        // pass the public input in the proof
-        let mut proof = proof;
-        proof.public = full_public_inputs;
-
         // verify the proof
-        kimchi::verifier::verify::<Curve, BaseSponge, ScalarSponge>(&GROUP_MAP, &self.index, &proof)
-            .into_diagnostic()
-            .wrap_err("kimchi: failed to verify the proof")
+        kimchi::verifier::verify::<Curve, BaseSponge, ScalarSponge, OpeningProof<Curve>>(
+            &GROUP_MAP,
+            &self.index,
+            &proof,
+            &full_public_inputs,
+        )
+        .into_diagnostic()
+        .wrap_err("kimchi: failed to verify the proof")
     }
 }

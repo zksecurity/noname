@@ -202,6 +202,7 @@ impl CompiledCircuit {
         {
             // create the witness row
             let mut witness_row = [Field::zero(); NUM_REGISTERS];
+
             for (col, var) in row_of_vars.iter().enumerate() {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation

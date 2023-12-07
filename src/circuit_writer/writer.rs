@@ -5,6 +5,7 @@ use std::{
 
 use ark_ff::{One, Zero};
 use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
+use kimchi::circuits::wires::Wire;
 use num_bigint::BigUint;
 use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
@@ -61,7 +62,7 @@ impl Gate {
     pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<Field> {
         kimchi::circuits::gate::CircuitGate {
             typ: self.typ.into(),
-            wires: kimchi::circuits::wires::Wire::new(row),
+            wires: Wire::for_row(row),
             coeffs: self.coeffs.clone(),
         }
     }
