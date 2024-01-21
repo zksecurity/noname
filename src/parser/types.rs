@@ -1056,7 +1056,7 @@ impl Stmt {
                 kind: TokenKind::Keyword(Keyword::If),
                 span: _,
             }) => {
-                // TODO: wait, this should be implemented as an expresssion! not a statement
+                // TODO: wait, this should be implemented as an expression! not a statement
                 panic!("if statements are not implemented yet. Use if expressions instead (e.g. `x = if cond {{ 1 }} else {{ 2 }};`)");
             }
 
