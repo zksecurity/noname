@@ -32,7 +32,7 @@ Approach 1. is not elegant, because it means that it is not clear from the signa
 The user of the function will only get warned when trying to compile the program.
 
 Approach 2. is interesting, because we already have such a type internally to track literals: a `BigInt`.
-The name is a bit misleading in the case of array accesses, because we additionaly enforce that it is NOT a big integer, but rather a 32-bit integer (`u32` in Rust).
+The name is a bit misleading in the case of array accesses, because we additionally enforce that it is NOT a big integer, but rather a 32-bit integer (`u32` in Rust).
 
 ## Implementing a literal type
 
