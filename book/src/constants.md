@@ -34,5 +34,5 @@ pub fn add_constant(&mut self, value: Field, span: Span) -> CellVar {
 
 Note that the `Value` keep track of the constant as well.
 
-Warning: gadgets must all handle constants gracefuly.
+Warning: gadgets must all handle constants gracefully.
 That is, they must constrain constants themselves (by calling `CircuitWriter::add_constant`).
