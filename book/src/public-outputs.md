@@ -2,7 +2,7 @@
 
 Public outputs are usually part of the public inputs in Plonk.
 
-In noname, public ouputs are treated differently than the public inputs for one reason: unlike (real) public inputs they cannot be computed directly during witness generation (proving).
+In noname, public outputs are treated differently than the public inputs for one reason: unlike (real) public inputs they cannot be computed directly during witness generation (proving).
 
 This is because public inputs are listed first in the circuit. During witness generation, we go through each rows and evaluate the values of the cells to construct the execution trace. 
 When we reach the public output part of the public input, we do not yet have enough information to construct the values.

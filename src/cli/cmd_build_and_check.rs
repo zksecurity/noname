@@ -86,7 +86,7 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
         "could not write prover params to `{prover_params}`"
     ))?;
 
-    println!("successfuly built");
+    println!("successfully built");
 
     //
     Ok(())
@@ -268,7 +268,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
     let compiled_circuit = compile(&sources, tast, !args.no_double)?;
 
     let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
-    println!("successfuly compiled");
+    println!("successfully compiled");
 
     // print ASM
     let asm = prover_index.asm(&sources, args.debug);
