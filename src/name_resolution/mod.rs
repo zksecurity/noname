@@ -1,4 +1,5 @@
 use crate::{
+    constants:: Field,
     cli::packages::UserRepo,
     error::{Error, ErrorKind, Result},
     parser::{ConstDef, FunctionDef, RootKind, StructDef, AST},
@@ -9,16 +10,16 @@ use self::context::NameResCtx;
 mod context;
 mod expr;
 
-pub struct NAST {
-    pub ast: AST,
+pub struct NAST<F> where F: Field {
+    pub ast: AST<F>,
 }
 
-impl NAST {
-    fn new(ast: AST) -> Self {
+impl<F: Field> NAST<F> {
+    fn new(ast: AST<F>) -> Self {
         Self { ast }
     }
 
-    pub fn resolve_modules(this_module: Option<UserRepo>, mut ast: AST) -> Result<NAST> {
+    pub fn resolve_modules(this_module: Option<UserRepo>, mut ast: AST<F>) -> Result<NAST<F>> {
         let mut ctx = NameResCtx::new(this_module);
 
         // create a map of the imported modules (and how they are aliases)

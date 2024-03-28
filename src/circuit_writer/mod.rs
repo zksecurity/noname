@@ -13,6 +13,7 @@ use crate::{
 };
 
 pub use fn_env::{FnEnv, VarInfo};
+use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 use serde::{Deserialize, Serialize};
 //use serde::{Deserialize, Serialize};
 pub use writer::{Gate, GateKind, Wiring};
@@ -22,14 +23,85 @@ use self::writer::PendingGate;
 pub mod fn_env;
 pub mod writer;
 
+pub struct KimchiBackend {
+    /// The gates created by the circuit generation.
+    pub gates: Vec<Gate<kimchi::mina_curves::pasta::Fp>>,
+
+    /// The wiring of the circuit.
+    /// It is created during circuit generation.
+    pub(crate) wiring: HashMap<usize, Wiring>,
+
+    /// If set to false, a single generic gate will be used per double generic gate.
+    /// This can be useful for debugging.
+    pub(crate) double_generic_gate_optimization: bool,
+
+    /// This is used to implement the double generic gate,
+    /// which encodes two generic gates.
+    pub(crate) pending_generic_gate: Option<PendingGate<kimchi::mina_curves::pasta::Fp>>,
+}
+
+pub struct R1CSBackend {
+
+}
+
+// enums for proving backends
+pub enum ProvingBackend {
+    Kimchi(KimchiBackend),
+    R1CS(R1CSBackend),
+}
+
+impl KimchiBackend {
+    pub fn add_generic_gate(
+        &mut self,
+        label: &'static str,
+        mut vars: Vec<Option<CellVar>>,
+        mut coeffs: Vec<kimchi::mina_curves::pasta::Fp>,
+        span: Span,
+    ) {
+        // padding
+        let coeffs_padding = GENERIC_COEFFS.checked_sub(coeffs.len()).unwrap();
+        coeffs.extend(std::iter::repeat(kimchi::mina_curves::pasta::Fp::zero()).take(coeffs_padding));
+
+        let vars_padding = GENERIC_REGISTERS.checked_sub(vars.len()).unwrap();
+        vars.extend(std::iter::repeat(None).take(vars_padding));
+
+        // if the double gate optimization is not set, just add the gate
+        if !self.double_generic_gate_optimization {
+            self.add_gate(label, GateKind::DoubleGeneric, vars, coeffs, span);
+            return;
+        }
+
+        // only add a double generic gate if we have two of them
+        if let Some(generic_gate) = self.pending_generic_gate.take() {
+            coeffs.extend(generic_gate.coeffs);
+            vars.extend(generic_gate.vars);
+
+            // TODO: what to do with the label and span?
+
+            self.add_gate(label, GateKind::DoubleGeneric, vars, coeffs, span);
+        } else {
+            // otherwise queue it
+            self.pending_generic_gate = Some(PendingGate {
+                label,
+                coeffs,
+                vars,
+                span,
+            });
+        }
+    }
+}
+
+
 //#[derive(Debug, Serialize, Deserialize)]
 #[derive(Debug)]
-pub struct CircuitWriter {
+pub struct CircuitWriter<F> where F: Field {
     /// The type checker state for the main module.
     // Important: this field must not be used directly.
     // This is because, depending on the value of [current_module],
     // the type checker state might be this one, or one of the ones in [dependencies].
-    typed: TypeChecker,
+    typed: TypeChecker<F>,
+
+    pub proving_backend: ProvingBackend,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
     // Note: I don't think we need this, but it acts as a nice redundant failsafe.
@@ -40,19 +112,12 @@ pub struct CircuitWriter {
 
     /// This is how you compute the value of each variable during witness generation.
     /// It is created during circuit generation.
-    pub(crate) witness_vars: HashMap<usize, Value>,
+    pub(crate) witness_vars: HashMap<usize, Value<F>>,
 
     /// The execution trace table with vars as placeholders.
     /// It is created during circuit generation,
     /// and used by the witness generator.
     pub(crate) rows_of_vars: Vec<Vec<Option<CellVar>>>,
-
-    /// The gates created by the circuit generation.
-    gates: Vec<Gate>,
-
-    /// The wiring of the circuit.
-    /// It is created during circuit generation.
-    pub(crate) wiring: HashMap<usize, Wiring>,
 
     /// Size of the public input.
     pub(crate) public_input_size: usize,
@@ -65,23 +130,15 @@ pub struct CircuitWriter {
     ///    it will set this `public_output` variable again to the correct vars.
     /// 3. During witness generation, the public output computation
     ///    is delayed until the very end.
-    pub(crate) public_output: Option<Var>,
+    pub(crate) public_output: Option<Var<F>>,
 
     /// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
     pub(crate) private_input_indices: Vec<usize>,
 
-    /// If set to false, a single generic gate will be used per double generic gate.
-    /// This can be useful for debugging.
-    pub(crate) double_generic_gate_optimization: bool,
-
-    /// This is used to implement the double generic gate,
-    /// which encodes two generic gates.
-    pub(crate) pending_generic_gate: Option<PendingGate>,
-
     /// We cache the association between a constant and its _constrained_ variable,
     /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
-    pub(crate) cached_constants: HashMap<Field, CellVar>,
+    pub(crate) cached_constants: HashMap<F, CellVar>,
 
     /// A vector of debug information that maps to each row of the created circuit.
     pub(crate) debug_info: Vec<DebugInfo>,
@@ -97,7 +154,7 @@ pub struct DebugInfo {
     pub note: String,
 }
 
-impl CircuitWriter {
+impl<F: Field> CircuitWriter<F> {
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
         self.typed.expr_type(expr)
     }
@@ -111,11 +168,11 @@ impl CircuitWriter {
         self.typed.struct_info(qualified)
     }
 
-    pub fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo> {
+    pub fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<F>> {
         self.typed.fn_info(qualified)
     }
 
-    pub fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo> {
+    pub fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<F>> {
         self.typed.const_info(qualified)
     }
 
@@ -123,7 +180,7 @@ impl CircuitWriter {
         self.typed.size_of(typ)
     }
 
-    pub fn add_local_var(&self, fn_env: &mut FnEnv, var_name: String, var_info: VarInfo) {
+    pub fn add_local_var(&self, fn_env: &mut FnEnv<F>, var_name: String, var_info: VarInfo<F>) {
         // check for consts first
         let qualified = FullyQualified::local(var_name.clone());
         if let Some(_cst_info) = self.typed.const_info(&qualified) {
@@ -136,7 +193,7 @@ impl CircuitWriter {
         fn_env.add_local_var(var_name, var_info)
     }
 
-    pub fn get_local_var(&self, fn_env: &FnEnv, var_name: &str) -> VarInfo {
+    pub fn get_local_var(&self, fn_env: &FnEnv<F>, var_name: &str) -> VarInfo<F> {
         // check for consts first
         let qualified = FullyQualified::local(var_name.to_string());
         if let Some(cst_info) = self.typed.const_info(&qualified) {
@@ -151,7 +208,7 @@ impl CircuitWriter {
     /// Retrieves the [FnInfo] for the `main()` function.
     /// This function should only be called if we know there's a main function,
     /// if there's no main function it'll panic.
-    pub fn main_info(&self) -> Result<&FnInfo> {
+    pub fn main_info(&self) -> Result<&FnInfo<F>> {
         let qualified = FullyQualified::local("main".to_string());
         self.typed
             .fn_info(&qualified)
@@ -163,33 +220,30 @@ impl CircuitWriter {
     }
 }
 
-impl CircuitWriter {
+impl<F: Field> CircuitWriter<F> {
     /// Creates a global environment from the one created by the type checker.
-    fn new(typed: TypeChecker, double_generic_gate_optimization: bool) -> Self {
+    fn new(typed: TypeChecker<F>, backend: ProvingBackend) -> Self {
         Self {
             typed,
+            proving_backend: backend,
             finalized: false,
             next_variable: 0,
             witness_vars: HashMap::new(),
             rows_of_vars: vec![],
-            gates: vec![],
-            wiring: HashMap::new(),
             public_input_size: 0,
             public_output: None,
             private_input_indices: vec![],
-            double_generic_gate_optimization,
-            pending_generic_gate: None,
             cached_constants: HashMap::new(),
             debug_info: vec![],
         }
     }
 
     pub fn generate_circuit(
-        typed: TypeChecker,
-        double_generic_gate_optimization: bool,
-    ) -> Result<CompiledCircuit> {
+        typed: TypeChecker<F>,
+        backend: ProvingBackend,
+    ) -> Result<CompiledCircuit<F>> {
         // create circuit writer
-        let mut circuit_writer = CircuitWriter::new(typed, double_generic_gate_optimization);
+        let mut circuit_writer = CircuitWriter::new(typed, backend);
 
         // get main function
         let qualified = FullyQualified::local("main".to_string());

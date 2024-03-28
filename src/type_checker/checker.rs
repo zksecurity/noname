@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    constants::Span,
+    constants::{Field, Span},
     error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
@@ -17,12 +17,12 @@ use super::{FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
 
 /// Keeps track of the signature of a user-defined function.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FnInfo {
-    pub kind: FnKind,
+pub struct FnInfo<F> where F: Field {
+    pub kind: FnKind<F>,
     pub span: Span,
 }
 
-impl FnInfo {
+impl<F: Field> FnInfo<F> {
     pub fn sig(&self) -> &FnSig {
         match &self.kind {
             FnKind::BuiltIn(sig, _) => sig,
@@ -70,7 +70,7 @@ impl ExprTyInfo {
     }
 }
 
-impl TypeChecker {
+impl<F: Field> TypeChecker<F> {
     fn compute_type(
         &mut self,
         expr: &Expr,

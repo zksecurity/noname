@@ -5,7 +5,8 @@
 use serde::{Deserialize, Serialize};
 
 /// We use the scalar field of Vesta as our circuit field.
-pub type Field = kimchi::mina_curves::pasta::Fp;
+// pub type Field = kimchi::mina_curves::pasta::Fp;
+pub use ark_ff::Field;
 
 /// Number of columns in the execution trace.
 pub const NUM_REGISTERS: usize = kimchi::circuits::wires::COLUMNS;

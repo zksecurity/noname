@@ -26,9 +26,9 @@ const RESERVED_ARGS: [&str; 1] = ["public_output"];
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConstInfo {
+pub struct ConstInfo<F> where F: Field {
     #[serde_as(as = "crate::serialization::SerdeAs")]
-    pub value: Vec<Field>,
+    pub value: Vec<F>,
     pub typ: Ty,
 }
 
@@ -59,16 +59,16 @@ impl FullyQualified {
 
 /// The environment we use to type check a noname program.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TypeChecker {
+pub struct TypeChecker<F> where F: Field {
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
-    functions: HashMap<FullyQualified, FnInfo>,
+    functions: HashMap<FullyQualified, FnInfo<F>>,
 
     /// Custom structs type information and ASTs for methods.
     structs: HashMap<FullyQualified, StructInfo>,
 
     /// Constants declared in this module.
-    constants: HashMap<FullyQualified, ConstInfo>,
+    constants: HashMap<FullyQualified, ConstInfo<F>>,
 
     /// Mapping from node id to TyKind.
     /// This can be used by the circuit-writer when it needs type information.
@@ -76,7 +76,7 @@ pub struct TypeChecker {
     node_types: HashMap<usize, TyKind>,
 }
 
-impl TypeChecker {
+impl<F: Field> TypeChecker<F> {
     pub(crate) fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
         self.node_types.get(&expr.node_id)
     }
@@ -90,7 +90,7 @@ impl TypeChecker {
         self.structs.get(qualified)
     }
 
-    pub(crate) fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo> {
+    pub(crate) fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<F>> {
         if qualified.module == Some(UserRepo::new("std/builtins")) {
             // if it's a built-in: get it from a global
             BUILTIN_FNS.get(&qualified.name)
@@ -99,7 +99,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo> {
+    pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<F>> {
         self.constants.get(&qualified)
     }
 
@@ -129,7 +129,7 @@ impl TypeChecker {
     }
 }
 
-impl TypeChecker {
+impl<F: Field> TypeChecker<F> {
     // TODO: we can probably lazy const this
     pub fn new() -> Self {
         let mut type_checker = Self {
@@ -176,7 +176,7 @@ impl TypeChecker {
     /// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    pub fn analyze(&mut self, nast: NAST, is_lib: bool) -> Result<()> {
+    pub fn analyze(&mut self, nast: NAST<F>, is_lib: bool) -> Result<()> {
         //
         // Process constants
         //

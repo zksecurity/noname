@@ -8,11 +8,11 @@ use crate::{
     type_checker::TypeChecker,
 };
 
-fn test_file(
+fn test_file<F: Field>(
     file_name: &str,
     public_inputs: &str,
     private_inputs: &str,
-    expected_public_output: Vec<Field>,
+    expected_public_output: Vec<F>,
 ) -> miette::Result<()> {
     let version = env!("CARGO_MANIFEST_DIR");
     let prefix = Path::new(version).join("examples");

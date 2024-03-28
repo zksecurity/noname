@@ -1,5 +1,5 @@
 use crate::{
-    constants::Span,
+    constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind, Tokens},
 };
@@ -95,10 +95,10 @@ impl ParserCtx {
 //
 
 #[derive(Debug, Default)]
-pub struct AST(pub Vec<Root>);
+pub struct AST<F: Field>(pub Vec<Root<F>>);
 
-impl AST {
-    pub fn parse(filename_id: usize, mut tokens: Tokens, node_id: usize) -> Result<(AST, usize)> {
+impl<F: Field> AST<F> {
+    pub fn parse(filename_id: usize, mut tokens: Tokens, node_id: usize) -> Result<(AST<F>, usize)> {
         let mut ast = vec![];
         let ctx = &mut ParserCtx::new(filename_id, node_id);
 

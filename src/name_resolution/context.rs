@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     cli::packages::UserRepo,
-    constants::Span,
+    constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     parser::{
         types::{FnArg, FnSig, FuncOrMethod, ModulePath, Stmt, StmtKind, TyKind},
@@ -154,7 +154,7 @@ impl NameResCtx {
         Ok(())
     }
 
-    pub(crate) fn resolve_const_def(&self, cst_def: &mut ConstDef) -> Result<()> {
+    pub(crate) fn resolve_const_def<F: Field>(&self, cst_def: &mut ConstDef<F>) -> Result<()> {
         let ConstDef {
             module,
             name: _,

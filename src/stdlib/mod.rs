@@ -26,7 +26,7 @@ pub static CRYPTO_MODULE: Lazy<BuiltinModule> = Lazy::new(|| {
     BuiltinModule { functions }
 });
 
-pub fn get_std_fn(submodule: &str, fn_name: &str, span: Span) -> Result<FnInfo> {
+pub fn get_std_fn<F: Field>(submodule: &str, fn_name: &str, span: Span) -> Result<FnInfo<F>> {
     match submodule {
         "crypto" => CRYPTO_MODULE
             .functions
@@ -49,7 +49,7 @@ pub fn get_std_fn(submodule: &str, fn_name: &str, span: Span) -> Result<FnInfo> 
 
 /// Takes a list of function signatures (as strings) and their associated function pointer,
 /// returns the same list but with the parsed functions (as [FunctionSig]).
-pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> HashMap<String, FnInfo> {
+pub fn parse_fn_sigs<F: Field>(fn_sigs: &[(&str, FnHandle<F>)]) -> HashMap<String, FnInfo<F>> {
     let mut functions = HashMap::new();
     let ctx = &mut ParserCtx::default();
 
@@ -85,7 +85,7 @@ pub const BUILTIN_FNS_DEFS: [(&str, FnHandle); 2] =
     [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
 
 /// Asserts that two vars are equal.
-fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {
+fn assert_eq<F: Field>(compiler: &mut CircuitWriter<F>, vars: &[VarInfo<F>], span: Span) -> Result<Option<Var<F>>> {
     // we get two vars
     assert_eq!(vars.len(), 2);
     let lhs_info = &vars[0];
@@ -158,7 +158,7 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
 }
 
 /// Asserts that a condition is true.
-fn assert(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {
+fn assert<F: Field>(compiler: &mut CircuitWriter<F>, vars: &[VarInfo<F>], span: Span) -> Result<Option<Var<F>>> {
     // we get a single var
     assert_eq!(vars.len(), 1);
 

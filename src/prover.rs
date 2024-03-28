@@ -34,7 +34,7 @@ type Curve = Vesta;
 type OtherCurve = Pallas;
 type SpongeParams = PlonkSpongeConstantsKimchi;
 type BaseSponge = DefaultFqSponge<VestaParameters, SpongeParams>;
-type ScalarSponge = DefaultFrSponge<Field, SpongeParams>;
+type ScalarSponge = DefaultFrSponge<kimchi::mina_curves::pasta::Fp, SpongeParams>;
 
 //
 // Lazy static
@@ -48,9 +48,9 @@ static GROUP_MAP: Lazy<<Curve as CommitmentCurve>::Map> =
 //
 
 //#[derive(Serialize, Deserialize)]
-pub struct ProverIndex {
+pub struct ProverIndex<F> where F: Field {
     index: kimchi::prover_index::ProverIndex<Curve, OpeningProof<Curve>>,
-    compiled_circuit: CompiledCircuit,
+    compiled_circuit: CompiledCircuit<F>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -62,9 +62,9 @@ pub struct VerifierIndex {
 // Setup
 //
 
-pub fn compile_to_indexes(
-    compiled_circuit: CompiledCircuit,
-) -> miette::Result<(ProverIndex, VerifierIndex)> {
+pub fn compile_to_indexes<F: Field>(
+    compiled_circuit: CompiledCircuit<F>,
+) -> miette::Result<(ProverIndex<F>, VerifierIndex)> {
     // convert gates to kimchi gates
     let mut gates: Vec<_> = compiled_circuit
         .compiled_gates()
@@ -135,7 +135,7 @@ pub fn compile_to_indexes(
 // Proving
 //
 
-impl ProverIndex {
+impl<F: Field> ProverIndex<F> {
     pub fn asm(&self, sources: &Sources, debug: bool) -> String {
         self.compiled_circuit.asm(sources, debug)
     }
@@ -157,8 +157,8 @@ impl ProverIndex {
         debug: bool,
     ) -> miette::Result<(
         ProverProof<Curve, OpeningProof<Curve>>,
-        Vec<Field>,
-        Vec<Field>,
+        Vec<F>,
+        Vec<F>,
     )> {
         // generate the witness
         let (witness, full_public_inputs, public_output) = generate_witness(
@@ -197,9 +197,9 @@ impl ProverIndex {
 //
 
 impl VerifierIndex {
-    pub fn verify(
+    pub fn verify<F: Field>(
         &self,
-        full_public_inputs: Vec<Field>,
+        full_public_inputs: Vec<F>,
         proof: ProverProof<Curve, OpeningProof<Curve>>,
     ) -> miette::Result<()> {
         // verify the proof

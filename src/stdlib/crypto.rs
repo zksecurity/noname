@@ -14,9 +14,9 @@ use crate::{
 
 const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
 
-pub const CRYPTO_FNS: [(&str, FnHandle); 1] = [(POSEIDON_FN, poseidon)];
+pub const CRYPTO_FNS: [(&str, FnHandle<F>); 1] = [(POSEIDON_FN, poseidon<F>)];
 
-pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {
+pub fn poseidon<F: Field>(compiler: &mut CircuitWriter<F>, vars: &[VarInfo<F>], span: Span) -> Result<Option<Var<F>>> {
     //
     // sanity checks
     //

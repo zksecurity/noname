@@ -10,11 +10,13 @@ use crate::{
     var::{ConstOrCell, Value, Var},
 };
 
-pub fn is_valid(f: Field) -> bool {
+//todo encapsulate in a struct
+
+pub fn is_valid<F: Field>(f: F) -> bool {
     f.is_one() || f.is_zero()
 }
 
-pub fn check(compiler: &mut CircuitWriter, xx: &ConstOrCell, span: Span) {
+pub fn check<F: Field>(compiler: &mut CircuitWriter<F>, xx: &ConstOrCell<F>, span: Span) {
     let zero = Field::zero();
     let one = Field::one();
 
@@ -30,7 +32,7 @@ pub fn check(compiler: &mut CircuitWriter, xx: &ConstOrCell, span: Span) {
     };
 }
 
-pub fn and(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, span: Span) -> Var {
+pub fn and<F: Field>(compiler: &mut CircuitWriter<F>, lhs: &ConstOrCell<F>, rhs: &ConstOrCell<F>, span: Span) -> Var<F> {
     match (lhs, rhs) {
         // two constants
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs * *rhs, span),
@@ -66,7 +68,7 @@ pub fn and(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
     }
 }
 
-pub fn not(compiler: &mut CircuitWriter, var: &ConstOrCell, span: Span) -> Var {
+pub fn not<F: Field>(compiler: &mut CircuitWriter<F>, var: &ConstOrCell<F>, span: Span) -> Var<F> {
     match var {
         ConstOrCell::Const(cst) => {
             let value = if cst.is_one() {
@@ -102,7 +104,7 @@ pub fn not(compiler: &mut CircuitWriter, var: &ConstOrCell, span: Span) -> Var {
     }
 }
 
-pub fn or(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, span: Span) -> Var {
+pub fn or<F: Field>(compiler: &mut CircuitWriter<F>, lhs: &ConstOrCell<F>, rhs: &ConstOrCell<F>, span: Span) -> Var<F> {
     let not_lhs = not(compiler, lhs, span);
     let not_rhs = not(compiler, rhs, span);
     let both_false = and(compiler, &not_lhs[0], &not_rhs[0], span);

@@ -36,7 +36,7 @@ use crate::{
     helpers::PrettyField as _,
 };
 
-impl CircuitWriter {
+impl<F: Field> CircuitWriter<F> {
     pub fn generate_asm(&self, sources: &Sources, debug: bool) -> String {
         let mut res = "".to_string();
 
@@ -177,7 +177,7 @@ impl CircuitWriter {
     }
 }
 
-fn extract_vars_from_coeffs(vars: &mut OrderedHashSet<Field>, coeffs: &[Field]) {
+fn extract_vars_from_coeffs<F: Field>(vars: &mut OrderedHashSet<F>, coeffs: &[F]) {
     for coeff in coeffs {
         let s = coeff.pretty();
         if s.len() >= 5 {
@@ -186,7 +186,7 @@ fn extract_vars_from_coeffs(vars: &mut OrderedHashSet<Field>, coeffs: &[Field]) 
     }
 }
 
-fn parse_coeffs(vars: &OrderedHashSet<Field>, coeffs: &[Field]) -> Vec<String> {
+fn parse_coeffs<F: Field>(vars: &OrderedHashSet<F>, coeffs: &[F]) -> Vec<String> {
     let mut coeffs: Vec<_> = coeffs
         .iter()
         .map(|x| {
