@@ -2,6 +2,7 @@ use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic};
 
 use crate::{
+    backends::{kimchi::Kimchi, Backend},
     cli::packages::path_to_package,
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, JsonInputs},
@@ -47,7 +48,7 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let (sources, prover_index, verifier_index) = build(&curr_dir, args.asm, args.debug)?;
+    let (_, _, verifier_index) = build(&curr_dir, args.asm, args.debug)?;
 
     // create COMPILED_DIR
     let compiled_path = curr_dir.join(COMPILED_DIR);
@@ -104,14 +105,15 @@ pub fn cmd_check(args: CmdCheck) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
+    // TODO: field type should be determined by a flag
     // produce all TASTs and stop here
-    produce_all_asts(&curr_dir)?;
+    produce_all_asts::<Kimchi>(&curr_dir)?;
 
     println!("all good!");
     Ok(())
 }
 
-fn produce_all_asts(path: &PathBuf) -> miette::Result<(Sources, TypeChecker)> {
+fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, TypeChecker<B>)> {
     // find manifest
     let manifest = validate_package_and_get_manifest(&path, false)?;
 
@@ -189,11 +191,12 @@ pub fn build(
     debug: bool,
 ) -> miette::Result<(Sources, ProverIndex, VerifierIndex)> {
     // produce all TASTs
-    let (sources, tast) = produce_all_asts(curr_dir)?;
+    let (sources, tast) = produce_all_asts::<Kimchi>(curr_dir)?;
 
-    // produce indexes
-    let double_generic_gate_optimization = false;
-    let compiled_circuit = compile(&sources, tast, double_generic_gate_optimization)?;
+    // TODO: a backend should be initialized by a flag
+    let kimchi_backend = Kimchi::default();
+
+    let compiled_circuit = compile(&sources, tast, kimchi_backend)?;
 
     if asm {
         println!("{}", compiled_circuit.asm(&sources, debug));
@@ -256,7 +259,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
 
     // compile
     let mut sources = Sources::new();
-    let mut tast = TypeChecker::new();
+    let mut tast = TypeChecker::<Kimchi>::new();
     let _node_id = typecheck_next_file(
         &mut tast,
         None,
@@ -265,7 +268,10 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         code,
         0,
     )?;
-    let compiled_circuit = compile(&sources, tast, !args.no_double)?;
+
+    // TODO: a backend should be initialized by a flag
+    let kimchi_backend = Kimchi::default();
+    let compiled_circuit = compile(&sources, tast, kimchi_backend)?;
 
     let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
     println!("successfully compiled");

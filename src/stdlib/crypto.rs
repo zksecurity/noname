@@ -1,22 +1,77 @@
-use ark_ff::Zero;
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use kimchi::circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW};
 use kimchi::mina_poseidon::constants::{PlonkSpongeConstantsKimchi, SpongeConstants};
 use kimchi::mina_poseidon::permutation::full_round;
+use once_cell::sync::Lazy;
 
-use crate::{
-    circuit_writer::{CircuitWriter, GateKind, VarInfo},
-    constants::{self, Field, Span},
-    error::{ErrorKind, Result},
-    imports::FnHandle,
-    parser::types::TyKind,
-    var::{ConstOrCell, Value, Var},
-};
+use crate::backends::kimchi::fp_kimchi::params;
+use crate::backends::{self, Backend};
+use crate::circuit_writer::{CircuitWriter, GateKind, VarInfo};
+use crate::constants::{self, Span};
+use crate::error::{Error, ErrorKind, Result};
+use crate::imports::FnKind;
+use crate::lexer::Token;
+use crate::parser::types::{FnSig, TyKind};
+use crate::parser::ParserCtx;
+use crate::type_checker::FnInfo;
+use crate::var::{ConstOrCell, Value, Var};
+
+use num_traits::Zero;
 
 const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
 
-pub const CRYPTO_FNS: [(&str, FnHandle); 1] = [(POSEIDON_FN, poseidon)];
+pub static CRYPTO_FNS_SIGS: Lazy<HashMap<&'static str, FnSig>> = Lazy::new(|| {
+    let sigs = [POSEIDON_FN];
 
-pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {
+    // create a hashmap from the FnSig
+    sigs.iter()
+        .map(|sig| {
+            let ctx = &mut ParserCtx::default();
+            let mut tokens = Token::parse(0, sig).unwrap();
+            let fn_sig = FnSig::parse(ctx, &mut tokens).unwrap();
+
+            (sig.to_owned(), fn_sig)
+        })
+        .collect()
+});
+
+pub fn get_crypto_fn<B>(name: &str) -> FnInfo<B>
+where
+    B: Backend,
+{
+    let ctx = &mut ParserCtx::default();
+    let mut tokens = Token::parse(0, name).unwrap();
+    let sig = FnSig::parse(ctx, &mut tokens).unwrap();
+
+    let fn_handle = match name {
+        POSEIDON_FN => poseidon,
+        _ => unreachable!(),
+    };
+
+    FnInfo {
+        kind: FnKind::BuiltIn(sig, fn_handle),
+        span: Span::default(),
+    }
+}
+
+pub fn crypto_fns<B: Backend>() -> Vec<FnInfo<B>> {
+    CRYPTO_FNS_SIGS
+        .iter()
+        .map(|(sig, _)| get_crypto_fn::<B>(sig))
+        .collect()
+}
+
+pub fn has_builtin_fn(name: &str) -> bool {
+    CRYPTO_FNS_SIGS.iter().any(|(_, s)| s.name.value == name)
+}
+
+fn poseidon<B: Backend>(
+    circuit: &mut CircuitWriter<B>,
+    vars: &[VarInfo<B::Field>],
+    span: Span,
+) -> Result<Option<Var<B::Field>>> {
     //
     // sanity checks
     //
@@ -39,7 +94,8 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
 
     // hashing a full-constant input is not a good idea
     if input[0].is_const() && input[1].is_const() {
-        return Err(compiler.error(
+        return Err(Error::new(
+            "constraint-generation",
             ErrorKind::UnexpectedError("cannot hash a full-constant input"),
             span,
         ));
@@ -51,7 +107,7 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
         match const_or_cell {
             ConstOrCell::Const(cst) => {
                 let cell =
-                    compiler.add_constant(Some("encoding constant input to poseidon"), *cst, span);
+                    circuit.add_constant(Some("encoding constant input to poseidon"), *cst, span);
                 cells.push(cell);
             }
             ConstOrCell::Cell(cell) => cells.push(*cell),
@@ -59,15 +115,15 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
     }
 
     // get constants needed for poseidon
-    let poseidon_params = kimchi::mina_poseidon::pasta::fp_kimchi::params();
+    let poseidon_params = params();
 
     let rc = &poseidon_params.round_constants;
     let width = PlonkSpongeConstantsKimchi::SPONGE_WIDTH;
 
     // pad the input (for the capacity)
-    let zero_var = compiler.add_constant(
+    let zero_var = circuit.add_constant(
         Some("encoding constant 0 for the capacity of poseidon"),
-        Field::zero(),
+        B::Field::zero(),
         span,
     );
     cells.push(zero_var);
@@ -88,8 +144,8 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
 
             for col in 0..3 {
                 // create each variable
-                let var = compiler.new_internal_var(
-                    Value::Hint(Box::new(move |compiler, env| {
+                let var = circuit.new_internal_var(
+                    Value::Hint(Arc::new(move |compiler, env| {
                         let x1 = compiler.compute_var(env, prev_0)?;
                         let x2 = compiler.compute_var(env, prev_1)?;
                         let x3 = compiler.compute_var(env, prev_2)?;
@@ -97,8 +153,8 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
                         let mut acc = vec![x1, x2, x3];
 
                         // Do one full round on the previous value
-                        full_round::<Field, PlonkSpongeConstantsKimchi>(
-                            &kimchi::mina_poseidon::pasta::fp_kimchi::params(),
+                        full_round::<B::Field, PlonkSpongeConstantsKimchi>(
+                            &params(),
                             &mut acc,
                             offset + i,
                         );
@@ -114,7 +170,7 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
             states.push(new_state);
         }
 
-        let coeffs = (0..constants::NUM_REGISTERS)
+        let coeffs = (0..backends::kimchi::NUM_REGISTERS)
             .map(|i| rc[offset + (i / width)][i % width])
             .collect();
 
@@ -136,7 +192,7 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
             Some(states[offset + 3][2]),
         ];
 
-        compiler.add_gate(
+        circuit.backend.add_gate(
             "uses a poseidon gate to constrain 5 rounds of poseidon",
             GateKind::Poseidon,
             vars,
@@ -153,7 +209,7 @@ pub fn poseidon(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> R
     ];
 
     // zero gate to store the result
-    compiler.add_gate(
+    circuit.backend.add_gate(
         "uses a zero gate to store the output of poseidon",
         GateKind::Zero,
         final_row.clone(),

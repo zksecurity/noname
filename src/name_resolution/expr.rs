@@ -1,15 +1,16 @@
+use ark_ff::Field;
+
 use crate::{
     cli::packages::UserRepo,
     error::Result,
-    imports::BUILTIN_FNS,
     parser::{types::ModulePath, CustomType, Expr, ExprKind},
-    stdlib::QUALIFIED_BUILTINS,
+    stdlib::{has_builtin_fn, QUALIFIED_BUILTINS},
 };
 
 use super::context::NameResCtx;
 
 impl NameResCtx {
-    pub(crate) fn resolve_expr(&self, expr: &mut Expr) -> Result<()> {
+    pub(crate) fn resolve_expr<F: Field>(&self, expr: &mut Expr) -> Result<()> {
         let Expr {
             node_id: _,
             kind,
@@ -22,8 +23,7 @@ impl NameResCtx {
                 fn_name,
                 args,
             } => {
-                if matches!(module, ModulePath::Local) && BUILTIN_FNS.get(&fn_name.value).is_some()
-                {
+                if matches!(module, ModulePath::Local) && has_builtin_fn(fn_name.value.as_str()) {
                     // if it's a builtin, use `std::builtin`
                     *module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));
                 } else {
@@ -31,7 +31,7 @@ impl NameResCtx {
                 }
 
                 for arg in args {
-                    self.resolve_expr(arg)?;
+                    self.resolve_expr::<F>(arg)?;
                 }
             }
             ExprKind::MethodCall {
@@ -39,17 +39,17 @@ impl NameResCtx {
                 method_name: _,
                 args,
             } => {
-                self.resolve_expr(lhs)?;
+                self.resolve_expr::<F>(lhs)?;
                 for arg in args {
-                    self.resolve_expr(arg)?;
+                    self.resolve_expr::<F>(arg)?;
                 }
             }
             ExprKind::Assignment { lhs, rhs } => {
-                self.resolve_expr(lhs)?;
-                self.resolve_expr(rhs)?;
+                self.resolve_expr::<F>(lhs)?;
+                self.resolve_expr::<F>(rhs)?;
             }
             ExprKind::FieldAccess { lhs, rhs: _ } => {
-                self.resolve_expr(lhs)?;
+                self.resolve_expr::<F>(lhs)?;
             }
             ExprKind::BinaryOp {
                 op: _,
@@ -57,26 +57,26 @@ impl NameResCtx {
                 rhs,
                 protected: _,
             } => {
-                self.resolve_expr(lhs)?;
-                self.resolve_expr(rhs)?;
+                self.resolve_expr::<F>(lhs)?;
+                self.resolve_expr::<F>(rhs)?;
             }
             ExprKind::Negated(expr) => {
-                self.resolve_expr(expr)?;
+                self.resolve_expr::<F>(expr)?;
             }
             ExprKind::Not(expr) => {
-                self.resolve_expr(expr)?;
+                self.resolve_expr::<F>(expr)?;
             }
             ExprKind::BigInt(_) => {}
             ExprKind::Variable { module, name: _ } => {
                 self.resolve(module, false)?;
             }
             ExprKind::ArrayAccess { array, idx } => {
-                self.resolve_expr(array)?;
-                self.resolve_expr(idx)?;
+                self.resolve_expr::<F>(array)?;
+                self.resolve_expr::<F>(idx)?;
             }
             ExprKind::ArrayDeclaration(items) => {
                 for expr in items {
-                    self.resolve_expr(expr)?;
+                    self.resolve_expr::<F>(expr)?;
                 }
             }
             ExprKind::CustomTypeDeclaration {
@@ -90,14 +90,14 @@ impl NameResCtx {
                 } = struct_name;
                 self.resolve(module, true)?;
                 for (_field_name, field_value) in fields {
-                    self.resolve_expr(field_value)?;
+                    self.resolve_expr::<F>(field_value)?;
                 }
             }
             ExprKind::Bool(_) => {}
             ExprKind::IfElse { cond, then_, else_ } => {
-                self.resolve_expr(cond)?;
-                self.resolve_expr(then_)?;
-                self.resolve_expr(else_)?;
+                self.resolve_expr::<F>(cond)?;
+                self.resolve_expr::<F>(then_)?;
+                self.resolve_expr::<F>(else_)?;
             }
         };
 

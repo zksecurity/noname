@@ -3,24 +3,27 @@
 use std::iter::once;
 
 use crate::{
+    backends::{
+        kimchi::{Kimchi, KimchiField},
+        Backend,
+    },
     circuit_writer::Wiring,
     compiler::{generate_witness, Sources},
-    constants::Field,
     inputs::JsonInputs,
     witness::CompiledCircuit,
 };
 
 use itertools::chain;
-
-use kimchi::circuits::constraints::ConstraintSystem;
-use kimchi::groupmap::GroupMap;
-use kimchi::mina_curves::pasta::{Pallas, Vesta, VestaParameters};
+use kimchi::mina_curves::pasta::{Vesta, VestaParameters};
 use kimchi::mina_poseidon::constants::PlonkSpongeConstantsKimchi;
 use kimchi::mina_poseidon::sponge::{DefaultFqSponge, DefaultFrSponge};
 use kimchi::poly_commitment::commitment::CommitmentCurve;
 use kimchi::poly_commitment::evaluation_proof::OpeningProof;
-use kimchi::poly_commitment::srs::SRS;
 use kimchi::proof::ProverProof;
+use kimchi::{
+    circuits::constraints::ConstraintSystem, groupmap::GroupMap, mina_curves::pasta::Pallas,
+    poly_commitment::srs::SRS,
+};
 
 use miette::{Context, IntoDiagnostic};
 use once_cell::sync::Lazy;
@@ -34,7 +37,7 @@ type Curve = Vesta;
 type OtherCurve = Pallas;
 type SpongeParams = PlonkSpongeConstantsKimchi;
 type BaseSponge = DefaultFqSponge<VestaParameters, SpongeParams>;
-type ScalarSponge = DefaultFrSponge<Field, SpongeParams>;
+type ScalarSponge = DefaultFrSponge<kimchi::mina_curves::pasta::Fp, SpongeParams>;
 
 //
 // Lazy static
@@ -50,7 +53,7 @@ static GROUP_MAP: Lazy<<Curve as CommitmentCurve>::Map> =
 //#[derive(Serialize, Deserialize)]
 pub struct ProverIndex {
     index: kimchi::prover_index::ProverIndex<Curve, OpeningProof<Curve>>,
-    compiled_circuit: CompiledCircuit,
+    compiled_circuit: CompiledCircuit<Kimchi>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -63,18 +66,20 @@ pub struct VerifierIndex {
 //
 
 pub fn compile_to_indexes(
-    compiled_circuit: CompiledCircuit,
+    compiled_circuit: CompiledCircuit<Kimchi>,
 ) -> miette::Result<(ProverIndex, VerifierIndex)> {
     // convert gates to kimchi gates
     let mut gates: Vec<_> = compiled_circuit
-        .compiled_gates()
+        .circuit
+        .backend
+        .gates()
         .iter()
         .enumerate()
         .map(|(row, gate)| gate.to_kimchi_gate(row))
         .collect();
 
     // wiring
-    for wiring in compiled_circuit.circuit.wiring.values() {
+    for wiring in compiled_circuit.circuit.backend.wiring.values() {
         if let Wiring::Wired(annotated_cells) = wiring {
             // all the wired cells form a cycle, remember!
             let mut wired_cells = annotated_cells
@@ -141,7 +146,7 @@ impl ProverIndex {
     }
 
     pub fn len(&self) -> usize {
-        self.compiled_circuit.compiled_gates().len()
+        self.compiled_circuit.circuit.backend.gates().len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -157,8 +162,8 @@ impl ProverIndex {
         debug: bool,
     ) -> miette::Result<(
         ProverProof<Curve, OpeningProof<Curve>>,
-        Vec<Field>,
-        Vec<Field>,
+        Vec<KimchiField>,
+        Vec<KimchiField>,
     )> {
         // generate the witness
         let (witness, full_public_inputs, public_output) = generate_witness(
@@ -199,7 +204,7 @@ impl ProverIndex {
 impl VerifierIndex {
     pub fn verify(
         &self,
-        full_public_inputs: Vec<Field>,
+        full_public_inputs: Vec<KimchiField>,
         proof: ProverProof<Curve, OpeningProof<Curve>>,
     ) -> miette::Result<()> {
         // verify the proof

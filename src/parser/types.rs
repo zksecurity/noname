@@ -1,13 +1,14 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 
 use crate::{
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{ErrorKind, Result},
-    imports::BUILTIN_FNS,
     lexer::{Keyword, Token, TokenKind, Tokens},
+    stdlib::has_builtin_fn,
     syntax::is_type,
 };
 
@@ -152,7 +153,7 @@ pub struct Ty {
 
 /// The module preceding structs, functions, or variables.
 // TODO: Hash should probably be implemented manually, right now two alias might have different span and so this will give different hashes
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq)]
 pub enum ModulePath {
     #[default]
     /// This is a local type, not imported from another module.
@@ -174,6 +175,27 @@ impl PartialEq for ModulePath {
             (ModulePath::Local, ModulePath::Local) => true,
             (ModulePath::Absolute(a), ModulePath::Absolute(b)) => a == b,
             _ => false,
+        }
+    }
+}
+
+impl Hash for ModulePath {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            ModulePath::Local => {
+                // Hash the variant itself to distinguish between variants
+                0.hash(state);
+            }
+            ModulePath::Alias(ident) => {
+                // Hash the variant and then the `value` of `Ident`
+                1.hash(state);
+                ident.value.hash(state);
+            }
+            ModulePath::Absolute(user_repo) => {
+                // Hash the variant and then the `UserRepo`
+                2.hash(state);
+                user_repo.hash(state);
+            }
         }
     }
 }
@@ -785,7 +807,8 @@ impl FunctionDef {
         let sig = FnSig::parse(ctx, tokens)?;
 
         // make sure that it doesn't shadow a builtin
-        if BUILTIN_FNS.get(&sig.name.value).is_some() {
+        // TODO: better to compare the whole FnSig?
+        if has_builtin_fn(&sig.name.value) {
             return Err(ctx.error(
                 ErrorKind::ShadowingBuiltIn(sig.name.value.clone()),
                 sig.name.span,
@@ -1117,8 +1140,11 @@ impl Stmt {
 #[derive(Debug)]
 
 /// Things you can have in a scope (including the root scope).
-pub struct Root {
-    pub kind: RootKind,
+pub struct Root<F>
+where
+    F: Field,
+{
+    pub kind: RootKind<F>,
     pub span: Span,
 }
 
@@ -1171,12 +1197,12 @@ impl UsePath {
 }
 
 #[derive(Debug)]
-pub enum RootKind {
+pub enum RootKind<F: Field> {
     Use(UsePath),
     FunctionDef(FunctionDef),
     Comment(String),
     StructDef(StructDef),
-    ConstDef(ConstDef),
+    ConstDef(ConstDef<F>),
 }
 
 //
@@ -1184,14 +1210,17 @@ pub enum RootKind {
 //
 
 #[derive(Debug)]
-pub struct ConstDef {
+pub struct ConstDef<F>
+where
+    F: Field,
+{
     pub module: ModulePath, // name resolution
     pub name: Ident,
-    pub value: Field,
+    pub value: F,
     pub span: Span,
 }
 
-impl ConstDef {
+impl<F: Field + FromStr> ConstDef<F> {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         // const foo = 42;
         //       ^^^

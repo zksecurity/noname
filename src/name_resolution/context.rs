@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
+use ark_ff::Field;
+
 use crate::{
+    backends::Backend,
     cli::packages::UserRepo,
     constants::Span,
     error::{Error, ErrorKind, Result},
@@ -63,7 +66,7 @@ impl NameResCtx {
         Ok(())
     }
 
-    pub(crate) fn resolve_fn_def(&self, fn_def: &mut FunctionDef) -> Result<()> {
+    pub(crate) fn resolve_fn_def<F: Field>(&self, fn_def: &mut FunctionDef) -> Result<()> {
         let FunctionDef { sig, body, span: _ } = fn_def;
 
         //
@@ -115,7 +118,7 @@ impl NameResCtx {
         //
 
         for stmt in body {
-            self.resolve_stmt(stmt)?;
+            self.resolve_stmt::<F>(stmt)?;
         }
 
         Ok(())
@@ -154,7 +157,7 @@ impl NameResCtx {
         Ok(())
     }
 
-    pub(crate) fn resolve_const_def(&self, cst_def: &mut ConstDef) -> Result<()> {
+    pub(crate) fn resolve_const_def<F: Field>(&self, cst_def: &mut ConstDef<F>) -> Result<()> {
         let ConstDef {
             module,
             name: _,
@@ -167,7 +170,7 @@ impl NameResCtx {
         Ok(())
     }
 
-    fn resolve_stmt(&self, stmt: &mut Stmt) -> Result<()> {
+    fn resolve_stmt<F: Field>(&self, stmt: &mut Stmt) -> Result<()> {
         let Stmt { kind, span: _ } = stmt;
 
         match kind {
@@ -176,10 +179,10 @@ impl NameResCtx {
                 lhs: _,
                 rhs,
             } => {
-                self.resolve_expr(rhs)?;
+                self.resolve_expr::<F>(rhs)?;
             }
-            StmtKind::Expr(expr) => self.resolve_expr(expr)?,
-            StmtKind::Return(expr) => self.resolve_expr(expr)?,
+            StmtKind::Expr(expr) => self.resolve_expr::<F>(expr)?,
+            StmtKind::Return(expr) => self.resolve_expr::<F>(expr)?,
             StmtKind::Comment(_) => (),
             StmtKind::ForLoop {
                 var: _,
@@ -187,7 +190,7 @@ impl NameResCtx {
                 body,
             } => {
                 for stmt in body {
-                    self.resolve_stmt(stmt)?;
+                    self.resolve_stmt::<F>(stmt)?;
                 }
             }
         };

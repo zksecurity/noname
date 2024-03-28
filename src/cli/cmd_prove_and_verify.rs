@@ -128,7 +128,6 @@ pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
             .into_diagnostic()
             .wrap_err("Failed to verify proof")?;
     */
-    //
 
     Ok(())
 }

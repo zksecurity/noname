@@ -3,6 +3,7 @@
 //!
 
 pub mod asm;
+pub mod backends;
 pub mod circuit_writer;
 pub mod cli;
 pub mod compiler;
@@ -39,7 +40,8 @@ pub mod helpers {
         poseidon::{ArithmeticSponge, Sponge},
     };
 
-    use crate::constants::Field;
+    // use crate::constants::Field;
+    use kimchi::mina_curves::pasta::Fp;
 
     /// A trait to display [Field] in pretty ways.
     pub trait PrettyField: ark_ff::PrimeField {
@@ -55,10 +57,10 @@ pub mod helpers {
         }
     }
 
-    impl PrettyField for Field {}
+    impl PrettyField for Fp {}
 
-    pub fn poseidon(input: [Field; 2]) -> Field {
-        let mut sponge: ArithmeticSponge<Field, PlonkSpongeConstantsKimchi> =
+    pub fn poseidon(input: [Fp; 2]) -> Fp {
+        let mut sponge: ArithmeticSponge<Fp, PlonkSpongeConstantsKimchi> =
             ArithmeticSponge::new(fp_kimchi::static_params());
         sponge.absorb(&input);
         sponge.squeeze()

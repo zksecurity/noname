@@ -1,13 +1,15 @@
-use std::{collections::HashMap, ops::Neg as _};
+use std::{collections::HashMap, ops::Neg};
 
-use ark_ff::{One as _, Zero};
 use once_cell::sync::Lazy;
 
+use ark_ff::{One, Zero};
+
 use crate::{
+    backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
-    constants::{Field, Span},
+    constants::Span,
     error::{Error, ErrorKind, Result},
-    imports::{BuiltinModule, FnHandle, FnKind},
+    imports::{FnHandle, FnKind},
     lexer::Token,
     parser::{
         types::{FnSig, TyKind},
@@ -17,39 +19,11 @@ use crate::{
     var::{ConstOrCell, Var},
 };
 
-use self::crypto::CRYPTO_FNS;
-
 pub mod crypto;
-
-pub static CRYPTO_MODULE: Lazy<BuiltinModule> = Lazy::new(|| {
-    let functions = parse_fn_sigs(&CRYPTO_FNS);
-    BuiltinModule { functions }
-});
-
-pub fn get_std_fn(submodule: &str, fn_name: &str, span: Span) -> Result<FnInfo> {
-    match submodule {
-        "crypto" => CRYPTO_MODULE
-            .functions
-            .get(fn_name)
-            .cloned()
-            .ok_or_else(|| {
-                Error::new(
-                    "type-checker",
-                    ErrorKind::UnknownExternalFn(submodule.to_string(), fn_name.to_string()),
-                    span,
-                )
-            }),
-        _ => Err(Error::new(
-            "type-checker",
-            ErrorKind::StdImport(submodule.to_string()),
-            span,
-        )),
-    }
-}
 
 /// Takes a list of function signatures (as strings) and their associated function pointer,
 /// returns the same list but with the parsed functions (as [FunctionSig]).
-pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> HashMap<String, FnInfo> {
+pub fn parse_fn_sigs<B: Backend>(fn_sigs: &[(&str, FnHandle<B>)]) -> HashMap<String, FnInfo<B>> {
     let mut functions = HashMap::new();
     let ctx = &mut ParserCtx::default();
 
@@ -81,12 +55,58 @@ pub const QUALIFIED_BUILTINS: &str = "std/builtins";
 const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(lhs: Field, rhs: Field)";
 
-pub const BUILTIN_FNS_DEFS: [(&str, FnHandle); 2] =
-    [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
+pub static BUILTIN_FNS_SIGS: Lazy<HashMap<&'static str, FnSig>> = Lazy::new(|| {
+    let sigs = [ASSERT_FN, ASSERT_EQ_FN];
 
-/// Asserts that two vars are equal.
-fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {
-    // we get two vars
+    // create a hashmap from the FnSig
+    sigs.iter()
+        .map(|sig| {
+            let ctx = &mut ParserCtx::default();
+            let mut tokens = Token::parse(0, sig).unwrap();
+            let fn_sig = FnSig::parse(ctx, &mut tokens).unwrap();
+
+            (sig.to_owned(), fn_sig)
+        })
+        .collect()
+});
+
+pub fn get_builtin_fn<B>(name: &str) -> FnInfo<B>
+where
+    B: Backend,
+{
+    let ctx = &mut ParserCtx::default();
+    let mut tokens = Token::parse(0, name).unwrap();
+    let sig = FnSig::parse(ctx, &mut tokens).unwrap();
+
+    let fn_handle = match name {
+        ASSERT_FN => assert,
+        ASSERT_EQ_FN => assert_eq,
+        _ => unreachable!(),
+    };
+
+    FnInfo {
+        kind: FnKind::BuiltIn(sig, fn_handle),
+        span: Span::default(),
+    }
+}
+
+/// a function iterate through builtin functions
+pub fn builtin_fns<B: Backend>() -> Vec<FnInfo<B>> {
+    BUILTIN_FNS_SIGS
+        .iter()
+        .map(|(sig, _)| get_builtin_fn::<B>(sig))
+        .collect()
+}
+
+pub fn has_builtin_fn(name: &str) -> bool {
+    BUILTIN_FNS_SIGS.iter().any(|(_, s)| s.name.value == name)
+}
+
+fn assert_eq<B: Backend>(
+    circuit: &mut CircuitWriter<B>,
+    vars: &[VarInfo<B::Field>],
+    span: Span,
+) -> Result<Option<Var<B::Field>>> {
     assert_eq!(vars.len(), 2);
     let lhs_info = &vars[0];
     let rhs_info = &vars[1];
@@ -130,14 +150,14 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
         // a const and a var
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            compiler.add_generic_gate(
+            circuit.backend.add_constraint(
                 "constrain var - cst = 0 to check equality",
                 vec![Some(*cvar)],
                 vec![
-                    Field::one(),
-                    Field::zero(),
-                    Field::zero(),
-                    Field::zero(),
+                    B::Field::one(),
+                    B::Field::zero(),
+                    B::Field::zero(),
+                    B::Field::zero(),
                     cst.neg(),
                 ],
                 span,
@@ -145,10 +165,10 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // TODO: use permutation to check that
-            compiler.add_generic_gate(
+            circuit.backend.add_constraint(
                 "constrain lhs - rhs = 0 to assert that they are equal",
                 vec![Some(*lhs), Some(*rhs)],
-                vec![Field::one(), Field::one().neg()],
+                vec![B::Field::one(), B::Field::one().neg()],
                 span,
             );
         }
@@ -157,8 +177,11 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
     Ok(None)
 }
 
-/// Asserts that a condition is true.
-fn assert(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {
+fn assert<B: Backend>(
+    circuit: &mut CircuitWriter<B>,
+    vars: &[VarInfo<B::Field>],
+    span: Span,
+) -> Result<Option<Var<B::Field>>> {
     // we get a single var
     assert_eq!(vars.len(), 1);
 
@@ -177,9 +200,9 @@ fn assert(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<
         }
         ConstOrCell::Cell(cvar) => {
             // TODO: use permutation to check that
-            let zero = Field::zero();
-            let one = Field::one();
-            compiler.add_generic_gate(
+            let zero = B::Field::zero();
+            let one = B::Field::one();
+            circuit.backend.add_constraint(
                 "constrain 1 - X = 0 to assert that X is true",
                 vec![None, Some(*cvar)],
                 // use the constant to constrain 1 - X = 0

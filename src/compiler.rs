@@ -9,9 +9,9 @@ use std::collections::HashMap;
 use miette::NamedSource;
 
 use crate::{
+    backends::Backend,
     circuit_writer::CircuitWriter,
     cli::packages::UserRepo,
-    constants::Field,
     error::Result,
     inputs::JsonInputs,
     lexer::Token,
@@ -79,8 +79,8 @@ impl<T> IntoMiette<T> for Result<T> {
     }
 }
 
-pub fn typecheck_next_file(
-    typechecker: &mut TypeChecker,
+pub fn typecheck_next_file<B: Backend>(
+    typechecker: &mut TypeChecker<B>,
     this_module: Option<UserRepo>,
     sources: &mut Sources,
     filename: String,
@@ -92,8 +92,8 @@ pub fn typecheck_next_file(
 }
 
 /// This should not be used directly. Check [get_tast] instead.
-pub fn typecheck_next_file_inner(
-    typechecker: &mut TypeChecker,
+pub fn typecheck_next_file_inner<B: Backend>(
+    typechecker: &mut TypeChecker<B>,
     this_module: Option<UserRepo>,
     sources: &mut Sources,
     filename: String,
@@ -111,13 +111,13 @@ pub fn typecheck_next_file_inner(
     Ok(new_node_id)
 }
 
-pub fn get_nast(
+pub fn get_nast<B: Backend>(
     this_module: Option<UserRepo>,
     sources: &mut Sources,
     filename: String,
     code: String,
     node_id: usize,
-) -> Result<(NAST, usize)> {
+) -> Result<(NAST<B>, usize)> {
     // save filename and source code
     let filename_id = sources.add(filename, code);
     let code = &sources.map[&filename_id].1;
@@ -129,7 +129,7 @@ pub fn get_nast(
     }
 
     // parser
-    let (ast, new_node_id) = AST::parse(filename_id, tokens, node_id)?;
+    let (ast, new_node_id) = AST::<B>::parse(filename_id, tokens, node_id)?;
     if std::env::var("NONAME_VERBOSE").is_ok() {
         println!("parser succeeded");
     }
@@ -143,20 +143,20 @@ pub fn get_nast(
     Ok((nast, new_node_id))
 }
 
-pub fn compile(
+pub fn compile<B: Backend>(
     sources: &Sources,
-    tast: TypeChecker,
-    double_generic_gate_optimization: bool,
-) -> miette::Result<CompiledCircuit> {
-    CircuitWriter::generate_circuit(tast, double_generic_gate_optimization).into_miette(sources)
+    tast: TypeChecker<B>,
+    backend: B,
+) -> miette::Result<CompiledCircuit<B>> {
+    CircuitWriter::generate_circuit(tast, backend).into_miette(sources)
 }
 
-pub fn generate_witness(
-    compiled_circuit: &CompiledCircuit,
+pub fn generate_witness<B: Backend>(
+    compiled_circuit: &CompiledCircuit<B>,
     sources: &Sources,
     public_inputs: JsonInputs,
     private_inputs: JsonInputs,
-) -> miette::Result<(Witness, Vec<Field>, Vec<Field>)> {
+) -> miette::Result<(Witness<B::Field>, Vec<B::Field>, Vec<B::Field>)> {
     compiled_circuit
         .generate_witness(public_inputs, private_inputs)
         .into_miette(sources)

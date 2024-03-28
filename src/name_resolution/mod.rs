@@ -1,4 +1,5 @@
 use crate::{
+    backends::Backend,
     cli::packages::UserRepo,
     error::{Error, ErrorKind, Result},
     parser::{ConstDef, FunctionDef, RootKind, StructDef, AST},
@@ -9,16 +10,19 @@ use self::context::NameResCtx;
 mod context;
 mod expr;
 
-pub struct NAST {
-    pub ast: AST,
+pub struct NAST<B>
+where
+    B: Backend,
+{
+    pub ast: AST<B>,
 }
 
-impl NAST {
-    fn new(ast: AST) -> Self {
+impl<B: Backend> NAST<B> {
+    fn new(ast: AST<B>) -> Self {
         Self { ast }
     }
 
-    pub fn resolve_modules(this_module: Option<UserRepo>, mut ast: AST) -> Result<NAST> {
+    pub fn resolve_modules(this_module: Option<UserRepo>, mut ast: AST<B>) -> Result<NAST<B>> {
         let mut ctx = NameResCtx::new(this_module);
 
         // create a map of the imported modules (and how they are aliases)
@@ -58,7 +62,7 @@ impl NAST {
         // now go through the AST and mutate any module to its fully-qualified path
         for root in &mut ast.0 {
             match &mut root.kind {
-                RootKind::FunctionDef(f) => ctx.resolve_fn_def(f)?,
+                RootKind::FunctionDef(f) => ctx.resolve_fn_def::<B::Field>(f)?,
                 RootKind::StructDef(s) => ctx.resolve_struct_def(s)?,
                 RootKind::ConstDef(c) => ctx.resolve_const_def(c)?,
                 RootKind::Use(_) | RootKind::Comment(_) => (),
@@ -72,6 +76,7 @@ impl NAST {
 #[cfg(test)]
 mod tests {
     use crate::{
+        backends::kimchi::Kimchi,
         lexer::Token,
         parser::{
             types::{ModulePath, StmtKind},
@@ -99,7 +104,7 @@ mod tests {
     #[test]
     fn test_name_res() {
         let tokens = Token::parse(0, CODE).unwrap();
-        let (ast, _node_id) = AST::parse(0, tokens, 0).unwrap();
+        let (ast, _node_id) = AST::<Kimchi>::parse(0, tokens, 0).unwrap();
         let nast = NAST::resolve_modules(None, ast).unwrap();
 
         // find constant declaration
@@ -146,7 +151,7 @@ mod tests {
         let user_repo = UserRepo::new("mimoo/example");
 
         let tokens = Token::parse(0, CODE).unwrap();
-        let (ast, _node_id) = AST::parse(0, tokens, 0).unwrap();
+        let (ast, _node_id) = AST::<Kimchi>::parse(0, tokens, 0).unwrap();
         let nast = NAST::resolve_modules(Some(user_repo.clone()), ast).unwrap();
 
         // find constant declaration

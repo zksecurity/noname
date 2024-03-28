@@ -1,16 +1,17 @@
 use std::collections::HashMap;
 
 use crate::{
+    backends::Backend,
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    imports::{FnKind, BUILTIN_FNS},
+    imports::FnKind,
     name_resolution::NAST,
     parser::{
         types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
         CustomType, Expr, StructDef,
     },
-    stdlib::{CRYPTO_MODULE, QUALIFIED_BUILTINS},
+    stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS},
 };
 
 pub use checker::{FnInfo, StructInfo};
@@ -26,9 +27,12 @@ const RESERVED_ARGS: [&str; 1] = ["public_output"];
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConstInfo {
+pub struct ConstInfo<F>
+where
+    F: Field,
+{
     #[serde_as(as = "crate::serialization::SerdeAs")]
-    pub value: Vec<Field>,
+    pub value: Vec<F>,
     pub typ: Ty,
 }
 
@@ -58,17 +62,20 @@ impl FullyQualified {
 }
 
 /// The environment we use to type check a noname program.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TypeChecker {
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TypeChecker<B>
+where
+    B: Backend,
+{
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
-    functions: HashMap<FullyQualified, FnInfo>,
+    functions: HashMap<FullyQualified, FnInfo<B>>,
 
     /// Custom structs type information and ASTs for methods.
     structs: HashMap<FullyQualified, StructInfo>,
 
     /// Constants declared in this module.
-    constants: HashMap<FullyQualified, ConstInfo>,
+    constants: HashMap<FullyQualified, ConstInfo<B::Field>>,
 
     /// Mapping from node id to TyKind.
     /// This can be used by the circuit-writer when it needs type information.
@@ -76,7 +83,7 @@ pub struct TypeChecker {
     node_types: HashMap<usize, TyKind>,
 }
 
-impl TypeChecker {
+impl<B: Backend> TypeChecker<B> {
     pub(crate) fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
         self.node_types.get(&expr.node_id)
     }
@@ -90,16 +97,11 @@ impl TypeChecker {
         self.structs.get(qualified)
     }
 
-    pub(crate) fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo> {
-        if qualified.module == Some(UserRepo::new("std/builtins")) {
-            // if it's a built-in: get it from a global
-            BUILTIN_FNS.get(&qualified.name)
-        } else {
-            self.functions.get(qualified)
-        }
+    pub(crate) fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<B>> {
+        self.functions.get(qualified)
     }
 
-    pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo> {
+    pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
         self.constants.get(&qualified)
     }
 
@@ -129,7 +131,7 @@ impl TypeChecker {
     }
 }
 
-impl TypeChecker {
+impl<B: Backend> TypeChecker<B> {
     // TODO: we can probably lazy const this
     pub fn new() -> Self {
         let mut type_checker = Self {
@@ -141,8 +143,8 @@ impl TypeChecker {
 
         // initialize it with the builtins
         let builtin_module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));
-        for (fn_name, fn_info) in BUILTIN_FNS.iter() {
-            let qualified = FullyQualified::new(&builtin_module, fn_name);
+        for fn_info in builtin_fns() {
+            let qualified = FullyQualified::new(&builtin_module, &fn_info.sig().name.value);
             if type_checker
                 .functions
                 .insert(qualified, fn_info.clone())
@@ -154,8 +156,8 @@ impl TypeChecker {
 
         // initialize it with the standard library
         let crypto_module = ModulePath::Absolute(UserRepo::new("std/crypto"));
-        for (fn_name, fn_info) in CRYPTO_MODULE.functions.iter() {
-            let qualified = FullyQualified::new(&crypto_module, fn_name);
+        for fn_info in crypto_fns() {
+            let qualified = FullyQualified::new(&crypto_module, &fn_info.sig().name.value);
             if type_checker
                 .functions
                 .insert(qualified, fn_info.clone())
@@ -165,7 +167,6 @@ impl TypeChecker {
             }
         }
 
-        //
         type_checker
     }
 
@@ -176,7 +177,7 @@ impl TypeChecker {
     /// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    pub fn analyze(&mut self, nast: NAST, is_lib: bool) -> Result<()> {
+    pub fn analyze(&mut self, nast: NAST<B>, is_lib: bool) -> Result<()> {
         //
         // Process constants
         //
