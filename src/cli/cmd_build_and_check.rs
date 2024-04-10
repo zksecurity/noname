@@ -78,14 +78,11 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
     let verifier_params = args
         .verifier_params
         .unwrap_or(compiled_path.join("verifier.nope"));
-    std::fs::write(
-        &verifier_params,
-        rmp_serde::to_vec(&verifier_index).unwrap(),
-    )
-    .into_diagnostic()
-    .wrap_err(format!(
-        "could not write prover params to `{prover_params}`"
-    ))?;
+    std::fs::write(verifier_params, rmp_serde::to_vec(&verifier_index).unwrap())
+        .into_diagnostic()
+        .wrap_err(format!(
+            "could not write prover params to `{prover_params}`"
+        ))?;
 
     println!("successfully built");
 
@@ -115,13 +112,13 @@ pub fn cmd_check(args: CmdCheck) -> miette::Result<()> {
 
 fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, TypeChecker<B>)> {
     // find manifest
-    let manifest = validate_package_and_get_manifest(&path, false)?;
+    let manifest = validate_package_and_get_manifest(path, false)?;
 
     // get all dependencies
     get_deps_of_package(&manifest);
 
     // produce dependency graph
-    let is_lib = is_lib(&path);
+    let is_lib = is_lib(path);
 
     let this = if is_lib {
         Some(UserRepo::new(&manifest.package.name))

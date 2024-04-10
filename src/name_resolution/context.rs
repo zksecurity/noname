@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use ark_ff::Field;
 
 use crate::{
-    backends::Backend,
     cli::packages::UserRepo,
     constants::Span,
     error::{Error, ErrorKind, Result},

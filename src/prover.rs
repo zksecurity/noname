@@ -154,6 +154,7 @@ impl ProverIndex {
     }
 
     /// returns a proof and a public output
+    #[allow(clippy::type_complexity)]
     pub fn prove(
         &self,
         sources: &Sources,
@@ -166,7 +167,7 @@ impl ProverIndex {
         Vec<KimchiField>,
     )> {
         // generate the witness
-        let (witness, full_public_inputs, public_output) = generate_witness(
+        let generated_witness = generate_witness(
             &self.compiled_circuit,
             sources,
             public_inputs,
@@ -175,15 +176,17 @@ impl ProverIndex {
 
         if debug {
             println!("# witness\n");
-            witness.debug();
+            generated_witness.all_witness.debug();
         }
 
         // convert to kimchi format
-        let witness = witness.to_kimchi_witness();
+        let witness = generated_witness.all_witness.to_kimchi_witness();
 
         // verify the witness
         if debug {
-            self.index.verify(&witness, &full_public_inputs).unwrap();
+            self.index
+                .verify(&witness, &generated_witness.full_public_inputs)
+                .unwrap();
         }
 
         // create proof
@@ -193,7 +196,11 @@ impl ProverIndex {
                 .wrap_err("kimchi: could not create a proof with the given inputs")?;
 
         // return proof + public output
-        Ok((proof, full_public_inputs, public_output))
+        Ok((
+            proof,
+            generated_witness.full_public_inputs,
+            generated_witness.public_outputs,
+        ))
     }
 }
 

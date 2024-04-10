@@ -48,7 +48,7 @@ impl FullyQualified {
         Self { module: None, name }
     }
 
-    pub fn new(module: &ModulePath, name: &String) -> Self {
+    pub fn new(module: &ModulePath, name: &str) -> Self {
         let module = match module {
             ModulePath::Local => None,
             ModulePath::Alias(_) => unreachable!(),
@@ -56,7 +56,7 @@ impl FullyQualified {
         };
         Self {
             module,
-            name: name.clone(),
+            name: name.to_string(),
         }
     }
 }
@@ -102,7 +102,7 @@ impl<B: Backend> TypeChecker<B> {
     }
 
     pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
-        self.constants.get(&qualified)
+        self.constants.get(qualified)
     }
 
     /// Returns the number of field elements contained in the given type.
@@ -111,7 +111,7 @@ impl<B: Backend> TypeChecker<B> {
         match typ {
             TyKind::Field => 1,
             TyKind::Custom { module, name } => {
-                let qualified = FullyQualified::new(&module, &name);
+                let qualified = FullyQualified::new(module, name);
                 let struct_info = self
                     .struct_info(&qualified)
                     .expect("bug in the type checker: cannot find struct info");

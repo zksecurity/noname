@@ -711,12 +711,10 @@ impl FunctionDef {
                 } else {
                     attr.span.merge_with(arg_typ.span)
                 }
+            } else if &arg_name.value == "self" {
+                arg_name.span
             } else {
-                if &arg_name.value == "self" {
-                    arg_name.span
-                } else {
-                    arg_name.span.merge_with(arg_typ.span)
-                }
+                arg_name.span.merge_with(arg_typ.span)
             };
 
             let arg = FnArg {

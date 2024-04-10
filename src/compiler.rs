@@ -31,6 +31,12 @@ pub struct Sources {
     pub map: HashMap<usize, (String, String)>,
 }
 
+impl Default for Sources {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Sources {
     pub fn new() -> Self {
         let mut map = HashMap::new();
@@ -73,7 +79,7 @@ impl<T> IntoMiette<T> for Result<T> {
                     .expect("couldn't find source")
                     .clone();
                 let report: miette::Report = err.into();
-                return Err(report.with_source_code(NamedSource::new(filename, source)));
+                Err(report.with_source_code(NamedSource::new(filename, source)))
             }
         }
     }
@@ -123,7 +129,7 @@ pub fn get_nast<B: Backend>(
     let code = &sources.map[&filename_id].1;
 
     // lexer
-    let tokens = Token::parse(filename_id, &code)?;
+    let tokens = Token::parse(filename_id, code)?;
     if std::env::var("NONAME_VERBOSE").is_ok() {
         println!("lexer succeeded");
     }
@@ -151,12 +157,18 @@ pub fn compile<B: Backend>(
     CircuitWriter::generate_circuit(tast, backend).into_miette(sources)
 }
 
+pub struct GeneratedWitness<B: Backend> {
+    pub all_witness: Witness<B::Field>,
+    pub full_public_inputs: Vec<B::Field>,
+    pub public_outputs: Vec<B::Field>,
+}
+
 pub fn generate_witness<B: Backend>(
     compiled_circuit: &CompiledCircuit<B>,
     sources: &Sources,
     public_inputs: JsonInputs,
     private_inputs: JsonInputs,
-) -> miette::Result<(Witness<B::Field>, Vec<B::Field>, Vec<B::Field>)> {
+) -> miette::Result<GeneratedWitness<B>> {
     compiled_circuit
         .generate_witness(public_inputs, private_inputs)
         .into_miette(sources)

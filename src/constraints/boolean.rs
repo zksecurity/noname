@@ -7,8 +7,7 @@ use ark_ff::{One, Zero};
 use crate::{
     backends::Backend,
     circuit_writer::CircuitWriter,
-    constants::{Field, Span},
-    helpers::PrettyField,
+    constants::Span,
     var::{ConstOrCell, Value, Var},
 };
 

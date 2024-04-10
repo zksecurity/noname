@@ -3,7 +3,7 @@ use std::{
     ops::Neg,
 };
 
-use ark_ff::{Field, One, Zero};
+use ark_ff::{One, Zero};
 use kimchi::circuits::wires::Wire;
 use num_bigint::BigUint;
 use num_traits::Num as _;
@@ -14,7 +14,7 @@ use crate::{
     circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
     constants::Span,
     constraints::{boolean, field},
-    error::{Error, ErrorKind, Result},
+    error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
         types::{FunctionDef, Stmt, StmtKind, TyKind},
@@ -23,7 +23,6 @@ use crate::{
     syntax::is_type,
     type_checker::FullyQualified,
     var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
-    witness::WitnessEnv,
 };
 
 //
@@ -107,7 +106,7 @@ impl PartialEq for AnnotatedCell {
 
 impl PartialOrd for AnnotatedCell {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.cell.partial_cmp(&other.cell)
+        Some(self.cmp(other))
     }
 }
 
@@ -243,7 +242,7 @@ impl<B: Backend> CircuitWriter<B> {
                 module,
                 name: struct_name,
             } => {
-                let qualified = FullyQualified::new(module, &struct_name);
+                let qualified = FullyQualified::new(module, struct_name);
                 let struct_info = self
                     .struct_info(&qualified)
                     .ok_or(self.error(ErrorKind::UnexpectedError("struct not found"), span))?
@@ -373,7 +372,8 @@ impl<B: Backend> CircuitWriter<B> {
                     vars.push(var_info);
                 }
 
-                let res = match &fn_info.kind {
+                //
+                match &fn_info.kind {
                     // assert() <-- for example
                     FnKind::BuiltIn(_sig, handle) => {
                         let res = handle(self, &vars, expr.span);
@@ -385,13 +385,10 @@ impl<B: Backend> CircuitWriter<B> {
                     FnKind::Native(func) => {
                         // module::fn_name(args)
                         // ^^^^^^
-                        self.compile_native_function_call(&func, vars)
+                        self.compile_native_function_call(func, vars)
                             .map(|r| r.map(VarOrRef::Var))
                     }
-                };
-
-                //
-                res
+                }
             }
 
             ExprKind::FieldAccess { lhs, rhs } => {
@@ -603,6 +600,7 @@ impl<B: Backend> CircuitWriter<B> {
 
             ExprKind::BigInt(b) => {
                 let biguint = BigUint::from_str_radix(b, 10).expect("failed to parse number.");
+                #[allow(clippy::unnecessary_fallible_conversions)]
                 let ff = B::Field::try_from(biguint).map_err(|_| {
                     self.error(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
                 })?;

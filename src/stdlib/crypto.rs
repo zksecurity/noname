@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 use crate::backends::kimchi::fp_kimchi::params;
 use crate::backends::{self, Backend};
 use crate::circuit_writer::{CircuitWriter, GateKind, VarInfo};
-use crate::constants::{self, Span};
+use crate::constants::Span;
 use crate::error::{Error, ErrorKind, Result};
 use crate::imports::FnKind;
 use crate::lexer::Token;

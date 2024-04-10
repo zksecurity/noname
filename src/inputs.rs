@@ -120,12 +120,10 @@ impl<B: Backend> CompiledCircuit<B> {
 
                 Ok(res)
             }
-            (expected, observed) => {
-                return Err(ParsingError::MismatchJsonArgument(
-                    expected.clone(),
-                    observed,
-                ));
-            }
+            (expected, observed) => Err(ParsingError::MismatchJsonArgument(
+                expected.clone(),
+                observed,
+            )),
         }
     }
 }

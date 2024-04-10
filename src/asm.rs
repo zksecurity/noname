@@ -84,7 +84,7 @@ impl<B: Backend> CircuitWriter<B> {
                 if !coeffs.is_empty() {
                     res.push('<');
                     res.push_str(&coeffs.join(","));
-                    res.push_str(">");
+                    res.push('>');
                 }
             }
 
@@ -116,8 +116,8 @@ impl<B: Backend> CircuitWriter<B> {
 
         for annotated_cells in cycles {
             let (cells, debug_infos): (Vec<_>, Vec<_>) = annotated_cells
-                .into_iter()
-                .map(|AnnotatedCell { cell, debug }| (cell.clone(), debug.clone()))
+                .iter()
+                .map(|AnnotatedCell { cell, debug }| (*cell, debug.clone()))
                 .unzip();
 
             if debug {
@@ -287,7 +287,7 @@ uvwx
 yz
 ";
         assert_eq!(
-            find_exact_line(&SRC, Span::new(0, 5, 6)),
+            find_exact_line(SRC, Span::new(0, 5, 6)),
             (2, 5, "efgh\nijkl")
         );
     }

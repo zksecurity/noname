@@ -179,7 +179,7 @@ impl<F: Field> Var<F> {
 
     pub fn new_constant_typ(cst_info: &ConstInfo<F>, span: Span) -> Self {
         let ConstInfo { value, typ: _ } = cst_info;
-        let cvars = value.into_iter().cloned().map(ConstOrCell::Const).collect();
+        let cvars = value.iter().cloned().map(ConstOrCell::Const).collect();
 
         Self { cvars, span }
     }

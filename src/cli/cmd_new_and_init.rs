@@ -151,5 +151,5 @@ fn get_git_user() -> String {
 
     let username = output.trim().to_owned();
 
-    username.replace(" ", "_").to_lowercase()
+    username.replace(' ', "_").to_lowercase()
 }

@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use itertools::{chain, izip, Itertools};
 //use serde::{Deserialize, Serialize};
-use ark_ff::{One, Zero};
+use ark_ff::Zero;
 
 use crate::{
     backends::{kimchi::NUM_REGISTERS, Backend},
     circuit_writer::CircuitWriter,
-    compiler::Sources,
+    compiler::{GeneratedWitness, Sources},
     constants::Field,
     error::{Error, ErrorKind, Result},
     helpers,
@@ -43,7 +43,9 @@ pub struct Witness<F: Field>(Vec<[F; NUM_REGISTERS]>);
 impl<F: Field + helpers::PrettyField> Witness<F> {
     /// kimchi uses a transposed witness
     pub fn to_kimchi_witness(&self) -> [Vec<F>; NUM_REGISTERS] {
-        let transposed = vec![Vec::with_capacity(self.0.len()); NUM_REGISTERS];
+        let transposed = (0..NUM_REGISTERS)
+            .map(|_| Vec::with_capacity(self.0.len()))
+            .collect::<Vec<_>>();
         let mut transposed: [_; NUM_REGISTERS] = transposed.try_into().unwrap();
         for row in &self.0 {
             for (col, field) in row.iter().enumerate() {
@@ -147,7 +149,7 @@ impl<B: Backend> CompiledCircuit<B> {
         &self,
         mut public_inputs: JsonInputs,
         mut private_inputs: JsonInputs,
-    ) -> Result<(Witness<B::Field>, Vec<B::Field>, Vec<B::Field>)> {
+    ) -> Result<GeneratedWitness<B>> {
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
 
@@ -258,12 +260,12 @@ impl<B: Backend> CompiledCircuit<B> {
         }
 
         // compute public output at last
-        let mut public_output = vec![];
+        let mut public_outputs = vec![];
 
         for (row, var) in public_outputs_vars {
             let val = self.compute_var(&mut env, var)?;
             witness[row][0] = val;
-            public_output.push(val);
+            public_outputs.push(val);
         }
 
         // extract full public input (containing the public output)
@@ -278,6 +280,10 @@ impl<B: Backend> CompiledCircuit<B> {
         assert_eq!(witness.len(), self.circuit.backend.rows_of_vars().len());
 
         // return the public output separately as well
-        Ok((Witness(witness), full_public_inputs, public_output))
+        Ok(GeneratedWitness {
+            all_witness: Witness(witness),
+            full_public_inputs,
+            public_outputs,
+        })
     }
 }

@@ -1,24 +1,16 @@
-use std::{collections::HashMap, fmt, ops::Neg};
+use std::{collections::HashMap, fmt};
 
-use kimchi::circuits::gate::Circuit;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
-    error::{Error, ErrorKind, Result},
-    lexer::Token,
-    parser::{
-        types::{FnSig, FunctionDef, TyKind},
-        ParserCtx,
-    },
+    error::Result,
+    parser::types::{FnSig, FunctionDef},
     type_checker::{FnInfo, TypeChecker},
-    var::{ConstOrCell, Var},
+    var::Var,
 };
-
-use num_traits::{One, Zero};
 
 #[derive(Debug)]
 pub struct Module<B>
