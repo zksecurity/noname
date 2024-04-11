@@ -1,6 +1,5 @@
 use std::{collections::HashMap, fmt};
 
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -8,7 +7,6 @@ use crate::{
     constants::Span,
     error::Result,
     parser::types::{FnSig, FunctionDef},
-    stdlib::{parse_fn_sigs, BUILTIN_FNS_DEFS},
     type_checker::{FnInfo, TypeChecker},
     var::Var,
 };
@@ -73,6 +71,3 @@ impl fmt::Debug for FnKind {
     }
 }
 
-// static of built-in functions
-pub static BUILTIN_FNS: Lazy<HashMap<String, FnInfo>> =
-    Lazy::new(|| parse_fn_sigs(&BUILTIN_FNS_DEFS));

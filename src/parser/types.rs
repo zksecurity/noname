@@ -6,8 +6,8 @@ use crate::{
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{ErrorKind, Result},
-    imports::BUILTIN_FNS,
     lexer::{Keyword, Token, TokenKind, Tokens},
+    stdlib::BUILTIN_FN_NAMES,
     syntax::is_type,
 };
 
@@ -785,7 +785,7 @@ impl FunctionDef {
         let sig = FnSig::parse(ctx, tokens)?;
 
         // make sure that it doesn't shadow a builtin
-        if BUILTIN_FNS.get(&sig.name.value).is_some() {
+        if BUILTIN_FN_NAMES.contains(&sig.name.value) {
             return Err(ctx.error(
                 ErrorKind::ShadowingBuiltIn(sig.name.value.clone()),
                 sig.name.span,
