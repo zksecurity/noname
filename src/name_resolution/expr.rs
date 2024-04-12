@@ -1,9 +1,8 @@
 use crate::{
     cli::packages::UserRepo,
     error::Result,
-    imports::BUILTIN_FNS,
     parser::{types::ModulePath, CustomType, Expr, ExprKind},
-    stdlib::QUALIFIED_BUILTINS,
+    stdlib::{BUILTIN_FN_NAMES, QUALIFIED_BUILTINS},
 };
 
 use super::context::NameResCtx;
@@ -22,7 +21,7 @@ impl NameResCtx {
                 fn_name,
                 args,
             } => {
-                if matches!(module, ModulePath::Local) && BUILTIN_FNS.get(&fn_name.value).is_some()
+                if matches!(module, ModulePath::Local) && BUILTIN_FN_NAMES.contains(&fn_name.value)
                 {
                     // if it's a builtin, use `std::builtin`
                     *module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));

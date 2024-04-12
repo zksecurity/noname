@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Neg as _};
+use std::{collections::{HashMap, HashSet}, ops::Neg as _};
 
 use ark_ff::{One as _, Zero};
 use once_cell::sync::Lazy;
@@ -7,7 +7,7 @@ use crate::{
     circuit_writer::{CircuitWriter, VarInfo},
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    imports::{BuiltinModule, FnHandle, FnKind},
+    imports::{FnHandle, FnKind},
     lexer::Token,
     parser::{
         types::{FnSig, TyKind},
@@ -17,59 +17,9 @@ use crate::{
     var::{ConstOrCell, Var},
 };
 
-use self::crypto::CRYPTO_FNS;
+use self::crypto::get_crypto_fn;
 
 pub mod crypto;
-
-pub static CRYPTO_MODULE: Lazy<BuiltinModule> = Lazy::new(|| {
-    let functions = parse_fn_sigs(&CRYPTO_FNS);
-    BuiltinModule { functions }
-});
-
-pub fn get_std_fn(submodule: &str, fn_name: &str, span: Span) -> Result<FnInfo> {
-    match submodule {
-        "crypto" => CRYPTO_MODULE
-            .functions
-            .get(fn_name)
-            .cloned()
-            .ok_or_else(|| {
-                Error::new(
-                    "type-checker",
-                    ErrorKind::UnknownExternalFn(submodule.to_string(), fn_name.to_string()),
-                    span,
-                )
-            }),
-        _ => Err(Error::new(
-            "type-checker",
-            ErrorKind::StdImport(submodule.to_string()),
-            span,
-        )),
-    }
-}
-
-/// Takes a list of function signatures (as strings) and their associated function pointer,
-/// returns the same list but with the parsed functions (as [FunctionSig]).
-pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> HashMap<String, FnInfo> {
-    let mut functions = HashMap::new();
-    let ctx = &mut ParserCtx::default();
-
-    for (sig, fn_ptr) in fn_sigs {
-        // filename_id 0 is for builtins
-        let mut tokens = Token::parse(0, sig).unwrap();
-
-        let sig = FnSig::parse(ctx, &mut tokens).unwrap();
-
-        functions.insert(
-            sig.name.value.clone(),
-            FnInfo {
-                kind: FnKind::BuiltIn(sig, *fn_ptr),
-                span: Span::default(),
-            },
-        );
-    }
-
-    functions
-}
 
 //
 // Builtins or utils (imported by default)
@@ -81,8 +31,46 @@ pub const QUALIFIED_BUILTINS: &str = "std/builtins";
 const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(lhs: Field, rhs: Field)";
 
-pub const BUILTIN_FNS_DEFS: [(&str, FnHandle); 2] =
-    [(ASSERT_EQ_FN, assert_eq), (ASSERT_FN, assert)];
+/// List of builtin function signatures.
+pub const BUILTIN_SIGS: &[&str] = &[ASSERT_FN, ASSERT_EQ_FN];
+
+// Unique set of builtin function names, derived from function signatures.
+pub static BUILTIN_FN_NAMES: Lazy<HashSet<String>> = Lazy::new(|| {
+    BUILTIN_SIGS
+        .iter()
+        .map(|s| {
+            let ctx = &mut ParserCtx::default();
+            let mut tokens = Token::parse(0, s).unwrap();
+            let sig = FnSig::parse(ctx, &mut tokens).unwrap();
+            sig.name.value
+        })
+        .collect()
+});
+
+pub fn get_builtin_fn(name: &str) -> Option<FnInfo> {
+    let ctx = &mut ParserCtx::default();
+    let mut tokens = Token::parse(0, name).unwrap();
+    let sig = FnSig::parse(ctx, &mut tokens).unwrap();
+
+    let fn_handle = match name {
+        ASSERT_FN => assert,
+        ASSERT_EQ_FN => assert_eq,
+        _ => return None,
+    };
+
+    Some(FnInfo {
+        kind: FnKind::BuiltIn(sig, fn_handle),
+        span: Span::default(),
+    })
+}
+
+/// a function returns builtin functions
+pub fn builtin_fns() -> Vec<FnInfo> {
+    BUILTIN_SIGS
+        .iter()
+        .map(|sig| get_builtin_fn(sig).unwrap())
+        .collect()
+}
 
 /// Asserts that two vars are equal.
 fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {

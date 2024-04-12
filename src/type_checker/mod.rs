@@ -4,13 +4,13 @@ use crate::{
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
-    imports::{FnKind, BUILTIN_FNS},
+    imports::FnKind,
     name_resolution::NAST,
     parser::{
         types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
         CustomType, Expr, StructDef,
     },
-    stdlib::{CRYPTO_MODULE, QUALIFIED_BUILTINS},
+    stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS},
 };
 
 pub use checker::{FnInfo, StructInfo};
@@ -91,12 +91,7 @@ impl TypeChecker {
     }
 
     pub(crate) fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo> {
-        if qualified.module == Some(UserRepo::new("std/builtins")) {
-            // if it's a built-in: get it from a global
-            BUILTIN_FNS.get(&qualified.name)
-        } else {
-            self.functions.get(qualified)
-        }
+        self.functions.get(qualified)
     }
 
     pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo> {
@@ -141,8 +136,8 @@ impl TypeChecker {
 
         // initialize it with the builtins
         let builtin_module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));
-        for (fn_name, fn_info) in BUILTIN_FNS.iter() {
-            let qualified = FullyQualified::new(&builtin_module, fn_name);
+        for fn_info in builtin_fns() {
+            let qualified = FullyQualified::new(&builtin_module, &fn_info.sig().name.value);
             if type_checker
                 .functions
                 .insert(qualified, fn_info.clone())
@@ -154,8 +149,8 @@ impl TypeChecker {
 
         // initialize it with the standard library
         let crypto_module = ModulePath::Absolute(UserRepo::new("std/crypto"));
-        for (fn_name, fn_info) in CRYPTO_MODULE.functions.iter() {
-            let qualified = FullyQualified::new(&crypto_module, fn_name);
+        for fn_info in crypto_fns() {
+            let qualified = FullyQualified::new(&crypto_module, &fn_info.sig().name.value);
             if type_checker
                 .functions
                 .insert(qualified, fn_info.clone())
