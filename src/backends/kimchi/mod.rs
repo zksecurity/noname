@@ -1,18 +1,26 @@
 pub mod fp_kimchi;
+pub mod asm;
+pub mod prover;
 
-use std::{collections::HashMap, fmt::Debug};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Neg,
+    fmt::Write,
+};
 
+use ark_ff::Field;
+use itertools::{izip, Itertools};
 use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
-use num_traits::Zero;
+use num_traits::{One, Zero};
 
 use crate::{
-    circuit_writer::{
+    backends::kimchi::asm::{display_source, parse_coeffs}, circuit_writer::{
         writer::{AnnotatedCell, Cell, PendingGate},
         DebugInfo, Gate, GateKind, Wiring,
-    },
-    constants::Span,
-    var::CellVar,
+    }, compiler::{GeneratedWitness, Sources}, constants::Span, error::{Error, ErrorKind, Result}, helpers::{self, PrettyField}, var::{CellVar, Value, Var}, witness::WitnessEnv
 };
+
+use self::asm::{extract_vars_from_coeffs, title, OrderedHashSet};
 
 use super::Backend;
 
@@ -22,8 +30,42 @@ pub type KimchiField = kimchi::mina_curves::pasta::Fp;
 /// Number of columns in the execution trace.
 pub const NUM_REGISTERS: usize = kimchi::circuits::wires::COLUMNS;
 
+#[derive(Debug)]
+pub struct Witness<F: Field>(Vec<[F; NUM_REGISTERS]>);
+
+impl<F: Field + helpers::PrettyField> Witness<F> {
+    /// kimchi uses a transposed witness
+    pub fn to_kimchi_witness(&self) -> [Vec<F>; NUM_REGISTERS] {
+        let transposed = (0..NUM_REGISTERS)
+            .map(|_| Vec::with_capacity(self.0.len()))
+            .collect::<Vec<_>>();
+        let mut transposed: [_; NUM_REGISTERS] = transposed.try_into().unwrap();
+        for row in &self.0 {
+            for (col, field) in row.iter().enumerate() {
+                transposed[col].push(*field);
+            }
+        }
+        transposed
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn debug(&self) {
+        for (row, values) in self.0.iter().enumerate() {
+            let values = values.iter().map(|v| v.pretty()).join(" | ");
+            println!("{row} - {values}");
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
-pub struct Kimchi {
+pub struct KimchiVesta {
     /// The gates created by the circuit generation.
     pub gates: Vec<Gate<Self>>,
 
@@ -46,9 +88,20 @@ pub struct Kimchi {
 
     /// A vector of debug information that maps to each row of the created circuit.
     pub(crate) debug_info: Vec<DebugInfo>,
+
+    /// This is used to give a distinct number to each variable during circuit generation.
+    pub(crate) next_variable: usize,
+
+    /// This is how you compute the value of each variable during witness generation.
+    /// It is created during circuit generation.
+    pub(crate) witness_vars: HashMap<usize, Value<KimchiVesta>>,
+
+    /// We cache the association between a constant and its _constrained_ variable,
+    /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
+    pub(crate) cached_constants: HashMap<KimchiField, CellVar>,
 }
 
-impl Backend for Kimchi {
+impl Backend for KimchiVesta {
     type Field = KimchiField;
 
     fn add_gate(
@@ -104,7 +157,7 @@ impl Backend for Kimchi {
         }
     }
 
-    fn add_constraint(
+    fn add_generic_gate(
         &mut self,
         label: &'static str,
         mut vars: Vec<Option<CellVar>>,
@@ -143,19 +196,212 @@ impl Backend for Kimchi {
         }
     }
 
-    fn rows_of_vars(&self) -> Vec<Vec<Option<CellVar>>>
-    where
-        Self: Sized,
-    {
-        self.rows_of_vars.clone()
+    // fn rows_of_vars(&self) -> Vec<Vec<Option<CellVar>>>
+    // where
+    //     Self: Sized,
+    // {
+    //     self.rows_of_vars.clone()
+    // }
+
+    // fn gates(&self) -> &[Gate<Self>] {
+    //     &self.gates
+    // }
+
+    // fn wiring_cycles(&self) -> Vec<&Vec<AnnotatedCell>> {
+    //     self.wiring
+    //         .values()
+    //         .map(|w| match w {
+    //             Wiring::NotWired(_) => None,
+    //             Wiring::Wired(annotated_cells) => Some(annotated_cells),
+    //         })
+    //         .filter(Option::is_some)
+    //         .flatten()
+    //         .collect()
+    // }
+
+    fn debug_info(&self) -> &[DebugInfo] {
+        &self.debug_info
     }
 
-    fn gates(&self) -> &[Gate<Self>] {
-        &self.gates
+    fn new_internal_var(&mut self, val: Value<KimchiVesta>, span: Span) -> CellVar {
+        // create new var
+        let var = CellVar::new(self.next_variable, span);
+        self.next_variable += 1;
+
+        // store it in the circuit_writer
+        self.witness_vars.insert(var.index, val);
+
+        var
     }
 
-    fn wiring_cycles(&self) -> Vec<&Vec<AnnotatedCell>> {
-        self.wiring
+    fn add_constant(
+        &mut self,
+        label: Option<&'static str>,
+        value: KimchiField,
+        span: Span,
+    ) -> CellVar {
+        if let Some(cvar) = self.cached_constants.get(&value) {
+            return *cvar;
+        }
+
+        let var = self.new_internal_var(Value::Constant(value), span);
+        self.cached_constants.insert(value, var);
+
+        let zero = KimchiField::zero();
+
+        let _ = &self.add_generic_gate(
+            label.unwrap_or("hardcode a constant"),
+            vec![Some(var)],
+            vec![KimchiField::one(), zero, zero, zero, value.neg()],
+            span,
+        );
+
+        var
+    }
+
+    fn witness_vars(&self) -> &HashMap<usize, Value<Self>> {
+        &self.witness_vars
+    }
+
+    fn finalize_circuit(
+        &mut self,
+        public_output: Option<Var<KimchiField>>,
+        returned_cells: Option<Vec<CellVar>>,
+        private_input_indices: Vec<usize>,
+        main_span: Span,
+    ) -> Result<()> {
+        // TODO: the current tests pass even this is commented out. Add a test case for this one.
+        // important: there might still be a pending generic gate
+        if let Some(pending) = self.pending_generic_gate.take() {
+            self.add_gate(
+                pending.label,
+                GateKind::DoubleGeneric,
+                pending.vars,
+                pending.coeffs,
+                pending.span,
+            );
+        }
+
+        // for sanity check, we make sure that every cellvar created has ended up in a gate
+        let mut written_vars = HashSet::new();
+        for row in self.rows_of_vars.iter() {
+            row.iter().flatten().for_each(|cvar| {
+                written_vars.insert(cvar.index);
+            });
+        }
+
+        for var in 0..self.next_variable {
+            if !written_vars.contains(&var) {
+                if private_input_indices.contains(&var) {
+                    // TODO: is this error useful?
+                    let err = Error::new(
+                        "constraint-finalization",
+                        ErrorKind::PrivateInputNotUsed,
+                        main_span,
+                    );
+                    return Err(err);
+                } else {
+                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
+                }
+            }
+        }
+
+        // kimchi hack
+        if self.gates.len() <= 2 {
+            panic!("the circuit is either too small or does not constrain anything (TODO: better error)");
+        }
+
+        // store the return value in the public input that was created for that ^
+        if let Some(public_output) = public_output {
+            let cvars = &public_output.cvars;
+
+            for (pub_var, ret_var) in cvars.clone().iter().zip(returned_cells.unwrap()) {
+                // replace the computation of the public output vars with the actual variables being returned here
+                let var_idx = pub_var.idx().unwrap();
+                let prev = self
+                    .witness_vars
+                    .insert(var_idx, Value::PublicOutput(Some(ret_var)));
+                // .insert(var_idx, Value::PublicOutput(Some(*ret_var)));
+                assert!(prev.is_some());
+            }
+        }
+
+        Ok(())
+    }
+
+    fn generate_asm(&self, sources: &Sources, debug: bool) -> String {
+        let mut res = "".to_string();
+
+        // version
+        res.push_str("@ noname.0.7.0\n\n");
+
+        // vars
+        let mut vars: OrderedHashSet<KimchiField> = OrderedHashSet::default();
+
+        for Gate { coeffs, .. } in self.gates.iter() {
+            extract_vars_from_coeffs(&mut vars, coeffs);
+        }
+
+        if debug && !vars.is_empty() {
+            title(&mut res, "VARS");
+        }
+
+        for (idx, var) in vars.iter().enumerate() {
+            writeln!(res, "c{idx} = {}", var.pretty()).unwrap();
+        }
+
+        // gates
+        if debug {
+            title(&mut res, "GATES");
+        }
+
+        for (row, (Gate { typ, coeffs }, debug_info)) in self
+            .gates
+            .iter()
+            .zip(self.debug_info())
+            .enumerate()
+        {
+            println!("gate {:?}", row);
+            // gate #
+            if debug {
+                writeln!(res, "╭{s}", s = "─".repeat(80)).unwrap();
+                write!(res, "│ GATE {row} - ").unwrap();
+            }
+
+            // gate
+            write!(res, "{typ:?}").unwrap();
+
+            // coeffs
+            {
+                let coeffs = parse_coeffs(&vars, coeffs);
+                if !coeffs.is_empty() {
+                    res.push('<');
+                    res.push_str(&coeffs.join(","));
+                    res.push('>');
+                }
+            }
+
+            res.push('\n');
+
+            if debug {
+                // source
+                display_source(&mut res, sources, &[debug_info.clone()]);
+
+                // note
+                res.push_str("    ▲\n");
+                writeln!(res, "    ╰── {note}", note = debug_info.note).unwrap();
+
+                //
+                res.push_str("\n\n");
+            }
+        }
+
+        // wiring
+        if debug {
+            title(&mut res, "WIRING");
+        }
+
+        let mut cycles: Vec<_> = self.wiring
             .values()
             .map(|w| match w {
                 Wiring::NotWired(_) => None,
@@ -163,10 +409,124 @@ impl Backend for Kimchi {
             })
             .filter(Option::is_some)
             .flatten()
-            .collect()
+            .collect();
+
+        // we must have a deterministic sort for the cycles,
+        // otherwise the same circuit might have different representations
+        cycles.sort();
+
+        for annotated_cells in cycles {
+            let (cells, debug_infos): (Vec<_>, Vec<_>) = annotated_cells
+                .iter()
+                .map(|AnnotatedCell { cell, debug }| (*cell, debug.clone()))
+                .unzip();
+
+            if debug {
+                display_source(&mut res, sources, &debug_infos);
+            }
+
+            let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
+            writeln!(res, "{s}").unwrap();
+
+            if debug {
+                writeln!(res, "\n").unwrap();
+            }
+        }
+
+        res
     }
 
-    fn debug_info(&self) -> &[DebugInfo] {
-        &self.debug_info
+
+    fn generate_witness(
+        &self,
+        witness_env: &mut WitnessEnv<KimchiField>,
+        public_input_size: usize,
+    ) -> Result<GeneratedWitness<Self>> {
+        let mut witness = vec![];
+        // compute each rows' vars, except for the deferred ones (public output)
+        let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
+
+        for (row, (gate, row_of_vars, debug_info)) in
+            izip!(self.gates.iter(), &self.rows_of_vars, self.debug_info()).enumerate()
+        {
+            // create the witness row
+            let mut witness_row = [Self::Field::zero(); NUM_REGISTERS];
+
+            for (col, var) in row_of_vars.iter().enumerate() {
+                let val = if let Some(var) = var {
+                    // if it's a public output, defer it's computation
+                    if matches!(self.witness_vars()[&var.index], Value::PublicOutput(_)) {
+                        public_outputs_vars.push((row, *var));
+                        Self::Field::zero()
+                    } else {
+                        self.compute_var(witness_env, *var)?
+                    }
+                } else {
+                    Self::Field::zero()
+                };
+                witness_row[col] = val;
+            }
+
+            // check if the row makes sense
+            let is_not_public_input = row >= public_input_size;
+            if is_not_public_input {
+                #[allow(clippy::single_match)]
+                match gate.typ {
+                    // only check the generic gate
+                    crate::circuit_writer::GateKind::DoubleGeneric => {
+                        let c = |i| {
+                            gate.coeffs
+                                .get(i)
+                                .copied()
+                                .unwrap_or_else(Self::Field::zero)
+                        };
+                        let w = &witness_row;
+                        let sum1 =
+                            c(0) * w[0] + c(1) * w[1] + c(2) * w[2] + c(3) * w[0] * w[1] + c(4);
+                        let sum2 =
+                            c(5) * w[3] + c(6) * w[4] + c(7) * w[5] + c(8) * w[3] * w[4] + c(9);
+                        if sum1 != Self::Field::zero() || sum2 != Self::Field::zero() {
+                            return Err(Error::new(
+                                "runtime",
+                                ErrorKind::InvalidWitness(row),
+                                debug_info.span,
+                            ));
+                        }
+                    }
+                    // for all other gates, we trust the gadgets
+                    _ => (),
+                }
+            }
+
+            //
+            witness.push(witness_row);
+        }
+
+        // compute public output at last
+        let mut public_outputs = vec![];
+
+        for (row, var) in public_outputs_vars {
+            let val = self.compute_var(witness_env, var)?;
+            witness[row][0] = val;
+            public_outputs.push(val);
+        }
+
+        // extract full public input (containing the public output)
+        let mut full_public_inputs = Vec::with_capacity(public_input_size);
+
+        for witness_row in witness.iter().take(public_input_size) {
+            full_public_inputs.push(witness_row[0]);
+        }
+
+        // sanity checks
+        assert_eq!(witness.len(), self.gates.len());
+        assert_eq!(witness.len(), self.rows_of_vars.len());
+
+        // return the public output separately as well
+        Ok(GeneratedWitness {
+            all_witness: Witness(witness),
+            full_public_inputs,
+            public_outputs,
+        })
     }
 }

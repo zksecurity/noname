@@ -4,7 +4,7 @@ use std::iter::once;
 
 use crate::{
     backends::{
-        kimchi::{Kimchi, KimchiField},
+        kimchi::{KimchiField, KimchiVesta},
         Backend,
     },
     circuit_writer::Wiring,
@@ -53,7 +53,7 @@ static GROUP_MAP: Lazy<<Curve as CommitmentCurve>::Map> =
 //#[derive(Serialize, Deserialize)]
 pub struct ProverIndex {
     index: kimchi::prover_index::ProverIndex<Curve, OpeningProof<Curve>>,
-    compiled_circuit: CompiledCircuit<Kimchi>,
+    compiled_circuit: CompiledCircuit<KimchiVesta>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -65,75 +65,102 @@ pub struct VerifierIndex {
 // Setup
 //
 
-pub fn compile_to_indexes(
-    compiled_circuit: CompiledCircuit<Kimchi>,
-) -> miette::Result<(ProverIndex, VerifierIndex)> {
-    // convert gates to kimchi gates
-    let mut gates: Vec<_> = compiled_circuit
-        .circuit
-        .backend
-        .gates()
-        .iter()
-        .enumerate()
-        .map(|(row, gate)| gate.to_kimchi_gate(row))
-        .collect();
+impl KimchiVesta {
+    pub fn compile_to_indexes(
+        &self,
+        public_input_size: usize,
+    ) -> miette::Result<(
+        kimchi::prover_index::ProverIndex<Curve, OpeningProof<Curve>>,
+        kimchi::verifier_index::VerifierIndex<Curve, OpeningProof<Curve>>,
+    )> {
+        // convert gates to kimchi gates
+        let mut gates: Vec<_> = self
+            .gates
+            .iter()
+            .enumerate()
+            .map(|(row, gate)| gate.to_kimchi_gate(row))
+            .collect();
 
-    // wiring
-    for wiring in compiled_circuit.circuit.backend.wiring.values() {
-        if let Wiring::Wired(annotated_cells) = wiring {
-            // all the wired cells form a cycle, remember!
-            let mut wired_cells = annotated_cells
-                .iter()
-                .map(|annotated_cell| annotated_cell.cell);
-            assert!(wired_cells.len() > 1);
+        // wiring
+        for wiring in self.wiring.values() {
+            if let Wiring::Wired(annotated_cells) = wiring {
+                // all the wired cells form a cycle, remember!
+                let mut wired_cells = annotated_cells
+                    .iter()
+                    .map(|annotated_cell| annotated_cell.cell);
+                assert!(wired_cells.len() > 1);
 
-            let first_cell = wired_cells.next().unwrap(); // for the cycle
-            let mut prev_cell = first_cell;
+                let first_cell = wired_cells.next().unwrap(); // for the cycle
+                let mut prev_cell = first_cell;
 
-            for cell in chain![wired_cells, once(first_cell)] {
-                gates[cell.row].wires[cell.col] = kimchi::circuits::wires::Wire {
-                    row: prev_cell.row,
-                    col: prev_cell.col,
-                };
-                prev_cell = cell;
+                for cell in chain![wired_cells, once(first_cell)] {
+                    gates[cell.row].wires[cell.col] = kimchi::circuits::wires::Wire {
+                        row: prev_cell.row,
+                        col: prev_cell.col,
+                    };
+                    prev_cell = cell;
+                }
             }
         }
+
+        // create constraint system
+        let cs = ConstraintSystem::create(gates)
+            .public(public_input_size)
+            .build()
+            .into_diagnostic()
+            .wrap_err("kimchi: could not create a constraint system with the given circuit and public input size")?;
+
+        // create SRS (for vesta, as the circuit is in Fp)
+        let mut srs = SRS::<Curve>::create(cs.domain.d1.size as usize);
+        srs.add_lagrange_basis(cs.domain.d1);
+        let srs = std::sync::Arc::new(srs);
+
+        println!("using an SRS of size {}", srs.g.len());
+
+        // create indexes
+        let (endo_q, _endo_r) = kimchi::poly_commitment::srs::endos::<OtherCurve>();
+
+        let prover_index = kimchi::prover_index::ProverIndex::<Curve, OpeningProof<Curve>>::create(
+            cs, endo_q, srs,
+        );
+        let verifier_index = prover_index.verifier_index();
+
+        // // wrap
+        // let prover_index = {
+        //     ProverIndex {
+        //         index: prover_index,
+        //         compiled_circuit,
+        //     }
+        // };
+        // let verifier_index = VerifierIndex {
+        //     index: verifier_index,
+        // };
+
+        // // return asm + indexes
+        // Ok((prover_index, verifier_index))
+        Ok((prover_index, verifier_index))
     }
+}
 
-    // create constraint system
-    let cs = ConstraintSystem::create(gates)
-        .public(compiled_circuit.circuit.public_input_size)
-        .build()
-        .into_diagnostic()
-        .wrap_err("kimchi: could not create a constraint system with the given circuit and public input size")?;
+impl CompiledCircuit<KimchiVesta> {
+    pub fn compile_to_indexes(self) -> miette::Result<(ProverIndex, VerifierIndex)> {
+        let (prover_index, verifier_index) = self.circuit
+            .backend
+            .compile_to_indexes(self.circuit.public_input_size)?;
+        // wrap
+        let prover_index = {
+            ProverIndex {
+                index: prover_index,
+                compiled_circuit: self,
+            }
+        };
+        let verifier_index = VerifierIndex {
+            index: verifier_index,
+        };
 
-    // create SRS (for vesta, as the circuit is in Fp)
-    let mut srs = SRS::<Curve>::create(cs.domain.d1.size as usize);
-    srs.add_lagrange_basis(cs.domain.d1);
-    let srs = std::sync::Arc::new(srs);
-
-    println!("using an SRS of size {}", srs.g.len());
-
-    // create indexes
-    let (endo_q, _endo_r) = kimchi::poly_commitment::srs::endos::<OtherCurve>();
-
-    let prover_index =
-        kimchi::prover_index::ProverIndex::<Curve, OpeningProof<Curve>>::create(cs, endo_q, srs);
-    let verifier_index = prover_index.verifier_index();
-
-    // wrap
-    let prover_index = {
-        ProverIndex {
-            index: prover_index,
-            compiled_circuit,
-        }
-    };
-    let verifier_index = VerifierIndex {
-        index: verifier_index,
-    };
-
-    // return asm + indexes
-    Ok((prover_index, verifier_index))
+        // return asm + indexes
+        Ok((prover_index, verifier_index))
+    }
 }
 
 //
@@ -146,7 +173,7 @@ impl ProverIndex {
     }
 
     pub fn len(&self) -> usize {
-        self.compiled_circuit.circuit.backend.gates().len()
+        self.compiled_circuit.circuit.backend.gates.len()
     }
 
     pub fn is_empty(&self) -> bool {

@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use miette::NamedSource;
 
 use crate::{
-    backends::Backend,
+    backends::{kimchi::Witness, Backend},
     circuit_writer::CircuitWriter,
     cli::packages::UserRepo,
     error::Result,
@@ -18,7 +18,7 @@ use crate::{
     name_resolution::NAST,
     parser::AST,
     type_checker::TypeChecker,
-    witness::{CompiledCircuit, Witness},
+    witness::CompiledCircuit,
 };
 
 /// Contains the association between a counter and the corresponding filename and source code.

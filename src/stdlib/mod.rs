@@ -150,7 +150,7 @@ fn assert_eq<B: Backend>(
         // a const and a var
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            circuit.backend.add_constraint(
+            circuit.backend.add_generic_gate(
                 "constrain var - cst = 0 to check equality",
                 vec![Some(*cvar)],
                 vec![
@@ -165,7 +165,7 @@ fn assert_eq<B: Backend>(
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // TODO: use permutation to check that
-            circuit.backend.add_constraint(
+            circuit.backend.add_generic_gate(
                 "constrain lhs - rhs = 0 to assert that they are equal",
                 vec![Some(*lhs), Some(*rhs)],
                 vec![B::Field::one(), B::Field::one().neg()],
@@ -202,7 +202,7 @@ fn assert<B: Backend>(
             // TODO: use permutation to check that
             let zero = B::Field::zero();
             let one = B::Field::one();
-            circuit.backend.add_constraint(
+            circuit.backend.add_generic_gate(
                 "constrain 1 - X = 0 to assert that X is true",
                 vec![None, Some(*cvar)],
                 // use the constant to constrain 1 - X = 0

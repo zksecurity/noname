@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    backends::{kimchi::Kimchi, r1cs::R1CS, Backend},
+    backends::{kimchi::KimchiVesta, r1cs::R1CS, Backend},
     constants::Span,
     error::{Error, ErrorKind, Result},
     parser::{
@@ -24,7 +24,7 @@ pub mod writer;
 // enums for proving backends
 #[derive(Debug)]
 pub enum BackendKind {
-    Kimchi(Kimchi),
+    Kimchi(KimchiVesta),
     R1CS(R1CS),
 }
 
@@ -41,13 +41,6 @@ where
     typed: TypeChecker<B>,
 
     pub backend: B,
-
-    /// This is used to give a distinct number to each variable during circuit generation.
-    pub(crate) next_variable: usize,
-
-    /// This is how you compute the value of each variable during witness generation.
-    /// It is created during circuit generation.
-    pub(crate) witness_vars: HashMap<usize, Value<B>>,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
     // Note: I don't think we need this, but it acts as a nice redundant failsafe.
@@ -69,10 +62,6 @@ where
     /// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
     pub(crate) private_input_indices: Vec<usize>,
-
-    /// We cache the association between a constant and its _constrained_ variable,
-    /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
-    pub(crate) cached_constants: HashMap<B::Field, CellVar>,
 }
 
 /// Debug information related to a single row in a circuit.
@@ -163,12 +152,9 @@ impl<B: Backend> CircuitWriter<B> {
             typed,
             backend,
             finalized: false,
-            next_variable: 0,
-            witness_vars: HashMap::new(),
             public_input_size: 0,
             public_output: None,
             private_input_indices: vec![],
-            cached_constants: HashMap::new(),
         }
     }
 
@@ -249,50 +235,17 @@ impl<B: Backend> CircuitWriter<B> {
         }
 
         // compile function
-        circuit_writer.compile_main_function(fn_env, &function)?;
+        let returned_cells = circuit_writer.compile_main_function(fn_env, &function)?;
+        let main_span = circuit_writer.main_info().unwrap().span;
+        let private_input_indices = circuit_writer.private_input_indices.clone();
+        let public_output = circuit_writer.public_output.clone();
 
-        // TODO: the current tests pass even this is commented out. Add a test case for this one.
-        // important: there might still be a pending generic gate
-        // if let Some(pending) = circuit_writer.backend.pending_generic_gate.take() {
-        //     circuit_writer.backend.add_gate(
-        //         pending.label,
-        //         GateKind::DoubleGeneric,
-        //         pending.vars,
-        //         pending.coeffs,
-        //         pending.span,
-        //     );
-        // }
-
-        // for sanity check, we make sure that every cellvar created has ended up in a gate
-        let mut written_vars = HashSet::new();
-        for row in &circuit_writer.backend.rows_of_vars() {
-            row.iter().flatten().for_each(|cvar| {
-                written_vars.insert(cvar.index);
-            });
-        }
-
-        for var in 0..circuit_writer.next_variable {
-            if !written_vars.contains(&var) {
-                if circuit_writer.private_input_indices.contains(&var) {
-                    // compute main sig
-                    let (_main_sig, main_span) = {
-                        let fn_info = circuit_writer.main_info()?.clone();
-
-                        (fn_info.sig().clone(), fn_info.span)
-                    };
-
-                    // TODO: is this error useful?
-                    return Err(circuit_writer.error(ErrorKind::PrivateInputNotUsed, main_span));
-                } else {
-                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
-                }
-            }
-        }
-
-        // kimchi hack
-        if circuit_writer.backend.gates().len() <= 2 {
-            panic!("the circuit is either too small or does not constrain anything (TODO: better error)");
-        }
+        circuit_writer.backend.finalize_circuit(
+            public_output,
+            returned_cells,
+            private_input_indices,
+            main_span,
+        )?;
 
         // we finalized!
         circuit_writer.finalized = true;

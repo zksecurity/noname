@@ -2,11 +2,10 @@ use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic};
 
 use crate::{
-    backends::{kimchi::Kimchi, Backend},
+    backends::{kimchi::{prover::{ProverIndex, VerifierIndex}, KimchiVesta}, Backend},
     cli::packages::path_to_package,
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, JsonInputs},
-    prover::{compile_to_indexes, ProverIndex, VerifierIndex},
     type_checker::TypeChecker,
 };
 
@@ -104,7 +103,7 @@ pub fn cmd_check(args: CmdCheck) -> miette::Result<()> {
 
     // TODO: field type should be determined by a flag
     // produce all TASTs and stop here
-    produce_all_asts::<Kimchi>(&curr_dir)?;
+    produce_all_asts::<KimchiVesta>(&curr_dir)?;
 
     println!("all good!");
     Ok(())
@@ -188,10 +187,10 @@ pub fn build(
     debug: bool,
 ) -> miette::Result<(Sources, ProverIndex, VerifierIndex)> {
     // produce all TASTs
-    let (sources, tast) = produce_all_asts::<Kimchi>(curr_dir)?;
+    let (sources, tast) = produce_all_asts::<KimchiVesta>(curr_dir)?;
 
     // TODO: a backend should be initialized by a flag
-    let kimchi_backend = Kimchi::default();
+    let kimchi_backend = KimchiVesta::default();
 
     let compiled_circuit = compile(&sources, tast, kimchi_backend)?;
 
@@ -202,7 +201,7 @@ pub fn build(
     // TODO: cache artifacts
 
     // produce indexes
-    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
+    let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
 
     Ok((sources, prover_index, verifier_index))
 }
@@ -256,7 +255,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
 
     // compile
     let mut sources = Sources::new();
-    let mut tast = TypeChecker::<Kimchi>::new();
+    let mut tast = TypeChecker::<KimchiVesta>::new();
     let _node_id = typecheck_next_file(
         &mut tast,
         None,
@@ -267,10 +266,10 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
     )?;
 
     // TODO: a backend should be initialized by a flag
-    let kimchi_backend = Kimchi::default();
+    let kimchi_backend = KimchiVesta::default();
     let compiled_circuit = compile(&sources, tast, kimchi_backend)?;
 
-    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
+    let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
     println!("successfully compiled");
 
     // print ASM

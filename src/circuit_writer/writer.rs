@@ -266,7 +266,7 @@ impl<B: Backend> CircuitWriter<B> {
         &mut self,
         fn_env: &mut FnEnv<B::Field>,
         function: &FunctionDef,
-    ) -> Result<()> {
+    ) -> Result<Option<Vec<CellVar>>> {
         assert!(function.is_main());
 
         // compile the block
@@ -274,7 +274,7 @@ impl<B: Backend> CircuitWriter<B> {
 
         // we're expecting something returned?
         match (function.sig.return_type.as_ref(), returned) {
-            (None, None) => Ok(()),
+            (None, None) => Ok(None),
             (Some(expected), None) => Err(self.error(ErrorKind::MissingReturn, expected.span)),
             (None, Some(returned)) => Err(self.error(ErrorKind::UnexpectedReturn, returned.span)),
             (Some(_expected), Some(returned)) => {
@@ -282,7 +282,7 @@ impl<B: Backend> CircuitWriter<B> {
                 let mut returned_cells = vec![];
                 for r in &returned.cvars {
                     match r {
-                        ConstOrCell::Cell(c) => returned_cells.push(c),
+                        ConstOrCell::Cell(c) => returned_cells.push(*c),
                         ConstOrCell::Const(_) => {
                             return Err(self.error(ErrorKind::ConstantInOutput, returned.span))
                         }
@@ -295,32 +295,9 @@ impl<B: Backend> CircuitWriter<B> {
                     .as_ref()
                     .expect("bug in the compiler: missing public output");
 
-                let cvars = &public_output.cvars;
-
-                for (pub_var, ret_var) in cvars.clone().iter().zip(returned_cells) {
-                    // replace the computation of the public output vars with the actual variables being returned here
-                    let var_idx = pub_var.idx().unwrap();
-                    let prev = self
-                        .witness_vars
-                        .insert(var_idx, Value::PublicOutput(Some(*ret_var)));
-                    // .insert(var_idx, Value::PublicOutput(Some(*ret_var)));
-                    assert!(prev.is_some());
-                }
-
-                Ok(())
+                Ok(Some(returned_cells))
             }
         }
-    }
-
-    pub fn new_internal_var(&mut self, val: Value<B>, span: Span) -> CellVar {
-        // create new var
-        let var = CellVar::new(self.next_variable, span);
-        self.next_variable += 1;
-
-        // store it in the circuit_writer
-        self.witness_vars.insert(var.index, val);
-
-        var
     }
 
     fn compute_expr(
@@ -724,60 +701,12 @@ impl<B: Backend> CircuitWriter<B> {
         }
     }
 
-    // TODO: dead code?
-    pub fn compute_constant(&self, var: CellVar, span: Span) -> Result<B::Field> {
-        match &self.witness_vars.get(&var.index) {
-            Some(Value::Constant(c)) => Ok(*c),
-            Some(Value::LinearCombination(lc, cst)) => {
-                let mut res = *cst;
-                for (coeff, var) in lc {
-                    res += self.compute_constant(*var, span)? * *coeff;
-                }
-                Ok(res)
-            }
-            Some(Value::Mul(lhs, rhs)) => {
-                let lhs = self.compute_constant(*lhs, span)?;
-                let rhs = self.compute_constant(*rhs, span)?;
-                Ok(lhs * rhs)
-            }
-            _ => Err(self.error(ErrorKind::ExpectedConstant, span)),
-        }
-    }
-
-    // TODO: we should cache constants to avoid creating a new variable for each constant
-    /// This should be called only when you want to constrain a constant for real.
-    /// Gates that handle constants should always make sure to call this function when they want them constrained.
-    pub fn add_constant(
-        &mut self,
-        label: Option<&'static str>,
-        value: B::Field,
-        span: Span,
-    ) -> CellVar {
-        if let Some(cvar) = self.cached_constants.get(&value) {
-            return *cvar;
-        }
-
-        let var = self.new_internal_var(Value::Constant(value), span);
-        self.cached_constants.insert(value, var);
-
-        let zero = B::Field::zero();
-
-        let _ = &self.backend.add_constraint(
-            label.unwrap_or("hardcode a constant"),
-            vec![Some(var)],
-            vec![B::Field::one(), zero, zero, zero, value.neg()],
-            span,
-        );
-
-        var
-    }
-
     pub fn add_public_inputs(&mut self, name: String, num: usize, span: Span) -> Var<B::Field> {
         let mut cvars = Vec::with_capacity(num);
 
         for idx in 0..num {
             // create the var
-            let cvar = self.new_internal_var(Value::External(name.clone(), idx), span);
+            let cvar = self.backend.new_internal_var(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
 
             self.backend.add_gate(
@@ -800,11 +729,11 @@ impl<B: Backend> CircuitWriter<B> {
         let mut cvars = Vec::with_capacity(num);
         for _ in 0..num {
             // create the var
-            let cvar = self.new_internal_var(Value::PublicOutput(None), span);
+            let cvar = self.backend.new_internal_var(Value::PublicOutput(None), span);
             cvars.push(ConstOrCell::Cell(cvar));
 
             // create the associated generic gate
-            self.backend.add_constraint(
+            self.backend.add_generic_gate(
                 "add public output",
                 vec![Some(cvar)],
                 vec![B::Field::one()],
@@ -823,7 +752,7 @@ impl<B: Backend> CircuitWriter<B> {
 
         for idx in 0..num {
             // create the var
-            let cvar = self.new_internal_var(Value::External(name.clone(), idx), span);
+            let cvar = self.backend.new_internal_var(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
             self.private_input_indices.push(cvar.index);
         }

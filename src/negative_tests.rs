@@ -1,5 +1,5 @@
 use crate::{
-    backends::kimchi::Kimchi,
+    backends::kimchi::KimchiVesta,
     compiler::{typecheck_next_file_inner, Sources},
     error::ErrorKind,
     type_checker::TypeChecker,
@@ -14,7 +14,7 @@ fn test_return() {
     }
     "#;
 
-    let mut tast: TypeChecker<Kimchi> = TypeChecker::new();
+    let mut tast: TypeChecker<KimchiVesta> = TypeChecker::new();
     let res = typecheck_next_file_inner(
         &mut tast,
         None,
@@ -36,7 +36,7 @@ fn test_return_expected() {
     }
     "#;
 
-    let mut tast: TypeChecker<Kimchi> = TypeChecker::new();
+    let mut tast: TypeChecker<KimchiVesta> = TypeChecker::new();
     let res = typecheck_next_file_inner(
         &mut tast,
         None,
@@ -58,7 +58,7 @@ fn test_return_mismatch() {
         }
         "#;
 
-    let mut tast: TypeChecker<Kimchi> = TypeChecker::new();
+    let mut tast: TypeChecker<KimchiVesta> = TypeChecker::new();
     let res = typecheck_next_file_inner(
         &mut tast,
         None,

@@ -36,10 +36,10 @@ pub fn add<B: Backend>(
 
             // create a new variable to store the result
             let res =
-                compiler.new_internal_var(Value::LinearCombination(vec![(one, *cvar)], *cst), span);
+                compiler.backend.new_internal_var(Value::LinearCombination(vec![(one, *cvar)], *cst), span);
 
             // create a gate to store the result
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "add a constant with a variable",
                 vec![Some(*cvar), None, Some(res)],
                 vec![one, zero, one.neg(), zero, *cst],
@@ -50,7 +50,7 @@ pub fn add<B: Backend>(
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // create a new variable to store the result
-            let res = compiler.new_internal_var(
+            let res = compiler.backend.new_internal_var(
                 Value::LinearCombination(
                     vec![(B::Field::one(), *lhs), (B::Field::one(), *rhs)],
                     B::Field::zero(),
@@ -58,7 +58,7 @@ pub fn add<B: Backend>(
                 span,
             );
 
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "add two variables together",
                 vec![Some(*lhs), Some(*rhs), Some(res)],
                 vec![B::Field::one(), B::Field::one(), B::Field::one().neg()],
@@ -87,13 +87,13 @@ pub fn sub<B: Backend>(
         // const - var
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar)) => {
             // create a new variable to store the result
-            let res = compiler.new_internal_var(
+            let res = compiler.backend.new_internal_var(
                 Value::LinearCombination(vec![(one.neg(), *cvar)], *cst),
                 span,
             );
 
             // create a gate to store the result
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "constant - variable",
                 vec![Some(*cvar), None, Some(res)],
                 // cst - cvar - out = 0
@@ -113,14 +113,14 @@ pub fn sub<B: Backend>(
             }
 
             // create a new variable to store the result
-            let res = compiler.new_internal_var(
+            let res = compiler.backend.new_internal_var(
                 Value::LinearCombination(vec![(one, *cvar)], cst.neg()),
                 span,
             );
 
             // create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "variable - constant",
                 vec![Some(*cvar), None, Some(res)],
                 // var - cst - out = 0
@@ -134,13 +134,13 @@ pub fn sub<B: Backend>(
         // lhs - rhs
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // create a new variable to store the result
-            let res = compiler.new_internal_var(
+            let res = compiler.backend.new_internal_var(
                 Value::LinearCombination(vec![(one, *lhs), (one.neg(), *rhs)], zero),
                 span,
             );
 
             // create a gate to store the result
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "var1 - var2",
                 vec![Some(*lhs), Some(*rhs), Some(res)],
                 // lhs - rhs - out = 0
@@ -172,7 +172,7 @@ pub fn mul<B: Backend>(
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
             // if the constant is zero, we can ignore this gate
             if cst.is_zero() {
-                let zero = compiler.add_constant(
+                let zero = compiler.backend.add_constant(
                     Some("encoding zero for the result of 0 * var"),
                     B::Field::zero(),
                     span,
@@ -181,11 +181,11 @@ pub fn mul<B: Backend>(
             }
 
             // create a new variable to store the result
-            let res = compiler.new_internal_var(Value::Scale(*cst, *cvar), span);
+            let res = compiler.backend.new_internal_var(Value::Scale(*cst, *cvar), span);
 
             // create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "add a constant with a variable",
                 vec![Some(*cvar), None, Some(res)],
                 vec![*cst, zero, one.neg(), zero, *cst],
@@ -198,10 +198,10 @@ pub fn mul<B: Backend>(
         // everything is a var
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // create a new variable to store the result
-            let res = compiler.new_internal_var(Value::Mul(*lhs, *rhs), span);
+            let res = compiler.backend.new_internal_var(Value::Mul(*lhs, *rhs), span);
 
             // create a gate to store the result
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "add two variables together",
                 vec![Some(*lhs), Some(*rhs), Some(res)],
                 vec![zero, zero, one.neg(), one],
@@ -231,7 +231,7 @@ pub fn equal<B: Backend>(
     // create an accumulator
     let one = B::Field::one();
 
-    let acc = compiler.add_constant(
+    let acc = compiler.backend.add_constant(
         Some("start accumulator at 1 for the equality check"),
         one,
         span,
@@ -287,7 +287,7 @@ fn equal_cells<B: Backend>(
 
         (x1, x2) => {
             let x1 = match x1 {
-                ConstOrCell::Const(cst) => compiler.add_constant(
+                ConstOrCell::Const(cst) => compiler.backend.add_constant(
                     Some("encode the lhs constant of the equality check in the circuit"),
                     *cst,
                     span,
@@ -296,7 +296,7 @@ fn equal_cells<B: Backend>(
             };
 
             let x2 = match x2 {
-                ConstOrCell::Const(cst) => compiler.add_constant(
+                ConstOrCell::Const(cst) => compiler.backend.add_constant(
                     Some("encode the rhs constant of the equality check in the circuit"),
                     *cst,
                     span,
@@ -305,7 +305,7 @@ fn equal_cells<B: Backend>(
             };
 
             // compute the result
-            let res = compiler.new_internal_var(
+            let res = compiler.backend.new_internal_var(
                 Value::Hint(Arc::new(move |compiler, env| {
                     let x1 = compiler.compute_var(env, x1)?;
                     let x2 = compiler.compute_var(env, x2)?;
@@ -319,12 +319,12 @@ fn equal_cells<B: Backend>(
             );
 
             // 1. diff = x2 - x1
-            let diff = compiler.new_internal_var(
+            let diff = compiler.backend.new_internal_var(
                 Value::LinearCombination(vec![(one, x2), (one.neg(), x1)], zero),
                 span,
             );
 
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "constraint #1 for the equals gadget (x2 - x1 - diff = 0)",
                 vec![Some(x2), Some(x1), Some(diff)],
                 // x2 - x1 - diff = 0
@@ -334,9 +334,10 @@ fn equal_cells<B: Backend>(
 
             // 2. one_minus_res = 1 - res
             let one_minus_res = compiler
+                .backend
                 .new_internal_var(Value::LinearCombination(vec![(one.neg(), res)], one), span);
 
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "constraint #2 for the equals gadget (one_minus_res + res - 1 = 0)",
                 vec![Some(one_minus_res), Some(res)],
                 // we constrain one_minus_res + res - 1 = 0
@@ -347,7 +348,7 @@ fn equal_cells<B: Backend>(
             );
 
             // 3. res * diff = 0
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "constraint #3 for the equals gadget (res * diff = 0)",
                 vec![Some(res), Some(diff)],
                 // res * diff = 0
@@ -356,9 +357,9 @@ fn equal_cells<B: Backend>(
             );
 
             // 4. diff_inv * diff = one_minus_res
-            let diff_inv = compiler.new_internal_var(Value::Inverse(diff), span);
+            let diff_inv = compiler.backend.new_internal_var(Value::Inverse(diff), span);
 
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "constraint #4 for the equals gadget (diff_inv * diff = one_minus_res)",
                 vec![Some(diff_inv), Some(diff), Some(one_minus_res)],
                 // diff_inv * diff - one_minus_res = 0
@@ -466,7 +467,7 @@ pub fn if_else_inner<B: Backend>(
             let then_clone = *then_;
             let else_clone = *else_;
 
-            let res = compiler.new_internal_var(
+            let res = compiler.backend.new_internal_var(
                 Value::Hint(Arc::new(move |compiler, env| {
                     let cond = compiler.compute_var(env, cond_cell)?;
                     let res_var = if cond.is_one() {
@@ -494,7 +495,7 @@ pub fn if_else_inner<B: Backend>(
             let zero = B::Field::zero();
             let one = B::Field::one();
 
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "constraint for ternary operator: cond * (then - else) = res - else",
                 vec![Some(cond_cell), Some(then_m_else), Some(res_m_else)],
                 // cond * (then - else) = res - else

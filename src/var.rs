@@ -34,7 +34,7 @@ impl CellVar {
 
 /// The signature of a hint function
 pub type HintFn<B> = dyn Fn(
-    &CompiledCircuit<B>,
+    &B,
     &mut WitnessEnv<<B as Backend>::Field>,
 ) -> Result<<B as Backend>::Field>;
 

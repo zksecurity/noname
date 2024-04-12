@@ -1,10 +1,10 @@
 use std::path::Path;
 
 use crate::{
-    backends::kimchi::{Kimchi, KimchiField},
+    backends::kimchi::{KimchiVesta, KimchiField},
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, ExtField},
-    prover::compile_to_indexes,
+    // prover::compile_to_indexes,
     type_checker::TypeChecker,
 };
 
@@ -22,7 +22,7 @@ fn test_file(
 
     // compile
     let mut sources = Sources::new();
-    let mut tast = TypeChecker::<Kimchi>::new();
+    let mut tast = TypeChecker::<KimchiVesta>::new();
     let this_module = None;
     let _node_id = typecheck_next_file(
         &mut tast,
@@ -34,11 +34,11 @@ fn test_file(
     )
     .unwrap();
 
-    let kimchi_backend = Kimchi::default();
+    let kimchi_backend = KimchiVesta::default();
 
     let compiled_circuit = compile(&sources, tast, kimchi_backend)?;
 
-    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit).unwrap();
+    let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
 
     // check compiled ASM only if it's not too large
     if prover_index.len() < 100 {

@@ -23,7 +23,7 @@ pub fn check<B: Backend>(compiler: &mut CircuitWriter<B>, xx: &ConstOrCell<B::Fi
 
     match xx {
         ConstOrCell::Const(ff) => assert!(is_valid::<B>(*ff)),
-        ConstOrCell::Cell(var) => compiler.backend.add_constraint(
+        ConstOrCell::Cell(var) => compiler.backend.add_generic_gate(
             "constraint to validate a boolean (`x(x-1) = 0`)",
             // x^2 - x = 0
             vec![Some(*var), Some(*var), None],
@@ -56,12 +56,12 @@ pub fn and<B: Backend>(
         // two vars
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // create a new variable to store the result
-            let res = compiler.new_internal_var(Value::Mul(*lhs, *rhs), span);
+            let res = compiler.backend.new_internal_var(Value::Mul(*lhs, *rhs), span);
 
             // create a gate to constrain the result
             let zero = B::Field::zero();
             let one = B::Field::one();
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "constrain the AND as lhs * rhs",
                 vec![Some(*lhs), Some(*rhs), Some(res)],
                 vec![zero, zero, one.neg(), one], // mul
@@ -97,10 +97,10 @@ pub fn not<B: Backend>(
 
             // create a new variable to store the result
             let lc = Value::LinearCombination(vec![(one.neg(), *cvar)], one); // 1 - X
-            let res = compiler.new_internal_var(lc, span);
+            let res = compiler.backend.new_internal_var(lc, span);
 
             // create a gate to constrain the result
-            compiler.backend.add_constraint(
+            compiler.backend.add_generic_gate(
                 "constrain the NOT as 1 - X",
                 vec![None, Some(*cvar), Some(res)],
                 // we use the constant to do 1 - X

@@ -107,7 +107,7 @@ fn poseidon<B: Backend>(
         match const_or_cell {
             ConstOrCell::Const(cst) => {
                 let cell =
-                    circuit.add_constant(Some("encoding constant input to poseidon"), *cst, span);
+                    circuit.backend.add_constant(Some("encoding constant input to poseidon"), *cst, span);
                 cells.push(cell);
             }
             ConstOrCell::Cell(cell) => cells.push(*cell),
@@ -121,7 +121,7 @@ fn poseidon<B: Backend>(
     let width = PlonkSpongeConstantsKimchi::SPONGE_WIDTH;
 
     // pad the input (for the capacity)
-    let zero_var = circuit.add_constant(
+    let zero_var = circuit.backend.add_constant(
         Some("encoding constant 0 for the capacity of poseidon"),
         B::Field::zero(),
         span,
@@ -144,7 +144,7 @@ fn poseidon<B: Backend>(
 
             for col in 0..3 {
                 // create each variable
-                let var = circuit.new_internal_var(
+                let var = circuit.backend.new_internal_var(
                     Value::Hint(Arc::new(move |compiler, env| {
                         let x1 = compiler.compute_var(env, prev_0)?;
                         let x2 = compiler.compute_var(env, prev_1)?;
