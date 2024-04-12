@@ -21,48 +21,6 @@ use self::crypto::get_crypto_fn;
 
 pub mod crypto;
 
-pub fn get_std_fn(submodule: &str, fn_name: &str, span: Span) -> Result<FnInfo> {
-    match submodule {
-        "crypto" => get_crypto_fn(fn_name)
-            .ok_or_else(|| {
-                Error::new(
-                    "type-checker",
-                    ErrorKind::UnknownExternalFn(submodule.to_string(), fn_name.to_string()),
-                    span,
-                )
-            }),
-        _ => Err(Error::new(
-            "type-checker",
-            ErrorKind::StdImport(submodule.to_string()),
-            span,
-        )),
-    }
-}
-
-/// Takes a list of function signatures (as strings) and their associated function pointer,
-/// returns the same list but with the parsed functions (as [FunctionSig]).
-pub fn parse_fn_sigs(fn_sigs: &[(&str, FnHandle)]) -> HashMap<String, FnInfo> {
-    let mut functions = HashMap::new();
-    let ctx = &mut ParserCtx::default();
-
-    for (sig, fn_ptr) in fn_sigs {
-        // filename_id 0 is for builtins
-        let mut tokens = Token::parse(0, sig).unwrap();
-
-        let sig = FnSig::parse(ctx, &mut tokens).unwrap();
-
-        functions.insert(
-            sig.name.value.clone(),
-            FnInfo {
-                kind: FnKind::BuiltIn(sig, *fn_ptr),
-                span: Span::default(),
-            },
-        );
-    }
-
-    functions
-}
-
 //
 // Builtins or utils (imported by default)
 // TODO: give a name that's useful for the user,

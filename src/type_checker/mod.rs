@@ -136,7 +136,7 @@ impl TypeChecker {
 
         // initialize it with the builtins
         let builtin_module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));
-        for fn_info in builtin_fns().iter() {
+        for fn_info in builtin_fns() {
             let qualified = FullyQualified::new(&builtin_module, &fn_info.sig().name.value);
             if type_checker
                 .functions
@@ -149,7 +149,7 @@ impl TypeChecker {
 
         // initialize it with the standard library
         let crypto_module = ModulePath::Absolute(UserRepo::new("std/crypto"));
-        for fn_info in crypto_fns().iter() {
+        for fn_info in crypto_fns() {
             let qualified = FullyQualified::new(&crypto_module, &fn_info.sig().name.value);
             if type_checker
                 .functions
