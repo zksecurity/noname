@@ -1,6 +1,6 @@
-pub mod fp_kimchi;
 pub mod asm;
 pub mod prover;
+pub mod builtin;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -15,12 +15,11 @@ use num_traits::{One, Zero};
 
 use crate::{
     backends::kimchi::asm::{display_source, parse_coeffs}, circuit_writer::{
-        writer::{AnnotatedCell, Cell, PendingGate},
-        DebugInfo, Gate, GateKind, Wiring,
-    }, compiler::{GeneratedWitness, Sources}, constants::Span, error::{Error, ErrorKind, Result}, helpers::{self, PrettyField}, var::{CellVar, Value, Var}, witness::WitnessEnv
+        writer::{AnnotatedCell, Cell, PendingGate}, CircuitWriter, DebugInfo, Gate, GateKind, VarInfo, Wiring
+    }, compiler::{GeneratedWitness, Sources}, constants::Span, error::{Error, ErrorKind, Result}, helpers::{self, PrettyField}, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
 };
 
-use self::asm::{extract_vars_from_coeffs, title, OrderedHashSet};
+use self::{asm::{extract_vars_from_coeffs, title, OrderedHashSet}};
 
 use super::Backend;
 
@@ -529,4 +528,9 @@ impl Backend for KimchiVesta {
             public_outputs,
         })
     }
+    
+    fn poseidon() -> FnHandle<KimchiVesta> {
+        builtin::poseidon
+    }
+    
 }

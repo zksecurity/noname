@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ark_ff::{Field, Zero};
 
 use crate::{
-    circuit_writer::{DebugInfo, GateKind}, compiler::{GeneratedWitness, Sources}, constants::Span, error::{Error, ErrorKind, Result}, helpers::PrettyField, var::{CellVar, Value, Var}, witness::WitnessEnv
+    circuit_writer::{CircuitWriter, DebugInfo, GateKind, VarInfo}, compiler::{GeneratedWitness, Sources}, constants::Span, error::{Error, ErrorKind, Result}, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
 };
 
 pub mod kimchi;
@@ -114,4 +114,8 @@ pub trait Backend: Clone {
     ) -> Result<GeneratedWitness<Self>>;
 
     fn generate_asm(&self, sources: &Sources, debug: bool) -> String;
+
+    // TODO: as the builtins grows, we might better change this to a crypto struct that holds all the builtin function pointers.
+    /// poseidon crypto builtin function for different backends
+    fn poseidon() -> FnHandle<Self>;
 }
