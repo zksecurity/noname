@@ -1,26 +1,13 @@
-use std::collections::HashMap;
-use std::sync::Arc;
 
-use kimchi::circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW};
-use kimchi::mina_poseidon::constants::{PlonkSpongeConstantsKimchi, SpongeConstants};
-use kimchi::mina_poseidon::pasta::fp_kimchi::params;
-use kimchi::mina_poseidon::permutation::full_round;
-
-use crate::backends::{self, Backend};
-use crate::error::Error;
 use crate::imports::FnKind;
 use crate::lexer::Token;
 use crate::parser::types::FnSig;
 use crate::parser::ParserCtx;
 use crate::type_checker::FnInfo;
 use crate::{
-    circuit_writer::{CircuitWriter, GateKind, VarInfo},
-    constants::{self, Field, Span},
-    error::{ErrorKind, Result},
-    parser::types::TyKind,
-    var::{ConstOrCell, Value, Var},
+    constants::Span,
+    backends::Backend,
 };
-use ark_ff::Zero;
 
 const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
 

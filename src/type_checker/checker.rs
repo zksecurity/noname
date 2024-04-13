@@ -117,7 +117,7 @@ impl<B: Backend> TypeChecker<B> {
                 args,
             } => {
                 // retrieve the function signature
-                let qualified = FullyQualified::new(module, &fn_name.value);
+                let qualified = FullyQualified::new(&module, &fn_name.value);
                 let fn_info = self.fn_info(&qualified).ok_or_else(|| {
                     self.error(
                         ErrorKind::UndefinedFunction(fn_name.value.clone()),
@@ -186,7 +186,7 @@ impl<B: Backend> TypeChecker<B> {
                         // note: the only way to check that atm is to check in the constants hashmap
                         // this is because we don't differentiate const vars from normal variables
                         // (perhaps we should)
-                        let qualified = FullyQualified::new(module, &name.value);
+                        let qualified = FullyQualified::new(&module, &name.value);
                         if let Some(_cst_info) = self.const_info(&qualified) {
                             return Err(self.error(
                                 ErrorKind::UnexpectedError("cannot assign to an external variable"),
@@ -198,7 +198,7 @@ impl<B: Backend> TypeChecker<B> {
                     }
 
                     // `array[idx] = <rhs>`
-                    ExprKind::ArrayAccess { array, idx: _ } => {
+                    ExprKind::ArrayAccess { array, idx } => {
                         // get variable behind array
                         let array_node = self
                             .compute_type(array, typed_fn_env)?
@@ -210,7 +210,7 @@ impl<B: Backend> TypeChecker<B> {
                     }
 
                     // `struct.field = <rhs>`
-                    ExprKind::FieldAccess { lhs, rhs: _ } => {
+                    ExprKind::FieldAccess { lhs, rhs } => {
                         // get variable behind lhs
                         let lhs_node = self
                             .compute_type(lhs, typed_fn_env)?

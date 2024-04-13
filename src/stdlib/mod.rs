@@ -1,15 +1,14 @@
-use std::{collections::{HashMap, HashSet}, ops::Neg as _};
+use std::{collections::HashSet, ops::Neg as _};
 
+use ark_ff::{One as _, Zero};
 use once_cell::sync::Lazy;
-
-use ark_ff::{One, Zero};
 
 use crate::{
     backends::Backend,
-    circuit_writer::{CircuitWriter, VarInfo},
+    circuit_writer::VarInfo,
     constants::Span,
     error::{Error, ErrorKind, Result},
-    imports::{FnHandle, FnKind},
+    imports::FnKind,
     lexer::Token,
     parser::{
         types::{FnSig, TyKind},
@@ -18,8 +17,6 @@ use crate::{
     type_checker::FnInfo,
     var::{ConstOrCell, Var},
 };
-
-use self::crypto::get_crypto_fn;
 
 pub mod crypto;
 

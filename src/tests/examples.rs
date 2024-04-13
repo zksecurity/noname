@@ -4,7 +4,6 @@ use crate::{
     backends::kimchi::{KimchiVesta, KimchiField},
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, ExtField},
-    // prover::compile_to_indexes,
     type_checker::TypeChecker,
 };
 
@@ -111,7 +110,7 @@ fn test_public_output() -> miette::Result<()> {
 fn test_poseidon() -> miette::Result<()> {
     let private_inputs = r#"{"private_input": ["1", "1"]}"#;
     let private_input = [1.into(), 1.into()];
-    let digest = crate::helpers::poseidon(private_input);
+    let digest = crate::helpers::poseidon(private_input.clone());
     let digest_dec = digest.to_dec_string();
     assert_eq!(
         "3654913405619483358804575553468071097765421484960111776885779739261304758583",

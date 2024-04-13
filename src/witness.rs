@@ -1,19 +1,17 @@
 use std::collections::HashMap;
 
-use itertools::{chain, izip, Itertools};
+use itertools::chain;
 //use serde::{Deserialize, Serialize};
-use ark_ff::Zero;
 
 use crate::{
-    backends::{kimchi::NUM_REGISTERS, Backend},
+    backends::Backend,
     circuit_writer::CircuitWriter,
     compiler::Sources,
     constants::Field,
     error::{Error, ErrorKind, Result},
-    helpers,
     inputs::JsonInputs,
     type_checker::FnInfo,
-    var::{CellVar, Value},
+    var::CellVar,
 };
 
 #[derive(Debug, Default)]
@@ -68,8 +66,6 @@ impl<B: Backend> CompiledCircuit<B> {
         mut public_inputs: JsonInputs,
         mut private_inputs: JsonInputs,
     ) -> Result<B::GeneratedWitness> {
-        // TODO: check if finalized already?
-
         let mut env = WitnessEnv::default();
 
         // get info on main

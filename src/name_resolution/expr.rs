@@ -1,10 +1,9 @@
-use ark_ff::Field;
-
 use crate::{
     cli::packages::UserRepo,
     error::Result,
     parser::{types::ModulePath, CustomType, Expr, ExprKind},
     stdlib::{BUILTIN_FN_NAMES, QUALIFIED_BUILTINS},
+    constants::Field,
 };
 
 use super::context::NameResCtx;

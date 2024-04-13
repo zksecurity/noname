@@ -6,12 +6,10 @@ use ark_ff::{One, Zero};
 
 use crate::{
     backends::Backend,
-    circuit_writer::CircuitWriter,
     constants::Span,
     var::{ConstOrCell, Value, Var},
 };
 
-//todo encapsulate in a struct
 
 pub fn is_valid<B: Backend>(f: B::Field) -> bool {
     f.is_one() || f.is_zero()

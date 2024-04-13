@@ -14,7 +14,6 @@ pub mod inputs;
 pub mod lexer;
 pub mod name_resolution;
 pub mod parser;
-// pub mod prover;
 pub mod serialization;
 pub mod stdlib;
 pub mod syntax;
@@ -39,7 +38,6 @@ pub mod helpers {
         poseidon::{ArithmeticSponge, Sponge},
     };
 
-    // use crate::constants::Field;
     use kimchi::mina_curves::pasta::Fp;
 
     /// A trait to display [Field] in pretty ways.

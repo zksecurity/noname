@@ -93,13 +93,13 @@ pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let (_sources, _prover_index, _verifier_index) = build(&curr_dir, false, false)?;
+    let (_sources, _prover_index, verifier_index) = build(&curr_dir, false, false)?;
 
     // parse inputs
-    let _public_inputs = parse_inputs(&args.public_inputs).unwrap();
+    let mut public_inputs = parse_inputs(&args.public_inputs).unwrap();
 
     if let Some(public_output) = &args.public_output {
-        let _public_output = parse_inputs(public_output).unwrap();
+        let public_output = parse_inputs(public_output).unwrap();
 
         // TODO: add it to the public input
         todo!();
@@ -114,7 +114,7 @@ pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
         miette::bail!("proof does not exist at path `{proof_path}`. Perhaps pass the correct path via the `--proof-path` flag?");
     }
 
-    rmp_serde::from_read(std::fs::File::open(&proof_path).unwrap())
+    let proof = rmp_serde::from_read(std::fs::File::open(&proof_path).unwrap())
         .into_diagnostic()
         .wrap_err(format!(
             "could not deserialize the given proof at `{proof_path}`"
@@ -128,7 +128,7 @@ pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
             .into_diagnostic()
             .wrap_err("Failed to verify proof")?;
     */
+    //
 
-    #[allow(unreachable_code)]
     Ok(())
 }

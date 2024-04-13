@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use miette::NamedSource;
 
 use crate::{
-    backends::{kimchi::Witness, Backend},
+    backends::Backend,
     circuit_writer::CircuitWriter,
     cli::packages::UserRepo,
     error::Result,
@@ -29,12 +29,6 @@ pub struct Sources {
 
     /// Maps a filename id to its filename and source code.
     pub map: HashMap<usize, (String, String)>,
-}
-
-impl Default for Sources {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl Sources {
@@ -79,7 +73,7 @@ impl<T> IntoMiette<T> for Result<T> {
                     .expect("couldn't find source")
                     .clone();
                 let report: miette::Report = err.into();
-                Err(report.with_source_code(NamedSource::new(filename, source)))
+                return Err(report.with_source_code(NamedSource::new(filename, source)));
             }
         }
     }

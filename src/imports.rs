@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     backends::Backend,
-    circuit_writer::{CircuitWriter, VarInfo},
+    circuit_writer::VarInfo,
     constants::Span,
     error::Result,
     parser::types::{FnSig, FunctionDef},
@@ -58,7 +58,7 @@ impl std::fmt::Debug for BuiltinModule {
 /// An actual handle to the internal function to call to resolve a built-in function call.
 ///
 /// Note that the signature of a `FnHandle` is designed to:
-/// * `&mut CircuitWriter<B>`: take a mutable reference to the circuit, this is because built-ins need to be able to register new variables and add gates to the circuit
+/// * `&mut Backend`: take a mutable reference to the constraint backend, this is because built-ins need to be able to register new variables and add gates to the constraint backend
 /// * `&[Var]`: take an unbounded list of variables, this is because built-ins can take any number of arguments, and different built-ins might take different types of arguments
 /// * `Span`: take a span to return user-friendly errors
 /// * `-> Result<Option<Var>>`: return a `Result` with an `Option` of a `Var`. This is because built-ins can return a variable, or they can return nothing. If they return nothing, then the `Option` will be `None`. If they return a variable, then the `Option` will be `Some(Var)`.

@@ -8,7 +8,7 @@ use crate::{
         Expr,
     },
     type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
-    var::{CellVar, Value, Var},
+    var::Var,
     witness::{CompiledCircuit, WitnessEnv},
 };
 

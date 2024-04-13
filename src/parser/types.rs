@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 use crate::{
     cli::packages::UserRepo,
@@ -153,7 +153,7 @@ pub struct Ty {
 
 /// The module preceding structs, functions, or variables.
 // TODO: Hash should probably be implemented manually, right now two alias might have different span and so this will give different hashes
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
 pub enum ModulePath {
     #[default]
     /// This is a local type, not imported from another module.
@@ -175,27 +175,6 @@ impl PartialEq for ModulePath {
             (ModulePath::Local, ModulePath::Local) => true,
             (ModulePath::Absolute(a), ModulePath::Absolute(b)) => a == b,
             _ => false,
-        }
-    }
-}
-
-impl Hash for ModulePath {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            ModulePath::Local => {
-                // Hash the variant itself to distinguish between variants
-                0.hash(state);
-            }
-            ModulePath::Alias(ident) => {
-                // Hash the variant and then the `value` of `Ident`
-                1.hash(state);
-                ident.value.hash(state);
-            }
-            ModulePath::Absolute(user_repo) => {
-                // Hash the variant and then the `UserRepo`
-                2.hash(state);
-                user_repo.hash(state);
-            }
         }
     }
 }
@@ -711,10 +690,12 @@ impl FunctionDef {
                 } else {
                     attr.span.merge_with(arg_typ.span)
                 }
-            } else if &arg_name.value == "self" {
-                arg_name.span
             } else {
-                arg_name.span.merge_with(arg_typ.span)
+                if &arg_name.value == "self" {
+                    arg_name.span
+                } else {
+                    arg_name.span.merge_with(arg_typ.span)
+                }
             };
 
             let arg = FnArg {

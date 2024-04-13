@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 
-use ark_ff::Field;
-
 use crate::{
     cli::packages::UserRepo,
-    constants::Span,
+    constants::{Span, Field},
     error::{Error, ErrorKind, Result},
     parser::{
         types::{FnArg, FnSig, FuncOrMethod, ModulePath, Stmt, StmtKind, TyKind},

@@ -8,7 +8,7 @@ use crate::{
     constants::{Field, Span},
     error::Result,
     type_checker::ConstInfo,
-    witness::{CompiledCircuit, WitnessEnv},
+    witness::WitnessEnv,
 };
 
 /// An internal variable that relates to a specific cell (of the execution trace),
@@ -76,11 +76,6 @@ where
     PublicOutput(Option<CellVar>),
 }
 
-// impl<B: Backend> From<B> for Value<B> {
-//     fn from(field: B) -> Self {
-//         Self::Constant(field)
-//     }
-// }
 
 impl<B: Backend> std::fmt::Debug for Value<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -179,7 +174,7 @@ impl<F: Field> Var<F> {
 
     pub fn new_constant_typ(cst_info: &ConstInfo<F>, span: Span) -> Self {
         let ConstInfo { value, typ: _ } = cst_info;
-        let cvars = value.iter().cloned().map(ConstOrCell::Const).collect();
+        let cvars = value.into_iter().cloned().map(ConstOrCell::Const).collect();
 
         Self { cvars, span }
     }

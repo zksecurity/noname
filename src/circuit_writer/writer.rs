@@ -100,7 +100,7 @@ impl PartialEq for AnnotatedCell {
 
 impl PartialOrd for AnnotatedCell {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+        self.cell.partial_cmp(&other.cell)
     }
 }
 
@@ -283,8 +283,7 @@ impl<B: Backend> CircuitWriter<B> {
                     }
                 }
 
-                // store the return value in the public input that was created for that ^
-                let public_output = self
+                self
                     .public_output
                     .as_ref()
                     .expect("bug in the compiler: missing public output");
@@ -343,8 +342,7 @@ impl<B: Backend> CircuitWriter<B> {
                     vars.push(var_info);
                 }
 
-                //
-                match &fn_info.kind {
+                let res = match &fn_info.kind {
                     // assert() <-- for example
                     FnKind::BuiltIn(_sig, handle) => {
                         let res = handle(&mut self.backend, &vars, expr.span);
@@ -359,7 +357,10 @@ impl<B: Backend> CircuitWriter<B> {
                         self.compile_native_function_call(func, vars)
                             .map(|r| r.map(VarOrRef::Var))
                     }
-                }
+                };
+
+                //
+                res
             }
 
             ExprKind::FieldAccess { lhs, rhs } => {
@@ -573,7 +574,6 @@ impl<B: Backend> CircuitWriter<B> {
 
             ExprKind::BigInt(b) => {
                 let biguint = BigUint::from_str_radix(b, 10).expect("failed to parse number.");
-                #[allow(clippy::unnecessary_fallible_conversions)]
                 let ff = B::Field::try_from(biguint).map_err(|_| {
                     self.error(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
                 })?;

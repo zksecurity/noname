@@ -77,11 +77,14 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
     let verifier_params = args
         .verifier_params
         .unwrap_or(compiled_path.join("verifier.nope"));
-    std::fs::write(verifier_params, rmp_serde::to_vec(&verifier_index).unwrap())
-        .into_diagnostic()
-        .wrap_err(format!(
-            "could not write prover params to `{prover_params}`"
-        ))?;
+    std::fs::write(
+        &verifier_params,
+        rmp_serde::to_vec(&verifier_index).unwrap(),
+    )
+    .into_diagnostic()
+    .wrap_err(format!(
+        "could not write prover params to `{prover_params}`"
+    ))?;
 
     println!("successfully built");
 
