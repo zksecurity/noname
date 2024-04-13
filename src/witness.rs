@@ -7,7 +7,7 @@ use ark_ff::Zero;
 use crate::{
     backends::{kimchi::NUM_REGISTERS, Backend},
     circuit_writer::CircuitWriter,
-    compiler::{GeneratedWitness, Sources},
+    compiler::Sources,
     constants::Field,
     error::{Error, ErrorKind, Result},
     helpers,
@@ -67,7 +67,7 @@ impl<B: Backend> CompiledCircuit<B> {
         &self,
         mut public_inputs: JsonInputs,
         mut private_inputs: JsonInputs,
-    ) -> Result<GeneratedWitness<B>> {
+    ) -> Result<B::GeneratedWitness> {
         // TODO: check if finalized already?
 
         let mut env = WitnessEnv::default();

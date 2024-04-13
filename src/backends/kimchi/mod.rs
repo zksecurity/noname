@@ -16,7 +16,7 @@ use num_traits::{One, Zero};
 use crate::{
     backends::kimchi::asm::{display_source, parse_coeffs}, circuit_writer::{
         writer::{AnnotatedCell, Cell, PendingGate}, CircuitWriter, DebugInfo, Gate, GateKind, VarInfo, Wiring
-    }, compiler::{GeneratedWitness, Sources}, constants::Span, error::{Error, ErrorKind, Result}, helpers::{self, PrettyField}, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
+    }, compiler::Sources, constants::Span, error::{Error, ErrorKind, Result}, helpers::{self, PrettyField}, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
 };
 
 use self::{asm::{extract_vars_from_coeffs, title, OrderedHashSet}};
@@ -63,6 +63,15 @@ impl<F: Field + helpers::PrettyField> Witness<F> {
     }
 }
 
+pub struct GeneratedWitness<B: Backend> {
+    /// contains all the witness values
+    pub all_witness: Witness<B::Field>,
+    /// contains the public inputs, which are also part of the all_witness
+    pub full_public_inputs: Vec<B::Field>,
+    /// contains the public outputs, which are also part of the all_witness
+    pub public_outputs: Vec<B::Field>,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct KimchiVesta {
     /// The gates created by the circuit generation.
@@ -102,6 +111,7 @@ pub struct KimchiVesta {
 
 impl Backend for KimchiVesta {
     type Field = KimchiField;
+    type GeneratedWitness = GeneratedWitness<Self>;
 
     fn add_gate(
         &mut self,

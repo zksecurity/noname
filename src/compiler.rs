@@ -157,22 +157,12 @@ pub fn compile<B: Backend>(
     CircuitWriter::generate_circuit(tast, backend).into_miette(sources)
 }
 
-// TODO: make this an associated field of Backend trait
-pub struct GeneratedWitness<B: Backend> {
-    /// contains all the witness values
-    pub all_witness: Witness<B::Field>,
-    /// contains the public inputs, which are also part of the all_witness
-    pub full_public_inputs: Vec<B::Field>,
-    /// contains the public outputs, which are also part of the all_witness
-    pub public_outputs: Vec<B::Field>,
-}
-
 pub fn generate_witness<B: Backend>(
     compiled_circuit: &CompiledCircuit<B>,
     sources: &Sources,
     public_inputs: JsonInputs,
     private_inputs: JsonInputs,
-) -> miette::Result<GeneratedWitness<B>> {
+) -> miette::Result<B::GeneratedWitness> {
     compiled_circuit
         .generate_witness(public_inputs, private_inputs)
         .into_miette(sources)

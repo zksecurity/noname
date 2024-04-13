@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ark_ff::{Field, Zero};
 
 use crate::{
-    circuit_writer::{DebugInfo, GateKind}, compiler::{GeneratedWitness, Sources}, constants::Span, error::{Error, ErrorKind, Result}, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
+    circuit_writer::{DebugInfo, GateKind}, compiler::Sources, constants::Span, error::{Error, ErrorKind, Result}, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
 };
 
 pub mod kimchi;
@@ -14,6 +14,8 @@ pub mod r1cs;
 pub trait Backend: Clone {
     /// The circuit field / scalar field that the circuit is written on.
     type Field: Field + PrettyField;
+
+    type GeneratedWitness;
 
     /// This provides a standard way to access to all the internal vars.
     /// Different backends should be accessible in the same way by the variable index.
@@ -126,7 +128,7 @@ pub trait Backend: Clone {
         &self,
         witness_env: &mut WitnessEnv<Self::Field>,
         public_input_size: usize,
-    ) -> Result<GeneratedWitness<Self>>;
+    ) -> Result<Self::GeneratedWitness>;
 
     /// Generate the asm for a backend.
     fn generate_asm(&self, sources: &Sources, debug: bool) -> String;

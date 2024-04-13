@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    backends::{kimchi::KimchiVesta, r1cs::R1CS, Backend}, compiler::{GeneratedWitness, Sources}, constants::Span, error::{Error, ErrorKind, Result}, parser::{
+    backends::{kimchi::KimchiVesta, r1cs::R1CS, Backend}, compiler::Sources, constants::Span, error::{Error, ErrorKind, Result}, parser::{
         types::{AttributeKind, FnArg, TyKind},
         Expr,
     }, type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker}, var::{CellVar, Value, Var}, witness::{CompiledCircuit, WitnessEnv}
@@ -258,7 +258,7 @@ impl<B: Backend> CircuitWriter<B> {
     pub fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<B::Field>,
-    ) -> Result<GeneratedWitness<B>> {
+    ) -> Result<B::GeneratedWitness> {
         self.backend.generate_witness(witness_env, self.public_input_size)
     }
 }
