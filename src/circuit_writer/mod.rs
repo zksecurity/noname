@@ -1,10 +1,15 @@
-use std::collections::{HashMap, HashSet};
-
 use crate::{
-    backends::{kimchi::KimchiVesta, r1cs::R1CS, Backend}, compiler::Sources, constants::Span, error::{Error, ErrorKind, Result}, parser::{
+    backends::Backend,
+    compiler::Sources,
+    constants::Span,
+    error::{Error, ErrorKind, Result},
+    parser::{
         types::{AttributeKind, FnArg, TyKind},
         Expr,
-    }, type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker}, var::{CellVar, Value, Var}, witness::{CompiledCircuit, WitnessEnv}
+    },
+    type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
+    var::{CellVar, Value, Var},
+    witness::{CompiledCircuit, WitnessEnv},
 };
 
 pub use fn_env::{FnEnv, VarInfo};
@@ -14,13 +19,6 @@ pub use writer::{Gate, GateKind, Wiring};
 
 pub mod fn_env;
 pub mod writer;
-
-// enums for proving backends
-#[derive(Debug)]
-pub enum BackendKind {
-    Kimchi(KimchiVesta),
-    R1CS(R1CS),
-}
 
 //#[derive(Debug, Serialize, Deserialize)]
 #[derive(Debug)]
@@ -38,10 +36,6 @@ where
     /// For now, this needs to be exposed for the kimchi prover for kimchi specific low level data.
     /// So we might make this private if the prover facilities can be deprecated.
     pub backend: B,
-
-    /// Once this is set, you can generate a witness (and can't modify the circuit?)
-    // Note: I don't think we need this, but it acts as a nice redundant failsafe.
-    pub(crate) finalized: bool,
 
     /// Size of the public input.
     pub(crate) public_input_size: usize,
@@ -144,11 +138,10 @@ impl<B: Backend> CircuitWriter<B> {
 
 impl<B: Backend> CircuitWriter<B> {
     /// Creates a global environment from the one created by the type checker.
-    pub fn new(typed: TypeChecker<B>, backend: B) -> Self {
+    fn new(typed: TypeChecker<B>, backend: B) -> Self {
         Self {
             typed,
             backend,
-            finalized: false,
             public_input_size: 0,
             public_output: None,
             private_input_indices: vec![],
@@ -163,6 +156,7 @@ impl<B: Backend> CircuitWriter<B> {
         let mut circuit_writer = CircuitWriter::new(typed, backend);
 
         // get main function
+        let qualified = FullyQualified::local("main".to_string());
         let main_fn_info = circuit_writer.main_info()?;
 
         let function = match &main_fn_info.kind {
@@ -244,21 +238,22 @@ impl<B: Backend> CircuitWriter<B> {
             main_span,
         )?;
 
-        // we finalized!
-        circuit_writer.finalized = true;
 
         //
         Ok(CompiledCircuit::new(circuit_writer))
     }
 
+    /// A wrapper for the backend generate_asm
     pub fn generate_asm(&self, sources: &Sources, debug: bool) -> String {
         self.backend.generate_asm(sources, debug)
     }
 
+    /// A wrapper for the backend generate_witness
     pub fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<B::Field>,
     ) -> Result<B::GeneratedWitness> {
-        self.backend.generate_witness(witness_env, self.public_input_size)
+        self.backend
+            .generate_witness(witness_env, self.public_input_size)
     }
 }

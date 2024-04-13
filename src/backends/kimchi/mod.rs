@@ -1,11 +1,11 @@
 pub mod asm;
-pub mod prover;
 pub mod builtin;
+pub mod prover;
 
 use std::{
     collections::{HashMap, HashSet},
-    ops::Neg,
     fmt::Write,
+    ops::Neg,
 };
 
 use ark_ff::Field;
@@ -14,12 +14,21 @@ use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 use num_traits::{One, Zero};
 
 use crate::{
-    backends::kimchi::asm::{display_source, parse_coeffs}, circuit_writer::{
-        writer::{AnnotatedCell, Cell, PendingGate}, CircuitWriter, DebugInfo, Gate, GateKind, VarInfo, Wiring
-    }, compiler::Sources, constants::Span, error::{Error, ErrorKind, Result}, helpers::{self, PrettyField}, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
+    backends::kimchi::asm::{display_source, parse_coeffs},
+    circuit_writer::{
+        writer::{AnnotatedCell, Cell, PendingGate},
+        DebugInfo, Gate, GateKind, Wiring,
+    },
+    compiler::Sources,
+    constants::Span,
+    error::{Error, ErrorKind, Result},
+    helpers::{self, PrettyField},
+    imports::FnHandle,
+    var::{CellVar, Value, Var},
+    witness::WitnessEnv,
 };
 
-use self::{asm::{extract_vars_from_coeffs, title, OrderedHashSet}};
+use self::asm::{extract_vars_from_coeffs, title, OrderedHashSet};
 
 use super::Backend;
 
@@ -75,7 +84,7 @@ pub struct GeneratedWitness<B: Backend> {
 #[derive(Debug, Clone, Default)]
 pub struct KimchiVesta {
     /// The gates created by the circuit generation.
-    pub gates: Vec<Gate<Self>>,
+    pub gates: Vec<Gate>,
 
     /// The wiring of the circuit.
     /// It is created during circuit generation.
@@ -107,6 +116,10 @@ pub struct KimchiVesta {
     /// We cache the association between a constant and its _constrained_ variable,
     /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
     pub(crate) cached_constants: HashMap<KimchiField, CellVar>,
+
+    /// Once this is set, you can generate a witness (and can't modify the circuit?)
+    // Note: I don't think we need this, but it acts as a nice redundant failsafe.
+    pub(crate) finalized: bool,
 }
 
 impl Backend for KimchiVesta {
@@ -335,6 +348,8 @@ impl Backend for KimchiVesta {
             }
         }
 
+        self.finalized = true;
+
         Ok(())
     }
 
@@ -364,11 +379,8 @@ impl Backend for KimchiVesta {
             title(&mut res, "GATES");
         }
 
-        for (row, (Gate { typ, coeffs }, debug_info)) in self
-            .gates
-            .iter()
-            .zip(self.debug_info())
-            .enumerate()
+        for (row, (Gate { typ, coeffs }, debug_info)) in
+            self.gates.iter().zip(self.debug_info()).enumerate()
         {
             println!("gate {:?}", row);
             // gate #
@@ -410,7 +422,8 @@ impl Backend for KimchiVesta {
             title(&mut res, "WIRING");
         }
 
-        let mut cycles: Vec<_> = self.wiring
+        let mut cycles: Vec<_> = self
+            .wiring
             .values()
             .map(|w| match w {
                 Wiring::NotWired(_) => None,
@@ -445,12 +458,15 @@ impl Backend for KimchiVesta {
         res
     }
 
-
     fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<KimchiField>,
         public_input_size: usize,
     ) -> Result<GeneratedWitness<Self>> {
+        if !self.finalized {
+            unreachable!("the circuit must be finalized before generating a witness");
+        }
+
         let mut witness = vec![];
         // compute each rows' vars, except for the deferred ones (public output)
         let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
@@ -538,7 +554,7 @@ impl Backend for KimchiVesta {
             public_outputs,
         })
     }
-    
+
     fn poseidon() -> FnHandle<KimchiVesta> {
         builtin::poseidon
     }

@@ -1,7 +1,4 @@
-use std::{
-    fmt::{self, Display, Formatter},
-    ops::Neg,
-};
+use std::fmt::{self, Display, Formatter};
 
 use ark_ff::{One, Zero};
 use kimchi::circuits::wires::Wire;
@@ -10,7 +7,7 @@ use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backends::Backend,
+    backends::{kimchi::KimchiField, Backend},
     circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
     constants::Span,
     constraints::{boolean, field},
@@ -49,21 +46,18 @@ impl From<GateKind> for kimchi::circuits::gate::GateType {
 
 // TODO: this could also contain the span that defined the gate!
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Gate<B>
-where
-    B: Backend,
+pub struct Gate
 {
     /// Type of gate
     pub typ: GateKind,
 
     /// Coefficients
     #[serde(skip)]
-    pub coeffs: Vec<B::Field>,
+    pub coeffs: Vec<KimchiField>,
 }
 
-impl<B: Backend> Gate<B> {
-    // Add PrimeField trait constraint
-    pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<B::Field> {
+impl Gate {
+    pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<KimchiField> {
         kimchi::circuits::gate::CircuitGate {
             typ: self.typ.into(),
             wires: Wire::for_row(row),
@@ -548,7 +542,9 @@ impl<B: Backend> CircuitWriter<B> {
                 let res = match op {
                     Op2::Addition => field::add(&mut self.backend, &lhs[0], &rhs[0], expr.span),
                     Op2::Subtraction => field::sub(&mut self.backend, &lhs[0], &rhs[0], expr.span),
-                    Op2::Multiplication => field::mul(&mut self.backend, &lhs[0], &rhs[0], expr.span),
+                    Op2::Multiplication => {
+                        field::mul(&mut self.backend, &lhs[0], &rhs[0], expr.span)
+                    }
                     Op2::Equality => field::equal(&mut self.backend, &lhs, &rhs, expr.span),
                     Op2::BoolAnd => boolean::and(&mut self.backend, &lhs[0], &rhs[0], expr.span),
                     Op2::BoolOr => boolean::or(&mut self.backend, &lhs[0], &rhs[0], expr.span),
@@ -706,7 +702,9 @@ impl<B: Backend> CircuitWriter<B> {
 
         for idx in 0..num {
             // create the var
-            let cvar = self.backend.new_internal_var(Value::External(name.clone(), idx), span);
+            let cvar = self
+                .backend
+                .new_internal_var(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
 
             self.backend.add_gate(
@@ -729,7 +727,9 @@ impl<B: Backend> CircuitWriter<B> {
         let mut cvars = Vec::with_capacity(num);
         for _ in 0..num {
             // create the var
-            let cvar = self.backend.new_internal_var(Value::PublicOutput(None), span);
+            let cvar = self
+                .backend
+                .new_internal_var(Value::PublicOutput(None), span);
             cvars.push(ConstOrCell::Cell(cvar));
 
             // create the associated generic gate
@@ -752,7 +752,9 @@ impl<B: Backend> CircuitWriter<B> {
 
         for idx in 0..num {
             // create the var
-            let cvar = self.backend.new_internal_var(Value::External(name.clone(), idx), span);
+            let cvar = self
+                .backend
+                .new_internal_var(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
             self.private_input_indices.push(cvar.index);
         }
