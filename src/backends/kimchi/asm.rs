@@ -25,12 +25,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::hash::Hash;
 
-use itertools::Itertools;
-
-use crate::backends::Backend;
-use crate::circuit_writer::writer::AnnotatedCell;
 use crate::circuit_writer::{DebugInfo, Gate};
-use crate::compiler::Sources;
 use crate::constants::{Field, Span};
 use crate::helpers::PrettyField;
 

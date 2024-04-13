@@ -157,9 +157,13 @@ pub fn compile<B: Backend>(
     CircuitWriter::generate_circuit(tast, backend).into_miette(sources)
 }
 
+// TODO: make this an associated field of Backend trait
 pub struct GeneratedWitness<B: Backend> {
+    /// contains all the witness values
     pub all_witness: Witness<B::Field>,
+    /// contains the public inputs, which are also part of the all_witness
     pub full_public_inputs: Vec<B::Field>,
+    /// contains the public outputs, which are also part of the all_witness
     pub public_outputs: Vec<B::Field>,
 }
 

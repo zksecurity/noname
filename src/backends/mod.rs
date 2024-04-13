@@ -3,13 +3,14 @@ use std::collections::HashMap;
 use ark_ff::{Field, Zero};
 
 use crate::{
-    circuit_writer::{CircuitWriter, DebugInfo, GateKind, VarInfo}, compiler::{GeneratedWitness, Sources}, constants::Span, error::{Error, ErrorKind, Result}, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
+    circuit_writer::{DebugInfo, GateKind}, compiler::{GeneratedWitness, Sources}, constants::Span, error::{Error, ErrorKind, Result}, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
 };
 
 pub mod kimchi;
 pub mod r1cs;
 
-/// Each backend implements this trait
+/// Constraint Backend
+/// Each backend should implement this trait
 pub trait Backend: Clone {
     /// The circuit field / scalar field that the circuit is written on.
     type Field: Field + PrettyField;
@@ -18,6 +19,7 @@ pub trait Backend: Clone {
     /// Different backends should be accessible in the same way by the variable index.
     fn witness_vars(&self) -> &HashMap<usize, Value<Self>>;
 
+    /// Add a gate to the circuit. Kimchi specific atm.
     fn add_gate(
         &mut self,
         note: &'static str,
@@ -27,6 +29,7 @@ pub trait Backend: Clone {
         span: Span,
     );
 
+    /// Add a generic double gate to the circuit. Kimchi specific atm.
     fn add_generic_gate(
         &mut self,
         label: &'static str,
@@ -35,8 +38,13 @@ pub trait Backend: Clone {
         span: Span,
     );
 
+    // TODO: maybe we can consider to use something similar to ark-relations: 
+    // https://github.com/arkworks-rs/snark/blob/0759f942e18eb73fc2b5da2ee58d2994d3dc557d/relations/src/r1cs/constraint_system.rs#L269-L273
+    /// Provides the debug info for all the constraint added.
     fn debug_info(&self) -> &[DebugInfo];
 
+    /// Create a new cell variable and record it.
+    /// It increments the variable index for look up later.
     fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> CellVar;
 
     /// This should be called only when you want to constrain a constant for real.
@@ -48,6 +56,10 @@ pub trait Backend: Clone {
         span: Span,
     ) -> CellVar;
     
+    /// Compute the value of the symbolic cell variables.
+    /// It recursively does the computation down the stream until it is not a symbolic variable.
+    /// - The symbolic variables are stored in the witness_vars.
+    /// - The computed values are stored in the cached_values.
     fn compute_var(&self, env: &mut WitnessEnv<Self::Field>, var: CellVar) -> Result<Self::Field> {
         // fetch cache first
         // TODO: if self was &mut, then we could use a Value::Cached(Field) to store things instead of that
@@ -99,6 +111,8 @@ pub trait Backend: Clone {
         }
     }
 
+    // TODO: we may need to move the finalized flag from circuit writer to backend, so the backend can freeze itself once finalized.
+    /// Finalize the circuit by doing some sanitizing checks.
     fn finalize_circuit(
         &mut self, 
         public_output: Option<Var<Self::Field>>, 
@@ -107,12 +121,14 @@ pub trait Backend: Clone {
         main_span: Span
     ) -> Result<()>;
 
+    /// Generate the witness for a backend.
     fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<Self::Field>,
         public_input_size: usize,
     ) -> Result<GeneratedWitness<Self>>;
 
+    /// Generate the asm for a backend.
     fn generate_asm(&self, sources: &Sources, debug: bool) -> String;
 
     // TODO: as the builtins grows, we might better change this to a crypto struct that holds all the builtin function pointers.
