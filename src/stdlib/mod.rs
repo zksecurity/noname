@@ -1,11 +1,13 @@
 use std::{collections::{HashMap, HashSet}, ops::Neg as _};
 
-use ark_ff::{One as _, Zero};
 use once_cell::sync::Lazy;
 
+use ark_ff::{One, Zero};
+
 use crate::{
+    backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
-    constants::{Field, Span},
+    constants::Span,
     error::{Error, ErrorKind, Result},
     imports::{FnHandle, FnKind},
     lexer::Token,
@@ -47,7 +49,7 @@ pub static BUILTIN_FN_NAMES: Lazy<HashSet<String>> = Lazy::new(|| {
         .collect()
 });
 
-pub fn get_builtin_fn(name: &str) -> Option<FnInfo> {
+pub fn get_builtin_fn<B: Backend>(name: &str) -> Option<FnInfo<B>> {
     let ctx = &mut ParserCtx::default();
     let mut tokens = Token::parse(0, name).unwrap();
     let sig = FnSig::parse(ctx, &mut tokens).unwrap();
@@ -65,7 +67,7 @@ pub fn get_builtin_fn(name: &str) -> Option<FnInfo> {
 }
 
 /// a function returns builtin functions
-pub fn builtin_fns() -> Vec<FnInfo> {
+pub fn builtin_fns<B: Backend>() -> Vec<FnInfo<B>> {
     BUILTIN_SIGS
         .iter()
         .map(|sig| get_builtin_fn(sig).unwrap())
@@ -73,7 +75,7 @@ pub fn builtin_fns() -> Vec<FnInfo> {
 }
 
 /// Asserts that two vars are equal.
-fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {
+fn assert_eq<B: Backend>(circuit: &mut CircuitWriter<B>, vars: &[VarInfo<B::Field>], span: Span) -> Result<Option<Var<B::Field>>> {
     // we get two vars
     assert_eq!(vars.len(), 2);
     let lhs_info = &vars[0];
@@ -118,14 +120,14 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
         // a const and a var
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            compiler.add_generic_gate(
+            circuit.backend.add_generic_gate(
                 "constrain var - cst = 0 to check equality",
                 vec![Some(*cvar)],
                 vec![
-                    Field::one(),
-                    Field::zero(),
-                    Field::zero(),
-                    Field::zero(),
+                    B::Field::one(),
+                    B::Field::zero(),
+                    B::Field::zero(),
+                    B::Field::zero(),
                     cst.neg(),
                 ],
                 span,
@@ -133,10 +135,10 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // TODO: use permutation to check that
-            compiler.add_generic_gate(
+            circuit.backend.add_generic_gate(
                 "constrain lhs - rhs = 0 to assert that they are equal",
                 vec![Some(*lhs), Some(*rhs)],
-                vec![Field::one(), Field::one().neg()],
+                vec![B::Field::one(), B::Field::one().neg()],
                 span,
             );
         }
@@ -145,8 +147,11 @@ fn assert_eq(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Resu
     Ok(None)
 }
 
-/// Asserts that a condition is true.
-fn assert(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<Option<Var>> {
+fn assert<B: Backend>(
+    circuit: &mut CircuitWriter<B>,
+    vars: &[VarInfo<B::Field>],
+    span: Span,
+) -> Result<Option<Var<B::Field>>> {
     // we get a single var
     assert_eq!(vars.len(), 1);
 
@@ -165,9 +170,9 @@ fn assert(compiler: &mut CircuitWriter, vars: &[VarInfo], span: Span) -> Result<
         }
         ConstOrCell::Cell(cvar) => {
             // TODO: use permutation to check that
-            let zero = Field::zero();
-            let one = Field::one();
-            compiler.add_generic_gate(
+            let zero = B::Field::zero();
+            let one = B::Field::one();
+            circuit.backend.add_generic_gate(
                 "constrain 1 - X = 0 to assert that X is true",
                 vec![None, Some(*cvar)],
                 // use the constant to constrain 1 - X = 0

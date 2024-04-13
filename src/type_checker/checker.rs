@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    backends::Backend,
     constants::Span,
     error::{ErrorKind, Result},
     imports::FnKind,
@@ -17,12 +18,15 @@ use super::{FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
 
 /// Keeps track of the signature of a user-defined function.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FnInfo {
-    pub kind: FnKind,
+pub struct FnInfo<B>
+where
+    B: Backend,
+{
+    pub kind: FnKind<B>,
     pub span: Span,
 }
 
-impl FnInfo {
+impl<B: Backend> FnInfo<B> {
     pub fn sig(&self) -> &FnSig {
         match &self.kind {
             FnKind::BuiltIn(sig, _) => sig,
@@ -70,7 +74,7 @@ impl ExprTyInfo {
     }
 }
 
-impl TypeChecker {
+impl<B: Backend> TypeChecker<B> {
     fn compute_type(
         &mut self,
         expr: &Expr,
@@ -113,7 +117,7 @@ impl TypeChecker {
                 args,
             } => {
                 // retrieve the function signature
-                let qualified = FullyQualified::new(&module, &fn_name.value);
+                let qualified = FullyQualified::new(module, &fn_name.value);
                 let fn_info = self.fn_info(&qualified).ok_or_else(|| {
                     self.error(
                         ErrorKind::UndefinedFunction(fn_name.value.clone()),
@@ -182,7 +186,7 @@ impl TypeChecker {
                         // note: the only way to check that atm is to check in the constants hashmap
                         // this is because we don't differentiate const vars from normal variables
                         // (perhaps we should)
-                        let qualified = FullyQualified::new(&module, &name.value);
+                        let qualified = FullyQualified::new(module, &name.value);
                         if let Some(_cst_info) = self.const_info(&qualified) {
                             return Err(self.error(
                                 ErrorKind::UnexpectedError("cannot assign to an external variable"),
@@ -194,7 +198,7 @@ impl TypeChecker {
                     }
 
                     // `array[idx] = <rhs>`
-                    ExprKind::ArrayAccess { array, idx } => {
+                    ExprKind::ArrayAccess { array, idx: _ } => {
                         // get variable behind array
                         let array_node = self
                             .compute_type(array, typed_fn_env)?
@@ -206,7 +210,7 @@ impl TypeChecker {
                     }
 
                     // `struct.field = <rhs>`
-                    ExprKind::FieldAccess { lhs, rhs } => {
+                    ExprKind::FieldAccess { lhs, rhs: _ } => {
                         // get variable behind lhs
                         let lhs_node = self
                             .compute_type(lhs, typed_fn_env)?

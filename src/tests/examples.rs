@@ -1,10 +1,10 @@
 use std::path::Path;
 
 use crate::{
+    backends::kimchi::{KimchiVesta, KimchiField},
     compiler::{compile, typecheck_next_file, Sources},
-    constants::Field,
     inputs::{parse_inputs, ExtField},
-    prover::compile_to_indexes,
+    // prover::compile_to_indexes,
     type_checker::TypeChecker,
 };
 
@@ -12,7 +12,7 @@ fn test_file(
     file_name: &str,
     public_inputs: &str,
     private_inputs: &str,
-    expected_public_output: Vec<Field>,
+    expected_public_output: Vec<KimchiField>,
 ) -> miette::Result<()> {
     let version = env!("CARGO_MANIFEST_DIR");
     let prefix = Path::new(version).join("examples");
@@ -22,7 +22,7 @@ fn test_file(
 
     // compile
     let mut sources = Sources::new();
-    let mut tast = TypeChecker::new();
+    let mut tast = TypeChecker::<KimchiVesta>::new();
     let this_module = None;
     let _node_id = typecheck_next_file(
         &mut tast,
@@ -33,9 +33,12 @@ fn test_file(
         0,
     )
     .unwrap();
-    let compiled_circuit = compile(&sources, tast, false)?;
 
-    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit).unwrap();
+    let kimchi_backend = KimchiVesta::default();
+
+    let compiled_circuit = compile(&sources, tast, kimchi_backend)?;
+
+    let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
 
     // check compiled ASM only if it's not too large
     if prover_index.len() < 100 {
@@ -108,7 +111,7 @@ fn test_public_output() -> miette::Result<()> {
 fn test_poseidon() -> miette::Result<()> {
     let private_inputs = r#"{"private_input": ["1", "1"]}"#;
     let private_input = [1.into(), 1.into()];
-    let digest = crate::helpers::poseidon(private_input.clone());
+    let digest = crate::helpers::poseidon(private_input);
     let digest_dec = digest.to_dec_string();
     assert_eq!(
         "3654913405619483358804575553468071097765421484960111776885779739261304758583",
@@ -186,7 +189,7 @@ fn test_types() -> miette::Result<()> {
 fn test_const() -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"player": "1"}"#;
-    let expected_public_output = vec![Field::from(2)];
+    let expected_public_output = vec![KimchiField::from(2)];
 
     test_file(
         "const",
@@ -232,7 +235,7 @@ fn test_types_array() -> miette::Result<()> {
 fn test_iterate() -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"bedroom_holes": "2"}"#;
-    let expected_public_output = vec![Field::from(4)];
+    let expected_public_output = vec![KimchiField::from(4)];
 
     test_file(
         "iterate",

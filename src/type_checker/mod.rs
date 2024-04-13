@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    backends::Backend,
     cli::packages::UserRepo,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
@@ -26,9 +27,12 @@ const RESERVED_ARGS: [&str; 1] = ["public_output"];
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConstInfo {
+pub struct ConstInfo<F>
+where
+    F: Field,
+{
     #[serde_as(as = "crate::serialization::SerdeAs")]
-    pub value: Vec<Field>,
+    pub value: Vec<F>,
     pub typ: Ty,
 }
 
@@ -44,7 +48,7 @@ impl FullyQualified {
         Self { module: None, name }
     }
 
-    pub fn new(module: &ModulePath, name: &String) -> Self {
+    pub fn new(module: &ModulePath, name: &str) -> Self {
         let module = match module {
             ModulePath::Local => None,
             ModulePath::Alias(_) => unreachable!(),
@@ -52,23 +56,26 @@ impl FullyQualified {
         };
         Self {
             module,
-            name: name.clone(),
+            name: name.to_string(),
         }
     }
 }
 
 /// The environment we use to type check a noname program.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TypeChecker {
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TypeChecker<B>
+where
+    B: Backend,
+{
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
-    functions: HashMap<FullyQualified, FnInfo>,
+    functions: HashMap<FullyQualified, FnInfo<B>>,
 
     /// Custom structs type information and ASTs for methods.
     structs: HashMap<FullyQualified, StructInfo>,
 
     /// Constants declared in this module.
-    constants: HashMap<FullyQualified, ConstInfo>,
+    constants: HashMap<FullyQualified, ConstInfo<B::Field>>,
 
     /// Mapping from node id to TyKind.
     /// This can be used by the circuit-writer when it needs type information.
@@ -76,7 +83,7 @@ pub struct TypeChecker {
     node_types: HashMap<usize, TyKind>,
 }
 
-impl TypeChecker {
+impl<B: Backend> TypeChecker<B> {
     pub(crate) fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
         self.node_types.get(&expr.node_id)
     }
@@ -90,12 +97,12 @@ impl TypeChecker {
         self.structs.get(qualified)
     }
 
-    pub(crate) fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo> {
+    pub(crate) fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<B>> {
         self.functions.get(qualified)
     }
 
-    pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo> {
-        self.constants.get(&qualified)
+    pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
+        self.constants.get(qualified)
     }
 
     /// Returns the number of field elements contained in the given type.
@@ -104,7 +111,7 @@ impl TypeChecker {
         match typ {
             TyKind::Field => 1,
             TyKind::Custom { module, name } => {
-                let qualified = FullyQualified::new(&module, &name);
+                let qualified = FullyQualified::new(module, name);
                 let struct_info = self
                     .struct_info(&qualified)
                     .expect("bug in the type checker: cannot find struct info");
@@ -124,7 +131,7 @@ impl TypeChecker {
     }
 }
 
-impl TypeChecker {
+impl<B: Backend> TypeChecker<B> {
     // TODO: we can probably lazy const this
     pub fn new() -> Self {
         let mut type_checker = Self {
@@ -160,7 +167,6 @@ impl TypeChecker {
             }
         }
 
-        //
         type_checker
     }
 
@@ -171,7 +177,7 @@ impl TypeChecker {
     /// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    pub fn analyze(&mut self, nast: NAST, is_lib: bool) -> Result<()> {
+    pub fn analyze(&mut self, nast: NAST<B>, is_lib: bool) -> Result<()> {
         //
         // Process constants
         //
