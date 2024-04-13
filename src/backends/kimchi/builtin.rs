@@ -19,7 +19,7 @@ use crate::{
 use super::{KimchiField, KimchiVesta};
 
 pub fn poseidon(
-    circuit: &mut CircuitWriter<KimchiVesta>,
+    backend: &mut KimchiVesta,
     vars: &[VarInfo<KimchiField>],
     span: Span,
 ) -> Result<Option<Var<KimchiField>>> {
@@ -57,7 +57,7 @@ pub fn poseidon(
     for const_or_cell in &input.cvars {
         match const_or_cell {
             ConstOrCell::Const(cst) => {
-                let cell = circuit.backend.add_constant(
+                let cell = backend.add_constant(
                     Some("encoding constant input to poseidon"),
                     *cst,
                     span,
@@ -76,7 +76,7 @@ pub fn poseidon(
     let width = PlonkSpongeConstantsKimchi::SPONGE_WIDTH;
 
     // pad the input (for the capacity)
-    let zero_var = circuit.backend.add_constant(
+    let zero_var = backend.add_constant(
         Some("encoding constant 0 for the capacity of poseidon"),
         KimchiField::zero(),
         span,
@@ -99,11 +99,11 @@ pub fn poseidon(
 
             for col in 0..3 {
                 // create each variable
-                let var = circuit.backend.new_internal_var(
-                    Value::Hint(Arc::new(move |compiler, env| {
-                        let x1 = compiler.compute_var(env, prev_0)?;
-                        let x2 = compiler.compute_var(env, prev_1)?;
-                        let x3 = compiler.compute_var(env, prev_2)?;
+                let var = backend.new_internal_var(
+                    Value::Hint(Arc::new(move |backend, env| {
+                        let x1 = backend.compute_var(env, prev_0)?;
+                        let x2 = backend.compute_var(env, prev_1)?;
+                        let x3 = backend.compute_var(env, prev_2)?;
 
                         let mut acc = vec![x1, x2, x3];
 
@@ -147,7 +147,7 @@ pub fn poseidon(
             Some(states[offset + 3][2]),
         ];
 
-        circuit.backend.add_gate(
+        backend.add_gate(
             "uses a poseidon gate to constrain 5 rounds of poseidon",
             GateKind::Poseidon,
             vars,
@@ -164,7 +164,7 @@ pub fn poseidon(
     ];
 
     // zero gate to store the result
-    circuit.backend.add_gate(
+    backend.add_gate(
         "uses a zero gate to store the output of poseidon",
         GateKind::Zero,
         final_row.clone(),

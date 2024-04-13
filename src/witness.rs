@@ -39,6 +39,7 @@ impl<F: Field> WitnessEnv<F> {
 
 
 /// The compiled circuit.
+/// A compiled circuit means its constraint backend have been finalized.
 //#[derive(Serialize, Deserialize)]
 pub struct CompiledCircuit<B>
 where
@@ -59,7 +60,7 @@ impl<B: Backend> CompiledCircuit<B> {
     }
 
     pub fn asm(&self, sources: &Sources, debug: bool) -> String {
-        self.circuit.backend.generate_asm(sources, debug)
+        self.circuit.generate_asm(sources, debug)
     }
 
     pub fn generate_witness(
@@ -116,6 +117,6 @@ impl<B: Backend> CompiledCircuit<B> {
             ));
         }
 
-        self.circuit.backend.generate_witness(&mut env, self.circuit.public_input_size)
+        self.circuit.generate_witness(&mut env)
     }
 }

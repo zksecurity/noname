@@ -63,7 +63,7 @@ impl std::fmt::Debug for BuiltinModule {
 /// * `Span`: take a span to return user-friendly errors
 /// * `-> Result<Option<Var>>`: return a `Result` with an `Option` of a `Var`. This is because built-ins can return a variable, or they can return nothing. If they return nothing, then the `Option` will be `None`. If they return a variable, then the `Option` will be `Some(Var)`.
 pub type FnHandle<B> = fn(
-    &mut CircuitWriter<B>,
+    &mut B,
     &[VarInfo<<B as Backend>::Field>],
     Span,
 ) -> Result<Option<Var<<B as Backend>::Field>>>;

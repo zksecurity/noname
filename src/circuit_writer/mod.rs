@@ -1,16 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    backends::{kimchi::KimchiVesta, r1cs::R1CS, Backend},
-    constants::Span,
-    error::{Error, ErrorKind, Result},
-    parser::{
+    backends::{kimchi::KimchiVesta, r1cs::R1CS, Backend}, compiler::{GeneratedWitness, Sources}, constants::Span, error::{Error, ErrorKind, Result}, parser::{
         types::{AttributeKind, FnArg, TyKind},
         Expr,
-    },
-    type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
-    var::{CellVar, Value, Var},
-    witness::CompiledCircuit,
+    }, type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker}, var::{CellVar, Value, Var}, witness::{CompiledCircuit, WitnessEnv}
 };
 
 pub use fn_env::{FnEnv, VarInfo};
@@ -40,6 +34,9 @@ where
     // the type checker state might be this one, or one of the ones in [dependencies].
     typed: TypeChecker<B>,
 
+    /// The constraint backend for the circuit.
+    /// For now, this needs to be exposed for the kimchi prover for kimchi specific low level data.
+    /// So we might make this private if the prover facilities can be deprecated.
     pub backend: B,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
@@ -252,5 +249,16 @@ impl<B: Backend> CircuitWriter<B> {
 
         //
         Ok(CompiledCircuit::new(circuit_writer))
+    }
+
+    pub fn generate_asm(&self, sources: &Sources, debug: bool) -> String {
+        self.backend.generate_asm(sources, debug)
+    }
+
+    pub fn generate_witness(
+        &self,
+        witness_env: &mut WitnessEnv<B::Field>,
+    ) -> Result<GeneratedWitness<B>> {
+        self.backend.generate_witness(witness_env, self.public_input_size)
     }
 }

@@ -230,7 +230,7 @@ impl<B: Backend> CircuitWriter<B> {
             TyKind::Field => (),
             TyKind::Bool => {
                 assert_eq!(input.len(), 1);
-                boolean::check(self, &input[0], span);
+                boolean::check(&mut self.backend, &input[0], span);
             }
             TyKind::Array(tykind, _) => {
                 let el_size = self.size_of(tykind);
@@ -353,7 +353,7 @@ impl<B: Backend> CircuitWriter<B> {
                 match &fn_info.kind {
                     // assert() <-- for example
                     FnKind::BuiltIn(_sig, handle) => {
-                        let res = handle(self, &vars, expr.span);
+                        let res = handle(&mut self.backend, &vars, expr.span);
                         res.map(|r| r.map(VarOrRef::Var))
                     }
 
@@ -499,7 +499,7 @@ impl<B: Backend> CircuitWriter<B> {
                     .unwrap()
                     .value(self, fn_env);
 
-                let res = field::if_else(self, &cond, &then_, &else_, expr.span);
+                let res = field::if_else(&mut self.backend, &cond, &then_, &else_, expr.span);
 
                 Ok(Some(VarOrRef::Var(res)))
             }
@@ -546,12 +546,12 @@ impl<B: Backend> CircuitWriter<B> {
                 let rhs = rhs.value(self, fn_env);
 
                 let res = match op {
-                    Op2::Addition => field::add(self, &lhs[0], &rhs[0], expr.span),
-                    Op2::Subtraction => field::sub(self, &lhs[0], &rhs[0], expr.span),
-                    Op2::Multiplication => field::mul(self, &lhs[0], &rhs[0], expr.span),
-                    Op2::Equality => field::equal(self, &lhs, &rhs, expr.span),
-                    Op2::BoolAnd => boolean::and(self, &lhs[0], &rhs[0], expr.span),
-                    Op2::BoolOr => boolean::or(self, &lhs[0], &rhs[0], expr.span),
+                    Op2::Addition => field::add(&mut self.backend, &lhs[0], &rhs[0], expr.span),
+                    Op2::Subtraction => field::sub(&mut self.backend, &lhs[0], &rhs[0], expr.span),
+                    Op2::Multiplication => field::mul(&mut self.backend, &lhs[0], &rhs[0], expr.span),
+                    Op2::Equality => field::equal(&mut self.backend, &lhs, &rhs, expr.span),
+                    Op2::BoolAnd => boolean::and(&mut self.backend, &lhs[0], &rhs[0], expr.span),
+                    Op2::BoolOr => boolean::or(&mut self.backend, &lhs[0], &rhs[0], expr.span),
                     Op2::Division => todo!(),
                 };
 
@@ -571,7 +571,7 @@ impl<B: Backend> CircuitWriter<B> {
 
                 let var = var.value(self, fn_env);
 
-                let res = boolean::not(self, &var[0], expr.span.merge_with(b.span));
+                let res = boolean::not(&mut self.backend, &var[0], expr.span.merge_with(b.span));
                 Ok(Some(VarOrRef::Var(res)))
             }
 
