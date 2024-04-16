@@ -317,17 +317,6 @@ impl<B: Backend> CircuitWriter<B> {
         }
     }
 
-    pub fn new_internal_var(&mut self, val: Value<B>, span: Span) -> CellVar {
-        // create new var
-        let var = CellVar::new(self.next_variable, span);
-        self.next_variable += 1;
-
-        // store it in the circuit_writer
-        self.witness_vars.insert(var.index, val);
-
-        var
-    }
-
     fn compute_expr(
         &mut self,
         fn_env: &mut FnEnv<B::Field>,

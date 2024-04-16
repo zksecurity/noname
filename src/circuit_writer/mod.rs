@@ -44,13 +44,6 @@ where
     // Note: I don't think we need this, but it acts as a nice redundant failsafe.
     pub(crate) finalized: bool,
 
-    /// This is used to give a distinct number to each variable during circuit generation.
-    pub(crate) next_variable: usize,
-
-    /// This is how you compute the value of each variable during witness generation.
-    /// It is created during circuit generation.
-    pub(crate) witness_vars: HashMap<usize, Value<B>>,
-
     /// The execution trace table with vars as placeholders.
     /// It is created during circuit generation,
     /// and used by the witness generator.
