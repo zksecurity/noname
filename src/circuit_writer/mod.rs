@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
+    backends::Backend,
     constants::{Field, Span},
     error::{Error, ErrorKind, Result},
     parser::{
@@ -24,12 +25,15 @@ pub mod writer;
 
 //#[derive(Debug, Serialize, Deserialize)]
 #[derive(Debug)]
-pub struct CircuitWriter {
+pub struct CircuitWriter<B>
+where
+    B: Backend,
+{
     /// The type checker state for the main module.
     // Important: this field must not be used directly.
     // This is because, depending on the value of [current_module],
     // the type checker state might be this one, or one of the ones in [dependencies].
-    typed: TypeChecker,
+    typed: TypeChecker<B>,
 
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
     // Note: I don't think we need this, but it acts as a nice redundant failsafe.
@@ -40,7 +44,7 @@ pub struct CircuitWriter {
 
     /// This is how you compute the value of each variable during witness generation.
     /// It is created during circuit generation.
-    pub(crate) witness_vars: HashMap<usize, Value>,
+    pub(crate) witness_vars: HashMap<usize, Value<B>>,
 
     /// The execution trace table with vars as placeholders.
     /// It is created during circuit generation,
@@ -48,7 +52,7 @@ pub struct CircuitWriter {
     pub(crate) rows_of_vars: Vec<Vec<Option<CellVar>>>,
 
     /// The gates created by the circuit generation.
-    gates: Vec<Gate>,
+    gates: Vec<Gate<B>>,
 
     /// The wiring of the circuit.
     /// It is created during circuit generation.
@@ -65,7 +69,7 @@ pub struct CircuitWriter {
     ///    it will set this `public_output` variable again to the correct vars.
     /// 3. During witness generation, the public output computation
     ///    is delayed until the very end.
-    pub(crate) public_output: Option<Var>,
+    pub(crate) public_output: Option<Var<B::Field>>,
 
     /// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
@@ -77,11 +81,11 @@ pub struct CircuitWriter {
 
     /// This is used to implement the double generic gate,
     /// which encodes two generic gates.
-    pub(crate) pending_generic_gate: Option<PendingGate>,
+    pub(crate) pending_generic_gate: Option<PendingGate<B::Field>>,
 
     /// We cache the association between a constant and its _constrained_ variable,
     /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
-    pub(crate) cached_constants: HashMap<Field, CellVar>,
+    pub(crate) cached_constants: HashMap<B::Field, CellVar>,
 
     /// A vector of debug information that maps to each row of the created circuit.
     pub(crate) debug_info: Vec<DebugInfo>,
@@ -97,7 +101,7 @@ pub struct DebugInfo {
     pub note: String,
 }
 
-impl CircuitWriter {
+impl<B: Backend> CircuitWriter<B> {
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
         self.typed.expr_type(expr)
     }
@@ -111,11 +115,11 @@ impl CircuitWriter {
         self.typed.struct_info(qualified)
     }
 
-    pub fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo> {
+    pub fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<B>> {
         self.typed.fn_info(qualified)
     }
 
-    pub fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo> {
+    pub fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
         self.typed.const_info(qualified)
     }
 
@@ -123,7 +127,7 @@ impl CircuitWriter {
         self.typed.size_of(typ)
     }
 
-    pub fn add_local_var(&self, fn_env: &mut FnEnv, var_name: String, var_info: VarInfo) {
+    pub fn add_local_var(&self, fn_env: &mut FnEnv<B::Field>, var_name: String, var_info: VarInfo<B::Field>) {
         // check for consts first
         let qualified = FullyQualified::local(var_name.clone());
         if let Some(_cst_info) = self.typed.const_info(&qualified) {
@@ -136,7 +140,7 @@ impl CircuitWriter {
         fn_env.add_local_var(var_name, var_info)
     }
 
-    pub fn get_local_var(&self, fn_env: &FnEnv, var_name: &str) -> VarInfo {
+    pub fn get_local_var(&self, fn_env: &FnEnv<B::Field>, var_name: &str) -> VarInfo<B::Field> {
         // check for consts first
         let qualified = FullyQualified::local(var_name.to_string());
         if let Some(cst_info) = self.typed.const_info(&qualified) {
@@ -151,7 +155,7 @@ impl CircuitWriter {
     /// Retrieves the [FnInfo] for the `main()` function.
     /// This function should only be called if we know there's a main function,
     /// if there's no main function it'll panic.
-    pub fn main_info(&self) -> Result<&FnInfo> {
+    pub fn main_info(&self) -> Result<&FnInfo<B>> {
         let qualified = FullyQualified::local("main".to_string());
         self.typed
             .fn_info(&qualified)
@@ -163,9 +167,9 @@ impl CircuitWriter {
     }
 }
 
-impl CircuitWriter {
+impl<B: Backend> CircuitWriter<B> {
     /// Creates a global environment from the one created by the type checker.
-    fn new(typed: TypeChecker, double_generic_gate_optimization: bool) -> Self {
+    fn new(typed: TypeChecker<B>, double_generic_gate_optimization: bool) -> Self {
         Self {
             typed,
             finalized: false,
@@ -185,9 +189,9 @@ impl CircuitWriter {
     }
 
     pub fn generate_circuit(
-        typed: TypeChecker,
+        typed: TypeChecker<B>,
         double_generic_gate_optimization: bool,
-    ) -> Result<CompiledCircuit> {
+    ) -> Result<CompiledCircuit<B>> {
         // create circuit writer
         let mut circuit_writer = CircuitWriter::new(typed, double_generic_gate_optimization);
 

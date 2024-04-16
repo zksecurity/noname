@@ -4,6 +4,7 @@
 
 pub mod asm;
 pub mod circuit_writer;
+pub mod backends;
 pub mod cli;
 pub mod compiler;
 pub mod constants;

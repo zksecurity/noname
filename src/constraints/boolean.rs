@@ -2,21 +2,22 @@
 
 use std::ops::Neg;
 
-use ark_ff::{One, Zero};
+use ark_ff::{Field, One, Zero};
 
 use crate::{
+    backends::Backend,
     circuit_writer::CircuitWriter,
-    constants::{Field, Span},
+    constants::Span,
     var::{ConstOrCell, Value, Var},
 };
 
-pub fn is_valid(f: Field) -> bool {
+pub fn is_valid<F: Field>(f: F) -> bool {
     f.is_one() || f.is_zero()
 }
 
-pub fn check(compiler: &mut CircuitWriter, xx: &ConstOrCell, span: Span) {
-    let zero = Field::zero();
-    let one = Field::one();
+pub fn check<B: Backend>(compiler: &mut CircuitWriter<B>, xx: &ConstOrCell<B::Field>, span: Span) {
+    let zero = B::Field::zero();
+    let one = B::Field::one();
 
     match xx {
         ConstOrCell::Const(ff) => assert!(is_valid(*ff)),
@@ -30,7 +31,12 @@ pub fn check(compiler: &mut CircuitWriter, xx: &ConstOrCell, span: Span) {
     };
 }
 
-pub fn and(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, span: Span) -> Var {
+pub fn and<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    lhs: &ConstOrCell<B::Field>,
+    rhs: &ConstOrCell<B::Field>,
+    span: Span,
+) -> Var<B::Field> {
     match (lhs, rhs) {
         // two constants
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs * *rhs, span),
@@ -51,8 +57,8 @@ pub fn and(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
             let res = compiler.new_internal_var(Value::Mul(*lhs, *rhs), span);
 
             // create a gate to constrain the result
-            let zero = Field::zero();
-            let one = Field::one();
+            let zero = B::Field::zero();
+            let one = B::Field::one();
             compiler.add_generic_gate(
                 "constrain the AND as lhs * rhs",
                 vec![Some(*lhs), Some(*rhs), Some(res)],
@@ -66,13 +72,17 @@ pub fn and(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, s
     }
 }
 
-pub fn not(compiler: &mut CircuitWriter, var: &ConstOrCell, span: Span) -> Var {
+pub fn not<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    var: &ConstOrCell<B::Field>,
+    span: Span,
+) -> Var<B::Field> {
     match var {
         ConstOrCell::Const(cst) => {
             let value = if cst.is_one() {
-                Field::zero()
+                B::Field::zero()
             } else {
-                Field::one()
+                B::Field::one()
             };
 
             Var::new_constant(value, span)
@@ -80,8 +90,8 @@ pub fn not(compiler: &mut CircuitWriter, var: &ConstOrCell, span: Span) -> Var {
 
         // constant and a var
         ConstOrCell::Cell(cvar) => {
-            let zero = Field::zero();
-            let one = Field::one();
+            let zero = B::Field::zero();
+            let one = B::Field::one();
 
             // create a new variable to store the result
             let lc = Value::LinearCombination(vec![(one.neg(), *cvar)], one); // 1 - X
@@ -102,7 +112,12 @@ pub fn not(compiler: &mut CircuitWriter, var: &ConstOrCell, span: Span) -> Var {
     }
 }
 
-pub fn or(compiler: &mut CircuitWriter, lhs: &ConstOrCell, rhs: &ConstOrCell, span: Span) -> Var {
+pub fn or<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    lhs: &ConstOrCell<B::Field>,
+    rhs: &ConstOrCell<B::Field>,
+    span: Span,
+) -> Var<B::Field> {
     let not_lhs = not(compiler, lhs, span);
     let not_rhs = not(compiler, rhs, span);
     let both_false = and(compiler, &not_lhs[0], &not_rhs[0], span);

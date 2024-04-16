@@ -2,6 +2,7 @@ use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic};
 
 use crate::{
+    backends::{kimchi::KimchiVesta, Backend},
     cli::packages::path_to_package,
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, JsonInputs},
@@ -105,13 +106,13 @@ pub fn cmd_check(args: CmdCheck) -> miette::Result<()> {
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
     // produce all TASTs and stop here
-    produce_all_asts(&curr_dir)?;
+    produce_all_asts::<KimchiVesta>(&curr_dir)?;
 
     println!("all good!");
     Ok(())
 }
 
-fn produce_all_asts(path: &PathBuf) -> miette::Result<(Sources, TypeChecker)> {
+fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, TypeChecker<B>)> {
     // find manifest
     let manifest = validate_package_and_get_manifest(&path, false)?;
 

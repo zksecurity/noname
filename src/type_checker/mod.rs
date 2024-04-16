@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use crate::{
+    backends::Backend,
     cli::packages::UserRepo,
-    constants::{Field, Span},
+    constants::Span,
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     name_resolution::NAST,
@@ -13,6 +14,7 @@ use crate::{
     stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS},
 };
 
+use ark_ff::Field;
 pub use checker::{FnInfo, StructInfo};
 pub use fn_env::{TypeInfo, TypedFnEnv};
 
@@ -26,9 +28,12 @@ const RESERVED_ARGS: [&str; 1] = ["public_output"];
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConstInfo {
+pub struct ConstInfo<F>
+where
+    F: Field,
+{
     #[serde_as(as = "crate::serialization::SerdeAs")]
-    pub value: Vec<Field>,
+    pub value: Vec<F>,
     pub typ: Ty,
 }
 
@@ -59,16 +64,19 @@ impl FullyQualified {
 
 /// The environment we use to type check a noname program.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TypeChecker {
+pub struct TypeChecker<B>
+where
+    B: Backend,
+{
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
-    functions: HashMap<FullyQualified, FnInfo>,
+    functions: HashMap<FullyQualified, FnInfo<B>>,
 
     /// Custom structs type information and ASTs for methods.
     structs: HashMap<FullyQualified, StructInfo>,
 
     /// Constants declared in this module.
-    constants: HashMap<FullyQualified, ConstInfo>,
+    constants: HashMap<FullyQualified, ConstInfo<B::Field>>,
 
     /// Mapping from node id to TyKind.
     /// This can be used by the circuit-writer when it needs type information.
@@ -76,7 +84,7 @@ pub struct TypeChecker {
     node_types: HashMap<usize, TyKind>,
 }
 
-impl TypeChecker {
+impl<B: Backend> TypeChecker<B> {
     pub(crate) fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
         self.node_types.get(&expr.node_id)
     }
@@ -90,11 +98,11 @@ impl TypeChecker {
         self.structs.get(qualified)
     }
 
-    pub(crate) fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo> {
+    pub(crate) fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<B>> {
         self.functions.get(qualified)
     }
 
-    pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo> {
+    pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
         self.constants.get(&qualified)
     }
 
@@ -124,7 +132,7 @@ impl TypeChecker {
     }
 }
 
-impl TypeChecker {
+impl<B: Backend> TypeChecker<B> {
     // TODO: we can probably lazy const this
     pub fn new() -> Self {
         let mut type_checker = Self {
@@ -171,7 +179,7 @@ impl TypeChecker {
     /// This takes the AST produced by the parser, and performs two things:
     /// - resolves imports
     /// - type checks
-    pub fn analyze(&mut self, nast: NAST, is_lib: bool) -> Result<()> {
+    pub fn analyze(&mut self, nast: NAST<B>, is_lib: bool) -> Result<()> {
         //
         // Process constants
         //

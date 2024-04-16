@@ -1,4 +1,5 @@
 use crate::{
+    backends::Backend,
     constants::Span,
     error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind, Tokens},
@@ -10,6 +11,7 @@ pub mod expr;
 pub mod structs;
 pub mod types;
 
+use ark_ff::Field;
 pub use expr::{Expr, ExprKind, Op2};
 pub use structs::{CustomType, StructDef};
 
@@ -95,10 +97,14 @@ impl ParserCtx {
 //
 
 #[derive(Debug, Default)]
-pub struct AST(pub Vec<Root>);
+pub struct AST<B: Backend>(pub Vec<Root<B::Field>>);
 
-impl AST {
-    pub fn parse(filename_id: usize, mut tokens: Tokens, node_id: usize) -> Result<(AST, usize)> {
+impl<B: Backend> AST<B> {
+    pub fn parse(
+        filename_id: usize,
+        mut tokens: Tokens,
+        node_id: usize,
+    ) -> Result<(AST<B>, usize)> {
         let mut ast = vec![];
         let ctx = &mut ParserCtx::new(filename_id, node_id);
 

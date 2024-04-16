@@ -27,6 +27,7 @@ use std::hash::Hash;
 
 use itertools::Itertools;
 
+use crate::backends::Backend;
 use crate::circuit_writer::writer::AnnotatedCell;
 use crate::circuit_writer::{CircuitWriter, DebugInfo};
 use crate::compiler::Sources;
@@ -36,7 +37,7 @@ use crate::{
     helpers::PrettyField as _,
 };
 
-impl CircuitWriter {
+impl<B: Backend> CircuitWriter<B> {
     pub fn generate_asm(&self, sources: &Sources, debug: bool) -> String {
         let mut res = "".to_string();
 
@@ -44,12 +45,12 @@ impl CircuitWriter {
         res.push_str("@ noname.0.7.0\n\n");
 
         // vars
-        let mut vars = OrderedHashSet::default();
+        let mut vars = OrderedHashSet::<B::Field>::default();
 
         let gates = self.compiled_gates();
 
         for Gate { coeffs, .. } in gates {
-            extract_vars_from_coeffs(&mut vars, coeffs);
+            extract_vars_from_coeffs::<B>(&mut vars, coeffs);
         }
 
         if debug && !vars.is_empty() {
@@ -79,7 +80,7 @@ impl CircuitWriter {
 
             // coeffs
             {
-                let coeffs = parse_coeffs(&vars, coeffs);
+                let coeffs = parse_coeffs::<B>(&vars, coeffs);
                 if !coeffs.is_empty() {
                     res.push('<');
                     res.push_str(&coeffs.join(","));
@@ -177,7 +178,7 @@ impl CircuitWriter {
     }
 }
 
-fn extract_vars_from_coeffs(vars: &mut OrderedHashSet<Field>, coeffs: &[Field]) {
+fn extract_vars_from_coeffs<B: Backend>(vars: &mut OrderedHashSet<B::Field>, coeffs: &[B::Field]) {
     for coeff in coeffs {
         let s = coeff.pretty();
         if s.len() >= 5 {
@@ -186,7 +187,7 @@ fn extract_vars_from_coeffs(vars: &mut OrderedHashSet<Field>, coeffs: &[Field]) 
     }
 }
 
-fn parse_coeffs(vars: &OrderedHashSet<Field>, coeffs: &[Field]) -> Vec<String> {
+fn parse_coeffs<B: Backend>(vars: &OrderedHashSet<B::Field>, coeffs: &[B::Field]) -> Vec<String> {
     let mut coeffs: Vec<_> = coeffs
         .iter()
         .map(|x| {

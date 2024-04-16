@@ -1,44 +1,48 @@
 use std::collections::HashMap;
 
-use ark_ff::{Field as _, Zero};
+use ark_ff::{Field, Zero};
 use itertools::{chain, izip, Itertools};
 //use serde::{Deserialize, Serialize};
 
 use crate::{
+    backends::Backend,
     circuit_writer::{CircuitWriter, Gate},
     compiler::Sources,
-    constants::{Field, NUM_REGISTERS},
+    constants::NUM_REGISTERS,
     error::{Error, ErrorKind, Result},
-    helpers::PrettyField as _,
+    helpers::PrettyField,
     inputs::JsonInputs,
     type_checker::FnInfo,
     var::{CellVar, Value},
 };
 
 #[derive(Debug, Default)]
-pub struct WitnessEnv {
-    pub var_values: HashMap<String, Vec<Field>>,
+pub struct WitnessEnv<F>
+where
+    F: Field,
+{
+    pub var_values: HashMap<String, Vec<F>>,
 
-    pub cached_values: HashMap<CellVar, Field>,
+    pub cached_values: HashMap<CellVar, F>,
 }
 
-impl WitnessEnv {
-    pub fn add_value(&mut self, name: String, val: Vec<Field>) {
+impl<F: Field> WitnessEnv<F> {
+    pub fn add_value(&mut self, name: String, val: Vec<F>) {
         assert!(self.var_values.insert(name, val).is_none());
     }
 
-    pub fn get_external(&self, name: &str) -> Vec<Field> {
+    pub fn get_external(&self, name: &str) -> Vec<F> {
         // TODO: return an error instead of crashing
         self.var_values.get(name).unwrap().clone()
     }
 }
 
 #[derive(Debug)]
-pub struct Witness(Vec<[Field; NUM_REGISTERS]>);
+pub struct Witness<F: Field>(Vec<[F; NUM_REGISTERS]>);
 
-impl Witness {
+impl<F: Field + PrettyField> Witness<F> {
     /// kimchi uses a transposed witness
-    pub fn to_kimchi_witness(&self) -> [Vec<Field>; NUM_REGISTERS] {
+    pub fn to_kimchi_witness(&self) -> [Vec<F>; NUM_REGISTERS] {
         let transposed = vec![Vec::with_capacity(self.0.len()); NUM_REGISTERS];
         let mut transposed: [_; NUM_REGISTERS] = transposed.try_into().unwrap();
         for row in &self.0 {
@@ -67,16 +71,16 @@ impl Witness {
 
 /// The compiled circuit.
 //#[derive(Serialize, Deserialize)]
-pub struct CompiledCircuit {
-    pub circuit: CircuitWriter,
+pub struct CompiledCircuit<B: Backend> {
+    pub circuit: CircuitWriter<B>,
 }
 
-impl CompiledCircuit {
-    pub(crate) fn new(circuit: CircuitWriter) -> Self {
+impl<B: Backend> CompiledCircuit<B> {
+    pub(crate) fn new(circuit: CircuitWriter<B>) -> Self {
         Self { circuit }
     }
 
-    pub fn main_info(&self) -> &FnInfo {
+    pub fn main_info(&self) -> &FnInfo<B> {
         self.circuit
             .main_info()
             .expect("constrait-writer bug: no main function found in witness generation")
@@ -86,11 +90,11 @@ impl CompiledCircuit {
         self.circuit.generate_asm(sources, debug)
     }
 
-    pub fn compiled_gates(&self) -> &[Gate] {
+    pub fn compiled_gates(&self) -> &[Gate<B>] {
         self.circuit.compiled_gates()
     }
 
-    pub fn compute_var(&self, env: &mut WitnessEnv, var: CellVar) -> Result<Field> {
+    pub fn compute_var(&self, env: &mut WitnessEnv<B::Field>, var: CellVar) -> Result<B::Field> {
         // fetch cache first
         // TODO: if self was &mut, then we could use a Value::Cached(Field) to store things instead of that
         if let Some(res) = env.cached_values.get(&var) {
@@ -122,7 +126,7 @@ impl CompiledCircuit {
             }
             Value::Inverse(v) => {
                 let v = self.compute_var(env, *v)?;
-                let res = v.inverse().unwrap_or_else(Field::zero);
+                let res = v.inverse().unwrap_or_else(B::Field::zero);
                 env.cached_values.insert(var, res); // cache
                 Ok(res)
             }
@@ -144,7 +148,7 @@ impl CompiledCircuit {
         &self,
         mut public_inputs: JsonInputs,
         mut private_inputs: JsonInputs,
-    ) -> Result<(Witness, Vec<Field>, Vec<Field>)> {
+    ) -> Result<(Witness<B::Field>, Vec<B::Field>, Vec<B::Field>)> {
         let mut witness = vec![];
         let mut env = WitnessEnv::default();
 
@@ -201,7 +205,7 @@ impl CompiledCircuit {
             izip!(gates, &self.circuit.rows_of_vars, &self.circuit.debug_info).enumerate()
         {
             // create the witness row
-            let mut witness_row = [Field::zero(); NUM_REGISTERS];
+            let mut witness_row = [B::Field::zero(); NUM_REGISTERS];
 
             for (col, var) in row_of_vars.iter().enumerate() {
                 let val = if let Some(var) = var {
@@ -211,12 +215,12 @@ impl CompiledCircuit {
                         Value::PublicOutput(_)
                     ) {
                         public_outputs_vars.push((row, *var));
-                        Field::zero()
+                        B::Field::zero()
                     } else {
                         self.compute_var(&mut env, *var)?
                     }
                 } else {
-                    Field::zero()
+                    B::Field::zero()
                 };
                 witness_row[col] = val;
             }
@@ -228,13 +232,13 @@ impl CompiledCircuit {
                 match gate.typ {
                     // only check the generic gate
                     crate::circuit_writer::GateKind::DoubleGeneric => {
-                        let c = |i| gate.coeffs.get(i).copied().unwrap_or_else(Field::zero);
+                        let c = |i| gate.coeffs.get(i).copied().unwrap_or_else(B::Field::zero);
                         let w = &witness_row;
                         let sum1 =
                             c(0) * w[0] + c(1) * w[1] + c(2) * w[2] + c(3) * w[0] * w[1] + c(4);
                         let sum2 =
                             c(5) * w[3] + c(6) * w[4] + c(7) * w[5] + c(8) * w[3] * w[4] + c(9);
-                        if sum1 != Field::zero() || sum2 != Field::zero() {
+                        if sum1 != B::Field::zero() || sum2 != B::Field::zero() {
                             return Err(Error::new(
                                 "runtime",
                                 ErrorKind::InvalidWitness(row),

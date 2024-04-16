@@ -3,6 +3,7 @@
 use std::iter::once;
 
 use crate::{
+    backends::kimchi::KimchiVesta,
     circuit_writer::Wiring,
     compiler::{generate_witness, Sources},
     constants::Field,
@@ -50,7 +51,7 @@ static GROUP_MAP: Lazy<<Curve as CommitmentCurve>::Map> =
 //#[derive(Serialize, Deserialize)]
 pub struct ProverIndex {
     index: kimchi::prover_index::ProverIndex<Curve, OpeningProof<Curve>>,
-    compiled_circuit: CompiledCircuit,
+    compiled_circuit: CompiledCircuit<KimchiVesta>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -63,7 +64,7 @@ pub struct VerifierIndex {
 //
 
 pub fn compile_to_indexes(
-    compiled_circuit: CompiledCircuit,
+    compiled_circuit: CompiledCircuit<KimchiVesta>,
 ) -> miette::Result<(ProverIndex, VerifierIndex)> {
     // convert gates to kimchi gates
     let mut gates: Vec<_> = compiled_circuit

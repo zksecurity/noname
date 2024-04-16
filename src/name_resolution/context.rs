@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use ark_ff::Field;
+
 use crate::{
     cli::packages::UserRepo,
     constants::Span,
@@ -154,7 +156,7 @@ impl NameResCtx {
         Ok(())
     }
 
-    pub(crate) fn resolve_const_def(&self, cst_def: &mut ConstDef) -> Result<()> {
+    pub(crate) fn resolve_const_def<F: Field>(&self, cst_def: &mut ConstDef<F>) -> Result<()> {
         let ConstDef {
             module,
             name: _,
