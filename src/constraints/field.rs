@@ -174,7 +174,7 @@ pub fn mul<B: Backend>(
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
             // if the constant is zero, we can ignore this gate
             if cst.is_zero() {
-                let zero = compiler.add_constant(
+                let zero = compiler.backend.add_constant(
                     Some("encoding zero for the result of 0 * var"),
                     B::Field::zero(),
                     span,
@@ -233,7 +233,7 @@ pub fn equal<B: Backend>(
     // create an accumulator
     let one = B::Field::one();
 
-    let acc = compiler.add_constant(
+    let acc = compiler.backend.add_constant(
         Some("start accumulator at 1 for the equality check"),
         one,
         span,
@@ -289,7 +289,7 @@ fn equal_cells<B: Backend>(
 
         (x1, x2) => {
             let x1 = match x1 {
-                ConstOrCell::Const(cst) => compiler.add_constant(
+                ConstOrCell::Const(cst) => compiler.backend.add_constant(
                     Some("encode the lhs constant of the equality check in the circuit"),
                     *cst,
                     span,
@@ -298,7 +298,7 @@ fn equal_cells<B: Backend>(
             };
 
             let x2 = match x2 {
-                ConstOrCell::Const(cst) => compiler.add_constant(
+                ConstOrCell::Const(cst) => compiler.backend.add_constant(
                     Some("encode the rhs constant of the equality check in the circuit"),
                     *cst,
                     span,

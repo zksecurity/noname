@@ -57,10 +57,6 @@ where
     /// (this is useful to check that they appear in the circuit)
     pub(crate) private_input_indices: Vec<usize>,
 
-    /// We cache the association between a constant and its _constrained_ variable,
-    /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
-    pub(crate) cached_constants: HashMap<B::Field, CellVar>,
-    
 }
 
 /// Debug information related to a single row in a circuit.
@@ -148,7 +144,6 @@ impl<B: Backend> CircuitWriter<B> {
             public_input_size: 0,
             public_output: None,
             private_input_indices: vec![],
-            cached_constants: HashMap::new(),
         }
     }
 

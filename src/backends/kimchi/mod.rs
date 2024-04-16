@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, ops::Neg as _};
 
 use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 
@@ -9,7 +9,7 @@ use crate::{
     }, constants::{Field, Span, NUM_REGISTERS}, error::{Error, ErrorKind, Result}, var::{CellVar, Value, Var}
 };
 
-use ark_ff::Zero;
+use ark_ff::{Zero, One};
 
 use super::Backend;
 pub mod builtin;
@@ -27,6 +27,10 @@ pub struct KimchiVesta {
     /// It is created during circuit generation,
     /// and used by the witness generator.
     pub(crate) rows_of_vars: Vec<Vec<Option<CellVar>>>,
+
+    /// We cache the association between a constant and its _constrained_ variable,
+    /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
+    pub(crate) cached_constants: HashMap<Field, CellVar>,
 
     /// The gates created by the circuit generation.
     gates: Vec<Gate>,
@@ -73,6 +77,31 @@ impl Backend for KimchiVesta {
 
         // store it in the circuit_writer
         self.witness_vars.insert(var.index, val);
+
+        var
+    }
+
+    fn add_constant(
+        &mut self,
+        label: Option<&'static str>,
+        value: Field,
+        span: Span,
+    ) -> CellVar {
+        if let Some(cvar) = self.cached_constants.get(&value) {
+            return *cvar;
+        }
+
+        let var = self.new_internal_var(Value::Constant(value), span);
+        self.cached_constants.insert(value, var);
+
+        let zero = Field::zero();
+
+        let _ = &self.add_generic_gate(
+            label.unwrap_or("hardcode a constant"),
+            vec![Some(var)],
+            vec![Field::one(), zero, zero, zero, value.neg()],
+            span,
+        );
 
         var
     }

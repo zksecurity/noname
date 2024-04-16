@@ -30,6 +30,15 @@ pub trait Backend: Clone {
     /// It increments the variable index for look up later.
     fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> CellVar;
 
+    /// This should be called only when you want to constrain a constant for real.
+    /// Gates that handle constants should always make sure to call this function when they want them constrained.
+    fn add_constant(
+        &mut self,
+        label: Option<&'static str>,
+        value: Self::Field,
+        span: Span,
+    ) -> CellVar;
+
     fn debug_info(&self) -> &[DebugInfo];
     /// Add a gate to the circuit. Kimchi specific atm.
     fn add_gate(

@@ -711,33 +711,6 @@ impl<B: Backend> CircuitWriter<B> {
         self.gates.len()
     }
 
-    // TODO: we should cache constants to avoid creating a new variable for each constant
-    /// This should be called only when you want to constrain a constant for real.
-    /// Gates that handle constants should always make sure to call this function when they want them constrained.
-    pub fn add_constant(
-        &mut self,
-        label: Option<&'static str>,
-        value: B::Field,
-        span: Span,
-    ) -> CellVar {
-        if let Some(cvar) = self.cached_constants.get(&value) {
-            return *cvar;
-        }
-
-        let var = self.backend.new_internal_var(Value::Constant(value), span);
-        self.cached_constants.insert(value, var);
-
-        let zero = B::Field::zero();
-        self.backend.add_generic_gate(
-            label.unwrap_or("hardcode a constant"),
-            vec![Some(var)],
-            vec![B::Field::one(), zero, zero, zero, value.neg()],
-            span,
-        );
-
-        var
-    }
-
     pub fn add_public_inputs(&mut self, name: String, num: usize, span: Span) -> Var<B::Field> {
         let mut cvars = Vec::with_capacity(num);
 

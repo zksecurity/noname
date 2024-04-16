@@ -55,7 +55,7 @@ pub fn poseidon(
         match const_or_cell {
             ConstOrCell::Const(cst) => {
                 let cell =
-                    compiler.add_constant(Some("encoding constant input to poseidon"), *cst, span);
+                    compiler.backend.add_constant(Some("encoding constant input to poseidon"), *cst, span);
                 cells.push(cell);
             }
             ConstOrCell::Cell(cell) => cells.push(*cell),
@@ -69,7 +69,7 @@ pub fn poseidon(
     let width = PlonkSpongeConstantsKimchi::SPONGE_WIDTH;
 
     // pad the input (for the capacity)
-    let zero_var = compiler.add_constant(
+    let zero_var = compiler.backend.add_constant(
         Some("encoding constant 0 for the capacity of poseidon"),
         Field::zero(),
         span,
