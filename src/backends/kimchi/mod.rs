@@ -10,6 +10,6 @@ impl Backend for KimchiVesta {
     type Field = Field;
     
     fn poseidon() -> crate::imports::FnHandle<Self> {
-        todo!()
+        builtin::poseidon
     }
 }
