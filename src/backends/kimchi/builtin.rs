@@ -11,7 +11,7 @@ use super::{VestaField, KimchiVesta};
 
 use crate::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
-    constants::{self, Span},
+    constants::Span,
     error::{ErrorKind, Result},
     parser::types::TyKind,
     var::{ConstOrCell, Value, Var},

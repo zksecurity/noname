@@ -1,10 +1,8 @@
 use std::{
     fmt::{self, Display, Formatter},
-    ops::Neg,
 };
 
 use ark_ff::{One, Zero};
-use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 use kimchi::circuits::wires::Wire;
 use num_bigint::BigUint;
 use num_traits::Num as _;

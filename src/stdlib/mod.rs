@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     ops::Neg as _,
 };
 
@@ -9,9 +9,9 @@ use once_cell::sync::Lazy;
 use crate::{
     backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
-    constants::{Span},
     error::{Error, ErrorKind, Result},
-    imports::{FnHandle, FnKind},
+    constants::Span,
+    imports::FnKind,
     lexer::Token,
     parser::{
         types::{FnSig, TyKind},
@@ -21,7 +21,6 @@ use crate::{
     var::{ConstOrCell, Var},
 };
 
-use self::crypto::get_crypto_fn;
 
 pub mod crypto;
 

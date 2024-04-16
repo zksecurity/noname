@@ -1,20 +1,31 @@
-pub mod builtin;
 pub mod asm;
+pub mod builtin;
 pub mod prover;
 
-use std::{collections::{HashMap, HashSet}, ops::Neg as _, fmt::Write};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Write,
+    ops::Neg as _,
+};
 
 use itertools::{izip, Itertools};
 use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 
 use crate::{
-    backends::kimchi::asm::{display_source, parse_coeffs}, circuit_writer::{
+    backends::kimchi::asm::{display_source, parse_coeffs},
+    circuit_writer::{
         writer::{AnnotatedCell, Cell, PendingGate},
         DebugInfo, Gate, GateKind, Wiring,
-    }, compiler::Sources, constants::{Span}, error::{Error, ErrorKind, Result}, helpers::PrettyField, var::{CellVar, Value, Var}, witness::WitnessEnv
+    },
+    constants::Span,
+    compiler::Sources,
+    error::{Error, ErrorKind, Result},
+    helpers::PrettyField,
+    var::{CellVar, Value, Var},
+    witness::WitnessEnv,
 };
 
-use ark_ff::{Zero, One};
+use ark_ff::{One, Zero};
 
 use self::asm::{extract_vars_from_coeffs, title, OrderedHashSet};
 
@@ -25,7 +36,6 @@ pub type VestaField = kimchi::mina_curves::pasta::Fp;
 pub const NUM_REGISTERS: usize = kimchi::circuits::wires::COLUMNS;
 
 use super::Backend;
-
 
 #[derive(Debug)]
 pub struct Witness(Vec<[VestaField; NUM_REGISTERS]>);
@@ -270,13 +280,13 @@ impl Backend for KimchiVesta {
             });
         }
     }
-    
+
     fn finalize_circuit(
-        &mut self, 
-        public_output: Option<Var<VestaField>>, 
+        &mut self,
+        public_output: Option<Var<VestaField>>,
         returned_cells: Option<Vec<CellVar>>,
-        private_input_indices: Vec<usize>, 
-        main_span: Span
+        private_input_indices: Vec<usize>,
+        main_span: Span,
     ) -> Result<()> {
         // TODO: the current tests pass even this is commented out. Add a test case for this one.
         // important: there might still be a pending generic gate
@@ -435,7 +445,7 @@ impl Backend for KimchiVesta {
             public_outputs,
         })
     }
-    
+
     fn generate_asm(&self, sources: &Sources, debug: bool) -> String {
         let mut res = "".to_string();
 

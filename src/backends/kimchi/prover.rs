@@ -3,10 +3,11 @@
 use std::iter::once;
 
 use crate::{
-    backends::{
-        kimchi::{KimchiVesta, VestaField},
-        Backend,
-    }, circuit_writer::Wiring, compiler::{generate_witness, Sources}, inputs::JsonInputs, witness::CompiledCircuit
+    backends::kimchi::{KimchiVesta, VestaField},
+    circuit_writer::Wiring,
+    compiler::{generate_witness, Sources},
+    inputs::JsonInputs,
+    witness::CompiledCircuit,
 };
 
 use itertools::chain;
@@ -127,7 +128,8 @@ impl KimchiVesta {
 
 impl CompiledCircuit<KimchiVesta> {
     pub fn compile_to_indexes(self) -> miette::Result<(ProverIndex, VerifierIndex)> {
-        let (prover_index, verifier_index) = self.circuit
+        let (prover_index, verifier_index) = self
+            .circuit
             .backend
             .compile_to_indexes(self.circuit.public_input_size)?;
         // wrap

@@ -9,7 +9,7 @@ use crate::{
     constants::Span,
     error::Result,
     type_checker::ConstInfo,
-    witness::{CompiledCircuit, WitnessEnv},
+    witness::WitnessEnv,
 };
 
 /// An internal variable that relates to a specific cell (of the execution trace),

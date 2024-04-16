@@ -25,11 +25,11 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::hash::Hash;
 
-use crate::circuit_writer::{DebugInfo, Gate};
+use crate::circuit_writer::DebugInfo;
 use crate::constants::Span;
 use crate::helpers::PrettyField;
 
-use super::{VestaField, KimchiVesta};
+use super::VestaField;
 
 pub fn display_source(
     res: &mut String,

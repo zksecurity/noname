@@ -18,7 +18,7 @@ use crate::{
     name_resolution::NAST,
     parser::AST,
     type_checker::TypeChecker,
-    witness::{CompiledCircuit},
+    witness::CompiledCircuit,
 };
 
 /// Contains the association between a counter and the corresponding filename and source code.

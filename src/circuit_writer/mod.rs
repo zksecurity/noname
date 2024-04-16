@@ -1,15 +1,13 @@
-use std::collections::{HashMap, HashSet};
-
 use crate::{
-    backends::{Backend, kimchi::VestaField},
-    constants::{Span},
+    backends::Backend,
+    constants::Span,
     error::{Error, ErrorKind, Result},
     parser::{
         types::{AttributeKind, FnArg, TyKind},
         Expr,
     },
     type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
-    var::{CellVar, Value, Var},
+    var::Var,
     witness::{CompiledCircuit, WitnessEnv},
 };
 
@@ -17,8 +15,6 @@ pub use fn_env::{FnEnv, VarInfo};
 use serde::{Deserialize, Serialize};
 //use serde::{Deserialize, Serialize};
 pub use writer::{Gate, GateKind, Wiring};
-
-use self::writer::PendingGate;
 
 pub mod fn_env;
 pub mod writer;

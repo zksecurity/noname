@@ -1,18 +1,17 @@
 use std::collections::HashMap;
 
-use ark_ff::{Field, Zero};
-use itertools::{chain, izip, Itertools};
+use ark_ff::Field;
+use itertools::chain;
 //use serde::{Deserialize, Serialize};
 
 use crate::{
-    backends::{kimchi::GeneratedWitness, Backend},
-    circuit_writer::{CircuitWriter, Gate},
+    backends::Backend,
+    circuit_writer::CircuitWriter,
     compiler::Sources,
     error::{Error, ErrorKind, Result},
-    helpers::PrettyField,
     inputs::JsonInputs,
     type_checker::FnInfo,
-    var::{CellVar, Value},
+    var::CellVar,
 };
 
 #[derive(Debug, Default)]

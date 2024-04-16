@@ -11,7 +11,6 @@ pub mod expr;
 pub mod structs;
 pub mod types;
 
-use ark_ff::Field;
 pub use expr::{Expr, ExprKind, Op2};
 pub use structs::{CustomType, StructDef};
 

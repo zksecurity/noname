@@ -1,9 +1,3 @@
-use ark_ff::Zero;
-use kimchi::circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW};
-use kimchi::mina_poseidon::constants::{PlonkSpongeConstantsKimchi, SpongeConstants};
-use kimchi::mina_poseidon::permutation::full_round;
-
-use crate::backends::kimchi::KimchiVesta;
 use crate::backends::Backend;
 use crate::imports::FnKind;
 use crate::lexer::Token;
@@ -11,11 +5,7 @@ use crate::parser::types::FnSig;
 use crate::parser::ParserCtx;
 use crate::type_checker::FnInfo;
 use crate::{
-    circuit_writer::{CircuitWriter, GateKind, VarInfo},
-    constants::{self, Span},
-    error::{ErrorKind, Result},
-    parser::types::TyKind,
-    var::{ConstOrCell, Value, Var},
+    constants::Span,
 };
 
 const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
