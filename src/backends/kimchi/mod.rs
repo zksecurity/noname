@@ -1,6 +1,7 @@
 use crate::constants::Field;
 
 use super::Backend;
+pub mod builtin;
 
 #[derive(Clone)]
 pub struct KimchiVesta;
