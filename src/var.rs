@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use ark_ff::Field;
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +45,9 @@ where
     /// Either it's a hint and can be computed from the outside.
     #[serde(skip)]
     // TODO: outch, remove hints? or https://docs.rs/serde_closure/latest/serde_closure/ ?
-    Hint(Box<HintFn<B>>),
+    // TODO: changed to Arc from Box because Value needs to be cloneable, because of cloneable backend and FnInfo
+    // if we can avoid cloning FnInfo, we may be able to avoid this change.
+    Hint(Arc<HintFn<B>>),
 
     /// Or it's a constant (for example, I wrote `2` in the code).
     #[serde(skip)]

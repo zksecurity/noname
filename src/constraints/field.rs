@@ -9,7 +9,7 @@ use super::boolean;
 
 use ark_ff::{One, Zero};
 
-use std::ops::Neg;
+use std::{ops::Neg, sync::Arc};
 
 /// Adds two field elements
 pub fn add<B: Backend>(
@@ -308,7 +308,7 @@ fn equal_cells<B: Backend>(
 
             // compute the result
             let res = compiler.new_internal_var(
-                Value::Hint(Box::new(move |compiler, env| {
+                Value::Hint(Arc::new(move |compiler, env| {
                     let x1 = compiler.compute_var(env, x1)?;
                     let x2 = compiler.compute_var(env, x2)?;
                     if x1 == x2 {
@@ -469,7 +469,7 @@ pub fn if_else_inner<B: Backend>(
             let else_clone = *else_;
 
             let res = compiler.new_internal_var(
-                Value::Hint(Box::new(move |compiler, env| {
+                Value::Hint(Arc::new(move |compiler, env| {
                     let cond = compiler.compute_var(env, cond_cell)?;
                     let res_var = if cond.is_one() {
                         &then_clone

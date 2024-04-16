@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use ark_ff::Zero;
 use kimchi::circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW};
 use kimchi::mina_poseidon::constants::{PlonkSpongeConstantsKimchi, SpongeConstants};
 use kimchi::mina_poseidon::permutation::full_round;
 
+use crate::backends::Backend;
 use crate::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
     constants::{self, Field, Span},
@@ -90,7 +93,7 @@ pub fn poseidon(
             for col in 0..3 {
                 // create each variable
                 let var = compiler.new_internal_var(
-                    Value::Hint(Box::new(move |compiler, env| {
+                    Value::Hint(Arc::new(move |compiler, env| {
                         let x1 = compiler.compute_var(env, prev_0)?;
                         let x2 = compiler.compute_var(env, prev_1)?;
                         let x3 = compiler.compute_var(env, prev_2)?;
