@@ -54,7 +54,7 @@ pub fn and<B: Backend>(
         // two vars
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // create a new variable to store the result
-            let res = compiler.new_internal_var(Value::Mul(*lhs, *rhs), span);
+            let res = compiler.backend.new_internal_var(Value::Mul(*lhs, *rhs), span);
 
             // create a gate to constrain the result
             let zero = B::Field::zero();
@@ -95,7 +95,7 @@ pub fn not<B: Backend>(
 
             // create a new variable to store the result
             let lc = Value::LinearCombination(vec![(one.neg(), *cvar)], one); // 1 - X
-            let res = compiler.new_internal_var(lc, span);
+            let res = compiler.backend.new_internal_var(lc, span);
 
             // create a gate to constrain the result
             compiler.add_generic_gate(

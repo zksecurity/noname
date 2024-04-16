@@ -756,7 +756,7 @@ impl<B: Backend> CircuitWriter<B> {
             return *cvar;
         }
 
-        let var = self.new_internal_var(Value::Constant(value), span);
+        let var = self.backend.new_internal_var(Value::Constant(value), span);
         self.cached_constants.insert(value, var);
 
         let zero = B::Field::zero();
@@ -830,7 +830,7 @@ impl<B: Backend> CircuitWriter<B> {
 
         for idx in 0..num {
             // create the var
-            let cvar = self.new_internal_var(Value::External(name.clone(), idx), span);
+            let cvar = self.backend.new_internal_var(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
 
             // create the associated generic gate
@@ -854,7 +854,7 @@ impl<B: Backend> CircuitWriter<B> {
         let mut cvars = Vec::with_capacity(num);
         for _ in 0..num {
             // create the var
-            let cvar = self.new_internal_var(Value::PublicOutput(None), span);
+            let cvar = self.backend.new_internal_var(Value::PublicOutput(None), span);
             cvars.push(ConstOrCell::Cell(cvar));
 
             // create the associated generic gate
@@ -877,7 +877,7 @@ impl<B: Backend> CircuitWriter<B> {
 
         for idx in 0..num {
             // create the var
-            let cvar = self.new_internal_var(Value::External(name.clone(), idx), span);
+            let cvar = self.backend.new_internal_var(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
             self.private_input_indices.push(cvar.index);
         }

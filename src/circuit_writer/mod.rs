@@ -172,8 +172,6 @@ impl<B: Backend> CircuitWriter<B> {
             typed,
             backend,
             finalized: false,
-            next_variable: 0,
-            witness_vars: HashMap::new(),
             rows_of_vars: vec![],
             gates: vec![],
             wiring: HashMap::new(),
