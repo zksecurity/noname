@@ -84,9 +84,7 @@ where
     /// We cache the association between a constant and its _constrained_ variable,
     /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
     pub(crate) cached_constants: HashMap<B::Field, CellVar>,
-
-    /// A vector of debug information that maps to each row of the created circuit.
-    pub(crate) debug_info: Vec<DebugInfo>,
+    
 }
 
 /// Debug information related to a single row in a circuit.

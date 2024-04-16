@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{constants::{Field, Span}, var::{CellVar, Value}};
+use crate::{circuit_writer::DebugInfo, constants::{Field, Span}, var::{CellVar, Value}};
 
 use super::Backend;
 pub mod builtin;
@@ -13,6 +13,9 @@ pub struct KimchiVesta {
     /// This is how you compute the value of each variable during witness generation.
     /// It is created during circuit generation.
     pub(crate) witness_vars: HashMap<usize, Value<Self>>,
+
+    /// A vector of debug information that maps to each row of the created circuit.
+    pub(crate) debug_info: Vec<DebugInfo>,
 }
 
 impl Backend for KimchiVesta {
@@ -20,6 +23,10 @@ impl Backend for KimchiVesta {
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
         builtin::poseidon
+    }
+
+    fn debug_info(&self) -> &[DebugInfo] {
+        &self.debug_info
     }
 
     fn witness_vars(&self) -> &HashMap<usize, Value<Self>> {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use ark_ff::Field;
 
-use crate::{constants::Span, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value}};
+use crate::{circuit_writer::DebugInfo, constants::Span, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value}};
 
 pub mod kimchi;
 
@@ -22,4 +22,6 @@ pub trait Backend: Clone {
     /// Create a new cell variable and record it.
     /// It increments the variable index for look up later.
     fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> CellVar;
+
+    fn debug_info(&self) -> &[DebugInfo];
 }
