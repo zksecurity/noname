@@ -1,3 +1,7 @@
+pub mod builtin;
+pub mod asm;
+pub mod prover;
+
 use std::{collections::{HashMap, HashSet}, ops::Neg as _, fmt::Write};
 
 use itertools::{izip, Itertools};
@@ -7,30 +11,33 @@ use crate::{
     backends::kimchi::asm::{display_source, parse_coeffs}, circuit_writer::{
         writer::{AnnotatedCell, Cell, PendingGate},
         DebugInfo, Gate, GateKind, Wiring,
-    }, compiler::Sources, constants::{Field, Span, NUM_REGISTERS}, error::{Error, ErrorKind, Result}, helpers::PrettyField, var::{CellVar, Value, Var}, witness::WitnessEnv
+    }, compiler::Sources, constants::{Span}, error::{Error, ErrorKind, Result}, helpers::PrettyField, var::{CellVar, Value, Var}, witness::WitnessEnv
 };
 
 use ark_ff::{Zero, One};
 
 use self::asm::{extract_vars_from_coeffs, title, OrderedHashSet};
 
+/// We use the scalar field of Vesta as our circuit field.
+pub type VestaField = kimchi::mina_curves::pasta::Fp;
+
+/// Number of columns in the execution trace.
+pub const NUM_REGISTERS: usize = kimchi::circuits::wires::COLUMNS;
+
 use super::Backend;
 
-pub mod builtin;
-pub mod asm;
-pub mod prover;
 
 #[derive(Debug)]
-pub struct Witness(Vec<[Field; NUM_REGISTERS]>);
+pub struct Witness(Vec<[VestaField; NUM_REGISTERS]>);
 
 // TODO: refine this struct as full_public_inputs and public_outputs overlap with all_witness
 pub struct GeneratedWitness {
     /// contains all the witness values
     pub all_witness: Witness,
     /// contains the public inputs, which are also part of the all_witness
-    pub full_public_inputs: Vec<Field>,
+    pub full_public_inputs: Vec<VestaField>,
     /// contains the public outputs, which are also part of the all_witness
-    pub public_outputs: Vec<Field>,
+    pub public_outputs: Vec<VestaField>,
 }
 
 #[derive(Clone)]
@@ -49,7 +56,7 @@ pub struct KimchiVesta {
 
     /// We cache the association between a constant and its _constrained_ variable,
     /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
-    pub(crate) cached_constants: HashMap<Field, CellVar>,
+    pub(crate) cached_constants: HashMap<VestaField, CellVar>,
 
     /// The gates created by the circuit generation.
     gates: Vec<Gate>,
@@ -76,7 +83,7 @@ pub struct KimchiVesta {
 
 impl Witness {
     /// kimchi uses a transposed witness
-    pub fn to_kimchi_witness(&self) -> [Vec<Field>; NUM_REGISTERS] {
+    pub fn to_kimchi_witness(&self) -> [Vec<VestaField>; NUM_REGISTERS] {
         let transposed = vec![Vec::with_capacity(self.0.len()); NUM_REGISTERS];
         let mut transposed: [_; NUM_REGISTERS] = transposed.try_into().unwrap();
         for row in &self.0 {
@@ -121,7 +128,7 @@ impl KimchiVesta {
 }
 
 impl Backend for KimchiVesta {
-    type Field = Field;
+    type Field = VestaField;
     type GeneratedWitness = GeneratedWitness;
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
@@ -150,7 +157,7 @@ impl Backend for KimchiVesta {
     fn add_constant(
         &mut self,
         label: Option<&'static str>,
-        value: Field,
+        value: VestaField,
         span: Span,
     ) -> CellVar {
         if let Some(cvar) = self.cached_constants.get(&value) {
@@ -160,12 +167,12 @@ impl Backend for KimchiVesta {
         let var = self.new_internal_var(Value::Constant(value), span);
         self.cached_constants.insert(value, var);
 
-        let zero = Field::zero();
+        let zero = VestaField::zero();
 
         let _ = &self.add_generic_gate(
             label.unwrap_or("hardcode a constant"),
             vec![Some(var)],
-            vec![Field::one(), zero, zero, zero, value.neg()],
+            vec![VestaField::one(), zero, zero, zero, value.neg()],
             span,
         );
 
@@ -177,7 +184,7 @@ impl Backend for KimchiVesta {
         note: &'static str,
         typ: GateKind,
         vars: Vec<Option<CellVar>>,
-        coeffs: Vec<Field>,
+        coeffs: Vec<VestaField>,
         span: Span,
     ) {
         // sanitize
@@ -229,12 +236,12 @@ impl Backend for KimchiVesta {
         &mut self,
         label: &'static str,
         mut vars: Vec<Option<CellVar>>,
-        mut coeffs: Vec<Field>,
+        mut coeffs: Vec<VestaField>,
         span: Span,
     ) {
         // padding
         let coeffs_padding = GENERIC_COEFFS.checked_sub(coeffs.len()).unwrap();
-        coeffs.extend(std::iter::repeat(Field::zero()).take(coeffs_padding));
+        coeffs.extend(std::iter::repeat(VestaField::zero()).take(coeffs_padding));
 
         let vars_padding = GENERIC_REGISTERS.checked_sub(vars.len()).unwrap();
         vars.extend(std::iter::repeat(None).take(vars_padding));
@@ -266,7 +273,7 @@ impl Backend for KimchiVesta {
     
     fn finalize_circuit(
         &mut self, 
-        public_output: Option<Var<Field>>, 
+        public_output: Option<Var<VestaField>>, 
         returned_cells: Option<Vec<CellVar>>,
         private_input_indices: Vec<usize>, 
         main_span: Span
@@ -334,7 +341,7 @@ impl Backend for KimchiVesta {
 
     fn generate_witness(
         &self,
-        witness_env: &mut WitnessEnv<Field>,
+        witness_env: &mut WitnessEnv<VestaField>,
         public_input_size: usize,
     ) -> Result<GeneratedWitness> {
         if !self.finalized {
@@ -436,7 +443,7 @@ impl Backend for KimchiVesta {
         res.push_str("@ noname.0.7.0\n\n");
 
         // vars
-        let mut vars: OrderedHashSet<Field> = OrderedHashSet::default();
+        let mut vars: OrderedHashSet<VestaField> = OrderedHashSet::default();
 
         for Gate { coeffs, .. } in self.gates.iter() {
             extract_vars_from_coeffs(&mut vars, coeffs);

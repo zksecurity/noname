@@ -12,7 +12,7 @@ use crate::parser::ParserCtx;
 use crate::type_checker::FnInfo;
 use crate::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
-    constants::{self, Field, Span},
+    constants::{self, Span},
     error::{ErrorKind, Result},
     parser::types::TyKind,
     var::{ConstOrCell, Value, Var},

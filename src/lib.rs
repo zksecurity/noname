@@ -38,7 +38,8 @@ pub mod helpers {
         poseidon::{ArithmeticSponge, Sponge},
     };
 
-    use crate::constants::Field;
+    use crate::backends::kimchi::VestaField;
+
 
     /// A trait to display [Field] in pretty ways.
     pub trait PrettyField: ark_ff::PrimeField {
@@ -54,10 +55,10 @@ pub mod helpers {
         }
     }
 
-    impl PrettyField for Field {}
+    impl PrettyField for VestaField {}
 
-    pub fn poseidon(input: [Field; 2]) -> Field {
-        let mut sponge: ArithmeticSponge<Field, PlonkSpongeConstantsKimchi> =
+    pub fn poseidon(input: [VestaField; 2]) -> VestaField {
+        let mut sponge: ArithmeticSponge<VestaField, PlonkSpongeConstantsKimchi> =
             ArithmeticSponge::new(fp_kimchi::static_params());
         sponge.absorb(&input);
         sponge.squeeze()

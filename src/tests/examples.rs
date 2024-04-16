@@ -1,9 +1,8 @@
 use std::path::Path;
 
 use crate::{
-    backends::kimchi::KimchiVesta,
+    backends::kimchi::{VestaField, KimchiVesta},
     compiler::{compile, typecheck_next_file, Sources},
-    constants::Field,
     inputs::{parse_inputs, ExtField},
     type_checker::TypeChecker,
 };
@@ -12,7 +11,7 @@ fn test_file(
     file_name: &str,
     public_inputs: &str,
     private_inputs: &str,
-    expected_public_output: Vec<Field>,
+    expected_public_output: Vec<VestaField>,
 ) -> miette::Result<()> {
     let version = env!("CARGO_MANIFEST_DIR");
     let prefix = Path::new(version).join("examples");
@@ -189,7 +188,7 @@ fn test_types() -> miette::Result<()> {
 fn test_const() -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"player": "1"}"#;
-    let expected_public_output = vec![Field::from(2)];
+    let expected_public_output = vec![VestaField::from(2)];
 
     test_file(
         "const",
@@ -235,7 +234,7 @@ fn test_types_array() -> miette::Result<()> {
 fn test_iterate() -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"bedroom_holes": "2"}"#;
-    let expected_public_output = vec![Field::from(4)];
+    let expected_public_output = vec![VestaField::from(4)];
 
     test_file(
         "iterate",

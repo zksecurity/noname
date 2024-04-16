@@ -12,7 +12,6 @@ use crate::{
     backends::Backend,
     circuit_writer::CircuitWriter,
     cli::packages::UserRepo,
-    constants::Field,
     error::Result,
     inputs::JsonInputs,
     lexer::Token,

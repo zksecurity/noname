@@ -26,10 +26,10 @@ use std::fmt::Write;
 use std::hash::Hash;
 
 use crate::circuit_writer::{DebugInfo, Gate};
-use crate::constants::{Field, Span};
+use crate::constants::Span;
 use crate::helpers::PrettyField;
 
-use super::KimchiVesta;
+use super::{VestaField, KimchiVesta};
 
 pub fn display_source(
     res: &mut String,
@@ -69,8 +69,8 @@ pub fn display_source(
 }
 
 pub fn extract_vars_from_coeffs(
-    vars: &mut OrderedHashSet<Field>,
-    coeffs: &[Field],
+    vars: &mut OrderedHashSet<VestaField>,
+    coeffs: &[VestaField],
 ) {
     for coeff in coeffs {
         let s = coeff.pretty();
@@ -80,7 +80,7 @@ pub fn extract_vars_from_coeffs(
     }
 }
 
-pub fn parse_coeffs(vars: &OrderedHashSet<Field>, coeffs: &[Field]) -> Vec<String> {
+pub fn parse_coeffs(vars: &OrderedHashSet<VestaField>, coeffs: &[VestaField]) -> Vec<String> {
     let mut coeffs: Vec<_> = coeffs
         .iter()
         .map(|x| {

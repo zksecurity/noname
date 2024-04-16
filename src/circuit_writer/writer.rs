@@ -11,9 +11,9 @@ use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backends::Backend,
+    backends::{kimchi::VestaField, Backend},
     circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
-    constants::{Span, NUM_REGISTERS, Field},
+    constants::Span,
     constraints::{boolean, field},
     error::{ErrorKind, Result},
     imports::FnKind,
@@ -57,11 +57,11 @@ pub struct Gate
 
     /// Coefficients
     #[serde(skip)]
-    pub coeffs: Vec<Field>,
+    pub coeffs: Vec<VestaField>,
 }
 
 impl Gate {
-    pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<Field> {
+    pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<VestaField> {
         kimchi::circuits::gate::CircuitGate {
             typ: self.typ.into(),
             wires: Wire::for_row(row),
@@ -765,7 +765,7 @@ pub(crate) struct PendingGate
 {
     pub label: &'static str,
     #[serde(skip)]
-    pub coeffs: Vec<Field>,
+    pub coeffs: Vec<VestaField>,
     pub vars: Vec<Option<CellVar>>,
     pub span: Span,
 }

@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 use crate::{
     backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
-    constants::{Field, Span},
+    constants::{Span},
     error::{Error, ErrorKind, Result},
     imports::{FnHandle, FnKind},
     lexer::Token,

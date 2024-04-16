@@ -8,7 +8,7 @@ use num_bigint::BigUint;
 use thiserror::Error;
 
 use crate::{
-    backends::Backend, constants::Field, parser::types::TyKind, type_checker::FullyQualified, witness::CompiledCircuit
+    backends::{kimchi::VestaField, Backend}, parser::types::TyKind, type_checker::FullyQualified, witness::CompiledCircuit
 };
 
 //
@@ -133,7 +133,7 @@ pub trait ExtField /* : PrimeField*/ {
     fn to_dec_string(&self) -> String;
 }
 
-impl ExtField for Field {
+impl ExtField for VestaField {
     fn to_dec_string(&self) -> String {
         let biguint: BigUint = self.into_repr().into();
         biguint.to_str_radix(10)
@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_extfield() {
-        let field = Field::from(42);
+        let field = VestaField::from(42);
         assert_eq!(field.to_dec_string(), "42");
     }
 }

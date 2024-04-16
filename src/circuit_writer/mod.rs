@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    backends::Backend,
-    constants::{Field, Span},
+    backends::{Backend, kimchi::VestaField},
+    constants::{Span},
     error::{Error, ErrorKind, Result},
     parser::{
         types::{AttributeKind, FnArg, TyKind},

@@ -4,9 +4,9 @@ use std::iter::once;
 
 use crate::{
     backends::{
-        kimchi::KimchiVesta,
+        kimchi::{KimchiVesta, VestaField},
         Backend,
-    }, circuit_writer::Wiring, compiler::{generate_witness, Sources}, constants::Field, inputs::JsonInputs, witness::CompiledCircuit
+    }, circuit_writer::Wiring, compiler::{generate_witness, Sources}, inputs::JsonInputs, witness::CompiledCircuit
 };
 
 use itertools::chain;
@@ -173,8 +173,8 @@ impl ProverIndex {
         debug: bool,
     ) -> miette::Result<(
         ProverProof<Curve, OpeningProof<Curve>>,
-        Vec<Field>,
-        Vec<Field>,
+        Vec<VestaField>,
+        Vec<VestaField>,
     )> {
         // generate the witness
         let generated_witness = generate_witness(
@@ -221,7 +221,7 @@ impl ProverIndex {
 impl VerifierIndex {
     pub fn verify(
         &self,
-        full_public_inputs: Vec<Field>,
+        full_public_inputs: Vec<VestaField>,
         proof: ProverProof<Curve, OpeningProof<Curve>>,
     ) -> miette::Result<()> {
         // verify the proof

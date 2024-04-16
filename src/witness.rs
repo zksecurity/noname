@@ -8,7 +8,6 @@ use crate::{
     backends::{kimchi::GeneratedWitness, Backend},
     circuit_writer::{CircuitWriter, Gate},
     compiler::Sources,
-    constants::NUM_REGISTERS,
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     inputs::JsonInputs,

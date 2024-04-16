@@ -1,7 +1,7 @@
 use crate::{
     backends::Backend,
     circuit_writer::CircuitWriter,
-    constants::{Field, Span},
+    constants::Span,
     var::{ConstOrCell, Value, Var},
 };
 

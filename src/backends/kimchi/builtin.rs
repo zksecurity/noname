@@ -5,22 +5,23 @@ use kimchi::circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW}
 use kimchi::mina_poseidon::constants::{PlonkSpongeConstantsKimchi, SpongeConstants};
 use kimchi::mina_poseidon::permutation::full_round;
 
+use crate::backends::kimchi::NUM_REGISTERS;
 use crate::backends::Backend;
+use super::{VestaField, KimchiVesta};
+
 use crate::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
-    constants::{self, Field, Span},
+    constants::{self, Span},
     error::{ErrorKind, Result},
     parser::types::TyKind,
     var::{ConstOrCell, Value, Var},
 };
 
-use super::KimchiVesta;
-
 pub fn poseidon(
     compiler: &mut CircuitWriter<KimchiVesta>,
-    vars: &[VarInfo<Field>],
+    vars: &[VarInfo<VestaField>],
     span: Span,
-) -> Result<Option<Var<Field>>> {
+) -> Result<Option<Var<VestaField>>> {
     //
     // sanity checks
     //
@@ -71,7 +72,7 @@ pub fn poseidon(
     // pad the input (for the capacity)
     let zero_var = compiler.backend.add_constant(
         Some("encoding constant 0 for the capacity of poseidon"),
-        Field::zero(),
+        VestaField::zero(),
         span,
     );
     cells.push(zero_var);
@@ -101,7 +102,7 @@ pub fn poseidon(
                         let mut acc = vec![x1, x2, x3];
 
                         // Do one full round on the previous value
-                        full_round::<Field, PlonkSpongeConstantsKimchi>(
+                        full_round::<VestaField, PlonkSpongeConstantsKimchi>(
                             &kimchi::mina_poseidon::pasta::fp_kimchi::params(),
                             &mut acc,
                             offset + i,
@@ -118,7 +119,7 @@ pub fn poseidon(
             states.push(new_state);
         }
 
-        let coeffs = (0..constants::NUM_REGISTERS)
+        let coeffs = (0..NUM_REGISTERS)
             .map(|i| rc[offset + (i / width)][i % width])
             .collect();
 
