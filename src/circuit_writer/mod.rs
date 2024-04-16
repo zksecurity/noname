@@ -226,7 +226,18 @@ impl<B: Backend> CircuitWriter<B> {
         }
 
         // compile function
-        circuit_writer.compile_main_function(fn_env, &function)?;
+        let returned_cells = circuit_writer.compile_main_function(fn_env, &function)?;
+        let main_span = circuit_writer.main_info().unwrap().span;
+        let private_input_indices = circuit_writer.private_input_indices.clone();
+        let public_output = circuit_writer.public_output.clone();
+
+        circuit_writer.backend.finalize_circuit(
+            public_output,
+            returned_cells,
+            private_input_indices,
+            main_span,
+        )?;
+
 
         //
         Ok(CompiledCircuit::new(circuit_writer))
