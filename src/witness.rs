@@ -101,7 +101,7 @@ impl<B: Backend> CompiledCircuit<B> {
             return Ok(*res);
         }
 
-        match &self.circuit.witness_vars[&var.index] {
+        match &self.circuit.backend.witness_vars()[&var.index] {
             Value::Hint(func) => {
                 let res = func(self, env)
                     .expect("that function doesn't return a var (type checker error)");
@@ -211,7 +211,7 @@ impl<B: Backend> CompiledCircuit<B> {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
                     if matches!(
-                        self.circuit.witness_vars[&var.index],
+                        self.circuit.backend.witness_vars()[&var.index],
                         Value::PublicOutput(_)
                     ) {
                         public_outputs_vars.push((row, *var));

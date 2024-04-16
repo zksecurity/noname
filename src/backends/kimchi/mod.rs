@@ -22,6 +22,10 @@ impl Backend for KimchiVesta {
         builtin::poseidon
     }
 
+    fn witness_vars(&self) -> &HashMap<usize, Value<Self>> {
+        &self.witness_vars
+    }
+
     fn new_internal_var(&mut self, val: Value<KimchiVesta>, span: Span) -> CellVar {
         // create new var
         let var = CellVar::new(self.next_variable, span);

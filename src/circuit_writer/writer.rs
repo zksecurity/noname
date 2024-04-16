@@ -307,7 +307,8 @@ impl<B: Backend> CircuitWriter<B> {
                     // replace the computation of the public output vars with the actual variables being returned here
                     let var_idx = pub_var.idx().unwrap();
                     let prev = self
-                        .witness_vars
+                        .backend
+                        .witness_vars()
                         .insert(var_idx, Value::PublicOutput(Some(*ret_var)));
                     assert!(prev.is_some());
                 }
