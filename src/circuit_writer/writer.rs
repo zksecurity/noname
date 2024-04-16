@@ -272,7 +272,7 @@ impl<B: Backend> CircuitWriter<B> {
         &mut self,
         fn_env: &mut FnEnv<B::Field>,
         function: &FunctionDef,
-    ) -> Result<()> {
+    ) -> Result<Option<Vec<CellVar>>> {
         assert!(function.is_main());
 
         // compile the block
@@ -280,7 +280,7 @@ impl<B: Backend> CircuitWriter<B> {
 
         // we're expecting something returned?
         match (function.sig.return_type.as_ref(), returned) {
-            (None, None) => Ok(()),
+            (None, None) => Ok(None),
             (Some(expected), None) => Err(self.error(ErrorKind::MissingReturn, expected.span)),
             (None, Some(returned)) => Err(self.error(ErrorKind::UnexpectedReturn, returned.span)),
             (Some(_expected), Some(returned)) => {
@@ -288,30 +288,19 @@ impl<B: Backend> CircuitWriter<B> {
                 let mut returned_cells = vec![];
                 for r in &returned.cvars {
                     match r {
-                        ConstOrCell::Cell(c) => returned_cells.push(c),
+                        ConstOrCell::Cell(c) => returned_cells.push(*c),
                         ConstOrCell::Const(_) => {
                             return Err(self.error(ErrorKind::ConstantInOutput, returned.span))
                         }
                     }
                 }
 
-                // store the return value in the public input that was created for that ^
-                let public_output = self
+                self
                     .public_output
                     .as_ref()
                     .expect("bug in the compiler: missing public output");
 
-                for (pub_var, ret_var) in public_output.cvars.iter().zip(returned_cells) {
-                    // replace the computation of the public output vars with the actual variables being returned here
-                    let var_idx = pub_var.idx().unwrap();
-                    let prev = self
-                        .backend
-                        .witness_vars()
-                        .insert(var_idx, Value::PublicOutput(Some(*ret_var)));
-                    assert!(prev.is_some());
-                }
-
-                Ok(())
+                Ok(Some(returned_cells))
             }
         }
     }

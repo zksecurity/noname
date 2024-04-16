@@ -2,7 +2,14 @@ use std::collections::HashMap;
 
 use ark_ff::Field;
 
-use crate::{circuit_writer::{DebugInfo, GateKind}, constants::Span, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value}};
+use crate::{
+    circuit_writer::{DebugInfo, GateKind},
+    constants::Span,
+    error::Result,
+    helpers::PrettyField,
+    imports::FnHandle,
+    var::{CellVar, Value, Var},
+};
 
 pub mod kimchi;
 
@@ -42,4 +49,14 @@ pub trait Backend: Clone {
         coeffs: Vec<Self::Field>,
         span: Span,
     );
+
+    // TODO: we may need to move the finalized flag from circuit writer to backend, so the backend can freeze itself once finalized.
+    /// Finalize the circuit by doing some sanitizing checks.
+    fn finalize_circuit(
+        &mut self,
+        public_output: Option<Var<Self::Field>>,
+        returned_cells: Option<Vec<CellVar>>,
+        private_input_indices: Vec<usize>,
+        main_span: Span,
+    ) -> Result<()>;
 }

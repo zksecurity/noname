@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 
@@ -6,9 +6,7 @@ use crate::{
     circuit_writer::{
         writer::{AnnotatedCell, Cell, PendingGate},
         DebugInfo, Gate, GateKind, Wiring,
-    },
-    constants::{Field, Span, NUM_REGISTERS},
-    var::{CellVar, Value},
+    }, constants::{Field, Span, NUM_REGISTERS}, error::{Error, ErrorKind, Result}, var::{CellVar, Value, Var}
 };
 
 use ark_ff::Zero;
@@ -47,6 +45,10 @@ pub struct KimchiVesta {
 
     /// A vector of debug information that maps to each row of the created circuit.
     pub(crate) debug_info: Vec<DebugInfo>,
+
+    /// Once this is set, you can generate a witness (and can't modify the circuit?)
+    // Note: I don't think we need this, but it acts as a nice redundant failsafe.
+    pub(crate) finalized: bool,
 }
 
 impl Backend for KimchiVesta {
@@ -165,5 +167,73 @@ impl Backend for KimchiVesta {
                 span,
             });
         }
+    }
+    
+    fn finalize_circuit(
+        &mut self, 
+        public_output: Option<Var<Field>>, 
+        returned_cells: Option<Vec<CellVar>>,
+        private_input_indices: Vec<usize>, 
+        main_span: Span
+    ) -> Result<()> {
+        // TODO: the current tests pass even this is commented out. Add a test case for this one.
+        // important: there might still be a pending generic gate
+        if let Some(pending) = self.pending_generic_gate.take() {
+            self.add_gate(
+                pending.label,
+                GateKind::DoubleGeneric,
+                pending.vars,
+                pending.coeffs,
+                pending.span,
+            );
+        }
+
+        // for sanity check, we make sure that every cellvar created has ended up in a gate
+        let mut written_vars = HashSet::new();
+        for row in self.rows_of_vars.iter() {
+            row.iter().flatten().for_each(|cvar| {
+                written_vars.insert(cvar.index);
+            });
+        }
+
+        for var in 0..self.next_variable {
+            if !written_vars.contains(&var) {
+                if private_input_indices.contains(&var) {
+                    // TODO: is this error useful?
+                    let err = Error::new(
+                        "constraint-finalization",
+                        ErrorKind::PrivateInputNotUsed,
+                        main_span,
+                    );
+                    return Err(err);
+                } else {
+                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
+                }
+            }
+        }
+
+        // kimchi hack
+        if self.gates.len() <= 2 {
+            panic!("the circuit is either too small or does not constrain anything (TODO: better error)");
+        }
+
+        // store the return value in the public input that was created for that ^
+        if let Some(public_output) = public_output {
+            let cvars = &public_output.cvars;
+
+            for (pub_var, ret_var) in cvars.clone().iter().zip(returned_cells.unwrap()) {
+                // replace the computation of the public output vars with the actual variables being returned here
+                let var_idx = pub_var.idx().unwrap();
+                let prev = self
+                    .witness_vars
+                    .insert(var_idx, Value::PublicOutput(Some(ret_var)));
+                // .insert(var_idx, Value::PublicOutput(Some(*ret_var)));
+                assert!(prev.is_some());
+            }
+        }
+
+        self.finalized = true;
+
+        Ok(())
     }
 }
