@@ -10,7 +10,7 @@ use crate::{
     },
     type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
     var::{CellVar, Value, Var},
-    witness::CompiledCircuit,
+    witness::{CompiledCircuit, WitnessEnv},
 };
 
 pub use fn_env::{FnEnv, VarInfo};
@@ -230,5 +230,14 @@ impl<B: Backend> CircuitWriter<B> {
 
         //
         Ok(CompiledCircuit::new(circuit_writer))
+    }
+
+    /// A wrapper for the backend generate_witness
+    pub fn generate_witness(
+        &self,
+        witness_env: &mut WitnessEnv<B::Field>,
+    ) -> Result<B::GeneratedWitness> {
+        self.backend
+            .generate_witness(witness_env, self.public_input_size)
     }
 }

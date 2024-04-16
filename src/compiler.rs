@@ -19,7 +19,7 @@ use crate::{
     name_resolution::NAST,
     parser::AST,
     type_checker::TypeChecker,
-    witness::{CompiledCircuit, Witness},
+    witness::{CompiledCircuit},
 };
 
 /// Contains the association between a counter and the corresponding filename and source code.
@@ -158,7 +158,7 @@ pub fn generate_witness<B: Backend>(
     sources: &Sources,
     public_inputs: JsonInputs,
     private_inputs: JsonInputs,
-) -> miette::Result<(Witness<B::Field>, Vec<B::Field>, Vec<B::Field>)> {
+) -> miette::Result<B::GeneratedWitness> {
     compiled_circuit
         .generate_witness(public_inputs, private_inputs)
         .into_miette(sources)

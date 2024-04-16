@@ -17,6 +17,7 @@ pub mod kimchi;
 pub trait Backend: Clone {
     /// The circuit field / scalar field that the circuit is written on.
     type Field: Field + PrettyField;
+    type GeneratedWitness;
 
     /// This provides a standard way to access to all the internal vars.
     /// Different backends should be accessible in the same way by the variable index.
@@ -123,4 +124,11 @@ pub trait Backend: Clone {
         private_input_indices: Vec<usize>,
         main_span: Span,
     ) -> Result<()>;
+
+    /// Generate the witness for a backend.
+    fn generate_witness(
+        &self,
+        witness_env: &mut WitnessEnv<Self::Field>,
+        public_input_size: usize,
+    ) -> Result<Self::GeneratedWitness>;
 }

@@ -1,18 +1,32 @@
 use std::{collections::{HashMap, HashSet}, ops::Neg as _};
 
+use itertools::izip;
 use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 
 use crate::{
     circuit_writer::{
         writer::{AnnotatedCell, Cell, PendingGate},
         DebugInfo, Gate, GateKind, Wiring,
-    }, constants::{Field, Span, NUM_REGISTERS}, error::{Error, ErrorKind, Result}, var::{CellVar, Value, Var}
+    }, constants::{Field, Span, NUM_REGISTERS}, error::{Error, ErrorKind, Result}, var::{CellVar, Value, Var}, witness::{WitnessEnv}
 };
 
 use ark_ff::{Zero, One};
 
 use super::Backend;
 pub mod builtin;
+
+#[derive(Debug)]
+pub struct Witness(Vec<[Field; NUM_REGISTERS]>);
+
+// TODO: refine this struct as full_public_inputs and public_outputs overlap with all_witness
+pub struct GeneratedWitness {
+    /// contains all the witness values
+    pub all_witness: Witness,
+    /// contains the public inputs, which are also part of the all_witness
+    pub full_public_inputs: Vec<Field>,
+    /// contains the public outputs, which are also part of the all_witness
+    pub public_outputs: Vec<Field>,
+}
 
 #[derive(Clone, Default)]
 pub struct KimchiVesta {
@@ -57,6 +71,7 @@ pub struct KimchiVesta {
 
 impl Backend for KimchiVesta {
     type Field = Field;
+    type GeneratedWitness = GeneratedWitness;
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
         builtin::poseidon
@@ -265,4 +280,102 @@ impl Backend for KimchiVesta {
 
         Ok(())
     }
+
+    fn generate_witness(
+        &self,
+        witness_env: &mut WitnessEnv<Field>,
+        public_input_size: usize,
+    ) -> Result<GeneratedWitness> {
+        if !self.finalized {
+            unreachable!("the circuit must be finalized before generating a witness");
+        }
+
+        let mut witness = vec![];
+        // compute each rows' vars, except for the deferred ones (public output)
+        let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
+
+        for (row, (gate, row_of_vars, debug_info)) in
+            izip!(self.gates.iter(), &self.rows_of_vars, self.debug_info()).enumerate()
+        {
+            // create the witness row
+            let mut witness_row = [Self::Field::zero(); NUM_REGISTERS];
+
+            for (col, var) in row_of_vars.iter().enumerate() {
+                let val = if let Some(var) = var {
+                    // if it's a public output, defer it's computation
+                    if matches!(self.witness_vars()[&var.index], Value::PublicOutput(_)) {
+                        public_outputs_vars.push((row, *var));
+                        Self::Field::zero()
+                    } else {
+                        self.compute_var(witness_env, *var)?
+                    }
+                } else {
+                    Self::Field::zero()
+                };
+                witness_row[col] = val;
+            }
+
+            // check if the row makes sense
+            let is_not_public_input = row >= public_input_size;
+            if is_not_public_input {
+                #[allow(clippy::single_match)]
+                match gate.typ {
+                    // only check the generic gate
+                    crate::circuit_writer::GateKind::DoubleGeneric => {
+                        let c = |i| {
+                            gate.coeffs
+                                .get(i)
+                                .copied()
+                                .unwrap_or_else(Self::Field::zero)
+                        };
+                        let w = &witness_row;
+                        let sum1 =
+                            c(0) * w[0] + c(1) * w[1] + c(2) * w[2] + c(3) * w[0] * w[1] + c(4);
+                        let sum2 =
+                            c(5) * w[3] + c(6) * w[4] + c(7) * w[5] + c(8) * w[3] * w[4] + c(9);
+                        if sum1 != Self::Field::zero() || sum2 != Self::Field::zero() {
+                            return Err(Error::new(
+                                "runtime",
+                                ErrorKind::InvalidWitness(row),
+                                debug_info.span,
+                            ));
+                        }
+                    }
+                    // for all other gates, we trust the gadgets
+                    _ => (),
+                }
+            }
+
+            //
+            witness.push(witness_row);
+        }
+
+        // compute public output at last
+        let mut public_outputs = vec![];
+
+        for (row, var) in public_outputs_vars {
+            let val = self.compute_var(witness_env, var)?;
+            witness[row][0] = val;
+            public_outputs.push(val);
+        }
+
+        // extract full public input (containing the public output)
+        let mut full_public_inputs = Vec::with_capacity(public_input_size);
+
+        for witness_row in witness.iter().take(public_input_size) {
+            full_public_inputs.push(witness_row[0]);
+        }
+
+        // sanity checks
+        assert_eq!(witness.len(), self.gates.len());
+        assert_eq!(witness.len(), self.rows_of_vars.len());
+
+        // return the public output separately as well
+        Ok(GeneratedWitness {
+            all_witness: Witness(witness),
+            full_public_inputs,
+            public_outputs,
+        })
+    }
+    
 }

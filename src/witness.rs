@@ -5,7 +5,7 @@ use itertools::{chain, izip, Itertools};
 //use serde::{Deserialize, Serialize};
 
 use crate::{
-    backends::Backend,
+    backends::{kimchi::GeneratedWitness, Backend},
     circuit_writer::{CircuitWriter, Gate},
     compiler::Sources,
     constants::NUM_REGISTERS,
@@ -37,8 +37,6 @@ impl<F: Field> WitnessEnv<F> {
     }
 }
 
-#[derive(Debug)]
-pub struct Witness<F: Field>(Vec<[F; NUM_REGISTERS]>);
 
 impl<F: Field + PrettyField> Witness<F> {
     /// kimchi uses a transposed witness
@@ -98,8 +96,7 @@ impl<B: Backend> CompiledCircuit<B> {
         &self,
         mut public_inputs: JsonInputs,
         mut private_inputs: JsonInputs,
-    ) -> Result<(Witness<B::Field>, Vec<B::Field>, Vec<B::Field>)> {
-        let mut witness = vec![];
+    ) -> Result<B::GeneratedWitness> {
         let mut env = WitnessEnv::default();
 
         // get info on main
@@ -147,85 +144,6 @@ impl<B: Backend> CompiledCircuit<B> {
             ));
         }
 
-        // compute each rows' vars, except for the deferred ones (public output)
-        let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
-
-        let gates = self.circuit.compiled_gates();
-        for (row, (gate, row_of_vars, debug_info)) in
-            izip!(gates, &self.circuit.rows_of_vars, &self.circuit.debug_info).enumerate()
-        {
-            // create the witness row
-            let mut witness_row = [B::Field::zero(); NUM_REGISTERS];
-
-            for (col, var) in row_of_vars.iter().enumerate() {
-                let val = if let Some(var) = var {
-                    // if it's a public output, defer it's computation
-                    if matches!(
-                        self.circuit.backend.witness_vars()[&var.index],
-                        Value::PublicOutput(_)
-                    ) {
-                        public_outputs_vars.push((row, *var));
-                        B::Field::zero()
-                    } else {
-                        self.compute_var(&mut env, *var)?
-                    }
-                } else {
-                    B::Field::zero()
-                };
-                witness_row[col] = val;
-            }
-
-            // check if the row makes sense
-            let is_not_public_input = row >= self.circuit.public_input_size;
-            if is_not_public_input {
-                #[allow(clippy::single_match)]
-                match gate.typ {
-                    // only check the generic gate
-                    crate::circuit_writer::GateKind::DoubleGeneric => {
-                        let c = |i| gate.coeffs.get(i).copied().unwrap_or_else(B::Field::zero);
-                        let w = &witness_row;
-                        let sum1 =
-                            c(0) * w[0] + c(1) * w[1] + c(2) * w[2] + c(3) * w[0] * w[1] + c(4);
-                        let sum2 =
-                            c(5) * w[3] + c(6) * w[4] + c(7) * w[5] + c(8) * w[3] * w[4] + c(9);
-                        if sum1 != B::Field::zero() || sum2 != B::Field::zero() {
-                            return Err(Error::new(
-                                "runtime",
-                                ErrorKind::InvalidWitness(row),
-                                debug_info.span,
-                            ));
-                        }
-                    }
-                    // for all other gates, we trust the gadgets
-                    _ => (),
-                }
-            }
-
-            //
-            witness.push(witness_row);
-        }
-
-        // compute public output at last
-        let mut public_output = vec![];
-
-        for (row, var) in public_outputs_vars {
-            let val = self.compute_var(&mut env, var)?;
-            witness[row][0] = val;
-            public_output.push(val);
-        }
-
-        // extract full public input (containing the public output)
-        let mut full_public_inputs = Vec::with_capacity(self.circuit.public_input_size);
-
-        for witness_row in witness.iter().take(self.circuit.public_input_size) {
-            full_public_inputs.push(witness_row[0]);
-        }
-
-        // sanity checks
-        assert_eq!(witness.len(), self.circuit.num_gates());
-        assert_eq!(witness.len(), self.circuit.rows_of_vars.len());
-
-        // return the public output separately as well
-        Ok((Witness(witness), full_public_inputs, public_output))
+        self.circuit.generate_witness(&mut env)
     }
 }
