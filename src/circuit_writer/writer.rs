@@ -719,26 +719,6 @@ impl<B: Backend> CircuitWriter<B> {
         }
     }
 
-    // TODO: dead code?
-    pub fn compute_constant(&self, var: CellVar, span: Span) -> Result<B::Field> {
-        match &self.witness_vars.get(&var.index) {
-            Some(Value::Constant(c)) => Ok(*c),
-            Some(Value::LinearCombination(lc, cst)) => {
-                let mut res = *cst;
-                for (coeff, var) in lc {
-                    res += self.compute_constant(*var, span)? * *coeff;
-                }
-                Ok(res)
-            }
-            Some(Value::Mul(lhs, rhs)) => {
-                let lhs = self.compute_constant(*lhs, span)?;
-                let rhs = self.compute_constant(*rhs, span)?;
-                Ok(lhs * rhs)
-            }
-            _ => Err(self.error(ErrorKind::ExpectedConstant, span)),
-        }
-    }
-
     pub fn num_gates(&self) -> usize {
         self.gates.len()
     }
