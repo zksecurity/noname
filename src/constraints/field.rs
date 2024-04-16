@@ -40,7 +40,7 @@ pub fn add<B: Backend>(
 
             // create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "add a constant with a variable",
                 vec![Some(*cvar), None, Some(res)],
                 vec![one, zero, one.neg(), zero, *cst],
@@ -60,7 +60,7 @@ pub fn add<B: Backend>(
             );
 
             // create a gate to store the result
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "add two variables together",
                 vec![Some(*lhs), Some(*rhs), Some(res)],
                 vec![B::Field::one(), B::Field::one(), B::Field::one().neg()],
@@ -95,7 +95,7 @@ pub fn sub<B: Backend>(
             );
 
             // create a gate to store the result
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "constant - variable",
                 vec![Some(*cvar), None, Some(res)],
                 // cst - cvar - out = 0
@@ -122,7 +122,7 @@ pub fn sub<B: Backend>(
 
             // create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "variable - constant",
                 vec![Some(*cvar), None, Some(res)],
                 // var - cst - out = 0
@@ -142,7 +142,7 @@ pub fn sub<B: Backend>(
             );
 
             // create a gate to store the result
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "var1 - var2",
                 vec![Some(*lhs), Some(*rhs), Some(res)],
                 // lhs - rhs - out = 0
@@ -187,7 +187,7 @@ pub fn mul<B: Backend>(
 
             // create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "add a constant with a variable",
                 vec![Some(*cvar), None, Some(res)],
                 vec![*cst, zero, one.neg(), zero, *cst],
@@ -203,7 +203,7 @@ pub fn mul<B: Backend>(
             let res = compiler.backend.new_internal_var(Value::Mul(*lhs, *rhs), span);
 
             // create a gate to store the result
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "add two variables together",
                 vec![Some(*lhs), Some(*rhs), Some(res)],
                 vec![zero, zero, one.neg(), one],
@@ -326,7 +326,7 @@ fn equal_cells<B: Backend>(
                 span,
             );
 
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "constraint #1 for the equals gadget (x2 - x1 - diff = 0)",
                 vec![Some(x2), Some(x1), Some(diff)],
                 // x2 - x1 - diff = 0
@@ -339,7 +339,7 @@ fn equal_cells<B: Backend>(
                 .backend
                 .new_internal_var(Value::LinearCombination(vec![(one.neg(), res)], one), span);
 
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "constraint #2 for the equals gadget (one_minus_res + res - 1 = 0)",
                 vec![Some(one_minus_res), Some(res)],
                 // we constrain one_minus_res + res - 1 = 0
@@ -350,7 +350,7 @@ fn equal_cells<B: Backend>(
             );
 
             // 3. res * diff = 0
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "constraint #3 for the equals gadget (res * diff = 0)",
                 vec![Some(res), Some(diff)],
                 // res * diff = 0
@@ -361,7 +361,7 @@ fn equal_cells<B: Backend>(
             // 4. diff_inv * diff = one_minus_res
             let diff_inv = compiler.backend.new_internal_var(Value::Inverse(diff), span);
 
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "constraint #4 for the equals gadget (diff_inv * diff = one_minus_res)",
                 vec![Some(diff_inv), Some(diff), Some(one_minus_res)],
                 // diff_inv * diff - one_minus_res = 0
@@ -497,7 +497,7 @@ pub fn if_else_inner<B: Backend>(
             let zero = B::Field::zero();
             let one = B::Field::one();
 
-            compiler.add_generic_gate(
+            compiler.backend.add_generic_gate(
                 "constraint for ternary operator: cond * (then - else) = res - else",
                 vec![Some(cond_cell), Some(then_m_else), Some(res_m_else)],
                 // cond * (then - else) = res - else

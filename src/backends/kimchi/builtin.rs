@@ -140,7 +140,7 @@ pub fn poseidon(
             Some(states[offset + 3][2]),
         ];
 
-        compiler.add_gate(
+        compiler.backend.add_gate(
             "uses a poseidon gate to constrain 5 rounds of poseidon",
             GateKind::Poseidon,
             vars,
@@ -157,7 +157,7 @@ pub fn poseidon(
     ];
 
     // zero gate to store the result
-    compiler.add_gate(
+    compiler.backend.add_gate(
         "uses a zero gate to store the output of poseidon",
         GateKind::Zero,
         final_row.clone(),

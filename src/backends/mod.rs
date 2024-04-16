@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use ark_ff::Field;
 
-use crate::{circuit_writer::DebugInfo, constants::Span, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value}};
+use crate::{circuit_writer::{DebugInfo, GateKind}, constants::Span, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value}};
 
 pub mod kimchi;
 
@@ -24,4 +24,22 @@ pub trait Backend: Clone {
     fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> CellVar;
 
     fn debug_info(&self) -> &[DebugInfo];
+    /// Add a gate to the circuit. Kimchi specific atm.
+    fn add_gate(
+        &mut self,
+        note: &'static str,
+        typ: GateKind,
+        vars: Vec<Option<CellVar>>,
+        coeffs: Vec<Self::Field>,
+        span: Span,
+    );
+
+    /// Add a generic double gate to the circuit. Kimchi specific atm.
+    fn add_generic_gate(
+        &mut self,
+        label: &'static str,
+        vars: Vec<Option<CellVar>>,
+        coeffs: Vec<Self::Field>,
+        span: Span,
+    );
 }

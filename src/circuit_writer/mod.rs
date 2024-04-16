@@ -44,18 +44,6 @@ where
     // Note: I don't think we need this, but it acts as a nice redundant failsafe.
     pub(crate) finalized: bool,
 
-    /// The execution trace table with vars as placeholders.
-    /// It is created during circuit generation,
-    /// and used by the witness generator.
-    pub(crate) rows_of_vars: Vec<Vec<Option<CellVar>>>,
-
-    /// The gates created by the circuit generation.
-    gates: Vec<Gate<B>>,
-
-    /// The wiring of the circuit.
-    /// It is created during circuit generation.
-    pub(crate) wiring: HashMap<usize, Wiring>,
-
     /// Size of the public input.
     pub(crate) public_input_size: usize,
 
@@ -72,14 +60,6 @@ where
     /// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
     pub(crate) private_input_indices: Vec<usize>,
-
-    /// If set to false, a single generic gate will be used per double generic gate.
-    /// This can be useful for debugging.
-    pub(crate) double_generic_gate_optimization: bool,
-
-    /// This is used to implement the double generic gate,
-    /// which encodes two generic gates.
-    pub(crate) pending_generic_gate: Option<PendingGate<B::Field>>,
 
     /// We cache the association between a constant and its _constrained_ variable,
     /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
@@ -170,16 +150,10 @@ impl<B: Backend> CircuitWriter<B> {
             typed,
             backend,
             finalized: false,
-            rows_of_vars: vec![],
-            gates: vec![],
-            wiring: HashMap::new(),
             public_input_size: 0,
             public_output: None,
             private_input_indices: vec![],
-            double_generic_gate_optimization,
-            pending_generic_gate: None,
             cached_constants: HashMap::new(),
-            debug_info: vec![],
         }
     }
 
