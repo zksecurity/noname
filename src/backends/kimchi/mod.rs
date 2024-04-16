@@ -18,6 +18,7 @@ use super::Backend;
 
 pub mod builtin;
 pub mod asm;
+pub mod prover;
 
 #[derive(Debug)]
 pub struct Witness(Vec<[Field; NUM_REGISTERS]>);

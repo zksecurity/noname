@@ -14,7 +14,6 @@ pub mod inputs;
 pub mod lexer;
 pub mod name_resolution;
 pub mod parser;
-pub mod prover;
 pub mod serialization;
 pub mod stdlib;
 pub mod syntax;

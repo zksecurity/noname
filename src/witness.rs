@@ -60,10 +60,6 @@ impl<B: Backend> CompiledCircuit<B> {
         self.circuit.backend.generate_asm(sources, debug)
     }
 
-    pub fn compiled_gates(&self) -> &[Gate<B>] {
-        self.circuit.compiled_gates()
-    }
-
     pub fn generate_witness(
         &self,
         mut public_inputs: JsonInputs,

@@ -2,11 +2,10 @@ use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic};
 
 use crate::{
-    backends::{kimchi::KimchiVesta, Backend},
+    backends::{kimchi::{prover::{ProverIndex, VerifierIndex}, KimchiVesta}, Backend},
     cli::packages::path_to_package,
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, JsonInputs},
-    prover::{compile_to_indexes, ProverIndex, VerifierIndex},
     type_checker::TypeChecker,
 };
 
@@ -205,7 +204,7 @@ pub fn build(
     // TODO: cache artifacts
 
     // produce indexes
-    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
+    let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
 
     Ok((sources, prover_index, verifier_index))
 }
@@ -272,7 +271,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
     let kimchi_vesta = KimchiVesta::default();
     let compiled_circuit = compile(&sources, tast, kimchi_vesta, !args.no_double)?;
 
-    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
+    let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
     println!("successfully compiled");
 
     // print ASM

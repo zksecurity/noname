@@ -1,7 +1,11 @@
 use std::path::Path;
 
 use crate::{
-    backends::kimchi::KimchiVesta, compiler::{compile, typecheck_next_file, Sources}, constants::Field, inputs::{parse_inputs, ExtField}, prover::compile_to_indexes, type_checker::TypeChecker
+    backends::kimchi::KimchiVesta,
+    compiler::{compile, typecheck_next_file, Sources},
+    constants::Field,
+    inputs::{parse_inputs, ExtField},
+    type_checker::TypeChecker,
 };
 
 fn test_file(
@@ -34,7 +38,7 @@ fn test_file(
 
     let compiled_circuit = compile(&sources, tast, kimchi_vesta, false)?;
 
-    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit).unwrap();
+    let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes().unwrap();
 
     // check compiled ASM only if it's not too large
     if prover_index.len() < 100 {

@@ -119,14 +119,6 @@ impl Ord for AnnotatedCell {
 //
 
 impl<B: Backend> CircuitWriter<B> {
-    /// Returns the compiled gates of the circuit.
-    pub fn compiled_gates(&self) -> &[Gate] {
-        if !self.finalized {
-            unreachable!();
-        }
-        &self.gates
-    }
-
     fn compile_stmt(
         &mut self,
         fn_env: &mut FnEnv<B::Field>,
@@ -705,10 +697,6 @@ impl<B: Backend> CircuitWriter<B> {
                 Ok(Some(var))
             }
         }
-    }
-
-    pub fn num_gates(&self) -> usize {
-        self.gates.len()
     }
 
     pub fn add_public_inputs(&mut self, name: String, num: usize, span: Span) -> Var<B::Field> {
