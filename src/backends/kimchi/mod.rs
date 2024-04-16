@@ -73,6 +73,35 @@ pub struct KimchiVesta {
     pub(crate) finalized: bool,
 }
 
+impl Witness {
+    /// kimchi uses a transposed witness
+    pub fn to_kimchi_witness(&self) -> [Vec<Field>; NUM_REGISTERS] {
+        let transposed = vec![Vec::with_capacity(self.0.len()); NUM_REGISTERS];
+        let mut transposed: [_; NUM_REGISTERS] = transposed.try_into().unwrap();
+        for row in &self.0 {
+            for (col, field) in row.iter().enumerate() {
+                transposed[col].push(*field);
+            }
+        }
+        transposed
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn debug(&self) {
+        for (row, values) in self.0.iter().enumerate() {
+            let values = values.iter().map(|v| v.pretty()).join(" | ");
+            println!("{row} - {values}");
+        }
+    }
+}
+
 impl Backend for KimchiVesta {
     type Field = Field;
     type GeneratedWitness = GeneratedWitness;
