@@ -1,19 +1,23 @@
-use std::{collections::{HashMap, HashSet}, ops::Neg as _};
+use std::{collections::{HashMap, HashSet}, ops::Neg as _, fmt::Write};
 
-use itertools::izip;
+use itertools::{izip, Itertools};
 use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 
 use crate::{
-    circuit_writer::{
+    backends::kimchi::asm::{display_source, parse_coeffs}, circuit_writer::{
         writer::{AnnotatedCell, Cell, PendingGate},
         DebugInfo, Gate, GateKind, Wiring,
-    }, constants::{Field, Span, NUM_REGISTERS}, error::{Error, ErrorKind, Result}, var::{CellVar, Value, Var}, witness::{WitnessEnv}
+    }, compiler::Sources, constants::{Field, Span, NUM_REGISTERS}, error::{Error, ErrorKind, Result}, helpers::PrettyField, var::{CellVar, Value, Var}, witness::WitnessEnv
 };
 
 use ark_ff::{Zero, One};
 
+use self::asm::{extract_vars_from_coeffs, title, OrderedHashSet};
+
 use super::Backend;
+
 pub mod builtin;
+pub mod asm;
 
 #[derive(Debug)]
 pub struct Witness(Vec<[Field; NUM_REGISTERS]>);
@@ -378,4 +382,108 @@ impl Backend for KimchiVesta {
         })
     }
     
+    fn generate_asm(&self, sources: &Sources, debug: bool) -> String {
+        let mut res = "".to_string();
+
+        // version
+        res.push_str("@ noname.0.7.0\n\n");
+
+        // vars
+        let mut vars: OrderedHashSet<Field> = OrderedHashSet::default();
+
+        for Gate { coeffs, .. } in self.gates.iter() {
+            extract_vars_from_coeffs(&mut vars, coeffs);
+        }
+
+        if debug && !vars.is_empty() {
+            title(&mut res, "VARS");
+        }
+
+        for (idx, var) in vars.iter().enumerate() {
+            writeln!(res, "c{idx} = {}", var.pretty()).unwrap();
+        }
+
+        // gates
+        if debug {
+            title(&mut res, "GATES");
+        }
+
+        for (row, (Gate { typ, coeffs }, debug_info)) in
+            self.gates.iter().zip(self.debug_info()).enumerate()
+        {
+            println!("gate {:?}", row);
+            // gate #
+            if debug {
+                writeln!(res, "╭{s}", s = "─".repeat(80)).unwrap();
+                write!(res, "│ GATE {row} - ").unwrap();
+            }
+
+            // gate
+            write!(res, "{typ:?}").unwrap();
+
+            // coeffs
+            {
+                let coeffs = parse_coeffs(&vars, coeffs);
+                if !coeffs.is_empty() {
+                    res.push('<');
+                    res.push_str(&coeffs.join(","));
+                    res.push('>');
+                }
+            }
+
+            res.push('\n');
+
+            if debug {
+                // source
+                display_source(&mut res, sources, &[debug_info.clone()]);
+
+                // note
+                res.push_str("    ▲\n");
+                writeln!(res, "    ╰── {note}", note = debug_info.note).unwrap();
+
+                //
+                res.push_str("\n\n");
+            }
+        }
+
+        // wiring
+        if debug {
+            title(&mut res, "WIRING");
+        }
+
+        let mut cycles: Vec<_> = self
+            .wiring
+            .values()
+            .map(|w| match w {
+                Wiring::NotWired(_) => None,
+                Wiring::Wired(annotated_cells) => Some(annotated_cells),
+            })
+            .filter(Option::is_some)
+            .flatten()
+            .collect();
+
+        // we must have a deterministic sort for the cycles,
+        // otherwise the same circuit might have different representations
+        cycles.sort();
+
+        for annotated_cells in cycles {
+            let (cells, debug_infos): (Vec<_>, Vec<_>) = annotated_cells
+                .iter()
+                .map(|AnnotatedCell { cell, debug }| (*cell, debug.clone()))
+                .unzip();
+
+            if debug {
+                display_source(&mut res, sources, &debug_infos);
+            }
+
+            let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
+            writeln!(res, "{s}").unwrap();
+
+            if debug {
+                writeln!(res, "\n").unwrap();
+            }
+        }
+
+        res
+    }
 }

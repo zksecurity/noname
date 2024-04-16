@@ -3,12 +3,7 @@ use std::collections::HashMap;
 use ark_ff::{Field, Zero};
 
 use crate::{
-    circuit_writer::{DebugInfo, GateKind},
-    constants::Span,
-    error::{Error, ErrorKind, Result},
-    helpers::PrettyField,
-    imports::FnHandle,
-    var::{CellVar, Value, Var}, witness::WitnessEnv,
+    circuit_writer::{DebugInfo, GateKind}, compiler::Sources, constants::Span, error::{Error, ErrorKind, Result}, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
 };
 
 pub mod kimchi;
@@ -131,4 +126,7 @@ pub trait Backend: Clone {
         witness_env: &mut WitnessEnv<Self::Field>,
         public_input_size: usize,
     ) -> Result<Self::GeneratedWitness>;
+
+    /// Generate the asm for a backend.
+    fn generate_asm(&self, sources: &Sources, debug: bool) -> String;
 }

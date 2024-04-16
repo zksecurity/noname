@@ -2,7 +2,6 @@
 //! Refer to the [book](https://mimoo.github.io/noname/) for more information.
 //!
 
-pub mod asm;
 pub mod circuit_writer;
 pub mod backends;
 pub mod cli;

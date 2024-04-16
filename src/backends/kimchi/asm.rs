@@ -25,160 +25,53 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::hash::Hash;
 
-use itertools::Itertools;
+use crate::circuit_writer::{DebugInfo, Gate};
+use crate::constants::{Field, Span};
+use crate::helpers::PrettyField;
 
-use crate::backends::Backend;
-use crate::circuit_writer::writer::AnnotatedCell;
-use crate::circuit_writer::{CircuitWriter, DebugInfo};
-use crate::compiler::Sources;
-use crate::{
-    circuit_writer::{Gate, Wiring},
-    constants::{Field, Span},
-    helpers::PrettyField as _,
-};
+use super::KimchiVesta;
 
-impl<B: Backend> CircuitWriter<B> {
-    pub fn generate_asm(&self, sources: &Sources, debug: bool) -> String {
-        let mut res = "".to_string();
+pub fn display_source(
+    res: &mut String,
+    sources: &crate::compiler::Sources,
+    debug_infos: &[DebugInfo],
+) {
+    for DebugInfo { span, note: _ } in debug_infos {
+        // find filename and source
+        let (file, source) = sources.get(&span.filename_id).expect("source not found");
 
-        // version
-        res.push_str("@ noname.0.7.0\n\n");
-
-        // vars
-        let mut vars = OrderedHashSet::<B::Field>::default();
-
-        let gates = self.compiled_gates();
-
-        for Gate { coeffs, .. } in gates {
-            extract_vars_from_coeffs::<B>(&mut vars, coeffs);
-        }
-
-        if debug && !vars.is_empty() {
-            title(&mut res, "VARS");
-        }
-
-        for (idx, var) in vars.iter().enumerate() {
-            writeln!(res, "c{idx} = {}", var.pretty()).unwrap();
-        }
-
-        // gates
-        if debug {
-            title(&mut res, "GATES");
-        }
-
-        for (row, (Gate { typ, coeffs }, debug_info)) in
-            gates.iter().zip(&self.debug_info).enumerate()
-        {
-            // gate #
-            if debug {
-                writeln!(res, "╭{s}", s = "─".repeat(80)).unwrap();
-                write!(res, "│ GATE {row} - ").unwrap();
-            }
-
-            // gate
-            write!(res, "{typ:?}").unwrap();
-
-            // coeffs
-            {
-                let coeffs = parse_coeffs::<B>(&vars, coeffs);
-                if !coeffs.is_empty() {
-                    res.push('<');
-                    res.push_str(&coeffs.join(","));
-                    res.push_str(">");
-                }
-            }
-
-            res.push('\n');
-
-            if debug {
-                // source
-                self.display_source(&mut res, sources, &[debug_info.clone()]);
-
-                // note
-                res.push_str("    ▲\n");
-                writeln!(res, "    ╰── {note}", note = debug_info.note).unwrap();
-
-                //
-                res.push_str("\n\n");
-            }
-        }
-
-        // wiring
-        if debug {
-            title(&mut res, "WIRING");
-        }
-
-        let mut cycles: Vec<_> = self
-            .wiring
-            .values()
-            .map(|w| match w {
-                Wiring::NotWired(_) => None,
-                Wiring::Wired(annotated_cells) => Some(annotated_cells),
-            })
-            .filter(Option::is_some)
-            .flatten()
-            .collect();
-
-        // we must have a deterministic sort for the cycles,
-        // otherwise the same circuit might have different representations
-        cycles.sort();
-
-        for annotated_cells in cycles {
-            let (cells, debug_infos): (Vec<_>, Vec<_>) = annotated_cells
-                .into_iter()
-                .map(|AnnotatedCell { cell, debug }| (cell.clone(), debug.clone()))
-                .unzip();
-
-            if debug {
-                self.display_source(&mut res, sources, &debug_infos);
-            }
-
-            let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
-            writeln!(res, "{s}").unwrap();
-
-            if debug {
-                writeln!(res, "\n").unwrap();
-            }
-        }
-
-        res
-    }
-
-    fn display_source(&self, res: &mut String, sources: &Sources, debug_infos: &[DebugInfo]) {
-        for DebugInfo { span, note } in debug_infos {
-            // find filename and source
-            let (file, source) = sources.get(&span.filename_id).expect("source not found");
-
-            // top corner
-            res.push('╭');
-            res.push_str(&"─".repeat(80));
-            res.push('\n');
-
-            // display filename
-            writeln!(res, "│ FILE: {}", file).unwrap();
-            writeln!(res, "│{s}", s = "─".repeat(80)).unwrap();
-
-            // source
-            res.push_str("│ ");
-            let (line_number, start, line) = find_exact_line(source, *span);
-            let header = format!("{line_number}: ");
-            writeln!(res, "{header}{line}").unwrap();
-
-            // caption
-            res.push('│');
-            res.push_str(&" ".repeat(header.len() + 1 + span.start - start));
-            res.push_str(&"^".repeat(span.len));
-            res.push('\n');
-        }
-
-        // bottom corner
-        res.push('╰');
+        // top corner
+        res.push('╭');
         res.push_str(&"─".repeat(80));
         res.push('\n');
+
+        // display filename
+        writeln!(res, "│ FILE: {}", file).unwrap();
+        writeln!(res, "│{s}", s = "─".repeat(80)).unwrap();
+
+        // source
+        res.push_str("│ ");
+        let (line_number, start, line) = find_exact_line(source, *span);
+        let header = format!("{line_number}: ");
+        writeln!(res, "{header}{line}").unwrap();
+
+        // caption
+        res.push('│');
+        res.push_str(&" ".repeat(header.len() + 1 + span.start - start));
+        res.push_str(&"^".repeat(span.len));
+        res.push('\n');
     }
+
+    // bottom corner
+    res.push('╰');
+    res.push_str(&"─".repeat(80));
+    res.push('\n');
 }
 
-fn extract_vars_from_coeffs<B: Backend>(vars: &mut OrderedHashSet<B::Field>, coeffs: &[B::Field]) {
+pub fn extract_vars_from_coeffs(
+    vars: &mut OrderedHashSet<Field>,
+    coeffs: &[Field],
+) {
     for coeff in coeffs {
         let s = coeff.pretty();
         if s.len() >= 5 {
@@ -187,7 +80,7 @@ fn extract_vars_from_coeffs<B: Backend>(vars: &mut OrderedHashSet<B::Field>, coe
     }
 }
 
-fn parse_coeffs<B: Backend>(vars: &OrderedHashSet<B::Field>, coeffs: &[B::Field]) -> Vec<String> {
+pub fn parse_coeffs(vars: &OrderedHashSet<Field>, coeffs: &[Field]) -> Vec<String> {
     let mut coeffs: Vec<_> = coeffs
         .iter()
         .map(|x| {
@@ -209,7 +102,7 @@ fn parse_coeffs<B: Backend>(vars: &OrderedHashSet<B::Field>, coeffs: &[B::Field]
     coeffs
 }
 
-fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
+pub fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
     let ss = source.as_bytes();
     let mut start = span.start;
     let mut end = span.end();
@@ -227,7 +120,7 @@ fn find_exact_line(source: &str, span: Span) -> (usize, usize, &str) {
     (line_number, start, line)
 }
 
-fn title(res: &mut String, s: &str) {
+pub fn title(res: &mut String, s: &str) {
     writeln!(res, "╭{s}╮", s = "─".repeat(s.len())).unwrap();
     writeln!(res, "│{s}│", s = s).unwrap();
     writeln!(res, "╰{s}╯", s = "─".repeat(s.len())).unwrap();
@@ -288,7 +181,7 @@ uvwx
 yz
 ";
         assert_eq!(
-            find_exact_line(&SRC, Span::new(0, 5, 6)),
+            find_exact_line(SRC, Span::new(0, 5, 6)),
             (2, 5, "efgh\nijkl")
         );
     }

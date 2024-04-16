@@ -85,7 +85,7 @@ impl<B: Backend> CompiledCircuit<B> {
     }
 
     pub fn asm(&self, sources: &Sources, debug: bool) -> String {
-        self.circuit.generate_asm(sources, debug)
+        self.circuit.backend.generate_asm(sources, debug)
     }
 
     pub fn compiled_gates(&self) -> &[Gate<B>] {
