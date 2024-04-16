@@ -3,7 +3,7 @@ use crate::constants::Field;
 use super::Backend;
 pub mod builtin;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct KimchiVesta;
 
 impl Backend for KimchiVesta {

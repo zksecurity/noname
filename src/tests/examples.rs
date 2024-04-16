@@ -1,11 +1,7 @@
 use std::path::Path;
 
 use crate::{
-    compiler::{compile, typecheck_next_file, Sources},
-    constants::Field,
-    inputs::{parse_inputs, ExtField},
-    prover::compile_to_indexes,
-    type_checker::TypeChecker,
+    backends::kimchi::KimchiVesta, compiler::{compile, typecheck_next_file, Sources}, constants::Field, inputs::{parse_inputs, ExtField}, prover::compile_to_indexes, type_checker::TypeChecker
 };
 
 fn test_file(
@@ -33,7 +29,10 @@ fn test_file(
         0,
     )
     .unwrap();
-    let compiled_circuit = compile(&sources, tast, false)?;
+
+    let kimchi_vesta = KimchiVesta::default();
+
+    let compiled_circuit = compile(&sources, tast, kimchi_vesta, false)?;
 
     let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit).unwrap();
 

@@ -117,8 +117,11 @@ fn test_simple_module() -> miette::Result<()> {
         node_id,
     )?;
 
+    // backend
+    let kimchi_vesta = KimchiVesta::default();
+
     // compile
-    compile(&sources, tast, false)?;
+    compile(&sources, tast, kimchi_vesta, false)?;
 
     Ok(())
 }

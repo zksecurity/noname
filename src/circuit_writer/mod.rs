@@ -35,6 +35,11 @@ where
     // the type checker state might be this one, or one of the ones in [dependencies].
     typed: TypeChecker<B>,
 
+    /// The constraint backend for the circuit.
+    /// For now, this needs to be exposed for the kimchi prover for kimchi specific low level data.
+    /// So we might make this private if the prover facilities can be deprecated.
+    pub backend: B,
+
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
     // Note: I don't think we need this, but it acts as a nice redundant failsafe.
     pub(crate) finalized: bool,
@@ -169,9 +174,10 @@ impl<B: Backend> CircuitWriter<B> {
 
 impl<B: Backend> CircuitWriter<B> {
     /// Creates a global environment from the one created by the type checker.
-    fn new(typed: TypeChecker<B>, double_generic_gate_optimization: bool) -> Self {
+    fn new(typed: TypeChecker<B>, backend: B, double_generic_gate_optimization: bool) -> Self {
         Self {
             typed,
+            backend,
             finalized: false,
             next_variable: 0,
             witness_vars: HashMap::new(),
@@ -190,10 +196,11 @@ impl<B: Backend> CircuitWriter<B> {
 
     pub fn generate_circuit(
         typed: TypeChecker<B>,
+        backend: B,
         double_generic_gate_optimization: bool,
     ) -> Result<CompiledCircuit<B>> {
         // create circuit writer
-        let mut circuit_writer = CircuitWriter::new(typed, double_generic_gate_optimization);
+        let mut circuit_writer = CircuitWriter::new(typed, backend, double_generic_gate_optimization);
 
         // get main function
         let qualified = FullyQualified::local("main".to_string());
