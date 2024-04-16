@@ -33,7 +33,7 @@ pub struct GeneratedWitness {
     pub public_outputs: Vec<Field>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct KimchiVesta {
     /// This is used to give a distinct number to each variable during circuit generation.
     pub(crate) next_variable: usize,
@@ -99,6 +99,23 @@ impl Witness {
         for (row, values) in self.0.iter().enumerate() {
             let values = values.iter().map(|v| v.pretty()).join(" | ");
             println!("{row} - {values}");
+        }
+    }
+}
+
+impl KimchiVesta {
+    pub fn new(double_generic_gate_optimization: bool) -> Self {
+        Self {
+            next_variable: 0,
+            witness_vars: HashMap::new(),
+            rows_of_vars: vec![],
+            cached_constants: HashMap::new(),
+            gates: vec![],
+            wiring: HashMap::new(),
+            double_generic_gate_optimization,
+            pending_generic_gate: None,
+            debug_info: vec![],
+            finalized: false,
         }
     }
 }

@@ -34,7 +34,7 @@ fn test_file(
     )
     .unwrap();
 
-    let kimchi_vesta = KimchiVesta::default();
+    let kimchi_vesta = KimchiVesta::new(false);
 
     let compiled_circuit = compile(&sources, tast, kimchi_vesta, false)?;
 

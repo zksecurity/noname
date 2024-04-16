@@ -118,7 +118,7 @@ fn test_simple_module() -> miette::Result<()> {
     )?;
 
     // backend
-    let kimchi_vesta = KimchiVesta::default();
+    let kimchi_vesta = KimchiVesta::new(false);
 
     // compile
     compile(&sources, tast, kimchi_vesta, false)?;
