@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use ark_ff::Field;
+use ark_ff::{Field, Zero};
 
 use crate::{
     circuit_writer::{DebugInfo, GateKind},
     constants::Span,
-    error::Result,
+    error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
-    var::{CellVar, Value, Var},
+    var::{CellVar, Value, Var}, witness::WitnessEnv,
 };
 
 pub mod kimchi;
@@ -58,6 +58,61 @@ pub trait Backend: Clone {
         coeffs: Vec<Self::Field>,
         span: Span,
     );
+
+    /// Compute the value of the symbolic cell variables.
+    /// It recursively does the computation down the stream until it is not a symbolic variable.
+    /// - The symbolic variables are stored in the witness_vars.
+    /// - The computed values are stored in the cached_values.
+    fn compute_var(&self, env: &mut WitnessEnv<Self::Field>, var: CellVar) -> Result<Self::Field> {
+        // fetch cache first
+        // TODO: if self was &mut, then we could use a Value::Cached(Field) to store things instead of that
+        if let Some(res) = env.cached_values.get(&var) {
+            return Ok(*res);
+        }
+
+        match &self.witness_vars()[&var.index] {
+            Value::Hint(func) => {
+                let res = func(self, env)
+                    .expect("that function doesn't return a var (type checker error)");
+                env.cached_values.insert(var, res);
+                Ok(res)
+            }
+            Value::Constant(c) => Ok(*c),
+            Value::LinearCombination(lc, cst) => {
+                let mut res = *cst;
+                for (coeff, var) in lc {
+                    res += self.compute_var(env, *var)? * *coeff;
+                }
+                env.cached_values.insert(var, res); // cache
+                Ok(res)
+            }
+            Value::Mul(lhs, rhs) => {
+                let lhs = self.compute_var(env, *lhs)?;
+                let rhs = self.compute_var(env, *rhs)?;
+                let res = lhs * rhs;
+                env.cached_values.insert(var, res); // cache
+                Ok(res)
+            }
+            Value::Inverse(v) => {
+                let v = self.compute_var(env, *v)?;
+                let res = v.inverse().unwrap_or_else(Self::Field::zero);
+                env.cached_values.insert(var, res); // cache
+                Ok(res)
+            }
+            Value::External(name, idx) => Ok(env.get_external(name)[*idx]),
+            Value::PublicOutput(var) => {
+                // var can be none. what could be the better way to pass in the span in that case?
+                // let span = self.main_info().span;
+                let var =
+                    var.ok_or_else(|| Error::new("runtime", ErrorKind::MissingReturn, Span::default()))?;
+                self.compute_var(env, var)
+            }
+            Value::Scale(scalar, var) => {
+                let var = self.compute_var(env, *var)?;
+                Ok(*scalar * var)
+            }
+        }
+    }
 
     // TODO: we may need to move the finalized flag from circuit writer to backend, so the backend can freeze itself once finalized.
     /// Finalize the circuit by doing some sanitizing checks.

@@ -94,56 +94,6 @@ impl<B: Backend> CompiledCircuit<B> {
         self.circuit.compiled_gates()
     }
 
-    pub fn compute_var(&self, env: &mut WitnessEnv<B::Field>, var: CellVar) -> Result<B::Field> {
-        // fetch cache first
-        // TODO: if self was &mut, then we could use a Value::Cached(Field) to store things instead of that
-        if let Some(res) = env.cached_values.get(&var) {
-            return Ok(*res);
-        }
-
-        match &self.circuit.backend.witness_vars()[&var.index] {
-            Value::Hint(func) => {
-                let res = func(self, env)
-                    .expect("that function doesn't return a var (type checker error)");
-                env.cached_values.insert(var, res);
-                Ok(res)
-            }
-            Value::Constant(c) => Ok(*c),
-            Value::LinearCombination(lc, cst) => {
-                let mut res = *cst;
-                for (coeff, var) in lc {
-                    res += self.compute_var(env, *var)? * *coeff;
-                }
-                env.cached_values.insert(var, res); // cache
-                Ok(res)
-            }
-            Value::Mul(lhs, rhs) => {
-                let lhs = self.compute_var(env, *lhs)?;
-                let rhs = self.compute_var(env, *rhs)?;
-                let res = lhs * rhs;
-                env.cached_values.insert(var, res); // cache
-                Ok(res)
-            }
-            Value::Inverse(v) => {
-                let v = self.compute_var(env, *v)?;
-                let res = v.inverse().unwrap_or_else(B::Field::zero);
-                env.cached_values.insert(var, res); // cache
-                Ok(res)
-            }
-            Value::External(name, idx) => Ok(env.get_external(name)[*idx]),
-            Value::PublicOutput(var) => {
-                let span = self.main_info().span;
-                let var =
-                    var.ok_or_else(|| Error::new("runtime", ErrorKind::MissingReturn, span))?;
-                self.compute_var(env, var)
-            }
-            Value::Scale(scalar, var) => {
-                let var = self.compute_var(env, *var)?;
-                Ok(*scalar * var)
-            }
-        }
-    }
-
     pub fn generate_witness(
         &self,
         mut public_inputs: JsonInputs,

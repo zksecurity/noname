@@ -34,7 +34,7 @@ impl CellVar {
 }
 
 /// The signature of a hint function
-pub type HintFn<B: Backend> = dyn Fn(&CompiledCircuit<B>, &mut WitnessEnv<B::Field>) -> Result<B::Field>;
+pub type HintFn<B: Backend> = dyn Fn(&B, &mut WitnessEnv<B::Field>) -> Result<B::Field>;
 
 /// A variable's actual value in the witness can be computed in different ways.
 #[derive(Clone, Serialize, Deserialize)]

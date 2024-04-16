@@ -308,9 +308,9 @@ fn equal_cells<B: Backend>(
 
             // compute the result
             let res = compiler.backend.new_internal_var(
-                Value::Hint(Arc::new(move |compiler, env| {
-                    let x1 = compiler.compute_var(env, x1)?;
-                    let x2 = compiler.compute_var(env, x2)?;
+                Value::Hint(Arc::new(move |backend, env| {
+                    let x1 = backend.compute_var(env, x1)?;
+                    let x2 = backend.compute_var(env, x2)?;
                     if x1 == x2 {
                         Ok(B::Field::one())
                     } else {
@@ -470,8 +470,8 @@ pub fn if_else_inner<B: Backend>(
             let else_clone = *else_;
 
             let res = compiler.backend.new_internal_var(
-                Value::Hint(Arc::new(move |compiler, env| {
-                    let cond = compiler.compute_var(env, cond_cell)?;
+                Value::Hint(Arc::new(move |backend, env| {
+                    let cond = backend.compute_var(env, cond_cell)?;
                     let res_var = if cond.is_one() {
                         &then_clone
                     } else {
@@ -479,7 +479,7 @@ pub fn if_else_inner<B: Backend>(
                     };
                     match res_var {
                         ConstOrCell::Const(cst) => Ok(*cst),
-                        ConstOrCell::Cell(var) => compiler.compute_var(env, *var),
+                        ConstOrCell::Cell(var) => backend.compute_var(env, *var),
                     }
                 })),
                 span,
