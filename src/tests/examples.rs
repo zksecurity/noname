@@ -35,7 +35,7 @@ fn test_file(
 
     let kimchi_vesta = KimchiVesta::new(false);
 
-    let compiled_circuit = compile(&sources, tast, kimchi_vesta, false)?;
+    let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
 
     let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes().unwrap();
 

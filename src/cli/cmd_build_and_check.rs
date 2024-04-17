@@ -201,12 +201,7 @@ pub fn build(
     let double_generic_gate_optimization = false;
 
     let kimchi_vesta = KimchiVesta::new(double_generic_gate_optimization);
-    let compiled_circuit = compile(
-        &sources,
-        tast,
-        kimchi_vesta,
-        double_generic_gate_optimization,
-    )?;
+    let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
 
     if asm {
         println!("{}", compiled_circuit.asm(&sources, debug));
@@ -279,8 +274,8 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         0,
     )?;
 
-    let kimchi_vesta = KimchiVesta::new(false);
-    let compiled_circuit = compile(&sources, tast, kimchi_vesta, !args.no_double)?;
+    let kimchi_vesta = KimchiVesta::new(!args.no_double);
+    let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
 
     let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
     println!("successfully compiled");

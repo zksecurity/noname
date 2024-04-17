@@ -140,10 +140,8 @@ pub fn compile<B: Backend>(
     sources: &Sources,
     tast: TypeChecker<B>,
     backend: B,
-    double_generic_gate_optimization: bool,
 ) -> miette::Result<CompiledCircuit<B>> {
-    CircuitWriter::generate_circuit(tast, backend, double_generic_gate_optimization)
-        .into_miette(sources)
+    CircuitWriter::generate_circuit(tast, backend).into_miette(sources)
 }
 
 pub fn generate_witness<B: Backend>(

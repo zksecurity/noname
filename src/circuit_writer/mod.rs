@@ -137,7 +137,7 @@ impl<B: Backend> CircuitWriter<B> {
 
 impl<B: Backend> CircuitWriter<B> {
     /// Creates a global environment from the one created by the type checker.
-    fn new(typed: TypeChecker<B>, backend: B, double_generic_gate_optimization: bool) -> Self {
+    fn new(typed: TypeChecker<B>, backend: B) -> Self {
         Self {
             typed,
             backend,
@@ -147,14 +147,9 @@ impl<B: Backend> CircuitWriter<B> {
         }
     }
 
-    pub fn generate_circuit(
-        typed: TypeChecker<B>,
-        backend: B,
-        double_generic_gate_optimization: bool,
-    ) -> Result<CompiledCircuit<B>> {
+    pub fn generate_circuit(typed: TypeChecker<B>, backend: B) -> Result<CompiledCircuit<B>> {
         // create circuit writer
-        let mut circuit_writer =
-            CircuitWriter::new(typed, backend, double_generic_gate_optimization);
+        let mut circuit_writer = CircuitWriter::new(typed, backend);
 
         // get main function
         let qualified = FullyQualified::local("main".to_string());

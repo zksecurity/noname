@@ -121,7 +121,7 @@ fn test_simple_module() -> miette::Result<()> {
     let kimchi_vesta = KimchiVesta::new(false);
 
     // compile
-    compile(&sources, tast, kimchi_vesta, false)?;
+    compile(&sources, tast, kimchi_vesta)?;
 
     Ok(())
 }
