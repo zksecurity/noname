@@ -19,6 +19,8 @@ pub mod kimchi;
 pub trait Backend: Clone {
     /// The circuit field / scalar field that the circuit is written on.
     type Field: Field + PrettyField;
+
+    /// The generated witness type for the backend. Each backend may define its own witness format to be generated.
     type GeneratedWitness;
 
     /// This provides a standard way to access to all the internal vars.
