@@ -2,10 +2,16 @@ use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic};
 
 use crate::{
+    backends::{
+        kimchi::{
+            prover::{ProverIndex, VerifierIndex},
+            KimchiVesta,
+        },
+        Backend,
+    },
     cli::packages::path_to_package,
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, JsonInputs},
-    prover::{compile_to_indexes, ProverIndex, VerifierIndex},
     type_checker::TypeChecker,
 };
 
@@ -105,13 +111,13 @@ pub fn cmd_check(args: CmdCheck) -> miette::Result<()> {
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
     // produce all TASTs and stop here
-    produce_all_asts(&curr_dir)?;
+    produce_all_asts::<KimchiVesta>(&curr_dir)?;
 
     println!("all good!");
     Ok(())
 }
 
-fn produce_all_asts(path: &PathBuf) -> miette::Result<(Sources, TypeChecker)> {
+fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, TypeChecker<B>)> {
     // find manifest
     let manifest = validate_package_and_get_manifest(&path, false)?;
 
@@ -193,7 +199,9 @@ pub fn build(
 
     // produce indexes
     let double_generic_gate_optimization = false;
-    let compiled_circuit = compile(&sources, tast, double_generic_gate_optimization)?;
+
+    let kimchi_vesta = KimchiVesta::new(double_generic_gate_optimization);
+    let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
 
     if asm {
         println!("{}", compiled_circuit.asm(&sources, debug));
@@ -202,7 +210,7 @@ pub fn build(
     // TODO: cache artifacts
 
     // produce indexes
-    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
+    let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
 
     Ok((sources, prover_index, verifier_index))
 }
@@ -265,9 +273,11 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         code,
         0,
     )?;
-    let compiled_circuit = compile(&sources, tast, !args.no_double)?;
 
-    let (prover_index, verifier_index) = compile_to_indexes(compiled_circuit)?;
+    let kimchi_vesta = KimchiVesta::new(!args.no_double);
+    let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+
+    let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
     println!("successfully compiled");
 
     // print ASM

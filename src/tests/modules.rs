@@ -1,4 +1,5 @@
 use crate::{
+    backends::kimchi::KimchiVesta,
     cli::packages::UserRepo,
     compiler::{compile, typecheck_next_file, Sources},
     type_checker::TypeChecker,
@@ -85,7 +86,7 @@ fn test_simple_module() -> miette::Result<()> {
     let mut sources = Sources::new();
 
     // parse the transitive dependency
-    let mut tast = TypeChecker::new();
+    let mut tast = TypeChecker::<KimchiVesta>::new();
     let mut node_id = 0;
     node_id = typecheck_next_file(
         &mut tast,
@@ -116,8 +117,11 @@ fn test_simple_module() -> miette::Result<()> {
         node_id,
     )?;
 
+    // backend
+    let kimchi_vesta = KimchiVesta::new(false);
+
     // compile
-    compile(&sources, tast, false)?;
+    compile(&sources, tast, kimchi_vesta)?;
 
     Ok(())
 }

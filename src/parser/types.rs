@@ -1,10 +1,11 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
+use ark_ff::Field;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     cli::packages::UserRepo,
-    constants::{Field, Span},
+    constants::Span,
     error::{ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind, Tokens},
     stdlib::BUILTIN_FN_NAMES,
@@ -1117,8 +1118,11 @@ impl Stmt {
 #[derive(Debug)]
 
 /// Things you can have in a scope (including the root scope).
-pub struct Root {
-    pub kind: RootKind,
+pub struct Root<F>
+where
+    F: Field,
+{
+    pub kind: RootKind<F>,
     pub span: Span,
 }
 
@@ -1171,12 +1175,12 @@ impl UsePath {
 }
 
 #[derive(Debug)]
-pub enum RootKind {
+pub enum RootKind<F: Field> {
     Use(UsePath),
     FunctionDef(FunctionDef),
     Comment(String),
     StructDef(StructDef),
-    ConstDef(ConstDef),
+    ConstDef(ConstDef<F>),
 }
 
 //
@@ -1184,14 +1188,17 @@ pub enum RootKind {
 //
 
 #[derive(Debug)]
-pub struct ConstDef {
+pub struct ConstDef<F>
+where
+    F: Field,
+{
     pub module: ModulePath, // name resolution
     pub name: Ident,
-    pub value: Field,
+    pub value: F,
     pub span: Span,
 }
 
-impl ConstDef {
+impl<F: Field + FromStr> ConstDef<F> {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         // const foo = 42;
         //       ^^^

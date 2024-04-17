@@ -1,18 +1,15 @@
-use std::{
-    fmt::{self, Display, Formatter},
-    ops::Neg,
-};
+use std::fmt::{self, Display, Formatter};
 
 use ark_ff::{One, Zero};
-use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 use kimchi::circuits::wires::Wire;
 use num_bigint::BigUint;
 use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    backends::{kimchi::VestaField, Backend},
     circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
-    constants::{Field, Span, NUM_REGISTERS},
+    constants::Span,
     constraints::{boolean, field},
     error::{ErrorKind, Result},
     imports::FnKind,
@@ -48,18 +45,18 @@ impl From<GateKind> for kimchi::circuits::gate::GateType {
 }
 
 // TODO: this could also contain the span that defined the gate!
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Gate {
     /// Type of gate
     pub typ: GateKind,
 
     /// Coefficients
     #[serde(skip)]
-    pub coeffs: Vec<Field>,
+    pub coeffs: Vec<VestaField>,
 }
 
 impl Gate {
-    pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<Field> {
+    pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<VestaField> {
         kimchi::circuits::gate::CircuitGate {
             typ: self.typ.into(),
             wires: Wire::for_row(row),
@@ -116,16 +113,12 @@ impl Ord for AnnotatedCell {
 // Circuit Writer (also used by witness generation)
 //
 
-impl CircuitWriter {
-    /// Returns the compiled gates of the circuit.
-    pub fn compiled_gates(&self) -> &[Gate] {
-        if !self.finalized {
-            unreachable!();
-        }
-        &self.gates
-    }
-
-    fn compile_stmt(&mut self, fn_env: &mut FnEnv, stmt: &Stmt) -> Result<Option<VarOrRef>> {
+impl<B: Backend> CircuitWriter<B> {
+    fn compile_stmt(
+        &mut self,
+        fn_env: &mut FnEnv<B::Field>,
+        stmt: &Stmt,
+    ) -> Result<Option<VarOrRef<B>>> {
         match &stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } => {
                 // compute the rhs
@@ -179,7 +172,11 @@ impl CircuitWriter {
     }
 
     /// might return something?
-    fn compile_block(&mut self, fn_env: &mut FnEnv, stmts: &[Stmt]) -> Result<Option<Var>> {
+    fn compile_block(
+        &mut self,
+        fn_env: &mut FnEnv<B::Field>,
+        stmts: &[Stmt],
+    ) -> Result<Option<Var<B::Field>>> {
         fn_env.nest();
         for stmt in stmts {
             let res = self.compile_stmt(fn_env, stmt)?;
@@ -198,8 +195,8 @@ impl CircuitWriter {
     fn compile_native_function_call(
         &mut self,
         function: &FunctionDef,
-        args: Vec<VarInfo>,
-    ) -> Result<Option<Var>> {
+        args: Vec<VarInfo<B::Field>>,
+    ) -> Result<Option<Var<B::Field>>> {
         assert!(!function.is_main());
 
         // create new fn_env
@@ -218,7 +215,7 @@ impl CircuitWriter {
 
     pub(crate) fn constrain_inputs_to_main(
         &mut self,
-        input: &[ConstOrCell],
+        input: &[ConstOrCell<B::Field>],
         input_typ: &TyKind,
         span: Span,
     ) -> Result<()> {
@@ -260,9 +257,9 @@ impl CircuitWriter {
     /// Compile a function. Used to compile `main()` only for now
     pub(crate) fn compile_main_function(
         &mut self,
-        fn_env: &mut FnEnv,
+        fn_env: &mut FnEnv<B::Field>,
         function: &FunctionDef,
-    ) -> Result<()> {
+    ) -> Result<Option<Vec<CellVar>>> {
         assert!(function.is_main());
 
         // compile the block
@@ -270,7 +267,7 @@ impl CircuitWriter {
 
         // we're expecting something returned?
         match (function.sig.return_type.as_ref(), returned) {
-            (None, None) => Ok(()),
+            (None, None) => Ok(None),
             (Some(expected), None) => Err(self.error(ErrorKind::MissingReturn, expected.span)),
             (None, Some(returned)) => Err(self.error(ErrorKind::UnexpectedReturn, returned.span)),
             (Some(_expected), Some(returned)) => {
@@ -278,45 +275,27 @@ impl CircuitWriter {
                 let mut returned_cells = vec![];
                 for r in &returned.cvars {
                     match r {
-                        ConstOrCell::Cell(c) => returned_cells.push(c),
+                        ConstOrCell::Cell(c) => returned_cells.push(*c),
                         ConstOrCell::Const(_) => {
                             return Err(self.error(ErrorKind::ConstantInOutput, returned.span))
                         }
                     }
                 }
 
-                // store the return value in the public input that was created for that ^
-                let public_output = self
-                    .public_output
+                self.public_output
                     .as_ref()
                     .expect("bug in the compiler: missing public output");
 
-                for (pub_var, ret_var) in public_output.cvars.iter().zip(returned_cells) {
-                    // replace the computation of the public output vars with the actual variables being returned here
-                    let var_idx = pub_var.idx().unwrap();
-                    let prev = self
-                        .witness_vars
-                        .insert(var_idx, Value::PublicOutput(Some(*ret_var)));
-                    assert!(prev.is_some());
-                }
-
-                Ok(())
+                Ok(Some(returned_cells))
             }
         }
     }
 
-    pub fn new_internal_var(&mut self, val: Value, span: Span) -> CellVar {
-        // create new var
-        let var = CellVar::new(self.next_variable, span);
-        self.next_variable += 1;
-
-        // store it in the circuit_writer
-        self.witness_vars.insert(var.index, val);
-
-        var
-    }
-
-    fn compute_expr(&mut self, fn_env: &mut FnEnv, expr: &Expr) -> Result<Option<VarOrRef>> {
+    fn compute_expr(
+        &mut self,
+        fn_env: &mut FnEnv<B::Field>,
+        expr: &Expr,
+    ) -> Result<Option<VarOrRef<B>>> {
         match &expr.kind {
             // `module::fn_name(args)`
             ExprKind::FnCall {
@@ -591,7 +570,7 @@ impl CircuitWriter {
 
             ExprKind::BigInt(b) => {
                 let biguint = BigUint::from_str_radix(b, 10).expect("failed to parse number.");
-                let ff = Field::try_from(biguint).map_err(|_| {
+                let ff = B::Field::try_from(biguint).map_err(|_| {
                     self.error(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
                 })?;
 
@@ -600,7 +579,11 @@ impl CircuitWriter {
             }
 
             ExprKind::Bool(b) => {
-                let value = if *b { Field::one() } else { Field::zero() };
+                let value = if *b {
+                    B::Field::one()
+                } else {
+                    B::Field::zero()
+                };
                 let res = VarOrRef::Var(Var::new_constant(value, expr.span));
                 Ok(Some(res))
             }
@@ -710,126 +693,22 @@ impl CircuitWriter {
         }
     }
 
-    // TODO: dead code?
-    pub fn compute_constant(&self, var: CellVar, span: Span) -> Result<Field> {
-        match &self.witness_vars.get(&var.index) {
-            Some(Value::Constant(c)) => Ok(*c),
-            Some(Value::LinearCombination(lc, cst)) => {
-                let mut res = *cst;
-                for (coeff, var) in lc {
-                    res += self.compute_constant(*var, span)? * *coeff;
-                }
-                Ok(res)
-            }
-            Some(Value::Mul(lhs, rhs)) => {
-                let lhs = self.compute_constant(*lhs, span)?;
-                let rhs = self.compute_constant(*rhs, span)?;
-                Ok(lhs * rhs)
-            }
-            _ => Err(self.error(ErrorKind::ExpectedConstant, span)),
-        }
-    }
-
-    pub fn num_gates(&self) -> usize {
-        self.gates.len()
-    }
-
-    // TODO: we should cache constants to avoid creating a new variable for each constant
-    /// This should be called only when you want to constrain a constant for real.
-    /// Gates that handle constants should always make sure to call this function when they want them constrained.
-    pub fn add_constant(
-        &mut self,
-        label: Option<&'static str>,
-        value: Field,
-        span: Span,
-    ) -> CellVar {
-        if let Some(cvar) = self.cached_constants.get(&value) {
-            return *cvar;
-        }
-
-        let var = self.new_internal_var(Value::Constant(value), span);
-        self.cached_constants.insert(value, var);
-
-        let zero = Field::zero();
-        self.add_generic_gate(
-            label.unwrap_or("hardcode a constant"),
-            vec![Some(var)],
-            vec![Field::one(), zero, zero, zero, value.neg()],
-            span,
-        );
-
-        var
-    }
-
-    /// creates a new gate, and the associated row in the witness/execution trace.
-    // TODO: add_gate instead of gates?
-    pub fn add_gate(
-        &mut self,
-        note: &'static str,
-        typ: GateKind,
-        vars: Vec<Option<CellVar>>,
-        coeffs: Vec<Field>,
-        span: Span,
-    ) {
-        // sanitize
-        assert!(coeffs.len() <= NUM_REGISTERS);
-        assert!(vars.len() <= NUM_REGISTERS);
-
-        // construct the execution trace with vars, for the witness generation
-        self.rows_of_vars.push(vars.clone());
-
-        // get current row
-        // important: do that before adding the gate below
-        let row = self.gates.len();
-
-        // add gate
-        self.gates.push(Gate { typ, coeffs });
-
-        // add debug info related to that gate
-        let debug_info = DebugInfo {
-            span,
-            note: note.to_string(),
-        };
-        self.debug_info.push(debug_info.clone());
-
-        // wiring (based on vars)
-        for (col, var) in vars.iter().enumerate() {
-            if let Some(var) = var {
-                let curr_cell = Cell { row, col };
-                let annotated_cell = AnnotatedCell {
-                    cell: curr_cell,
-                    debug: debug_info.clone(),
-                };
-
-                self.wiring
-                    .entry(var.index)
-                    .and_modify(|w| match w {
-                        Wiring::NotWired(old_cell) => {
-                            *w = Wiring::Wired(vec![old_cell.clone(), annotated_cell.clone()])
-                        }
-                        Wiring::Wired(ref mut cells) => {
-                            cells.push(annotated_cell.clone());
-                        }
-                    })
-                    .or_insert(Wiring::NotWired(annotated_cell));
-            }
-        }
-    }
-
-    pub fn add_public_inputs(&mut self, name: String, num: usize, span: Span) -> Var {
+    pub fn add_public_inputs(&mut self, name: String, num: usize, span: Span) -> Var<B::Field> {
         let mut cvars = Vec::with_capacity(num);
 
         for idx in 0..num {
             // create the var
-            let cvar = self.new_internal_var(Value::External(name.clone(), idx), span);
+            let cvar = self
+                .backend
+                .new_internal_var(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
 
             // create the associated generic gate
-            self.add_gate(
+            self.backend.add_gate(
                 "add public input",
                 GateKind::DoubleGeneric,
                 vec![Some(cvar)],
-                vec![Field::one()],
+                vec![B::Field::one()],
                 span,
             );
         }
@@ -845,14 +724,16 @@ impl CircuitWriter {
         let mut cvars = Vec::with_capacity(num);
         for _ in 0..num {
             // create the var
-            let cvar = self.new_internal_var(Value::PublicOutput(None), span);
+            let cvar = self
+                .backend
+                .new_internal_var(Value::PublicOutput(None), span);
             cvars.push(ConstOrCell::Cell(cvar));
 
             // create the associated generic gate
-            self.add_generic_gate(
+            self.backend.add_generic_gate(
                 "add public output",
                 vec![Some(cvar)],
-                vec![Field::one()],
+                vec![B::Field::one()],
                 span,
             );
         }
@@ -863,56 +744,19 @@ impl CircuitWriter {
         self.public_output = Some(res);
     }
 
-    pub fn add_private_inputs(&mut self, name: String, num: usize, span: Span) -> Var {
+    pub fn add_private_inputs(&mut self, name: String, num: usize, span: Span) -> Var<B::Field> {
         let mut cvars = Vec::with_capacity(num);
 
         for idx in 0..num {
             // create the var
-            let cvar = self.new_internal_var(Value::External(name.clone(), idx), span);
+            let cvar = self
+                .backend
+                .new_internal_var(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
             self.private_input_indices.push(cvar.index);
         }
 
         Var::new(cvars, span)
-    }
-
-    pub(crate) fn add_generic_gate(
-        &mut self,
-        label: &'static str,
-        mut vars: Vec<Option<CellVar>>,
-        mut coeffs: Vec<Field>,
-        span: Span,
-    ) {
-        // padding
-        let coeffs_padding = GENERIC_COEFFS.checked_sub(coeffs.len()).unwrap();
-        coeffs.extend(std::iter::repeat(Field::zero()).take(coeffs_padding));
-
-        let vars_padding = GENERIC_REGISTERS.checked_sub(vars.len()).unwrap();
-        vars.extend(std::iter::repeat(None).take(vars_padding));
-
-        // if the double gate optimization is not set, just add the gate
-        if !self.double_generic_gate_optimization {
-            self.add_gate(label, GateKind::DoubleGeneric, vars, coeffs, span);
-            return;
-        }
-
-        // only add a double generic gate if we have two of them
-        if let Some(generic_gate) = self.pending_generic_gate.take() {
-            coeffs.extend(generic_gate.coeffs);
-            vars.extend(generic_gate.vars);
-
-            // TODO: what to do with the label and span?
-
-            self.add_gate(label, GateKind::DoubleGeneric, vars, coeffs, span);
-        } else {
-            // otherwise queue it
-            self.pending_generic_gate = Some(PendingGate {
-                label,
-                coeffs,
-                vars,
-                span,
-            });
-        }
     }
 }
 
@@ -920,7 +764,7 @@ impl CircuitWriter {
 pub(crate) struct PendingGate {
     pub label: &'static str,
     #[serde(skip)]
-    pub coeffs: Vec<Field>,
+    pub coeffs: Vec<VestaField>,
     pub vars: Vec<Option<CellVar>>,
     pub span: Span,
 }

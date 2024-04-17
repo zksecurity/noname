@@ -1,13 +1,15 @@
-use std::vec;
+use std::sync::Arc;
 
+use ark_ff::Field;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    backends::Backend,
     circuit_writer::{CircuitWriter, FnEnv, VarInfo},
-    constants::{Field, Span},
+    constants::Span,
     error::Result,
     type_checker::ConstInfo,
-    witness::{CompiledCircuit, WitnessEnv},
+    witness::WitnessEnv,
 };
 
 /// An internal variable that relates to a specific cell (of the execution trace),
@@ -32,29 +34,34 @@ impl CellVar {
 }
 
 /// The signature of a hint function
-pub type HintFn = dyn Fn(&CompiledCircuit, &mut WitnessEnv) -> Result<Field>;
+pub type HintFn<B: Backend> = dyn Fn(&B, &mut WitnessEnv<B::Field>) -> Result<B::Field>;
 
 /// A variable's actual value in the witness can be computed in different ways.
-#[derive(Serialize, Deserialize)]
-pub enum Value {
+#[derive(Clone, Serialize, Deserialize)]
+pub enum Value<B>
+where
+    B: Backend,
+{
     /// Either it's a hint and can be computed from the outside.
     #[serde(skip)]
     // TODO: outch, remove hints? or https://docs.rs/serde_closure/latest/serde_closure/ ?
-    Hint(Box<HintFn>),
+    // TODO: changed to Arc from Box because Value needs to be cloneable, because of cloneable backend and FnInfo
+    // if we can avoid cloning FnInfo, we may be able to avoid this change.
+    Hint(Arc<HintFn<B>>),
 
     /// Or it's a constant (for example, I wrote `2` in the code).
     #[serde(skip)]
-    Constant(Field),
+    Constant(B::Field),
 
     /// Or it's a linear combination of internal circuit variables (+ a constant).
     // TODO: probably values of internal variables should be cached somewhere
     #[serde(skip)]
-    LinearCombination(Vec<(Field, CellVar)>, Field /* cst */),
+    LinearCombination(Vec<(B::Field, CellVar)>, B::Field /* cst */),
 
     Mul(CellVar, CellVar),
 
     #[serde(skip)]
-    Scale(Field, CellVar),
+    Scale(B::Field, CellVar),
 
     /// Returns the inverse of the given variable.
     /// Note that it will potentially return 0 if the given variable is 0.
@@ -69,13 +76,7 @@ pub enum Value {
     PublicOutput(Option<CellVar>),
 }
 
-impl From<Field> for Value {
-    fn from(field: Field) -> Self {
-        Self::Constant(field)
-    }
-}
-
-impl std::fmt::Debug for Value {
+impl<B: Backend> std::fmt::Debug for Value<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::Hint(..) => write!(f, "Hint"),
@@ -92,21 +93,24 @@ impl std::fmt::Debug for Value {
 
 /// Represents a cell in the execution trace.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum ConstOrCell {
+pub enum ConstOrCell<F>
+where
+    F: Field,
+{
     /// A constant value.
     #[serde(skip)]
-    Const(Field),
+    Const(F),
 
     /// A cell in the execution trace.
     Cell(CellVar),
 }
 
-impl ConstOrCell {
+impl<F: Field> ConstOrCell<F> {
     pub fn is_const(&self) -> bool {
         matches!(self, Self::Const(..))
     }
 
-    pub fn cst(&self) -> Option<Field> {
+    pub fn cst(&self) -> Option<F> {
         match self {
             Self::Const(cst) => Some(*cst),
             _ => None,
@@ -130,20 +134,23 @@ impl ConstOrCell {
 
 /// Represents a variable in the noname language, or an anonymous variable during computation of expressions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Var {
+pub struct Var<F>
+where
+    F: Field,
+{
     /// The type of variable.
-    pub cvars: Vec<ConstOrCell>,
+    pub cvars: Vec<ConstOrCell<F>>,
 
     /// The span that created the variable.
     pub span: Span,
 }
 
-impl Var {
-    pub fn new(cvars: Vec<ConstOrCell>, span: Span) -> Self {
+impl<F: Field> Var<F> {
+    pub fn new(cvars: Vec<ConstOrCell<F>>, span: Span) -> Self {
         Self { cvars, span }
     }
 
-    pub fn new_cvar(cvar: ConstOrCell, span: Span) -> Self {
+    pub fn new_cvar(cvar: ConstOrCell<F>, span: Span) -> Self {
         Self {
             cvars: vec![cvar],
             span,
@@ -157,14 +164,14 @@ impl Var {
         }
     }
 
-    pub fn new_constant(cst: Field, span: Span) -> Self {
+    pub fn new_constant(cst: F, span: Span) -> Self {
         Self {
             cvars: vec![ConstOrCell::Const(cst)],
             span,
         }
     }
 
-    pub fn new_constant_typ(cst_info: &ConstInfo, span: Span) -> Self {
+    pub fn new_constant_typ(cst_info: &ConstInfo<F>, span: Span) -> Self {
         let ConstInfo { value, typ: _ } = cst_info;
         let cvars = value.into_iter().cloned().map(ConstOrCell::Const).collect();
 
@@ -179,7 +186,7 @@ impl Var {
         self.cvars.is_empty()
     }
 
-    pub fn get(&self, idx: usize) -> Option<&ConstOrCell> {
+    pub fn get(&self, idx: usize) -> Option<&ConstOrCell<F>> {
         if idx < self.cvars.len() {
             Some(&self.cvars[idx])
         } else {
@@ -187,7 +194,7 @@ impl Var {
         }
     }
 
-    pub fn constant(&self) -> Option<Field> {
+    pub fn constant(&self) -> Option<F> {
         if self.cvars.len() == 1 {
             self.cvars[0].cst()
         } else {
@@ -195,18 +202,18 @@ impl Var {
         }
     }
 
-    pub fn range(&self, start: usize, len: usize) -> &[ConstOrCell] {
+    pub fn range(&self, start: usize, len: usize) -> &[ConstOrCell<F>] {
         &self.cvars[start..(start + len)]
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, ConstOrCell> {
+    pub fn iter(&self) -> std::slice::Iter<'_, ConstOrCell<F>> {
         self.cvars.iter()
     }
 }
 
 // implement indexing into Var
-impl std::ops::Index<usize> for Var {
-    type Output = ConstOrCell;
+impl<F: Field> std::ops::Index<usize> for Var<F> {
+    type Output = ConstOrCell<F>;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.cvars[index]
@@ -216,9 +223,12 @@ impl std::ops::Index<usize> for Var {
 /// Represents a variable in the circuit, or a reference to one.
 /// Note that mutable variables are always passed as references,
 /// as one needs to have access to the variable name to be able to reassign it in the environment.
-pub enum VarOrRef {
+pub enum VarOrRef<B>
+where
+    B: Backend,
+{
     /// A [Var].
-    Var(Var),
+    Var(Var<B::Field>),
 
     /// A reference to a noname variable in the environment.
     /// Potentially narrowing it down to a range of cells in that variable.
@@ -231,8 +241,8 @@ pub enum VarOrRef {
     },
 }
 
-impl VarOrRef {
-    pub(crate) fn constant(&self) -> Option<Field> {
+impl<B: Backend> VarOrRef<B> {
+    pub(crate) fn constant(&self) -> Option<B::Field> {
         match self {
             VarOrRef::Var(var) => var.constant(),
             VarOrRef::Ref { .. } => None,
@@ -242,7 +252,11 @@ impl VarOrRef {
     /// Returns the value within the variable or pointer.
     /// If it is a pointer, we lose information about the original variable,
     /// thus calling this function is aking to passing the variable by value.
-    pub(crate) fn value(self, circuit_writer: &CircuitWriter, fn_env: &FnEnv) -> Var {
+    pub(crate) fn value(
+        self,
+        circuit_writer: &CircuitWriter<B>,
+        fn_env: &FnEnv<B::Field>,
+    ) -> Var<B::Field> {
         match self {
             VarOrRef::Var(var) => var,
             VarOrRef::Ref {
@@ -257,7 +271,7 @@ impl VarOrRef {
         }
     }
 
-    pub(crate) fn from_var_info(var_name: String, var_info: VarInfo) -> Self {
+    pub(crate) fn from_var_info(var_name: String, var_info: VarInfo<B::Field>) -> Self {
         if var_info.mutable {
             Self::Ref {
                 var_name,
