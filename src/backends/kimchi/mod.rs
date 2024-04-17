@@ -145,10 +145,6 @@ impl Backend for KimchiVesta {
         builtin::poseidon
     }
 
-    fn debug_info(&self) -> &[DebugInfo] {
-        &self.debug_info
-    }
-
     fn witness_vars(&self) -> &HashMap<usize, Value<Self>> {
         &self.witness_vars
     }
@@ -363,7 +359,7 @@ impl Backend for KimchiVesta {
         let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
 
         for (row, (gate, row_of_vars, debug_info)) in
-            izip!(self.gates.iter(), &self.rows_of_vars, self.debug_info()).enumerate()
+            izip!(self.gates.iter(), &self.rows_of_vars, &self.debug_info).enumerate()
         {
             // create the witness row
             let mut witness_row = [Self::Field::zero(); NUM_REGISTERS];
@@ -473,7 +469,7 @@ impl Backend for KimchiVesta {
         }
 
         for (row, (Gate { typ, coeffs }, debug_info)) in
-            self.gates.iter().zip(self.debug_info()).enumerate()
+            self.gates.iter().zip(&self.debug_info).enumerate()
         {
             println!("gate {:?}", row);
             // gate #

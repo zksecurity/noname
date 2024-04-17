@@ -42,7 +42,6 @@ pub trait Backend: Clone {
         span: Span,
     ) -> CellVar;
 
-    fn debug_info(&self) -> &[DebugInfo];
     /// Add a gate to the circuit. Kimchi specific atm.
     fn add_gate(
         &mut self,
