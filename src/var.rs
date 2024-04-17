@@ -76,7 +76,6 @@ where
     PublicOutput(Option<CellVar>),
 }
 
-
 impl<B: Backend> std::fmt::Debug for Value<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

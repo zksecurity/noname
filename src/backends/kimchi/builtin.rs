@@ -5,9 +5,9 @@ use kimchi::circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW}
 use kimchi::mina_poseidon::constants::{PlonkSpongeConstantsKimchi, SpongeConstants};
 use kimchi::mina_poseidon::permutation::full_round;
 
+use super::{KimchiVesta, VestaField};
 use crate::backends::kimchi::NUM_REGISTERS;
 use crate::backends::Backend;
-use super::{VestaField, KimchiVesta};
 
 use crate::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
@@ -55,8 +55,11 @@ pub fn poseidon(
     for const_or_cell in &input.cvars {
         match const_or_cell {
             ConstOrCell::Const(cst) => {
-                let cell =
-                    compiler.backend.add_constant(Some("encoding constant input to poseidon"), *cst, span);
+                let cell = compiler.backend.add_constant(
+                    Some("encoding constant input to poseidon"),
+                    *cst,
+                    span,
+                );
                 cells.push(cell);
             }
             ConstOrCell::Cell(cell) => cells.push(*cell),

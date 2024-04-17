@@ -68,10 +68,7 @@ pub fn display_source(
     res.push('\n');
 }
 
-pub fn extract_vars_from_coeffs(
-    vars: &mut OrderedHashSet<VestaField>,
-    coeffs: &[VestaField],
-) {
+pub fn extract_vars_from_coeffs(vars: &mut OrderedHashSet<VestaField>, coeffs: &[VestaField]) {
     for coeff in coeffs {
         let s = coeff.pretty();
         if s.len() >= 5 {

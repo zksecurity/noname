@@ -1118,7 +1118,10 @@ impl Stmt {
 #[derive(Debug)]
 
 /// Things you can have in a scope (including the root scope).
-pub struct Root<F> where F: Field{
+pub struct Root<F>
+where
+    F: Field,
+{
     pub kind: RootKind<F>,
     pub span: Span,
 }
@@ -1185,7 +1188,10 @@ pub enum RootKind<F: Field> {
 //
 
 #[derive(Debug)]
-pub struct ConstDef<F> where F: Field {
+pub struct ConstDef<F>
+where
+    F: Field,
+{
     pub module: ModulePath, // name resolution
     pub name: Ident,
     pub value: F,

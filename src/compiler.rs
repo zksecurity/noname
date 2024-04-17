@@ -9,16 +9,9 @@ use std::collections::HashMap;
 use miette::NamedSource;
 
 use crate::{
-    backends::Backend,
-    circuit_writer::CircuitWriter,
-    cli::packages::UserRepo,
-    error::Result,
-    inputs::JsonInputs,
-    lexer::Token,
-    name_resolution::NAST,
-    parser::AST,
-    type_checker::TypeChecker,
-    witness::CompiledCircuit,
+    backends::Backend, circuit_writer::CircuitWriter, cli::packages::UserRepo, error::Result,
+    inputs::JsonInputs, lexer::Token, name_resolution::NAST, parser::AST,
+    type_checker::TypeChecker, witness::CompiledCircuit,
 };
 
 /// Contains the association between a counter and the corresponding filename and source code.
@@ -149,7 +142,8 @@ pub fn compile<B: Backend>(
     backend: B,
     double_generic_gate_optimization: bool,
 ) -> miette::Result<CompiledCircuit<B>> {
-    CircuitWriter::generate_circuit(tast, backend, double_generic_gate_optimization).into_miette(sources)
+    CircuitWriter::generate_circuit(tast, backend, double_generic_gate_optimization)
+        .into_miette(sources)
 }
 
 pub fn generate_witness<B: Backend>(

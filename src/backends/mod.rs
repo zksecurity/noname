@@ -3,7 +3,14 @@ use std::collections::HashMap;
 use ark_ff::{Field, Zero};
 
 use crate::{
-    circuit_writer::{DebugInfo, GateKind}, compiler::Sources, constants::Span, error::{Error, ErrorKind, Result}, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
+    circuit_writer::{DebugInfo, GateKind},
+    compiler::Sources,
+    constants::Span,
+    error::{Error, ErrorKind, Result},
+    helpers::PrettyField,
+    imports::FnHandle,
+    var::{CellVar, Value, Var},
+    witness::WitnessEnv,
 };
 
 pub mod kimchi;
@@ -99,8 +106,9 @@ pub trait Backend: Clone {
             Value::PublicOutput(var) => {
                 // var can be none. what could be the better way to pass in the span in that case?
                 // let span = self.main_info().span;
-                let var =
-                    var.ok_or_else(|| Error::new("runtime", ErrorKind::MissingReturn, Span::default()))?;
+                let var = var.ok_or_else(|| {
+                    Error::new("runtime", ErrorKind::MissingReturn, Span::default())
+                })?;
                 self.compute_var(env, var)
             }
             Value::Scale(scalar, var) => {

@@ -1,12 +1,10 @@
 use crate::backends::Backend;
+use crate::constants::Span;
 use crate::imports::FnKind;
 use crate::lexer::Token;
 use crate::parser::types::FnSig;
 use crate::parser::ParserCtx;
 use crate::type_checker::FnInfo;
-use crate::{
-    constants::Span,
-};
 
 const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
 

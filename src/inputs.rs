@@ -8,7 +8,10 @@ use num_bigint::BigUint;
 use thiserror::Error;
 
 use crate::{
-    backends::{kimchi::VestaField, Backend}, parser::types::TyKind, type_checker::FullyQualified, witness::CompiledCircuit
+    backends::{kimchi::VestaField, Backend},
+    parser::types::TyKind,
+    type_checker::FullyQualified,
+    witness::CompiledCircuit,
 };
 
 //
@@ -64,7 +67,11 @@ impl<B: Backend> CompiledCircuit<B> {
                 Ok(vec![cell_value])
             }
             (TyKind::Bool, Value::Bool(bb)) => {
-                let ff = if bb { B::Field::one() } else { B::Field::zero() };
+                let ff = if bb {
+                    B::Field::one()
+                } else {
+                    B::Field::zero()
+                };
                 Ok(vec![ff])
             }
 

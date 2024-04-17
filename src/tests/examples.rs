@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{
-    backends::kimchi::{VestaField, KimchiVesta},
+    backends::kimchi::{KimchiVesta, VestaField},
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, ExtField},
     type_checker::TypeChecker,

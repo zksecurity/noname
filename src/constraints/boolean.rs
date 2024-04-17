@@ -54,7 +54,9 @@ pub fn and<B: Backend>(
         // two vars
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // create a new variable to store the result
-            let res = compiler.backend.new_internal_var(Value::Mul(*lhs, *rhs), span);
+            let res = compiler
+                .backend
+                .new_internal_var(Value::Mul(*lhs, *rhs), span);
 
             // create a gate to constrain the result
             let zero = B::Field::zero();

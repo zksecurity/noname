@@ -52,7 +52,6 @@ where
     /// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
     pub(crate) private_input_indices: Vec<usize>,
-
 }
 
 /// Debug information related to a single row in a circuit.
@@ -91,7 +90,12 @@ impl<B: Backend> CircuitWriter<B> {
         self.typed.size_of(typ)
     }
 
-    pub fn add_local_var(&self, fn_env: &mut FnEnv<B::Field>, var_name: String, var_info: VarInfo<B::Field>) {
+    pub fn add_local_var(
+        &self,
+        fn_env: &mut FnEnv<B::Field>,
+        var_name: String,
+        var_info: VarInfo<B::Field>,
+    ) {
         // check for consts first
         let qualified = FullyQualified::local(var_name.clone());
         if let Some(_cst_info) = self.typed.const_info(&qualified) {
@@ -149,7 +153,8 @@ impl<B: Backend> CircuitWriter<B> {
         double_generic_gate_optimization: bool,
     ) -> Result<CompiledCircuit<B>> {
         // create circuit writer
-        let mut circuit_writer = CircuitWriter::new(typed, backend, double_generic_gate_optimization);
+        let mut circuit_writer =
+            CircuitWriter::new(typed, backend, double_generic_gate_optimization);
 
         // get main function
         let qualified = FullyQualified::local("main".to_string());
@@ -233,7 +238,6 @@ impl<B: Backend> CircuitWriter<B> {
             private_input_indices,
             main_span,
         )?;
-
 
         //
         Ok(CompiledCircuit::new(circuit_writer))

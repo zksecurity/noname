@@ -35,8 +35,9 @@ pub fn add<B: Backend>(
             }
 
             // create a new variable to store the result
-            let res =
-                compiler.backend.new_internal_var(Value::LinearCombination(vec![(one, *cvar)], *cst), span);
+            let res = compiler
+                .backend
+                .new_internal_var(Value::LinearCombination(vec![(one, *cvar)], *cst), span);
 
             // create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
@@ -183,7 +184,9 @@ pub fn mul<B: Backend>(
             }
 
             // create a new variable to store the result
-            let res = compiler.backend.new_internal_var(Value::Scale(*cst, *cvar), span);
+            let res = compiler
+                .backend
+                .new_internal_var(Value::Scale(*cst, *cvar), span);
 
             // create a gate to store the result
             // TODO: we should use an add_generic function that takes advantage of the double generic gate
@@ -200,7 +203,9 @@ pub fn mul<B: Backend>(
         // everything is a var
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // create a new variable to store the result
-            let res = compiler.backend.new_internal_var(Value::Mul(*lhs, *rhs), span);
+            let res = compiler
+                .backend
+                .new_internal_var(Value::Mul(*lhs, *rhs), span);
 
             // create a gate to store the result
             compiler.backend.add_generic_gate(
@@ -359,7 +364,9 @@ fn equal_cells<B: Backend>(
             );
 
             // 4. diff_inv * diff = one_minus_res
-            let diff_inv = compiler.backend.new_internal_var(Value::Inverse(diff), span);
+            let diff_inv = compiler
+                .backend
+                .new_internal_var(Value::Inverse(diff), span);
 
             compiler.backend.add_generic_gate(
                 "constraint #4 for the equals gadget (diff_inv * diff = one_minus_res)",

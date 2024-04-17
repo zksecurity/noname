@@ -2,8 +2,8 @@
 //! Refer to the [book](https://mimoo.github.io/noname/) for more information.
 //!
 
-pub mod circuit_writer;
 pub mod backends;
+pub mod circuit_writer;
 pub mod cli;
 pub mod compiler;
 pub mod constants;
@@ -39,7 +39,6 @@ pub mod helpers {
     };
 
     use crate::backends::kimchi::VestaField;
-
 
     /// A trait to display [Field] in pretty ways.
     pub trait PrettyField: ark_ff::PrimeField {

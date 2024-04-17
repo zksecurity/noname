@@ -1,7 +1,4 @@
-use std::{
-    collections::HashSet,
-    ops::Neg as _,
-};
+use std::{collections::HashSet, ops::Neg as _};
 
 use ark_ff::{One as _, Zero};
 use once_cell::sync::Lazy;
@@ -9,8 +6,8 @@ use once_cell::sync::Lazy;
 use crate::{
     backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
-    error::{Error, ErrorKind, Result},
     constants::Span,
+    error::{Error, ErrorKind, Result},
     imports::FnKind,
     lexer::Token,
     parser::{
@@ -20,7 +17,6 @@ use crate::{
     type_checker::FnInfo,
     var::{ConstOrCell, Var},
 };
-
 
 pub mod crypto;
 

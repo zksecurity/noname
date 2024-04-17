@@ -1,6 +1,4 @@
-use std::{
-    fmt::{self, Display, Formatter},
-};
+use std::fmt::{self, Display, Formatter};
 
 use ark_ff::{One, Zero};
 use kimchi::circuits::wires::Wire;
@@ -48,8 +46,7 @@ impl From<GateKind> for kimchi::circuits::gate::GateType {
 
 // TODO: this could also contain the span that defined the gate!
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Gate
-{
+pub struct Gate {
     /// Type of gate
     pub typ: GateKind,
 
@@ -285,8 +282,7 @@ impl<B: Backend> CircuitWriter<B> {
                     }
                 }
 
-                self
-                    .public_output
+                self.public_output
                     .as_ref()
                     .expect("bug in the compiler: missing public output");
 
@@ -702,7 +698,9 @@ impl<B: Backend> CircuitWriter<B> {
 
         for idx in 0..num {
             // create the var
-            let cvar = self.backend.new_internal_var(Value::External(name.clone(), idx), span);
+            let cvar = self
+                .backend
+                .new_internal_var(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
 
             // create the associated generic gate
@@ -726,7 +724,9 @@ impl<B: Backend> CircuitWriter<B> {
         let mut cvars = Vec::with_capacity(num);
         for _ in 0..num {
             // create the var
-            let cvar = self.backend.new_internal_var(Value::PublicOutput(None), span);
+            let cvar = self
+                .backend
+                .new_internal_var(Value::PublicOutput(None), span);
             cvars.push(ConstOrCell::Cell(cvar));
 
             // create the associated generic gate
@@ -749,7 +749,9 @@ impl<B: Backend> CircuitWriter<B> {
 
         for idx in 0..num {
             // create the var
-            let cvar = self.backend.new_internal_var(Value::External(name.clone(), idx), span);
+            let cvar = self
+                .backend
+                .new_internal_var(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
             self.private_input_indices.push(cvar.index);
         }
@@ -759,8 +761,7 @@ impl<B: Backend> CircuitWriter<B> {
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub(crate) struct PendingGate
-{
+pub(crate) struct PendingGate {
     pub label: &'static str,
     #[serde(skip)]
     pub coeffs: Vec<VestaField>,

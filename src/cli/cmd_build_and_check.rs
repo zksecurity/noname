@@ -2,7 +2,13 @@ use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic};
 
 use crate::{
-    backends::{kimchi::{prover::{ProverIndex, VerifierIndex}, KimchiVesta}, Backend},
+    backends::{
+        kimchi::{
+            prover::{ProverIndex, VerifierIndex},
+            KimchiVesta,
+        },
+        Backend,
+    },
     cli::packages::path_to_package,
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, JsonInputs},
@@ -195,7 +201,12 @@ pub fn build(
     let double_generic_gate_optimization = false;
 
     let kimchi_vesta = KimchiVesta::new(double_generic_gate_optimization);
-    let compiled_circuit = compile(&sources, tast, kimchi_vesta, double_generic_gate_optimization)?;
+    let compiled_circuit = compile(
+        &sources,
+        tast,
+        kimchi_vesta,
+        double_generic_gate_optimization,
+    )?;
 
     if asm {
         println!("{}", compiled_circuit.asm(&sources, debug));
