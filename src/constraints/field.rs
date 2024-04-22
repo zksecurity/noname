@@ -19,58 +19,10 @@ pub fn add<B: Backend>(
     rhs: &ConstOrCell<B::Field>,
     span: Span,
 ) -> Var<B::Field> {
-    let zero = B::Field::zero();
-    let one = B::Field::one();
-
-    match (lhs, rhs) {
-        // 2 constants
-        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs + *rhs, span),
-
-        // const and a var
-        (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
-        | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            // if the constant is zero, we can ignore this gate
-            if cst.is_zero() {
-                // TODO: that span is incorrect, it should come from lhs or rhs...
-                return Var::new_var(*cvar, span);
-            }
-
-            // create a new variable to store the result
-            let res = compiler
-                .backend
-                .new_internal_var(Value::LinearCombination(vec![(one, *cvar)], *cst), span);
-
-            // create a gate to store the result
-            // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.backend.add_generic_gate(
-                "add a constant with a variable",
-                vec![Some(*cvar), None, Some(res)],
-                vec![one, zero, one.neg(), zero, *cst],
-                span,
-            );
-
-            Var::new_var(res, span)
-        }
-        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            // create a new variable to store the result
-            let res = compiler.backend.new_internal_var(
-                Value::LinearCombination(
-                    vec![(B::Field::one(), *lhs), (B::Field::one(), *rhs)],
-                    B::Field::zero(),
-                ),
-                span,
-            );
-
-            // create a gate to store the result
-            compiler.backend.add_generic_gate(
-                "add two variables together",
-                vec![Some(*lhs), Some(*rhs), Some(res)],
-                vec![B::Field::one(), B::Field::one(), B::Field::one().neg()],
-                span,
-            );
-
-            Var::new_var(res, span)
-        }
+    let res = compiler.backend.enforce_add_constraint(lhs, rhs, span);
+    match res {
+        ConstOrCell::Const(cst) => Var::new_constant(cst, span),
+        ConstOrCell::Cell(cvar) => Var::new_var(cvar, span),
     }
 }
 
