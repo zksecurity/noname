@@ -550,6 +550,7 @@ impl Backend for KimchiVesta {
     fn enforce_neg_constraint(
         &mut self,
         var: &crate::var::ConstOrCell<Self::Field>,
+        span: Span,
     ) -> crate::var::ConstOrCell<Self::Field> {
         match var {
             crate::var::ConstOrCell::Const(ff) => crate::var::ConstOrCell::Const(ff.neg()),
@@ -559,13 +560,13 @@ impl Backend for KimchiVesta {
 
                 let neg_var = self.new_internal_var(
                     Value::LinearCombination(vec![(one.neg(), *var)], zero),
-                    var.span,
+                    span,
                 );
                 self.add_generic_gate(
                     "constraint to validate a negation (`x + (-x) = 0`)",
                     vec![Some(*var), None, Some(neg_var)],
                     vec![one, zero, one],
-                    var.span,
+                    span,
                 );
 
                 crate::var::ConstOrCell::Cell(neg_var)
@@ -577,6 +578,7 @@ impl Backend for KimchiVesta {
         &mut self,
         lhs: &crate::var::ConstOrCell<Self::Field>,
         rhs: &crate::var::ConstOrCell<Self::Field>,
+        span: Span,
     ) -> crate::var::ConstOrCell<Self::Field> {
         todo!()
     }
@@ -585,6 +587,7 @@ impl Backend for KimchiVesta {
         &mut self,
         lhs: &crate::var::ConstOrCell<Self::Field>,
         rhs: &crate::var::ConstOrCell<Self::Field>,
+        span: Span,
     ) -> crate::var::ConstOrCell<Self::Field> {
         todo!()
     }

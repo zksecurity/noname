@@ -39,6 +39,7 @@ pub trait Backend: Clone {
     fn enforce_neg_constraint(
         &mut self,
         var: &ConstOrCell<Self::Field>,
+        span: Span,
     ) -> ConstOrCell<Self::Field>;
 
     /// basic constraint addition
@@ -46,6 +47,7 @@ pub trait Backend: Clone {
         &mut self,
         lhs: &ConstOrCell<Self::Field>,
         rhs: &ConstOrCell<Self::Field>,
+        span: Span,
     ) -> ConstOrCell<Self::Field>;
 
     /// basic constraint multiplication
@@ -53,6 +55,7 @@ pub trait Backend: Clone {
         &mut self,
         lhs: &ConstOrCell<Self::Field>,
         rhs: &ConstOrCell<Self::Field>,
+        span: Span,
     ) -> ConstOrCell<Self::Field>;
 
     /// This should be called only when you want to constrain a constant for real.

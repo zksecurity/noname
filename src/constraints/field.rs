@@ -137,7 +137,7 @@ pub fn sub<B: Backend>(
 
         // lhs - rhs
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            let neg_rhs = compiler.backend.enforce_neg_constraint(const_cell_rhs);
+            let neg_rhs = compiler.backend.enforce_neg_constraint(const_cell_rhs, span);
             field::add(compiler, const_cell_lhs, &neg_rhs, span)
         }
     }
