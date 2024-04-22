@@ -42,70 +42,12 @@ pub fn add<B: Backend>(
 /// Subtracts two variables, we only support variables that are of length 1.
 pub fn sub<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    const_cell_lhs: &ConstOrCell<B::Field>,
-    const_cell_rhs: &ConstOrCell<B::Field>,
+    lhs: &ConstOrCell<B::Field>,
+    rhs: &ConstOrCell<B::Field>,
     span: Span,
 ) -> Var<B::Field> {
-    let zero = B::Field::zero();
-    let one = B::Field::one();
-
-    match (const_cell_lhs, const_cell_rhs) {
-        // const1 - const2
-        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs - *rhs, span),
-
-        // const - var
-        (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar)) => {
-            // create a new variable to store the result
-            let res = compiler.backend.new_internal_var(
-                Value::LinearCombination(vec![(one.neg(), *cvar)], *cst),
-                span,
-            );
-
-            // create a gate to store the result
-            compiler.backend.add_generic_gate(
-                "constant - variable",
-                vec![Some(*cvar), None, Some(res)],
-                // cst - cvar - out = 0
-                vec![one.neg(), zero, one.neg(), zero, *cst],
-                span,
-            );
-
-            Var::new_var(res, span)
-        }
-
-        // var - const
-        (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            // if the constant is zero, we can ignore this gate
-            if cst.is_zero() {
-                // TODO: that span is incorrect, it should come from lhs or rhs...
-                return Var::new_var(*cvar, span);
-            }
-
-            // create a new variable to store the result
-            let res = compiler.backend.new_internal_var(
-                Value::LinearCombination(vec![(one, *cvar)], cst.neg()),
-                span,
-            );
-
-            // create a gate to store the result
-            // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.backend.add_generic_gate(
-                "variable - constant",
-                vec![Some(*cvar), None, Some(res)],
-                // var - cst - out = 0
-                vec![one, zero, one.neg(), zero, cst.neg()],
-                span,
-            );
-
-            Var::new_var(res, span)
-        }
-
-        // lhs - rhs
-        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            let neg_rhs = field::neg(compiler, const_cell_rhs, span);
-            field::add(compiler, const_cell_lhs, &neg_rhs.cvars[0], span)
-        }
-    }
+    let neg_rhs = neg(compiler, rhs, span);
+    add(compiler, lhs, &neg_rhs.cvars[0], span)
 }
 
 /// Multiplies two field elements
