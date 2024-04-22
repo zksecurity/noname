@@ -170,55 +170,23 @@ fn equal_cells<B: Backend>(
             );
 
             // 1. diff = x2 - x1
-            let diff = compiler.backend.new_internal_var(
-                Value::LinearCombination(vec![(one, x2), (one.neg(), x1)], zero),
-                span,
-            );
-
-            compiler.backend.add_generic_gate(
-                "constraint #1 for the equals gadget (x2 - x1 - diff = 0)",
-                vec![Some(x2), Some(x1), Some(diff)],
-                // x2 - x1 - diff = 0
-                vec![one, one.neg(), one.neg()],
-                span,
-            );
+            let diff = sub(compiler, &ConstOrCell::Cell(x2), &ConstOrCell::Cell(x1), span)[0];
 
             // 2. one_minus_res = 1 - res
-            let one_minus_res = compiler
-                .backend
-                .new_internal_var(Value::LinearCombination(vec![(one.neg(), res)], one), span);
-
-            compiler.backend.add_generic_gate(
-                "constraint #2 for the equals gadget (one_minus_res + res - 1 = 0)",
-                vec![Some(one_minus_res), Some(res)],
-                // we constrain one_minus_res + res - 1 = 0
-                // so that we can encode res and wire it elsewhere
-                // (and not -res)
-                vec![one, one, zero, zero, one.neg()],
-                span,
-            );
+            let one_minus_res = sub(compiler, &ConstOrCell::Const(one), &ConstOrCell::Cell(res), span)[0];
 
             // 3. res * diff = 0
-            compiler.backend.add_generic_gate(
-                "constraint #3 for the equals gadget (res * diff = 0)",
-                vec![Some(res), Some(diff)],
-                // res * diff = 0
-                vec![zero, zero, zero, one],
-                span,
-            );
+            let res_mul_diff = mul(compiler, &ConstOrCell::Cell(res), &diff, span)[0];
+            // ensure that res * diff = 0
+            sub(compiler, &res_mul_diff, &ConstOrCell::Const(zero), span);
 
             // 4. diff_inv * diff = one_minus_res
             let diff_inv = compiler
                 .backend
-                .new_internal_var(Value::Inverse(diff), span);
+                .new_internal_var(Value::Inverse(*diff.cvar().unwrap()), span);
 
-            compiler.backend.add_generic_gate(
-                "constraint #4 for the equals gadget (diff_inv * diff = one_minus_res)",
-                vec![Some(diff_inv), Some(diff), Some(one_minus_res)],
-                // diff_inv * diff - one_minus_res = 0
-                vec![zero, zero, one.neg(), one],
-                span,
-            );
+            let diff_inv_mul_diff = mul(compiler, &ConstOrCell::Cell(diff_inv), &diff, span)[0];
+            sub(compiler, &diff_inv_mul_diff, &one_minus_res, span);
 
             Var::new_var(res, span)
         }
