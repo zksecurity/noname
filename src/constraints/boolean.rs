@@ -11,23 +11,22 @@ use crate::{
     var::{ConstOrCell, Value, Var},
 };
 
+use super::field;
+
 pub fn is_valid<F: Field>(f: F) -> bool {
     f.is_one() || f.is_zero()
 }
 
 pub fn check<B: Backend>(compiler: &mut CircuitWriter<B>, xx: &ConstOrCell<B::Field>, span: Span) {
-    let zero = B::Field::zero();
     let one = B::Field::one();
 
     match xx {
         ConstOrCell::Const(ff) => assert!(is_valid(*ff)),
-        ConstOrCell::Cell(var) => compiler.backend.add_generic_gate(
-            "constraint to validate a boolean (`x(x-1) = 0`)",
-            // x^2 - x = 0
-            vec![Some(*var), Some(*var), None],
-            vec![one.neg(), zero, zero, one],
-            span,
-        ),
+        ConstOrCell::Cell(_) => {
+            // x * (x - 1)
+            let x_1 = field::sub(compiler, xx, &ConstOrCell::Const(one.neg()), span);
+            field::mul(compiler, xx, &x_1.cvars[0], span);
+        },
     };
 }
 
@@ -52,24 +51,10 @@ pub fn and<B: Backend>(
         }
 
         // two vars
-        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            // create a new variable to store the result
-            let res = compiler
-                .backend
-                .new_internal_var(Value::Mul(*lhs, *rhs), span);
-
-            // create a gate to constrain the result
-            let zero = B::Field::zero();
-            let one = B::Field::one();
-            compiler.backend.add_generic_gate(
-                "constrain the AND as lhs * rhs",
-                vec![Some(*lhs), Some(*rhs), Some(res)],
-                vec![zero, zero, one.neg(), one], // mul
-                span,
-            );
-
-            // return the result
-            Var::new_var(res, span)
+        (ConstOrCell::Cell(_), ConstOrCell::Cell(_)) => {
+            // todo: should it check if the vars are either 1 or 0?
+            // lhs * rhs
+            field::mul(compiler, lhs, rhs, span)
         }
     }
 }
@@ -91,25 +76,11 @@ pub fn not<B: Backend>(
         }
 
         // constant and a var
-        ConstOrCell::Cell(cvar) => {
-            let zero = B::Field::zero();
+        ConstOrCell::Cell(_) => {
             let one = B::Field::one();
 
-            // create a new variable to store the result
-            let lc = Value::LinearCombination(vec![(one.neg(), *cvar)], one); // 1 - X
-            let res = compiler.backend.new_internal_var(lc, span);
-
-            // create a gate to constrain the result
-            compiler.backend.add_generic_gate(
-                "constrain the NOT as 1 - X",
-                vec![None, Some(*cvar), Some(res)],
-                // we use the constant to do 1 - X
-                vec![zero, one.neg(), one.neg(), zero, one],
-                span,
-            );
-
-            // return the result
-            Var::new_var(res, span)
+            // 1 - x
+            field::sub(compiler, &ConstOrCell::Const(one), var, span)
         }
     }
 }
