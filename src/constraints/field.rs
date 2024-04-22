@@ -13,6 +13,19 @@ use ark_ff::{One, Zero};
 use std::{ops::Neg, sync::Arc};
 
 /// Adds two field elements
+pub fn neg<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    cvar: &ConstOrCell<B::Field>,
+    span: Span,
+) -> Var<B::Field> {
+    let res = compiler.backend.enforce_neg_constraint(cvar, span);
+    match res {
+        ConstOrCell::Const(cst) => Var::new_constant(cst, span),
+        ConstOrCell::Cell(cvar) => Var::new_var(cvar, span),
+    }
+}
+
+/// Adds two field elements
 pub fn add<B: Backend>(
     compiler: &mut CircuitWriter<B>,
     lhs: &ConstOrCell<B::Field>,
@@ -89,8 +102,8 @@ pub fn sub<B: Backend>(
 
         // lhs - rhs
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            let neg_rhs = compiler.backend.enforce_neg_constraint(const_cell_rhs, span);
-            field::add(compiler, const_cell_lhs, &neg_rhs, span)
+            let neg_rhs = field::neg(compiler, const_cell_rhs, span);
+            field::add(compiler, const_cell_lhs, &neg_rhs.cvars[0], span)
         }
     }
 }
