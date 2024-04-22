@@ -9,7 +9,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
-    var::{CellVar, Value, Var},
+    var::{CellVar, ConstOrCell, Value, Var},
     witness::WitnessEnv,
 };
 
@@ -34,6 +34,26 @@ pub trait Backend: Clone {
     /// Create a new cell variable and record it.
     /// It increments the variable index for look up later.
     fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> CellVar;
+
+    /// basic constraint negation
+    fn enforce_neg_constraint(
+        &mut self,
+        var: &ConstOrCell<Self::Field>,
+    ) -> ConstOrCell<Self::Field>;
+
+    /// basic constraint addition
+    fn enforce_add_constraint(
+        &mut self,
+        lhs: &ConstOrCell<Self::Field>,
+        rhs: &ConstOrCell<Self::Field>,
+    ) -> ConstOrCell<Self::Field>;
+
+    /// basic constraint multiplication
+    fn enforce_mul_constraint(
+        &mut self,
+        lhs: &ConstOrCell<Self::Field>,
+        rhs: &ConstOrCell<Self::Field>,
+    ) -> ConstOrCell<Self::Field>;
 
     /// This should be called only when you want to constrain a constant for real.
     /// Gates that handle constants should always make sure to call this function when they want them constrained.
