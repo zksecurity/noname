@@ -336,25 +336,12 @@ pub fn if_else_inner<B: Backend>(
                 span,
             );
 
-            let then_m_else = sub(compiler, then_, else_, span)[0]
-                .cvar()
-                .cloned()
-                .unwrap();
-            let res_m_else = sub(compiler, &ConstOrCell::<B::Field>::Cell(res), else_, span)[0]
-                .cvar()
-                .cloned()
-                .unwrap();
+            let then_m_else = sub(compiler, then_, else_, span)[0];
+            let res_m_else = sub(compiler, &ConstOrCell::<B::Field>::Cell(res), else_, span)[0];
 
-            let zero = B::Field::zero();
-            let one = B::Field::one();
-
-            compiler.backend.add_generic_gate(
-                "constraint for ternary operator: cond * (then - else) = res - else",
-                vec![Some(cond_cell), Some(then_m_else), Some(res_m_else)],
-                // cond * (then - else) = res - else
-                vec![zero, zero, one.neg(), one],
-                span,
-            );
+            // constraint for ternary operator: cond * (then - else) = res - else
+            let res_mul = mul(compiler, cond, &then_m_else, span)[0];
+            sub(compiler, &res_mul, &res_m_else, span);
 
             Var::new_var(res, span)
         }
