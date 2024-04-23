@@ -42,13 +42,21 @@ pub trait Backend: Clone {
         span: Span,
     ) -> CellVar;
 
-    /// basic constraint addition
+    /// add a constraint to assert two vars are added together
     fn constraint_add(
         &mut self,
-        lhs: &ConstOrCell<Self::Field>,
-        rhs: &ConstOrCell<Self::Field>,
+        lhs: &CellVar,
+        rhs: &CellVar,
         span: Span,
-    ) -> ConstOrCell<Self::Field>;
+    ) -> CellVar;
+
+    /// add a constraint to assert a var is added to a constant
+    fn constraint_add_const(
+        &mut self,
+        var: &CellVar,
+        cst: &Self::Field,
+        span: Span,
+    ) -> CellVar;
 
     /// basic constraint multiplication
     fn constraint_mul(

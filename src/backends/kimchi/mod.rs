@@ -571,63 +571,56 @@ impl Backend for KimchiVesta {
 
     fn constraint_add(
         &mut self,
-        lhs: &crate::var::ConstOrCell<Self::Field>,
-        rhs: &crate::var::ConstOrCell<Self::Field>,
+        lhs: &CellVar,
+        rhs: &CellVar,
         span: Span,
-    ) -> crate::var::ConstOrCell<Self::Field> {
+    ) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
-        match (lhs, rhs) {
-            // 2 constants
-            (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => {
-                ConstOrCell::Const(*lhs + *rhs)
-            }
+        // create a new variable to store the result
+        let res = self.new_internal_var(
+            Value::LinearCombination(
+                vec![(one, *lhs), (one, *rhs)],
+                zero,
+            ),
+            span,
+        );
 
-            // const and a var
-            (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
-            | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-                // if the constant is zero, we can ignore this gate
-                if cst.is_zero() {
-                    return ConstOrCell::Cell(*cvar);
-                }
+        // create a gate to store the result
+        self.add_generic_gate(
+            "add two variables together",
+            vec![Some(*lhs), Some(*rhs), Some(res)],
+            vec![one, one, one.neg()],
+            span,
+        );
 
-                // create a new variable to store the result
-                let res = self
-                    .new_internal_var(Value::LinearCombination(vec![(one, *cvar)], *cst), span);
+        res
+    }
 
-                // create a gate to store the result
-                // TODO: we should use an add_generic function that takes advantage of the double generic gate
-                self.add_generic_gate(
-                    "add a constant with a variable",
-                    vec![Some(*cvar), None, Some(res)],
-                    vec![one, zero, one.neg(), zero, *cst],
-                    span,
-                );
+    fn constraint_add_const(
+        &mut self,
+        var: &CellVar,
+        cst: &Self::Field,
+        span: Span,
+    ) -> CellVar {
+        let zero = Self::Field::zero();
+        let one = Self::Field::one();
 
-                ConstOrCell::Cell(res)
-            }
-            (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-                // create a new variable to store the result
-                let res = self.new_internal_var(
-                    Value::LinearCombination(
-                        vec![(Self::Field::one(), *lhs), (Self::Field::one(), *rhs)],
-                        Self::Field::zero(),
-                    ),
-                    span,
-                );
+        // create a new variable to store the result
+        let res = self
+            .new_internal_var(Value::LinearCombination(vec![(one, *var)], *cst), span);
+// 
+        // create a gate to store the result
+        // TODO: we should use an add_generic function that takes advantage of the double generic gate
+        self.add_generic_gate(
+            "add a constant with a variable",
+            vec![Some(*var), None, Some(res)],
+            vec![one, zero, one.neg(), zero, *cst],
+            span,
+        );
 
-                // create a gate to store the result
-                self.add_generic_gate(
-                    "add two variables together",
-                    vec![Some(*lhs), Some(*rhs), Some(res)],
-                    vec![Self::Field::one(), Self::Field::one(), Self::Field::one().neg()],
-                    span,
-                );
-
-                ConstOrCell::Cell(res)
-            }
-        }
+        res
     }
 
     fn constraint_mul(
