@@ -18,7 +18,7 @@ pub fn neg<B: Backend>(
     cvar: &ConstOrCell<B::Field>,
     span: Span,
 ) -> Var<B::Field> {
-    let res = compiler.backend.enforce_neg_constraint(cvar, span);
+    let res = compiler.backend.constraint_neg(cvar, span);
     match res {
         ConstOrCell::Const(cst) => Var::new_constant(cst, span),
         ConstOrCell::Cell(cvar) => Var::new_var(cvar, span),
@@ -32,7 +32,7 @@ pub fn add<B: Backend>(
     rhs: &ConstOrCell<B::Field>,
     span: Span,
 ) -> Var<B::Field> {
-    let res = compiler.backend.enforce_add_constraint(lhs, rhs, span);
+    let res = compiler.backend.constraint_add(lhs, rhs, span);
     match res {
         ConstOrCell::Const(cst) => Var::new_constant(cst, span),
         ConstOrCell::Cell(cvar) => Var::new_var(cvar, span),
@@ -57,7 +57,7 @@ pub fn mul<B: Backend>(
     rhs: &ConstOrCell<B::Field>,
     span: Span,
 ) -> Var<B::Field> {
-    let res = compiler.backend.enforce_mul_constraint(lhs, rhs, span);
+    let res = compiler.backend.constraint_mul(lhs, rhs, span);
     match res {
         ConstOrCell::Const(cst) => Var::new_constant(cst, span),
         ConstOrCell::Cell(cvar) => Var::new_var(cvar, span),

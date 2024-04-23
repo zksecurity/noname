@@ -36,14 +36,14 @@ pub trait Backend: Clone {
     fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> CellVar;
 
     /// basic constraint negation
-    fn enforce_neg_constraint(
+    fn constraint_neg(
         &mut self,
         var: &ConstOrCell<Self::Field>,
         span: Span,
     ) -> ConstOrCell<Self::Field>;
 
     /// basic constraint addition
-    fn enforce_add_constraint(
+    fn constraint_add(
         &mut self,
         lhs: &ConstOrCell<Self::Field>,
         rhs: &ConstOrCell<Self::Field>,
@@ -51,7 +51,7 @@ pub trait Backend: Clone {
     ) -> ConstOrCell<Self::Field>;
 
     /// basic constraint multiplication
-    fn enforce_mul_constraint(
+    fn constraint_mul(
         &mut self,
         lhs: &ConstOrCell<Self::Field>,
         rhs: &ConstOrCell<Self::Field>,

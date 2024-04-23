@@ -547,7 +547,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn enforce_neg_constraint(
+    fn constraint_neg(
         &mut self,
         var: &crate::var::ConstOrCell<Self::Field>,
         span: Span,
@@ -574,7 +574,7 @@ impl Backend for KimchiVesta {
         }
     }
 
-    fn enforce_add_constraint(
+    fn constraint_add(
         &mut self,
         lhs: &crate::var::ConstOrCell<Self::Field>,
         rhs: &crate::var::ConstOrCell<Self::Field>,
@@ -635,7 +635,7 @@ impl Backend for KimchiVesta {
         }
     }
 
-    fn enforce_mul_constraint(
+    fn constraint_mul(
         &mut self,
         lhs: &crate::var::ConstOrCell<Self::Field>,
         rhs: &crate::var::ConstOrCell<Self::Field>,
