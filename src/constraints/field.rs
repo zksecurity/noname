@@ -18,10 +18,12 @@ pub fn neg<B: Backend>(
     cvar: &ConstOrCell<B::Field>,
     span: Span,
 ) -> Var<B::Field> {
-    let res = compiler.backend.constraint_neg(cvar, span);
-    match res {
-        ConstOrCell::Const(cst) => Var::new_constant(cst, span),
-        ConstOrCell::Cell(cvar) => Var::new_var(cvar, span),
+    match cvar {
+        crate::var::ConstOrCell::Const(ff) => Var::new_constant(ff.neg(), span),
+        crate::var::ConstOrCell::Cell(var) => {
+            let res = compiler.backend.constraint_neg(var, span);
+            Var::new_var(res, span)
+        }
     }
 }
 

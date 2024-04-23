@@ -38,9 +38,9 @@ pub trait Backend: Clone {
     /// basic constraint negation
     fn constraint_neg(
         &mut self,
-        var: &ConstOrCell<Self::Field>,
+        var: &CellVar,
         span: Span,
-    ) -> ConstOrCell<Self::Field>;
+    ) -> CellVar;
 
     /// basic constraint addition
     fn constraint_add(
