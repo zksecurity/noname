@@ -52,10 +52,14 @@ pub fn and<B: Backend>(
         }
 
         // two vars
-        (ConstOrCell::Cell(_), ConstOrCell::Cell(_)) => {
-            // todo: should it check if the vars are either 1 or 0?
+        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // lhs * rhs
-            field::mul(compiler, lhs, rhs, span)
+            let res = compiler.backend.constraint_mul(lhs, rhs, span);
+
+            // check if it is either 1 or 0
+            check(compiler, &ConstOrCell::Cell(res), span);
+
+            Var::new_var(res, span)
         }
     }
 }
