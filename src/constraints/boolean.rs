@@ -22,10 +22,11 @@ pub fn check<B: Backend>(compiler: &mut CircuitWriter<B>, xx: &ConstOrCell<B::Fi
 
     match xx {
         ConstOrCell::Const(ff) => assert!(is_valid(*ff)),
-        ConstOrCell::Cell(_) => {
+        ConstOrCell::Cell(var) => {
             // x * (x - 1)
-            let x_1 = field::sub(compiler, xx, &ConstOrCell::Const(one.neg()), span);
-            field::mul(compiler, xx, &x_1.cvars[0], span);
+            let x_1 = compiler.backend.constraint_add_const(var, &one.neg(), span);
+            let res = compiler.backend.constraint_mul(var, &x_1, span);
+            compiler.backend.constraint_eq_const(&res, B::Field::zero(), span);
         },
     };
 }
