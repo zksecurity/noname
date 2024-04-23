@@ -58,13 +58,21 @@ pub trait Backend: Clone {
         span: Span,
     ) -> CellVar;
 
-    /// basic constraint multiplication
+    /// add a constraint to assert a var is multiplied by another var
     fn constraint_mul(
         &mut self,
-        lhs: &ConstOrCell<Self::Field>,
-        rhs: &ConstOrCell<Self::Field>,
+        lhs: &CellVar,
+        rhs: &CellVar,
         span: Span,
-    ) -> ConstOrCell<Self::Field>;
+    ) -> CellVar;
+
+    /// add a constraint to assert a var is multiplied by a constant
+    fn constraint_mul_const(
+        &mut self,
+        var: &CellVar,
+        cst: &Self::Field,
+        span: Span,
+    ) -> CellVar;
 
     /// add a constraint to assert a var equals a constant
     fn constraint_eq_const(

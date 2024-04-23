@@ -77,10 +77,33 @@ pub fn mul<B: Backend>(
     rhs: &ConstOrCell<B::Field>,
     span: Span,
 ) -> Var<B::Field> {
-    let res = compiler.backend.constraint_mul(lhs, rhs, span);
-    match res {
-        ConstOrCell::Const(cst) => Var::new_constant(cst, span),
-        ConstOrCell::Cell(cvar) => Var::new_var(cvar, span),
+    match (lhs, rhs) {
+        // 2 constants
+        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs * *rhs, span),
+
+        // const and a var
+        (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
+        | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
+            // if the constant is zero, we can ignore this gate
+            // todo: do we really need this?
+            if cst.is_zero() {
+                let zero = compiler.backend.add_constant(
+                    Some("encoding zero for the result of 0 * var"),
+                    B::Field::zero(),
+                    span,
+                );
+                return Var::new_var(zero, span);
+            }
+
+            let res = compiler.backend.constraint_mul_const(cvar, cst, span);
+            Var::new_var(res, span)
+        }
+
+        // everything is a var
+        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
+            let res = compiler.backend.constraint_mul(lhs, rhs, span);
+            Var::new_var(res, span)
+        }
     }
 }
 

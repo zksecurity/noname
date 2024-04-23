@@ -610,7 +610,7 @@ impl Backend for KimchiVesta {
         // create a new variable to store the result
         let res = self
             .new_internal_var(Value::LinearCombination(vec![(one, *var)], *cst), span);
-// 
+
         // create a gate to store the result
         // TODO: we should use an add_generic function that takes advantage of the double generic gate
         self.add_generic_gate(
@@ -625,61 +625,49 @@ impl Backend for KimchiVesta {
 
     fn constraint_mul(
         &mut self,
-        lhs: &crate::var::ConstOrCell<Self::Field>,
-        rhs: &crate::var::ConstOrCell<Self::Field>,
+        lhs: &CellVar,
+        rhs: &CellVar,
         span: Span,
-    ) -> crate::var::ConstOrCell<Self::Field> {
+    ) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
-        match (lhs, rhs) {
-            // 2 constants
-            (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => ConstOrCell::Const(*lhs * *rhs),
+        // create a new variable to store the result
+        let res = self.new_internal_var(Value::Mul(*lhs, *rhs), span);
 
-            // const and a var
-            (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
-            | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-                // if the constant is zero, we can ignore this gate
-                if cst.is_zero() {
-                    let zero = self.add_constant(
-                        Some("encoding zero for the result of 0 * var"),
-                        Self::Field::zero(),
-                        span,
-                    );
-                    return ConstOrCell::Cell(zero);
-                }
+        // create a gate to store the result
+        self.add_generic_gate(
+            "add two variables together",
+            vec![Some(*lhs), Some(*rhs), Some(res)],
+            vec![zero, zero, one.neg(), one],
+            span,
+        );
+        
+        res
+    }
 
-                // create a new variable to store the result
-                let res = self.new_internal_var(Value::Scale(*cst, *cvar), span);
+    fn constraint_mul_const(
+        &mut self,
+        var: &CellVar,
+        cst: &Self::Field,
+        span: Span,
+    ) -> CellVar {
+        let zero = Self::Field::zero();
+        let one = Self::Field::one();
 
-                // create a gate to store the result
-                // TODO: we should use an add_generic function that takes advantage of the double generic gate
-                self.add_generic_gate(
-                    "add a constant with a variable",
-                    vec![Some(*cvar), None, Some(res)],
-                    vec![*cst, zero, one.neg(), zero, *cst],
-                    span,
-                );
+        // create a new variable to store the result
+        let res = self.new_internal_var(Value::Scale(*cst, *var), span);
 
-                ConstOrCell::Cell(res)
-            }
-
-            // everything is a var
-            (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-                // create a new variable to store the result
-                let res = self.new_internal_var(Value::Mul(*lhs, *rhs), span);
-
-                // create a gate to store the result
-                self.add_generic_gate(
-                    "add two variables together",
-                    vec![Some(*lhs), Some(*rhs), Some(res)],
-                    vec![zero, zero, one.neg(), one],
-                    span,
-                );
-
-                ConstOrCell::Cell(res)
-            }
-        }
+        // create a gate to store the result
+        // TODO: we should use an add_generic function that takes advantage of the double generic gate
+        self.add_generic_gate(
+            "add a constant with a variable",
+            vec![Some(*var), None, Some(res)],
+            vec![*cst, zero, one.neg()],
+            span,
+        );
+        
+        res
     }
     
     fn constraint_eq_const(
