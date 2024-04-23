@@ -58,6 +58,22 @@ pub trait Backend: Clone {
         span: Span,
     ) -> ConstOrCell<Self::Field>;
 
+    /// add a constraint to assert a var equals a constant
+    fn constraint_eq_const(
+        &mut self,
+        var: &CellVar,
+        cst: Self::Field,
+        span: Span,
+    );
+
+    /// add a constraint to assert a var equals another var
+    fn constraint_eq_var(
+        &mut self,
+        lhs: &CellVar,
+        rhs: &CellVar,
+        span: Span,
+    );
+
     /// This should be called only when you want to constrain a constant for real.
     /// Gates that handle constants should always make sure to call this function when they want them constrained.
     fn add_constant(

@@ -693,4 +693,39 @@ impl Backend for KimchiVesta {
             }
         }
     }
+    
+    fn constraint_eq_const(
+        &mut self,
+        cvar: &CellVar,
+        cst: Self::Field,
+        span: Span,
+    ) {
+        self.add_generic_gate(
+            "constrain var - cst = 0 to check equality",
+            vec![Some(*cvar)],
+            vec![
+                Self::Field::one(),
+                Self::Field::zero(),
+                Self::Field::zero(),
+                Self::Field::zero(),
+                cst.neg(),
+            ],
+            span,
+        );
+    }
+    
+    fn constraint_eq_var(
+        &mut self,
+        lhs: &CellVar,
+        rhs: &CellVar,
+        span: Span,
+    ) {
+        // TODO: use permutation to check that
+        self.add_generic_gate(
+            "constrain lhs - rhs = 0 to assert that they are equal",
+            vec![Some(*lhs), Some(*rhs)],
+            vec![Self::Field::one(), Self::Field::one().neg()],
+            span,
+        );
+    }
 }
