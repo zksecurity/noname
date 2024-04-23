@@ -169,6 +169,7 @@ fn equal_cells<B: Backend>(
                 span,
             );
 
+            // todo: replace these front end constraints with backend constraints
             // 1. diff = x2 - x1
             let diff = sub(compiler, &ConstOrCell::Cell(x2), &ConstOrCell::Cell(x1), span)[0];
 
@@ -178,7 +179,9 @@ fn equal_cells<B: Backend>(
             // 3. res * diff = 0
             let res_mul_diff = mul(compiler, &ConstOrCell::Cell(res), &diff, span)[0];
             // ensure that res * diff = 0
-            sub(compiler, &res_mul_diff, &ConstOrCell::Const(zero), span);
+            compiler
+                .backend
+                .constraint_eq_const(res_mul_diff.cvar().unwrap(), zero, span);
 
             // 4. diff_inv * diff = one_minus_res
             let diff_inv = compiler
@@ -186,7 +189,12 @@ fn equal_cells<B: Backend>(
                 .new_internal_var(Value::Inverse(*diff.cvar().unwrap()), span);
 
             let diff_inv_mul_diff = mul(compiler, &ConstOrCell::Cell(diff_inv), &diff, span)[0];
-            sub(compiler, &diff_inv_mul_diff, &one_minus_res, span);
+            // ensure that diff_inv * diff = one_minus_res
+            compiler.backend.constraint_eq_var(
+                diff_inv_mul_diff.cvar().unwrap(),
+                one_minus_res.cvar().unwrap(),
+                span,
+            );
 
             Var::new_var(res, span)
         }
