@@ -11,7 +11,7 @@ use crate::{
     var::{ConstOrCell, Value, Var},
 };
 
-use super::field;
+use super::field::{self, sub};
 
 pub fn is_valid<F: Field>(f: F) -> bool {
     f.is_one() || f.is_zero()
@@ -79,13 +79,17 @@ pub fn not<B: Backend>(
 
             Var::new_constant(value, span)
         }
-
-        // constant and a var
-        ConstOrCell::Cell(_) => {
-            let one = B::Field::one();
+        ConstOrCell::Cell(var) => {
+            let one = ConstOrCell::Const(B::Field::one());
+            let var = ConstOrCell::Cell(*var);
 
             // 1 - x
-            field::sub(compiler, &ConstOrCell::Const(one), var, span)
+            let res = field::sub(compiler, &one, &var, span)[0];
+
+            // ensure it is either 1 or 0
+            check(compiler, &res, span);
+
+            Var::new_cvar(res, span)
         }
     }
 }
