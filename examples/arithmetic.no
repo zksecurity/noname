@@ -1,7 +1,4 @@
 fn main(pub public_input: Field, private_input: Field) {
     let xx = private_input + public_input;
     assert_eq(xx, 2);
-
-    let yy = private_input - public_input;
-    assert_eq(yy, 0);
 }
