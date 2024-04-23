@@ -704,4 +704,35 @@ impl Backend for KimchiVesta {
             span,
         );
     }
+    
+    fn constraint_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar {
+        // create the var
+        let cvar = self.new_internal_var(val, span);
+
+        // create the associated generic gate
+        self.add_gate(
+            "add public input",
+            GateKind::DoubleGeneric,
+            vec![Some(cvar)],
+            vec![Self::Field::one()],
+            span,
+        );
+        
+        cvar
+    }
+    
+    fn constraint_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar {
+        // create the var
+        let cvar = self.new_internal_var(val, span);
+
+        // create the associated generic gate
+        self.add_generic_gate(
+            "add public output",
+            vec![Some(cvar)],
+            vec![Self::Field::one()],
+            span,
+        );
+
+        cvar
+    }
 }

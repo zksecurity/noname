@@ -697,20 +697,8 @@ impl<B: Backend> CircuitWriter<B> {
         let mut cvars = Vec::with_capacity(num);
 
         for idx in 0..num {
-            // create the var
-            let cvar = self
-                .backend
-                .new_internal_var(Value::External(name.clone(), idx), span);
+            let cvar = self.backend.constraint_public_input(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
-
-            // create the associated generic gate
-            self.backend.add_gate(
-                "add public input",
-                GateKind::DoubleGeneric,
-                vec![Some(cvar)],
-                vec![B::Field::one()],
-                span,
-            );
         }
 
         self.public_input_size += num;
@@ -723,19 +711,8 @@ impl<B: Backend> CircuitWriter<B> {
 
         let mut cvars = Vec::with_capacity(num);
         for _ in 0..num {
-            // create the var
-            let cvar = self
-                .backend
-                .new_internal_var(Value::PublicOutput(None), span);
+            let cvar = self.backend.constraint_public_output(Value::PublicOutput(None), span);
             cvars.push(ConstOrCell::Cell(cvar));
-
-            // create the associated generic gate
-            self.backend.add_generic_gate(
-                "add public output",
-                vec![Some(cvar)],
-                vec![B::Field::one()],
-                span,
-            );
         }
         self.public_input_size += num;
 

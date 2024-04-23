@@ -118,6 +118,12 @@ pub trait Backend: Clone {
         span: Span,
     );
 
+    /// Add a constraint for a public input
+    fn constraint_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar;
+
+    /// Add a constraint for a public output
+    fn constraint_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar;
+
     /// Compute the value of the symbolic cell variables.
     /// It recursively does the computation down the stream until it is not a symbolic variable.
     /// - The symbolic variables are stored in the witness_vars.
