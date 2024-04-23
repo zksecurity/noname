@@ -36,15 +36,14 @@ pub fn add<B: Backend>(
 ) -> Var<B::Field> {
     match (lhs, rhs) {
         // 2 constants
-        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => {
-            Var::new_constant(*lhs + *rhs, span)
-        }
+        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs + *rhs, span),
 
         // const and a var
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
             // if the constant is zero, we can ignore this gate
             if cst.is_zero() {
+                // TODO: that span is incorrect, it should come from lhs or rhs...
                 return Var::new_var(*cvar, span);
             }
 
@@ -214,10 +213,20 @@ fn equal_cells<B: Backend>(
 
             // todo: replace these front end constraints with backend constraints
             // 1. diff = x2 - x1
-            let diff = sub(compiler, &ConstOrCell::Cell(x2), &ConstOrCell::Cell(x1), span)[0];
+            let diff = sub(
+                compiler,
+                &ConstOrCell::Cell(x2),
+                &ConstOrCell::Cell(x1),
+                span,
+            )[0];
 
             // 2. one_minus_res = 1 - res
-            let one_minus_res = sub(compiler, &ConstOrCell::Const(one), &ConstOrCell::Cell(res), span)[0];
+            let one_minus_res = sub(
+                compiler,
+                &ConstOrCell::Const(one),
+                &ConstOrCell::Cell(res),
+                span,
+            )[0];
 
             // 3. res * diff = 0
             let res_mul_diff = mul(compiler, &ConstOrCell::Cell(res), &diff, span)[0];

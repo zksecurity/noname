@@ -26,8 +26,10 @@ pub fn check<B: Backend>(compiler: &mut CircuitWriter<B>, xx: &ConstOrCell<B::Fi
             // x * (x - 1)
             let x_1 = compiler.backend.constraint_add_const(var, &one.neg(), span);
             let res = compiler.backend.constraint_mul(var, &x_1, span);
-            compiler.backend.constraint_eq_const(&res, B::Field::zero(), span);
-        },
+            compiler
+                .backend
+                .constraint_eq_const(&res, B::Field::zero(), span);
+        }
     };
 }
 

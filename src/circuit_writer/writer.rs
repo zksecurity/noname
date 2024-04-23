@@ -697,7 +697,9 @@ impl<B: Backend> CircuitWriter<B> {
         let mut cvars = Vec::with_capacity(num);
 
         for idx in 0..num {
-            let cvar = self.backend.constraint_public_input(Value::External(name.clone(), idx), span);
+            let cvar = self
+                .backend
+                .constraint_public_input(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
         }
 
@@ -711,7 +713,9 @@ impl<B: Backend> CircuitWriter<B> {
 
         let mut cvars = Vec::with_capacity(num);
         for _ in 0..num {
-            let cvar = self.backend.constraint_public_output(Value::PublicOutput(None), span);
+            let cvar = self
+                .backend
+                .constraint_public_output(Value::PublicOutput(None), span);
             cvars.push(ConstOrCell::Cell(cvar));
         }
         self.public_input_size += num;

@@ -547,11 +547,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn constraint_neg(
-        &mut self,
-        var: &CellVar,
-        span: Span,
-    ) -> CellVar {
+    fn constraint_neg(&mut self, var: &CellVar, span: Span) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -565,25 +561,17 @@ impl Backend for KimchiVesta {
             vec![one, zero, one],
             span,
         );
-    
+
         neg_var
     }
 
-    fn constraint_add(
-        &mut self,
-        lhs: &CellVar,
-        rhs: &CellVar,
-        span: Span,
-    ) -> CellVar {
+    fn constraint_add(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
         // create a new variable to store the result
         let res = self.new_internal_var(
-            Value::LinearCombination(
-                vec![(one, *lhs), (one, *rhs)],
-                zero,
-            ),
+            Value::LinearCombination(vec![(one, *lhs), (one, *rhs)], zero),
             span,
         );
 
@@ -598,18 +586,12 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn constraint_add_const(
-        &mut self,
-        var: &CellVar,
-        cst: &Self::Field,
-        span: Span,
-    ) -> CellVar {
+    fn constraint_add_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
         // create a new variable to store the result
-        let res = self
-            .new_internal_var(Value::LinearCombination(vec![(one, *var)], *cst), span);
+        let res = self.new_internal_var(Value::LinearCombination(vec![(one, *var)], *cst), span);
 
         // create a gate to store the result
         // TODO: we should use an add_generic function that takes advantage of the double generic gate
@@ -623,12 +605,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn constraint_mul(
-        &mut self,
-        lhs: &CellVar,
-        rhs: &CellVar,
-        span: Span,
-    ) -> CellVar {
+    fn constraint_mul(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -642,16 +619,11 @@ impl Backend for KimchiVesta {
             vec![zero, zero, one.neg(), one],
             span,
         );
-        
+
         res
     }
 
-    fn constraint_mul_const(
-        &mut self,
-        var: &CellVar,
-        cst: &Self::Field,
-        span: Span,
-    ) -> CellVar {
+    fn constraint_mul_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -666,16 +638,11 @@ impl Backend for KimchiVesta {
             vec![*cst, zero, one.neg()],
             span,
         );
-        
+
         res
     }
-    
-    fn constraint_eq_const(
-        &mut self,
-        cvar: &CellVar,
-        cst: Self::Field,
-        span: Span,
-    ) {
+
+    fn constraint_eq_const(&mut self, cvar: &CellVar, cst: Self::Field, span: Span) {
         self.add_generic_gate(
             "constrain var - cst = 0 to check equality",
             vec![Some(*cvar)],
@@ -689,13 +656,8 @@ impl Backend for KimchiVesta {
             span,
         );
     }
-    
-    fn constraint_eq_var(
-        &mut self,
-        lhs: &CellVar,
-        rhs: &CellVar,
-        span: Span,
-    ) {
+
+    fn constraint_eq_var(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) {
         // TODO: use permutation to check that
         self.add_generic_gate(
             "constrain lhs - rhs = 0 to assert that they are equal",
@@ -704,7 +666,7 @@ impl Backend for KimchiVesta {
             span,
         );
     }
-    
+
     fn constraint_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar {
         // create the var
         let cvar = self.new_internal_var(val, span);
@@ -717,10 +679,10 @@ impl Backend for KimchiVesta {
             vec![Self::Field::one()],
             span,
         );
-        
+
         cvar
     }
-    
+
     fn constraint_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar {
         // create the var
         let cvar = self.new_internal_var(val, span);
