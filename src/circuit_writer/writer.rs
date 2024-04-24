@@ -703,8 +703,6 @@ impl<B: Backend> CircuitWriter<B> {
             cvars.push(ConstOrCell::Cell(cvar));
         }
 
-        self.public_input_size += num;
-
         Var::new(cvars, span)
     }
 
@@ -718,7 +716,6 @@ impl<B: Backend> CircuitWriter<B> {
                 .constraint_public_output(Value::PublicOutput(None), span);
             cvars.push(ConstOrCell::Cell(cvar));
         }
-        self.public_input_size += num;
 
         // store it
         let res = Var::new(cvars, span);

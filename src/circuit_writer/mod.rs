@@ -36,9 +36,6 @@ where
     /// So we might make this private if the prover facilities can be deprecated.
     pub backend: B,
 
-    /// Size of the public input.
-    pub(crate) public_input_size: usize,
-
     /// If a public output is set, this will be used to store its [Var].
     /// The public output generation works as follows:
     /// 1. This cvar is created and inserted in the circuit (gates) during compilation of the public input
@@ -141,7 +138,6 @@ impl<B: Backend> CircuitWriter<B> {
         Self {
             typed,
             backend,
-            public_input_size: 0,
             public_output: None,
             private_input_indices: vec![],
         }
@@ -244,6 +240,6 @@ impl<B: Backend> CircuitWriter<B> {
         witness_env: &mut WitnessEnv<B::Field>,
     ) -> Result<B::GeneratedWitness> {
         self.backend
-            .generate_witness(witness_env, self.public_input_size)
+            .generate_witness(witness_env)
     }
 }
