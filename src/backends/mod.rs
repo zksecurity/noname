@@ -127,7 +127,6 @@ pub trait Backend: Clone {
         }
     }
 
-    // TODO: we may need to move the finalized flag from circuit writer to backend, so the backend can freeze itself once finalized.
     /// Finalize the circuit by doing some sanitizing checks.
     fn finalize_circuit(
         &mut self,
