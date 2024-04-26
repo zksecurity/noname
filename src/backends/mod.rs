@@ -35,6 +35,12 @@ pub trait Backend: Clone {
     /// It increments the variable index for look up later.
     fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> CellVar;
 
+    /// Add a constraint for a public input
+    fn constraint_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar;
+
+    /// Add a constraint for a public output
+    fn constraint_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar;
+
     /// This should be called only when you want to constrain a constant for real.
     /// Gates that handle constants should always make sure to call this function when they want them constrained.
     fn add_constant(
@@ -133,7 +139,6 @@ pub trait Backend: Clone {
     fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<Self::Field>,
-        public_input_size: usize,
     ) -> Result<Self::GeneratedWitness>;
 
     /// Generate the asm for a backend.

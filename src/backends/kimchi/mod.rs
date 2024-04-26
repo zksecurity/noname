@@ -89,6 +89,9 @@ pub struct KimchiVesta {
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
     // Note: I don't think we need this, but it acts as a nice redundant failsafe.
     pub(crate) finalized: bool,
+
+    /// Size of the public input.
+    pub(crate) public_input_size: usize,
 }
 
 impl Witness {
@@ -133,9 +136,9 @@ impl KimchiVesta {
             pending_generic_gate: None,
             debug_info: vec![],
             finalized: false,
+            public_input_size: 0,
         }
     }
-}
 
 impl Backend for KimchiVesta {
     type Field = VestaField;
@@ -348,7 +351,6 @@ impl Backend for KimchiVesta {
     fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<VestaField>,
-        public_input_size: usize,
     ) -> Result<GeneratedWitness> {
         if !self.finalized {
             unreachable!("the circuit must be finalized before generating a witness");
@@ -380,7 +382,7 @@ impl Backend for KimchiVesta {
             }
 
             // check if the row makes sense
-            let is_not_public_input = row >= public_input_size;
+            let is_not_public_input = row >= self.public_input_size;
             if is_not_public_input {
                 #[allow(clippy::single_match)]
                 match gate.typ {
@@ -424,9 +426,9 @@ impl Backend for KimchiVesta {
         }
 
         // extract full public input (containing the public output)
-        let mut full_public_inputs = Vec::with_capacity(public_input_size);
+        let mut full_public_inputs = Vec::with_capacity(self.public_input_size);
 
-        for witness_row in witness.iter().take(public_input_size) {
+        for witness_row in witness.iter().take(self.public_input_size) {
             full_public_inputs.push(witness_row[0]);
         }
 
@@ -545,5 +547,39 @@ impl Backend for KimchiVesta {
         }
 
         res
+    }
+    fn constraint_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar {
+        // create the var
+        let cvar = self.new_internal_var(val, span);
+
+        // create the associated generic gate
+        self.add_gate(
+            "add public input",
+            GateKind::DoubleGeneric,
+            vec![Some(cvar)],
+            vec![Self::Field::one()],
+            span,
+        );
+
+        self.public_input_size += 1;
+
+        cvar
+    }
+
+    fn constraint_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar {
+        // create the var
+        let cvar = self.new_internal_var(val, span);
+
+        // create the associated generic gate
+        self.add_generic_gate(
+            "add public output",
+            vec![Some(cvar)],
+            vec![Self::Field::one()],
+            span,
+        );
+
+        self.public_input_size += 1;
+
+        cvar
     }
 }
