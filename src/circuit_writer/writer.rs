@@ -699,7 +699,7 @@ impl<B: Backend> CircuitWriter<B> {
         for idx in 0..num {
             let cvar = self
                 .backend
-                .constraint_public_input(Value::External(name.clone(), idx), span);
+                .add_public_input(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
         }
 
@@ -713,7 +713,7 @@ impl<B: Backend> CircuitWriter<B> {
         for _ in 0..num {
             let cvar = self
                 .backend
-                .constraint_public_output(Value::PublicOutput(None), span);
+                .add_public_output(Value::PublicOutput(None), span);
             cvars.push(ConstOrCell::Cell(cvar));
         }
 

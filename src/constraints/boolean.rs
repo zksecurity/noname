@@ -24,11 +24,11 @@ pub fn check<B: Backend>(compiler: &mut CircuitWriter<B>, xx: &ConstOrCell<B::Fi
         ConstOrCell::Const(ff) => assert!(is_valid(*ff)),
         ConstOrCell::Cell(x) => {
             // x * (x - 1)
-            let x_1 = compiler.backend.constraint_add_const(x, &one.neg(), span);
-            let res = compiler.backend.constraint_mul(x, &x_1, span);
+            let x_1 = compiler.backend.add_const(x, &one.neg(), span);
+            let res = compiler.backend.mul(x, &x_1, span);
             compiler
                 .backend
-                .constraint_eq_const(&res, B::Field::zero(), span);
+                .assert_eq_const(&res, B::Field::zero(), span);
         }
     };
 }
@@ -56,7 +56,7 @@ pub fn and<B: Backend>(
         // two vars
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
             // lhs * rhs
-            let res = compiler.backend.constraint_mul(lhs, rhs, span);
+            let res = compiler.backend.mul(lhs, rhs, span);
 
             // check if it is either 1 or 0
             check(compiler, &ConstOrCell::Cell(res), span);

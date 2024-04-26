@@ -121,10 +121,10 @@ fn assert_eq<B: Backend>(
         // a const and a var
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            compiler.backend.constraint_eq_const(cvar, *cst, span)
+            compiler.backend.assert_eq_const(cvar, *cst, span)
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            compiler.backend.constraint_eq_var(lhs, rhs, span)
+            compiler.backend.assert_eq_var(lhs, rhs, span)
         }
     }
 
@@ -155,7 +155,7 @@ fn assert<B: Backend>(
         }
         ConstOrCell::Cell(cvar) => {
             let one = B::Field::one();
-            compiler.backend.constraint_eq_const(cvar, one, span);
+            compiler.backend.assert_eq_const(cvar, one, span);
         }
     }
 

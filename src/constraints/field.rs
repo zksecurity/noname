@@ -20,7 +20,7 @@ pub fn neg<B: Backend>(
     match cvar {
         crate::var::ConstOrCell::Const(ff) => Var::new_constant(ff.neg(), span),
         crate::var::ConstOrCell::Cell(var) => {
-            let res = compiler.backend.constraint_neg(var, span);
+            let res = compiler.backend.neg(var, span);
             Var::new_var(res, span)
         }
     }
@@ -46,12 +46,12 @@ pub fn add<B: Backend>(
                 return Var::new_var(*cvar, span);
             }
 
-            let res = compiler.backend.constraint_add_const(cvar, cst, span);
+            let res = compiler.backend.add_const(cvar, cst, span);
 
             Var::new_var(res, span)
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            let res = compiler.backend.constraint_add(lhs, rhs, span);
+            let res = compiler.backend.add(lhs, rhs, span);
             Var::new_var(res, span)
         }
     }
@@ -93,13 +93,13 @@ pub fn mul<B: Backend>(
                 return Var::new_var(zero, span);
             }
 
-            let res = compiler.backend.constraint_mul_const(cvar, cst, span);
+            let res = compiler.backend.mul_const(cvar, cst, span);
             Var::new_var(res, span)
         }
 
         // everything is a var
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            let res = compiler.backend.constraint_mul(lhs, rhs, span);
+            let res = compiler.backend.mul(lhs, rhs, span);
             Var::new_var(res, span)
         }
     }
@@ -232,7 +232,7 @@ fn equal_cells<B: Backend>(
             // ensure that res * diff = 0
             compiler
                 .backend
-                .constraint_eq_const(res_mul_diff.cvar().unwrap(), zero, span);
+                .assert_eq_const(res_mul_diff.cvar().unwrap(), zero, span);
 
             // 4. diff_inv * diff = one_minus_res
             let diff_inv = compiler
@@ -241,7 +241,7 @@ fn equal_cells<B: Backend>(
 
             let diff_inv_mul_diff = mul(compiler, &ConstOrCell::Cell(diff_inv), &diff, span)[0];
             // ensure that diff_inv * diff = one_minus_res
-            compiler.backend.constraint_eq_var(
+            compiler.backend.assert_eq_var(
                 diff_inv_mul_diff.cvar().unwrap(),
                 one_minus_res.cvar().unwrap(),
                 span,

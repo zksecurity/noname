@@ -552,7 +552,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn constraint_neg(&mut self, var: &CellVar, span: Span) -> CellVar {
+    fn neg(&mut self, var: &CellVar, span: Span) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -570,7 +570,7 @@ impl Backend for KimchiVesta {
         neg_var
     }
 
-    fn constraint_add(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar {
+    fn add(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -591,7 +591,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn constraint_add_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar {
+    fn add_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -610,7 +610,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn constraint_mul(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar {
+    fn mul(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -628,7 +628,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn constraint_mul_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar {
+    fn mul_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -647,7 +647,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn constraint_eq_const(&mut self, cvar: &CellVar, cst: Self::Field, span: Span) {
+    fn assert_eq_const(&mut self, cvar: &CellVar, cst: Self::Field, span: Span) {
         self.add_generic_gate(
             "constrain var - cst = 0 to check equality",
             vec![Some(*cvar)],
@@ -662,7 +662,7 @@ impl Backend for KimchiVesta {
         );
     }
 
-    fn constraint_eq_var(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) {
+    fn assert_eq_var(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) {
         // TODO: use permutation to check that
         self.add_generic_gate(
             "constrain lhs - rhs = 0 to assert that they are equal",
@@ -672,7 +672,7 @@ impl Backend for KimchiVesta {
         );
     }
 
-    fn constraint_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar {
+    fn add_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar {
         // create the var
         let cvar = self.new_internal_var(val, span);
 
@@ -690,7 +690,7 @@ impl Backend for KimchiVesta {
         cvar
     }
 
-    fn constraint_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar {
+    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar {
         // create the var
         let cvar = self.new_internal_var(val, span);
 
