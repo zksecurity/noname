@@ -35,6 +35,27 @@ pub trait Backend: Clone {
     /// It increments the variable index for look up later.
     fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> CellVar;
 
+    /// basic constraint negation
+    fn constraint_neg(&mut self, var: &CellVar, span: Span) -> CellVar;
+
+    /// add a constraint to assert two vars are added together
+    fn constraint_add(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar;
+
+    /// add a constraint to assert a var is added to a constant
+    fn constraint_add_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar;
+
+    /// add a constraint to assert a var is multiplied by another var
+    fn constraint_mul(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar;
+
+    /// add a constraint to assert a var is multiplied by a constant
+    fn constraint_mul_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar;
+
+    /// add a constraint to assert a var equals a constant
+    fn constraint_eq_const(&mut self, var: &CellVar, cst: Self::Field, span: Span);
+
+    /// add a constraint to assert a var equals another var
+    fn constraint_eq_var(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span);
+
     /// Add a constraint for a public input
     fn constraint_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar;
 
