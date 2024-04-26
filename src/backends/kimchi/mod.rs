@@ -140,54 +140,7 @@ impl KimchiVesta {
         }
     }
 
-impl Backend for KimchiVesta {
-    type Field = VestaField;
-    type GeneratedWitness = GeneratedWitness;
-
-    fn poseidon() -> crate::imports::FnHandle<Self> {
-        builtin::poseidon
-    }
-
-    fn witness_vars(&self) -> &HashMap<usize, Value<Self>> {
-        &self.witness_vars
-    }
-
-    fn new_internal_var(&mut self, val: Value<KimchiVesta>, span: Span) -> CellVar {
-        // create new var
-        let var = CellVar::new(self.next_variable, span);
-        self.next_variable += 1;
-
-        // store it in the circuit_writer
-        self.witness_vars.insert(var.index, val);
-
-        var
-    }
-
-    fn add_constant(
-        &mut self,
-        label: Option<&'static str>,
-        value: VestaField,
-        span: Span,
-    ) -> CellVar {
-        if let Some(cvar) = self.cached_constants.get(&value) {
-            return *cvar;
-        }
-
-        let var = self.new_internal_var(Value::Constant(value), span);
-        self.cached_constants.insert(value, var);
-
-        let zero = VestaField::zero();
-
-        let _ = &self.add_generic_gate(
-            label.unwrap_or("hardcode a constant"),
-            vec![Some(var)],
-            vec![VestaField::one(), zero, zero, zero, value.neg()],
-            span,
-        );
-
-        var
-    }
-
+    /// Add a gate to the circuit
     fn add_gate(
         &mut self,
         note: &'static str,
@@ -241,6 +194,7 @@ impl Backend for KimchiVesta {
         }
     }
 
+    /// Add a generic double gate to the circuit
     fn add_generic_gate(
         &mut self,
         label: &'static str,
@@ -278,6 +232,55 @@ impl Backend for KimchiVesta {
                 span,
             });
         }
+    }
+}
+
+impl Backend for KimchiVesta {
+    type Field = VestaField;
+    type GeneratedWitness = GeneratedWitness;
+
+    fn poseidon() -> crate::imports::FnHandle<Self> {
+        builtin::poseidon
+    }
+
+    fn witness_vars(&self) -> &HashMap<usize, Value<Self>> {
+        &self.witness_vars
+    }
+
+    fn new_internal_var(&mut self, val: Value<KimchiVesta>, span: Span) -> CellVar {
+        // create new var
+        let var = CellVar::new(self.next_variable, span);
+        self.next_variable += 1;
+
+        // store it in the circuit_writer
+        self.witness_vars.insert(var.index, val);
+
+        var
+    }
+
+    fn add_constant(
+        &mut self,
+        label: Option<&'static str>,
+        value: VestaField,
+        span: Span,
+    ) -> CellVar {
+        if let Some(cvar) = self.cached_constants.get(&value) {
+            return *cvar;
+        }
+
+        let var = self.new_internal_var(Value::Constant(value), span);
+        self.cached_constants.insert(value, var);
+
+        let zero = VestaField::zero();
+
+        let _ = &self.add_generic_gate(
+            label.unwrap_or("hardcode a constant"),
+            vec![Some(var)],
+            vec![VestaField::one(), zero, zero, zero, value.neg()],
+            span,
+        );
+
+        var
     }
 
     fn finalize_circuit(

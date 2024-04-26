@@ -71,25 +71,6 @@ pub trait Backend: Clone {
         span: Span,
     ) -> CellVar;
 
-    /// Add a gate to the circuit. Kimchi specific atm.
-    fn add_gate(
-        &mut self,
-        note: &'static str,
-        typ: GateKind,
-        vars: Vec<Option<CellVar>>,
-        coeffs: Vec<Self::Field>,
-        span: Span,
-    );
-
-    /// Add a generic double gate to the circuit. Kimchi specific atm.
-    fn add_generic_gate(
-        &mut self,
-        label: &'static str,
-        vars: Vec<Option<CellVar>>,
-        coeffs: Vec<Self::Field>,
-        span: Span,
-    );
-
     /// Compute the value of the symbolic cell variables.
     /// It recursively does the computation down the stream until it is not a symbolic variable.
     /// - The symbolic variables are stored in the witness_vars.
@@ -146,7 +127,6 @@ pub trait Backend: Clone {
         }
     }
 
-    // TODO: we may need to move the finalized flag from circuit writer to backend, so the backend can freeze itself once finalized.
     /// Finalize the circuit by doing some sanitizing checks.
     fn finalize_circuit(
         &mut self,
