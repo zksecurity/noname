@@ -127,10 +127,7 @@ impl KimchiVesta {
 
 impl CompiledCircuit<KimchiVesta> {
     pub fn compile_to_indexes(self) -> miette::Result<(ProverIndex, VerifierIndex)> {
-        let (prover_index, verifier_index) = self
-            .circuit
-            .backend
-            .compile_to_indexes()?;
+        let (prover_index, verifier_index) = self.circuit.backend.compile_to_indexes()?;
         // wrap
         let prover_index = {
             ProverIndex {

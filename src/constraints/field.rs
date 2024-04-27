@@ -84,7 +84,7 @@ pub fn mul<B: Backend>(
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
             // if the constant is zero, we can ignore this gate
             if cst.is_zero() {
-                return Var::new_constant(*cst, span)
+                return Var::new_constant(*cst, span);
             }
 
             let res = compiler.backend.mul_const(cvar, cst, span);
@@ -216,9 +216,7 @@ fn equal_cells<B: Backend>(
             let res_mul_diff = compiler.backend.mul(&res, &diff, span);
 
             // ensure that res * diff = 0
-            compiler
-                .backend
-                .assert_eq_const(&res_mul_diff, zero, span);
+            compiler.backend.assert_eq_const(&res_mul_diff, zero, span);
 
             // 4. diff_inv * diff = one_minus_res
             let diff_inv = compiler
@@ -228,11 +226,9 @@ fn equal_cells<B: Backend>(
             let diff_inv_mul_diff = compiler.backend.mul(&diff_inv, &diff, span);
 
             // ensure that diff_inv * diff = one_minus_res
-            compiler.backend.assert_eq_var(
-                &diff_inv_mul_diff,
-                &one_minus_res,
-                span,
-            );
+            compiler
+                .backend
+                .assert_eq_var(&diff_inv_mul_diff, &one_minus_res, span);
 
             Var::new_var(res, span)
         }
@@ -355,7 +351,9 @@ pub fn if_else_inner<B: Backend>(
             // constraint for ternary operator: cond * (then - else) = res - else
             let cond_mul_then_m_else = mul(compiler, cond, &then_m_else, span)[0];
             let res_to_check = add(compiler, &cond_mul_then_m_else, else_, span)[0];
-            compiler.backend.assert_eq_var(&res, res_to_check.cvar().unwrap(), span);
+            compiler
+                .backend
+                .assert_eq_var(&res, res_to_check.cvar().unwrap(), span);
 
             Var::new_var(res, span)
         }

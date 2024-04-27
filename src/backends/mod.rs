@@ -38,7 +38,7 @@ pub trait Backend: Clone {
     /// negate a var
     fn neg(&mut self, var: &CellVar, span: Span) -> CellVar;
 
-    /// add two vars 
+    /// add two vars
     fn add(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar;
 
     /// add a var with a constant

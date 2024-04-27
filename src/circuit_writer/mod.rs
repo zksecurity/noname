@@ -239,7 +239,6 @@ impl<B: Backend> CircuitWriter<B> {
         &self,
         witness_env: &mut WitnessEnv<B::Field>,
     ) -> Result<B::GeneratedWitness> {
-        self.backend
-            .generate_witness(witness_env)
+        self.backend.generate_witness(witness_env)
     }
 }
