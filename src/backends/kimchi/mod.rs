@@ -562,8 +562,8 @@ impl Backend for KimchiVesta {
         );
         self.add_generic_gate(
             "constraint to validate a negation (`x + (-x) = 0`)",
-            vec![Some(*var), None, Some(neg_var)],
-            vec![one, zero, one],
+            vec![Some(*var), Some(neg_var)],
+            vec![one, one],
             span,
         );
 

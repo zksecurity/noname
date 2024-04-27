@@ -58,8 +58,6 @@ pub fn and<B: Backend>(
             // lhs * rhs
             let res = compiler.backend.mul(lhs, rhs, span);
 
-            // check if it is either 1 or 0
-            check(compiler, &ConstOrCell::Cell(res), span);
 
             Var::new_var(res, span)
         }
@@ -88,8 +86,6 @@ pub fn not<B: Backend>(
             // 1 - x
             let res = sub(compiler, &one, &var, span)[0];
 
-            // ensure it is either 1 or 0
-            check(compiler, &res, span);
 
             Var::new_cvar(res, span)
         }

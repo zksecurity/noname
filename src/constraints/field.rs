@@ -11,7 +11,7 @@ use ark_ff::{One, Zero};
 
 use std::{ops::Neg, sync::Arc};
 
-/// Adds two field elements
+/// Negates a field element
 pub fn neg<B: Backend>(
     compiler: &mut CircuitWriter<B>,
     cvar: &ConstOrCell<B::Field>,
@@ -83,14 +83,8 @@ pub fn mul<B: Backend>(
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
             // if the constant is zero, we can ignore this gate
-            // todo: do we really need this?
             if cst.is_zero() {
-                let zero = compiler.backend.add_constant(
-                    Some("encoding zero for the result of 0 * var"),
-                    B::Field::zero(),
-                    span,
-                );
-                return Var::new_var(zero, span);
+                return Var::new_constant(*cst, span)
             }
 
             let res = compiler.backend.mul_const(cvar, cst, span);
@@ -210,40 +204,33 @@ fn equal_cells<B: Backend>(
                 span,
             );
 
-            // todo: replace these front end constraints with backend constraints
             // 1. diff = x2 - x1
-            let diff = sub(
-                compiler,
-                &ConstOrCell::Cell(x2),
-                &ConstOrCell::Cell(x1),
-                span,
-            )[0];
+            let neg_x1 = compiler.backend.neg(&x1, span);
+            let diff = compiler.backend.add(&x2, &neg_x1, span);
 
             // 2. one_minus_res = 1 - res
-            let one_minus_res = sub(
-                compiler,
-                &ConstOrCell::Const(one),
-                &ConstOrCell::Cell(res),
-                span,
-            )[0];
+            let neg_res = compiler.backend.neg(&res, span);
+            let one_minus_res = compiler.backend.add_const(&neg_res, &one, span);
 
             // 3. res * diff = 0
-            let res_mul_diff = mul(compiler, &ConstOrCell::Cell(res), &diff, span)[0];
+            let res_mul_diff = compiler.backend.mul(&res, &diff, span);
+
             // ensure that res * diff = 0
             compiler
                 .backend
-                .assert_eq_const(res_mul_diff.cvar().unwrap(), zero, span);
+                .assert_eq_const(&res_mul_diff, zero, span);
 
             // 4. diff_inv * diff = one_minus_res
             let diff_inv = compiler
                 .backend
-                .new_internal_var(Value::Inverse(*diff.cvar().unwrap()), span);
+                .new_internal_var(Value::Inverse(diff), span);
 
-            let diff_inv_mul_diff = mul(compiler, &ConstOrCell::Cell(diff_inv), &diff, span)[0];
+            let diff_inv_mul_diff = compiler.backend.mul(&diff_inv, &diff, span);
+
             // ensure that diff_inv * diff = one_minus_res
             compiler.backend.assert_eq_var(
-                diff_inv_mul_diff.cvar().unwrap(),
-                one_minus_res.cvar().unwrap(),
+                &diff_inv_mul_diff,
+                &one_minus_res,
                 span,
             );
 
@@ -364,11 +351,11 @@ pub fn if_else_inner<B: Backend>(
             );
 
             let then_m_else = sub(compiler, then_, else_, span)[0];
-            let res_m_else = sub(compiler, &ConstOrCell::<B::Field>::Cell(res), else_, span)[0];
 
             // constraint for ternary operator: cond * (then - else) = res - else
-            let res_mul = mul(compiler, cond, &then_m_else, span)[0];
-            sub(compiler, &res_mul, &res_m_else, span);
+            let cond_mul_then_m_else = mul(compiler, cond, &then_m_else, span)[0];
+            let res_to_check = add(compiler, &cond_mul_then_m_else, else_, span)[0];
+            compiler.backend.assert_eq_var(&res, res_to_check.cvar().unwrap(), span);
 
             Var::new_var(res, span)
         }
