@@ -39,7 +39,7 @@ pub enum ParsingError {
 //
 
 /// An input is a name, and a list of field elements (in decimal).
-#[derive(Default, serde::Deserialize)]
+#[derive(Default, serde::Deserialize, Clone)]
 pub struct JsonInputs(pub HashMap<String, serde_json::Value>);
 
 pub fn parse_inputs(s: &str) -> Result<JsonInputs, ParsingError> {

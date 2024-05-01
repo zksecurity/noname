@@ -7,6 +7,7 @@ use crate::{
             prover::{ProverIndex, VerifierIndex},
             KimchiVesta,
         },
+        r1cs::{snarkjs::SnarkjsExporter, R1csBls12_381},
         Backend,
     },
     cli::packages::path_to_package,
@@ -293,5 +294,70 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
     verifier_index.verify(full_public_inputs, proof)?;
     println!("proof verified");
 
+    Ok(())
+}
+
+#[derive(clap::Parser)]
+pub struct CmdRun {
+    /// noname file to run
+    #[clap(short, long, value_parser)]
+    path: Option<PathBuf>,
+
+    /// backend to use for running the noname file.
+    #[clap(short, long, value_parser)]
+    backend: Option<String>,
+
+    /// JSON encoding of the public inputs. For example: `--public-inputs {"a": "1", "b": ["2", "3"]}`.
+    #[clap(long, value_parser, default_value = "{}")]
+    public_inputs: Option<String>,
+
+    /// JSON encoding of the private inputs. Similar to `--public-inputs` but for private inputs.
+    #[clap(long, value_parser, default_value = "{}")]
+    private_inputs: Option<String>,
+}
+
+pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
+    let curr_dir = args
+    .path
+    .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
+
+let backend = args.backend.unwrap();
+
+// parse inputs
+    let public_inputs = if let Some(s) = args.public_inputs {
+        parse_inputs(&s)?
+    } else {
+        JsonInputs::default()
+    };
+    
+    let private_inputs = if let Some(s) = args.private_inputs {
+        parse_inputs(&s)?
+    } else {
+        JsonInputs::default()
+    };
+    
+    match backend.as_str() {
+        "kimchi-vesta" => todo!(),
+        "r1cs" => {
+            // produce all TASTs
+            let (sources, tast) = produce_all_asts(&curr_dir)?;
+            println!("running noname file");
+
+            let r1cs = R1csBls12_381::new();
+            let compiled_circuit = compile(&sources, tast, r1cs)?;
+
+            let generated_witness =
+                compiled_circuit.generate_witness(public_inputs, private_inputs)?;
+
+            let snarkjs_exporter = SnarkjsExporter::new(compiled_circuit.circuit.backend);
+
+            snarkjs_exporter.gen_r1cs_file(&curr_dir.join("output.r1cs").into_string());
+
+            snarkjs_exporter.gen_wtns_file(&curr_dir.join("output.wtns").into_string(), generated_witness);
+        }
+        _ => miette::bail!("unknown backend: `{}`", backend),
+    }
+
+    //
     Ok(())
 }
