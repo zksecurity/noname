@@ -89,6 +89,9 @@ pub struct KimchiVesta {
     /// Once this is set, you can generate a witness (and can't modify the circuit?)
     // Note: I don't think we need this, but it acts as a nice redundant failsafe.
     pub(crate) finalized: bool,
+
+    /// Size of the public input.
+    pub(crate) public_input_size: usize,
 }
 
 impl Witness {
@@ -133,58 +136,11 @@ impl KimchiVesta {
             pending_generic_gate: None,
             debug_info: vec![],
             finalized: false,
+            public_input_size: 0,
         }
     }
-}
 
-impl Backend for KimchiVesta {
-    type Field = VestaField;
-    type GeneratedWitness = GeneratedWitness;
-
-    fn poseidon() -> crate::imports::FnHandle<Self> {
-        builtin::poseidon
-    }
-
-    fn witness_vars(&self) -> &HashMap<usize, Value<Self>> {
-        &self.witness_vars
-    }
-
-    fn new_internal_var(&mut self, val: Value<KimchiVesta>, span: Span) -> CellVar {
-        // create new var
-        let var = CellVar::new(self.next_variable, span);
-        self.next_variable += 1;
-
-        // store it in the circuit_writer
-        self.witness_vars.insert(var.index, val);
-
-        var
-    }
-
-    fn add_constant(
-        &mut self,
-        label: Option<&'static str>,
-        value: VestaField,
-        span: Span,
-    ) -> CellVar {
-        if let Some(cvar) = self.cached_constants.get(&value) {
-            return *cvar;
-        }
-
-        let var = self.new_internal_var(Value::Constant(value), span);
-        self.cached_constants.insert(value, var);
-
-        let zero = VestaField::zero();
-
-        let _ = &self.add_generic_gate(
-            label.unwrap_or("hardcode a constant"),
-            vec![Some(var)],
-            vec![VestaField::one(), zero, zero, zero, value.neg()],
-            span,
-        );
-
-        var
-    }
-
+    /// Add a gate to the circuit
     fn add_gate(
         &mut self,
         note: &'static str,
@@ -238,6 +194,7 @@ impl Backend for KimchiVesta {
         }
     }
 
+    /// Add a generic double gate to the circuit
     fn add_generic_gate(
         &mut self,
         label: &'static str,
@@ -275,6 +232,55 @@ impl Backend for KimchiVesta {
                 span,
             });
         }
+    }
+}
+
+impl Backend for KimchiVesta {
+    type Field = VestaField;
+    type GeneratedWitness = GeneratedWitness;
+
+    fn poseidon() -> crate::imports::FnHandle<Self> {
+        builtin::poseidon
+    }
+
+    fn witness_vars(&self) -> &HashMap<usize, Value<Self>> {
+        &self.witness_vars
+    }
+
+    fn new_internal_var(&mut self, val: Value<KimchiVesta>, span: Span) -> CellVar {
+        // create new var
+        let var = CellVar::new(self.next_variable, span);
+        self.next_variable += 1;
+
+        // store it in the circuit_writer
+        self.witness_vars.insert(var.index, val);
+
+        var
+    }
+
+    fn add_constant(
+        &mut self,
+        label: Option<&'static str>,
+        value: VestaField,
+        span: Span,
+    ) -> CellVar {
+        if let Some(cvar) = self.cached_constants.get(&value) {
+            return *cvar;
+        }
+
+        let var = self.new_internal_var(Value::Constant(value), span);
+        self.cached_constants.insert(value, var);
+
+        let zero = VestaField::zero();
+
+        let _ = &self.add_generic_gate(
+            label.unwrap_or("hardcode a constant"),
+            vec![Some(var)],
+            vec![VestaField::one(), zero, zero, zero, value.neg()],
+            span,
+        );
+
+        var
     }
 
     fn finalize_circuit(
@@ -348,7 +354,6 @@ impl Backend for KimchiVesta {
     fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<VestaField>,
-        public_input_size: usize,
     ) -> Result<GeneratedWitness> {
         if !self.finalized {
             unreachable!("the circuit must be finalized before generating a witness");
@@ -380,7 +385,7 @@ impl Backend for KimchiVesta {
             }
 
             // check if the row makes sense
-            let is_not_public_input = row >= public_input_size;
+            let is_not_public_input = row >= self.public_input_size;
             if is_not_public_input {
                 #[allow(clippy::single_match)]
                 match gate.typ {
@@ -424,9 +429,9 @@ impl Backend for KimchiVesta {
         }
 
         // extract full public input (containing the public output)
-        let mut full_public_inputs = Vec::with_capacity(public_input_size);
+        let mut full_public_inputs = Vec::with_capacity(self.public_input_size);
 
-        for witness_row in witness.iter().take(public_input_size) {
+        for witness_row in witness.iter().take(self.public_input_size) {
             full_public_inputs.push(witness_row[0]);
         }
 
@@ -545,5 +550,160 @@ impl Backend for KimchiVesta {
         }
 
         res
+    }
+
+    fn neg(&mut self, var: &CellVar, span: Span) -> CellVar {
+        let zero = Self::Field::zero();
+        let one = Self::Field::one();
+
+        let neg_var = self.new_internal_var(
+            Value::LinearCombination(vec![(one.neg(), *var)], zero),
+            span,
+        );
+        self.add_generic_gate(
+            "constraint to validate a negation (`x + (-x) = 0`)",
+            vec![Some(*var), Some(neg_var)],
+            vec![one, one],
+            span,
+        );
+
+        neg_var
+    }
+
+    fn add(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar {
+        let zero = Self::Field::zero();
+        let one = Self::Field::one();
+
+        // create a new variable to store the result
+        let res = self.new_internal_var(
+            Value::LinearCombination(vec![(one, *lhs), (one, *rhs)], zero),
+            span,
+        );
+
+        // create a gate to store the result
+        self.add_generic_gate(
+            "add two variables together",
+            vec![Some(*lhs), Some(*rhs), Some(res)],
+            vec![one, one, one.neg()],
+            span,
+        );
+
+        res
+    }
+
+    fn add_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar {
+        let zero = Self::Field::zero();
+        let one = Self::Field::one();
+
+        // create a new variable to store the result
+        let res = self.new_internal_var(Value::LinearCombination(vec![(one, *var)], *cst), span);
+
+        // create a gate to store the result
+        // TODO: we should use an add_generic function that takes advantage of the double generic gate
+        self.add_generic_gate(
+            "add a constant with a variable",
+            vec![Some(*var), None, Some(res)],
+            vec![one, zero, one.neg(), zero, *cst],
+            span,
+        );
+
+        res
+    }
+
+    fn mul(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar {
+        let zero = Self::Field::zero();
+        let one = Self::Field::one();
+
+        // create a new variable to store the result
+        let res = self.new_internal_var(Value::Mul(*lhs, *rhs), span);
+
+        // create a gate to store the result
+        self.add_generic_gate(
+            "add two variables together",
+            vec![Some(*lhs), Some(*rhs), Some(res)],
+            vec![zero, zero, one.neg(), one],
+            span,
+        );
+
+        res
+    }
+
+    fn mul_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar {
+        let zero = Self::Field::zero();
+        let one = Self::Field::one();
+
+        // create a new variable to store the result
+        let res = self.new_internal_var(Value::Scale(*cst, *var), span);
+
+        // create a gate to store the result
+        // TODO: we should use an add_generic function that takes advantage of the double generic gate
+        self.add_generic_gate(
+            "add a constant with a variable",
+            vec![Some(*var), None, Some(res)],
+            vec![*cst, zero, one.neg()],
+            span,
+        );
+
+        res
+    }
+
+    fn assert_eq_const(&mut self, cvar: &CellVar, cst: Self::Field, span: Span) {
+        self.add_generic_gate(
+            "constrain var - cst = 0 to check equality",
+            vec![Some(*cvar)],
+            vec![
+                Self::Field::one(),
+                Self::Field::zero(),
+                Self::Field::zero(),
+                Self::Field::zero(),
+                cst.neg(),
+            ],
+            span,
+        );
+    }
+
+    fn assert_eq_var(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) {
+        // TODO: use permutation to check that
+        self.add_generic_gate(
+            "constrain lhs - rhs = 0 to assert that they are equal",
+            vec![Some(*lhs), Some(*rhs)],
+            vec![Self::Field::one(), Self::Field::one().neg()],
+            span,
+        );
+    }
+
+    fn add_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar {
+        // create the var
+        let cvar = self.new_internal_var(val, span);
+
+        // create the associated generic gate
+        self.add_gate(
+            "add public input",
+            GateKind::DoubleGeneric,
+            vec![Some(cvar)],
+            vec![Self::Field::one()],
+            span,
+        );
+
+        self.public_input_size += 1;
+
+        cvar
+    }
+
+    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar {
+        // create the var
+        let cvar = self.new_internal_var(val, span);
+
+        // create the associated generic gate
+        self.add_generic_gate(
+            "add public output",
+            vec![Some(cvar)],
+            vec![Self::Field::one()],
+            span,
+        );
+
+        self.public_input_size += 1;
+
+        cvar
     }
 }

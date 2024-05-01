@@ -11,6 +11,21 @@ use ark_ff::{One, Zero};
 
 use std::{ops::Neg, sync::Arc};
 
+/// Negates a field element
+pub fn neg<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    cvar: &ConstOrCell<B::Field>,
+    span: Span,
+) -> Var<B::Field> {
+    match cvar {
+        crate::var::ConstOrCell::Const(ff) => Var::new_constant(ff.neg(), span),
+        crate::var::ConstOrCell::Cell(var) => {
+            let res = compiler.backend.neg(var, span);
+            Var::new_var(res, span)
+        }
+    }
+}
+
 /// Adds two field elements
 pub fn add<B: Backend>(
     compiler: &mut CircuitWriter<B>,
@@ -18,9 +33,6 @@ pub fn add<B: Backend>(
     rhs: &ConstOrCell<B::Field>,
     span: Span,
 ) -> Var<B::Field> {
-    let zero = B::Field::zero();
-    let one = B::Field::one();
-
     match (lhs, rhs) {
         // 2 constants
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs + *rhs, span),
@@ -34,40 +46,12 @@ pub fn add<B: Backend>(
                 return Var::new_var(*cvar, span);
             }
 
-            // create a new variable to store the result
-            let res = compiler
-                .backend
-                .new_internal_var(Value::LinearCombination(vec![(one, *cvar)], *cst), span);
-
-            // create a gate to store the result
-            // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.backend.add_generic_gate(
-                "add a constant with a variable",
-                vec![Some(*cvar), None, Some(res)],
-                vec![one, zero, one.neg(), zero, *cst],
-                span,
-            );
+            let res = compiler.backend.add_const(cvar, cst, span);
 
             Var::new_var(res, span)
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            // create a new variable to store the result
-            let res = compiler.backend.new_internal_var(
-                Value::LinearCombination(
-                    vec![(B::Field::one(), *lhs), (B::Field::one(), *rhs)],
-                    B::Field::zero(),
-                ),
-                span,
-            );
-
-            // create a gate to store the result
-            compiler.backend.add_generic_gate(
-                "add two variables together",
-                vec![Some(*lhs), Some(*rhs), Some(res)],
-                vec![B::Field::one(), B::Field::one(), B::Field::one().neg()],
-                span,
-            );
-
+            let res = compiler.backend.add(lhs, rhs, span);
             Var::new_var(res, span)
         }
     }
@@ -80,80 +64,8 @@ pub fn sub<B: Backend>(
     rhs: &ConstOrCell<B::Field>,
     span: Span,
 ) -> Var<B::Field> {
-    let zero = B::Field::zero();
-    let one = B::Field::one();
-
-    match (lhs, rhs) {
-        // const1 - const2
-        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs - *rhs, span),
-
-        // const - var
-        (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar)) => {
-            // create a new variable to store the result
-            let res = compiler.backend.new_internal_var(
-                Value::LinearCombination(vec![(one.neg(), *cvar)], *cst),
-                span,
-            );
-
-            // create a gate to store the result
-            compiler.backend.add_generic_gate(
-                "constant - variable",
-                vec![Some(*cvar), None, Some(res)],
-                // cst - cvar - out = 0
-                vec![one.neg(), zero, one.neg(), zero, *cst],
-                span,
-            );
-
-            Var::new_var(res, span)
-        }
-
-        // var - const
-        (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            // if the constant is zero, we can ignore this gate
-            if cst.is_zero() {
-                // TODO: that span is incorrect, it should come from lhs or rhs...
-                return Var::new_var(*cvar, span);
-            }
-
-            // create a new variable to store the result
-            let res = compiler.backend.new_internal_var(
-                Value::LinearCombination(vec![(one, *cvar)], cst.neg()),
-                span,
-            );
-
-            // create a gate to store the result
-            // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.backend.add_generic_gate(
-                "variable - constant",
-                vec![Some(*cvar), None, Some(res)],
-                // var - cst - out = 0
-                vec![one, zero, one.neg(), zero, cst.neg()],
-                span,
-            );
-
-            Var::new_var(res, span)
-        }
-
-        // lhs - rhs
-        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            // create a new variable to store the result
-            let res = compiler.backend.new_internal_var(
-                Value::LinearCombination(vec![(one, *lhs), (one.neg(), *rhs)], zero),
-                span,
-            );
-
-            // create a gate to store the result
-            compiler.backend.add_generic_gate(
-                "var1 - var2",
-                vec![Some(*lhs), Some(*rhs), Some(res)],
-                // lhs - rhs - out = 0
-                vec![one, one.neg(), one.neg()],
-                span,
-            );
-
-            Var::new_var(res, span)
-        }
-    }
+    let neg_rhs = neg(compiler, rhs, span);
+    add(compiler, lhs, &neg_rhs.cvars[0], span)
 }
 
 /// Multiplies two field elements
@@ -163,9 +75,6 @@ pub fn mul<B: Backend>(
     rhs: &ConstOrCell<B::Field>,
     span: Span,
 ) -> Var<B::Field> {
-    let zero = B::Field::zero();
-    let one = B::Field::one();
-
     match (lhs, rhs) {
         // 2 constants
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs * *rhs, span),
@@ -175,46 +84,16 @@ pub fn mul<B: Backend>(
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
             // if the constant is zero, we can ignore this gate
             if cst.is_zero() {
-                let zero = compiler.backend.add_constant(
-                    Some("encoding zero for the result of 0 * var"),
-                    B::Field::zero(),
-                    span,
-                );
-                return Var::new_var(zero, span);
+                return Var::new_constant(*cst, span);
             }
 
-            // create a new variable to store the result
-            let res = compiler
-                .backend
-                .new_internal_var(Value::Scale(*cst, *cvar), span);
-
-            // create a gate to store the result
-            // TODO: we should use an add_generic function that takes advantage of the double generic gate
-            compiler.backend.add_generic_gate(
-                "add a constant with a variable",
-                vec![Some(*cvar), None, Some(res)],
-                vec![*cst, zero, one.neg(), zero, *cst],
-                span,
-            );
-
+            let res = compiler.backend.mul_const(cvar, cst, span);
             Var::new_var(res, span)
         }
 
         // everything is a var
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            // create a new variable to store the result
-            let res = compiler
-                .backend
-                .new_internal_var(Value::Mul(*lhs, *rhs), span);
-
-            // create a gate to store the result
-            compiler.backend.add_generic_gate(
-                "add two variables together",
-                vec![Some(*lhs), Some(*rhs), Some(res)],
-                vec![zero, zero, one.neg(), one],
-                span,
-            );
-
+            let res = compiler.backend.mul(lhs, rhs, span);
             Var::new_var(res, span)
         }
     }
@@ -326,55 +205,28 @@ fn equal_cells<B: Backend>(
             );
 
             // 1. diff = x2 - x1
-            let diff = compiler.backend.new_internal_var(
-                Value::LinearCombination(vec![(one, x2), (one.neg(), x1)], zero),
-                span,
-            );
-
-            compiler.backend.add_generic_gate(
-                "constraint #1 for the equals gadget (x2 - x1 - diff = 0)",
-                vec![Some(x2), Some(x1), Some(diff)],
-                // x2 - x1 - diff = 0
-                vec![one, one.neg(), one.neg()],
-                span,
-            );
+            let neg_x1 = compiler.backend.neg(&x1, span);
+            let diff = compiler.backend.add(&x2, &neg_x1, span);
 
             // 2. one_minus_res = 1 - res
-            let one_minus_res = compiler
-                .backend
-                .new_internal_var(Value::LinearCombination(vec![(one.neg(), res)], one), span);
-
-            compiler.backend.add_generic_gate(
-                "constraint #2 for the equals gadget (one_minus_res + res - 1 = 0)",
-                vec![Some(one_minus_res), Some(res)],
-                // we constrain one_minus_res + res - 1 = 0
-                // so that we can encode res and wire it elsewhere
-                // (and not -res)
-                vec![one, one, zero, zero, one.neg()],
-                span,
-            );
+            let neg_res = compiler.backend.neg(&res, span);
+            let one_minus_res = compiler.backend.add_const(&neg_res, &one, span);
 
             // 3. res * diff = 0
-            compiler.backend.add_generic_gate(
-                "constraint #3 for the equals gadget (res * diff = 0)",
-                vec![Some(res), Some(diff)],
-                // res * diff = 0
-                vec![zero, zero, zero, one],
-                span,
-            );
+            let res_mul_diff = compiler.backend.mul(&res, &diff, span);
+
+            compiler.backend.assert_eq_const(&res_mul_diff, zero, span);
 
             // 4. diff_inv * diff = one_minus_res
             let diff_inv = compiler
                 .backend
                 .new_internal_var(Value::Inverse(diff), span);
 
-            compiler.backend.add_generic_gate(
-                "constraint #4 for the equals gadget (diff_inv * diff = one_minus_res)",
-                vec![Some(diff_inv), Some(diff), Some(one_minus_res)],
-                // diff_inv * diff - one_minus_res = 0
-                vec![zero, zero, one.neg(), one],
-                span,
-            );
+            let diff_inv_mul_diff = compiler.backend.mul(&diff_inv, &diff, span);
+
+            compiler
+                .backend
+                .assert_eq_var(&diff_inv_mul_diff, &one_minus_res, span);
 
             Var::new_var(res, span)
         }
@@ -492,25 +344,14 @@ pub fn if_else_inner<B: Backend>(
                 span,
             );
 
-            let then_m_else = sub(compiler, then_, else_, span)[0]
-                .cvar()
-                .cloned()
-                .unwrap();
-            let res_m_else = sub(compiler, &ConstOrCell::<B::Field>::Cell(res), else_, span)[0]
-                .cvar()
-                .cloned()
-                .unwrap();
+            let then_m_else = sub(compiler, then_, else_, span)[0];
 
-            let zero = B::Field::zero();
-            let one = B::Field::one();
-
-            compiler.backend.add_generic_gate(
-                "constraint for ternary operator: cond * (then - else) = res - else",
-                vec![Some(cond_cell), Some(then_m_else), Some(res_m_else)],
-                // cond * (then - else) = res - else
-                vec![zero, zero, one.neg(), one],
-                span,
-            );
+            // constraint for ternary operator: cond * (then - else) = res - else
+            let cond_mul_then_m_else = mul(compiler, cond, &then_m_else, span)[0];
+            let res_to_check = add(compiler, &cond_mul_then_m_else, else_, span)[0];
+            compiler
+                .backend
+                .assert_eq_var(&res, res_to_check.cvar().unwrap(), span);
 
             Var::new_var(res, span)
         }

@@ -65,7 +65,6 @@ pub struct VerifierIndex {
 impl KimchiVesta {
     pub fn compile_to_indexes(
         &self,
-        public_input_size: usize,
     ) -> miette::Result<(
         kimchi::prover_index::ProverIndex<Curve, OpeningProof<Curve>>,
         kimchi::verifier_index::VerifierIndex<Curve, OpeningProof<Curve>>,
@@ -102,7 +101,7 @@ impl KimchiVesta {
 
         // create constraint system
         let cs = ConstraintSystem::create(gates)
-            .public(public_input_size)
+            .public(self.public_input_size)
             .build()
             .into_diagnostic()
             .wrap_err("kimchi: could not create a constraint system with the given circuit and public input size")?;
@@ -128,10 +127,7 @@ impl KimchiVesta {
 
 impl CompiledCircuit<KimchiVesta> {
     pub fn compile_to_indexes(self) -> miette::Result<(ProverIndex, VerifierIndex)> {
-        let (prover_index, verifier_index) = self
-            .circuit
-            .backend
-            .compile_to_indexes(self.circuit.public_input_size)?;
+        let (prover_index, verifier_index) = self.circuit.backend.compile_to_indexes()?;
         // wrap
         let prover_index = {
             ProverIndex {

@@ -35,6 +35,33 @@ pub trait Backend: Clone {
     /// It increments the variable index for look up later.
     fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> CellVar;
 
+    /// negate a var
+    fn neg(&mut self, var: &CellVar, span: Span) -> CellVar;
+
+    /// add two vars
+    fn add(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar;
+
+    /// add a var with a constant
+    fn add_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar;
+
+    /// multiply a var with another var
+    fn mul(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar;
+
+    /// multiply a var with a constant
+    fn mul_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar;
+
+    /// add a constraint to assert a var equals a constant
+    fn assert_eq_const(&mut self, var: &CellVar, cst: Self::Field, span: Span);
+
+    /// add a constraint to assert a var equals another var
+    fn assert_eq_var(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span);
+
+    /// Process a public input
+    fn add_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar;
+
+    /// Process a public output
+    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar;
+
     /// This should be called only when you want to constrain a constant for real.
     /// Gates that handle constants should always make sure to call this function when they want them constrained.
     fn add_constant(
@@ -43,25 +70,6 @@ pub trait Backend: Clone {
         value: Self::Field,
         span: Span,
     ) -> CellVar;
-
-    /// Add a gate to the circuit. Kimchi specific atm.
-    fn add_gate(
-        &mut self,
-        note: &'static str,
-        typ: GateKind,
-        vars: Vec<Option<CellVar>>,
-        coeffs: Vec<Self::Field>,
-        span: Span,
-    );
-
-    /// Add a generic double gate to the circuit. Kimchi specific atm.
-    fn add_generic_gate(
-        &mut self,
-        label: &'static str,
-        vars: Vec<Option<CellVar>>,
-        coeffs: Vec<Self::Field>,
-        span: Span,
-    );
 
     /// Compute the value of the symbolic cell variables.
     /// It recursively does the computation down the stream until it is not a symbolic variable.
@@ -119,7 +127,6 @@ pub trait Backend: Clone {
         }
     }
 
-    // TODO: we may need to move the finalized flag from circuit writer to backend, so the backend can freeze itself once finalized.
     /// Finalize the circuit by doing some sanitizing checks.
     fn finalize_circuit(
         &mut self,
@@ -133,7 +140,6 @@ pub trait Backend: Clone {
     fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<Self::Field>,
-        public_input_size: usize,
     ) -> Result<Self::GeneratedWitness>;
 
     /// Generate the asm for a backend.

@@ -1,6 +1,6 @@
-use std::{collections::HashSet, ops::Neg as _};
+use std::collections::HashSet;
 
-use ark_ff::{One as _, Zero};
+use ark_ff::One;
 use once_cell::sync::Lazy;
 
 use crate::{
@@ -121,27 +121,10 @@ fn assert_eq<B: Backend>(
         // a const and a var
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            compiler.backend.add_generic_gate(
-                "constrain var - cst = 0 to check equality",
-                vec![Some(*cvar)],
-                vec![
-                    B::Field::one(),
-                    B::Field::zero(),
-                    B::Field::zero(),
-                    B::Field::zero(),
-                    cst.neg(),
-                ],
-                span,
-            );
+            compiler.backend.assert_eq_const(cvar, *cst, span)
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            // TODO: use permutation to check that
-            compiler.backend.add_generic_gate(
-                "constrain lhs - rhs = 0 to assert that they are equal",
-                vec![Some(*lhs), Some(*rhs)],
-                vec![B::Field::one(), B::Field::one().neg()],
-                span,
-            );
+            compiler.backend.assert_eq_var(lhs, rhs, span)
         }
     }
 
@@ -171,16 +154,8 @@ fn assert<B: Backend>(
             assert!(cst.is_one());
         }
         ConstOrCell::Cell(cvar) => {
-            // TODO: use permutation to check that
-            let zero = B::Field::zero();
             let one = B::Field::one();
-            compiler.backend.add_generic_gate(
-                "constrain 1 - X = 0 to assert that X is true",
-                vec![None, Some(*cvar)],
-                // use the constant to constrain 1 - X = 0
-                vec![zero, one.neg(), zero, zero, one],
-                span,
-            );
+            compiler.backend.assert_eq_const(cvar, one, span);
         }
     }
 
