@@ -4,17 +4,23 @@ use ark_ff::{Field, Zero};
 use num_bigint::BigUint;
 
 use crate::{
-    circuit_writer::{DebugInfo, GateKind},
     compiler::Sources,
     constants::Span,
     error::{Error, ErrorKind, Result},
-    helpers::PrettyField,
     imports::FnHandle,
     var::{CellVar, Value, Var},
     witness::WitnessEnv,
 };
 
+use self::{kimchi::KimchiVesta, r1cs::R1csBls12_381};
+
 pub mod kimchi;
+pub mod r1cs;
+
+pub enum BackendKind {
+    KimchiVesta(KimchiVesta),
+    R1CS(R1csBls12_381),
+}
 
 // TODO: should it be cloneable? It is now so because FnInfo needs to be cloneable.
 pub trait Backend: Clone {
