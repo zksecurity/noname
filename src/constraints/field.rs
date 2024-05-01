@@ -215,7 +215,6 @@ fn equal_cells<B: Backend>(
             // 3. res * diff = 0
             let res_mul_diff = compiler.backend.mul(&res, &diff, span);
 
-            // ensure that res * diff = 0
             compiler.backend.assert_eq_const(&res_mul_diff, zero, span);
 
             // 4. diff_inv * diff = one_minus_res
@@ -225,7 +224,6 @@ fn equal_cells<B: Backend>(
 
             let diff_inv_mul_diff = compiler.backend.mul(&diff_inv, &diff, span);
 
-            // ensure that diff_inv * diff = one_minus_res
             compiler
                 .backend
                 .assert_eq_var(&diff_inv_mul_diff, &one_minus_res, span);
