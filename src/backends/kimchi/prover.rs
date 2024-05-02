@@ -234,7 +234,8 @@ impl VerifierIndex {
     }
 }
 
-mod testing {
+#[cfg(test)]
+mod tests {
     use crate::{
         backends::{
             kimchi::{KimchiVesta, VestaField},
