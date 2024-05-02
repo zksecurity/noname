@@ -137,8 +137,8 @@ impl Backend for R1csBls12_381 {
 
     type GeneratedWitness = GeneratedWitness;
 
-    fn witness_vars(&self) -> &std::collections::HashMap<usize, crate::var::Value<Self>> {
-        &self.witness_vars
+    fn witness_vars(&self, var: CellVar) -> &Value<Self> {
+        self.witness_vars.get(&var.index).unwrap()
     }
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
