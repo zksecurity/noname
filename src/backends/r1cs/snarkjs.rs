@@ -107,22 +107,14 @@ impl SnarkjsExporter {
     /// - use witness mapper to re-arrange the variables
     /// - convert the factors to BigInt
     fn restructure_lc(&self, lc: &LinearCombination) -> SnarkjsLinearCombination {
-        let terms = if let Some(terms) = &lc.terms {
-            terms.iter().map(|(cvar, factor)| {
-                let new_index: usize = *self.witness_map.get(&cvar.index).unwrap();
-                let factor_bigint = Self::convert_to_bigint(factor);
+        let terms = lc.terms.iter().map(|(cvar, factor)| {
+            let new_index: usize = *self.witness_map.get(&cvar.index).unwrap();
+            let factor_bigint = Self::convert_to_bigint(factor);
 
-                (new_index, factor_bigint)
-            }).collect()
-        } else {
-            HashMap::new()
-        };
+            (new_index, factor_bigint)
+        }).collect();
 
-        let constant = if let Some(constant) = lc.constant {
-            Self::convert_to_bigint(&constant)
-        } else {
-            BigInt::from(0)
-        };
+        let constant = Self::convert_to_bigint(&lc.constant);
 
         SnarkjsLinearCombination { terms, constant }
     }
@@ -410,16 +402,11 @@ mod tests {
             let all_restructured_terms = [rc.a.terms.clone(), rc.b.terms.clone(), rc.c.terms.clone()];
 
             for (oterms, rterms) in all_original_terms.iter().zip(all_restructured_terms) {
-                if let Some(oterms) = oterms {
-                    assert_eq!(oterms.len(), rterms.len());
-                    for original_var in oterms.keys() {
-                        // check if the original var is in the restructured terms after reordering
-                        let new_index = snarkjs_exporter.witness_map.get(&original_var.index).unwrap();
-                        assert!(rterms.contains_key(new_index));
-                    }
-                } 
-                else {
-                    assert!(rterms.is_empty());
+                assert_eq!(oterms.len(), rterms.len());
+                for original_var in oterms.keys() {
+                    // check if the original var is in the restructured terms after reordering
+                    let new_index = snarkjs_exporter.witness_map.get(&original_var.index).unwrap();
+                    assert!(rterms.contains_key(new_index));
                 }
             }
         }

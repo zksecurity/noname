@@ -16,5 +16,5 @@ pub fn poseidon(
     span: Span,
 ) -> Result<Option<Var<Fr>>> {
     // dummy for now
-    Ok(Some(Var::new_constant(Fr::from(0), span)))
+    unimplemented!()
 }
