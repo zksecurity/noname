@@ -233,3 +233,59 @@ impl VerifierIndex {
         .wrap_err("kimchi: failed to verify the proof")
     }
 }
+
+mod testing {
+    use crate::{
+        backends::{
+            kimchi::{KimchiVesta, VestaField},
+            Backend,
+        },
+        constants::Span,
+        var::{ConstOrCell, Value, Var},
+        witness::WitnessEnv,
+    };
+
+    #[test]
+    fn test_public_output_constraint() -> miette::Result<()> {
+        // setup a simple circuit
+        let mut backend = KimchiVesta::new(false);
+
+        let span = Span::default();
+        let input_val = VestaField::from(1);
+        let input_var = backend.add_public_input(Value::Constant(input_val), span);
+
+        let output_var = backend.add_public_output(Value::PublicOutput(None), span);
+
+        // 1 + 1 = 2
+        let const_val = VestaField::from(1);
+        let res_val = input_val + const_val;
+        let res_var = backend.add_const(&input_var, &const_val, span);
+        let public_outputs = Some(Var::new_cvar(ConstOrCell::Cell(output_var), span));
+        let returned_cells = Some(Vec::from([res_var]));
+
+        backend
+            .finalize_circuit(public_outputs, returned_cells, vec![], span)
+            .unwrap();
+
+        // test with kimchi prover
+        let mut witness_env = WitnessEnv::default();
+        let generated_witness = backend.generate_witness(&mut witness_env).unwrap();
+        let witness = generated_witness.all_witness.to_kimchi_witness();
+
+        let (prover_index, _) = backend.compile_to_indexes().unwrap();
+
+        // correct output value
+        let mock_public_entries = [input_val, res_val];
+        prover_index.verify(&witness, &mock_public_entries).unwrap();
+
+        // incorrect output value
+        let mock_public_entries = [input_val, VestaField::from(1)];
+        let result = prover_index.verify(&witness, &mock_public_entries);
+        assert!(
+            result.is_err(),
+            "Verification unexpectedly succeeded with incorrect output"
+        );
+
+        Ok(())
+    }
+}
