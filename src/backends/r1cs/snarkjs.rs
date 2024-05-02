@@ -1,4 +1,3 @@
-
 use ark_bls12_381::Fr;
 use ark_ff::fields::PrimeField;
 
@@ -75,23 +74,23 @@ impl SnarkjsExporter {
     pub fn new (r1cs_backend: R1csBls12_381) -> SnarkjsExporter {
         let mut witness_map = HashMap::new();
         
-        let mut witness_vars = r1cs_backend.witness_vars.clone();
-
         // group all the public items together
         // outputs are intended to be before inputs
         let public_items = r1cs_backend.public_outputs.iter().chain(r1cs_backend.public_inputs.iter());
+        // convert to a hashmap for easy lookup
+        let public_items_map: HashMap<usize, crate::var::CellVar> = HashMap::from_iter(public_items.map(|x| (x.index, *x)));
 
-        for (index, var) in public_items.enumerate() {
+        for (index, (_, var)) in public_items_map.iter().enumerate() {
             // first var is fixed, so here we start from 1
             witness_map.insert(var.index, index + 1);
-
-            // remove the public input from the witness vars
-            witness_vars.remove(&var.index);
         }
 
         // stack in the rest of the witness vars
-        for index in witness_vars.keys().sorted() {
-            witness_map.insert(*index, witness_map.len() + 1);
+        for (index, _) in r1cs_backend.witness_vars.iter().enumerate() {
+            if public_items_map.contains_key(&index) {
+                continue;
+            }
+            witness_map.insert(index, witness_map.len() + 1);
         }
 
         // witness_map should have all the witness vars

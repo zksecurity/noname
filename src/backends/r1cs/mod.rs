@@ -69,8 +69,7 @@ pub struct R1csBls12_381 {
     prime: BigInt,
     /// constraints in the r1cs
     constraints: Vec<Constraint>,
-    next_variable: usize,
-    witness_vars: HashMap<usize, Value<R1csBls12_381>>,
+    witness_vars: Vec<Value<R1csBls12_381>>,
     debug_info: Vec<DebugInfo>,
     /// record the public inputs for reordering the witness vector
     public_inputs: Vec<CellVar>,
@@ -83,8 +82,7 @@ impl R1csBls12_381 {
     pub fn new() -> Self {
         Self {
             constraints: Vec::new(),
-            next_variable: 0,
-            witness_vars: HashMap::new(),
+            witness_vars: Vec::new(),
             debug_info: Vec::new(),
             public_inputs: Vec::new(),
             public_outputs: Vec::new(),
@@ -138,7 +136,7 @@ impl Backend for R1csBls12_381 {
     type GeneratedWitness = GeneratedWitness;
 
     fn witness_vars(&self, var: CellVar) -> &Value<Self> {
-        self.witness_vars.get(&var.index).unwrap()
+        self.witness_vars.get(var.index).unwrap()
     }
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
@@ -150,8 +148,7 @@ impl Backend for R1csBls12_381 {
         val: crate::var::Value<Self>,
         span: crate::constants::Span,
     ) -> CellVar {
-        let var = CellVar::new(self.next_variable, span);
-        self.next_variable += 1;
+        let var = CellVar::new(self.witness_vars.len(), span);
 
         // store it in the circuit_writer
         self.witness_vars.insert(var.index, val);
@@ -191,10 +188,9 @@ impl Backend for R1csBls12_381 {
             for (pub_var, ret_var) in cvars.clone().iter().zip(returned_cells.unwrap()) {
                 // replace the computation of the public output vars with the actual variables being returned here
                 let var_idx = pub_var.idx().unwrap();
-                let prev = self
-                    .witness_vars
-                    .insert(var_idx, Value::PublicOutput(Some(ret_var)));
-                assert!(prev.is_some());
+                let prev = &self.witness_vars[var_idx];
+                assert!(matches!(prev, Value::PublicOutput(None)));
+                self.witness_vars[var_idx] = Value::PublicOutput(Some(ret_var));
             }
         }
 
@@ -209,7 +205,7 @@ impl Backend for R1csBls12_381 {
         }
 
         // check if every cell vars end up being a cell var in the circuit or public output
-        for index in 0..self.next_variable {
+        for index in 0..self.witness_vars.len() {
             if !written_vars.contains(&index) {
                 // check if outputs contains the cell var that has the same index
                 if !self.public_outputs.iter().any(|&x| x.index == index) {
