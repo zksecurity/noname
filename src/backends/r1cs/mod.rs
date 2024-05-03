@@ -7,6 +7,7 @@ use std::ops::Neg;
 use ark_bls12_381::Fr;
 use ark_ff::{Field, Zero};
 
+use kimchi::circuits::polynomials::foreign_field_add::witness;
 use num_bigint_dig::{BigInt, Sign};
 
 use crate::{circuit_writer::DebugInfo, var::{CellVar, Value}};
@@ -28,11 +29,11 @@ pub struct LinearCombination {
 
 impl LinearCombination {
     /// Evaluate the linear combination with the given witness
-    pub fn evaluate(&self, witness: &HashMap<usize, Fr>) -> Fr {
+    pub fn evaluate(&self, witness: &[Fr]) -> Fr {
         let mut sum = Fr::zero();
 
         for (var, factor) in &self.terms {
-            sum += *witness.get(&var.index).unwrap() * factor;
+            sum += *witness.get(var.index).unwrap() * factor;
         }
 
         sum += &self.constant;
@@ -127,7 +128,7 @@ impl R1csBls12_381 {
 #[derive(Debug)]
 /// An intermediate struct for SnarkjsExporter to reorder the witness and convert to snarkjs format 
 pub struct GeneratedWitness {
-    pub witness: HashMap<usize, Fr>,
+    pub witness: Vec<Fr>,
 }
 
 impl Backend for R1csBls12_381 {
@@ -229,33 +230,24 @@ impl Backend for R1csBls12_381 {
             panic!("the circuit is not finalized yet!");
         }
 
-        let mut witness = HashMap::<usize, Fr>::new();
+        // generate witness through witness vars vector
+        let mut witness = self.witness_vars.iter().enumerate().map(|(index, val)| {
+            self.compute_val(witness_env, val, index)
+        }).collect::<crate::error::Result<Vec<Fr>>>()?;
+
+        // The original vars of public outputs are not part of the constraints
+        // so we need to compute them separately
+        for var in &self.public_outputs {
+            let val = self.compute_var(witness_env, *var)?;
+            witness[var.index] = val;
+        }
 
         for constraint in &self.constraints {
-            for lc in &constraint.as_array() {
-                for var in lc.terms.keys() {
-                    if witness.contains_key(&var.index) {
-                        continue;
-                    }
-                    let val = self.compute_var(witness_env, *var)?;
-                    witness.insert(var.index, val);
-                }
-            }
             // assert a * b = c
             assert_eq!(
                 constraint.a.evaluate(&witness) * constraint.b.evaluate(&witness), 
                 constraint.c.evaluate(&witness)
             );
-        }
-
-        // The original vars of public outputs are not part of the constraints
-        // so we need to compute them separately
-        for var in &self.public_outputs {
-            if witness.contains_key(&var.index) {
-                continue;
-            }
-            let val = self.compute_var(witness_env, *var)?;
-            witness.insert(var.index, val);
         }
 
         Ok(GeneratedWitness { witness })

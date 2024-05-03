@@ -144,8 +144,8 @@ impl SnarkjsExporter {
         // add the first var that is always valued as 1
         restructured_witness_values.insert(0, BigInt::from(1));
 
-        for (id, value) in generated_witness.witness.iter() {
-            let new_index = self.witness_map.get(id).unwrap();
+        for (id, value) in generated_witness.witness.iter().enumerate() {
+            let new_index = self.witness_map.get(&id).unwrap();
             let value_bigint = Self::convert_to_bigint(value);
 
             restructured_witness_values.insert(*new_index, value_bigint);

@@ -83,17 +83,19 @@ pub trait Backend: Clone {
     /// - The symbolic variables are stored in the witness_vars.
     /// - The computed values are stored in the cached_values.
     fn compute_var(&self, env: &mut WitnessEnv<Self::Field>, var: CellVar) -> Result<Self::Field> {
-        // fetch cache first
-        // TODO: if self was &mut, then we could use a Value::Cached(Field) to store things instead of that
-        if let Some(res) = env.cached_values.get(&var) {
+        self.compute_val(env, self.witness_vars(var), var.index)
+    }
+
+    fn compute_val(&self, env: &mut WitnessEnv<Self::Field>, val: &Value<Self>, var_index: usize) -> Result<Self::Field> {
+        if let Some(res) = env.cached_values.get(&var_index) {
             return Ok(*res);
         }
 
-        match &self.witness_vars(var) {
+        match &val {
             Value::Hint(func) => {
                 let res = func(self, env)
                     .expect("that function doesn't return a var (type checker error)");
-                env.cached_values.insert(var, res);
+                env.cached_values.insert(var_index, res);
                 Ok(res)
             }
             Value::Constant(c) => Ok(*c),
@@ -102,20 +104,20 @@ pub trait Backend: Clone {
                 for (coeff, var) in lc {
                     res += self.compute_var(env, *var)? * *coeff;
                 }
-                env.cached_values.insert(var, res); // cache
+                env.cached_values.insert(var_index, res); // cache
                 Ok(res)
             }
             Value::Mul(lhs, rhs) => {
                 let lhs = self.compute_var(env, *lhs)?;
                 let rhs = self.compute_var(env, *rhs)?;
                 let res = lhs * rhs;
-                env.cached_values.insert(var, res); // cache
+                env.cached_values.insert(var_index, res); // cache
                 Ok(res)
             }
             Value::Inverse(v) => {
                 let v = self.compute_var(env, *v)?;
                 let res = v.inverse().unwrap_or_else(Self::Field::zero);
-                env.cached_values.insert(var, res); // cache
+                env.cached_values.insert(var_index, res); // cache
                 Ok(res)
             }
             Value::External(name, idx) => Ok(env.get_external(name)[*idx]),
