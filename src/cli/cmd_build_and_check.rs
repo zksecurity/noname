@@ -303,7 +303,9 @@ pub struct CmdRun {
     #[clap(short, long, value_parser)]
     path: Option<PathBuf>,
 
-    /// backend to use for running the noname file.
+    /// Backend to use for running the noname file.
+    /// supported backends: 
+    /// - `snarkjs-r1cs`
     #[clap(short, long, value_parser)]
     backend: Option<String>,
 
@@ -338,7 +340,7 @@ let backend = args.backend.unwrap();
     
     match backend.as_str() {
         "kimchi-vesta" => todo!(),
-        "r1cs" => {
+        "snarkjs-r1cs" => {
             // produce all TASTs
             let (sources, tast) = produce_all_asts(&curr_dir)?;
             println!("running noname file");
