@@ -5,7 +5,7 @@ use constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter}
 use itertools::Itertools;
 use crate::error::Result;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};
 use std::io::{Seek, SeekFrom};
 use std::io::{BufWriter, Write};
@@ -77,17 +77,19 @@ impl SnarkjsExporter {
         // group all the public items together
         // outputs are intended to be before inputs
         let public_items = r1cs_backend.public_outputs.iter().chain(r1cs_backend.public_inputs.iter());
-        // convert to a hashmap for easy lookup
-        let public_items_map: HashMap<usize, crate::var::CellVar> = HashMap::from_iter(public_items.map(|x| (x.index, *x)));
+        
+        // keep track of the public vars index for easy lookup
+        let mut public_items_set: HashSet<usize> = HashSet::new();
 
-        for (index, (_, var)) in public_items_map.iter().enumerate() {
+        for (index, var) in public_items.enumerate() {
             // first var is fixed, so here we start from 1
             witness_map.insert(var.index, index + 1);
+            public_items_set.insert(var.index);
         }
 
         // stack in the rest of the witness vars
         for (index, _) in r1cs_backend.witness_vars.iter().enumerate() {
-            if public_items_map.contains_key(&index) {
+            if public_items_set.contains(&index) {
                 continue;
             }
             witness_map.insert(index, witness_map.len() + 1);
