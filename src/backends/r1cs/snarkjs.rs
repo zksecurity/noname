@@ -43,7 +43,7 @@ impl SnarkjsLinearCombination {
     }
 }
 
-/// calculate the number of bytes for the prime field
+/// Calculate the number of bytes for the prime field.
 fn field_size(prime: &BigInt) -> usize {
     if prime.bits() % 64 == 0 {
         prime.bits() / 8
@@ -52,9 +52,9 @@ fn field_size(prime: &BigInt) -> usize {
     }
 }
 
-/// A struct to export r1cs circuit and witness to the snarkjs formats
+/// A struct to export r1cs circuit and witness to the snarkjs formats.
 pub struct SnarkjsExporter {
-    /// A R1CS backend with the circuit finalized
+    /// A R1CS backend with the circuit finalized.
     r1cs_backend: R1csBls12_381,
     /// A mapping between the witness vars' indexes in the backend and the new indexes arranged for the snarkjs format.
     /// <original, new>: The key (left) is the original index of the witness var in the backend, and the value (right) is the new index.
@@ -104,9 +104,9 @@ impl SnarkjsExporter {
         }
     }
 
-    /// Restructure the linear combination to align with the snarkjs format
-    /// - use witness mapper to re-arrange the variables
-    /// - convert the factors to BigInt
+    /// Restructure the linear combination to align with the snarkjs format.
+    /// - use witness mapper to re-arrange the variables.
+    /// - convert the factors to BigInt.
     fn restructure_lc(&self, lc: &LinearCombination) -> SnarkjsLinearCombination {
         let terms = lc.terms.iter().map(|(cvar, factor)| {
             let new_index: usize = *self.witness_map.get(&cvar.index).unwrap();
@@ -120,7 +120,7 @@ impl SnarkjsExporter {
         SnarkjsLinearCombination { terms, constant }
     }
 
-    /// Restructure the constraints to align with the snarkjs format
+    /// Restructure the constraints to align with the snarkjs format.
     fn restructure_constraints(&self) -> Vec<SnarkjsConstraint> {
         let mut constraints = vec![];
         for constraint in &self.r1cs_backend.constraints {
@@ -134,10 +134,10 @@ impl SnarkjsExporter {
     }
 
     /// Restructure the witness vector
-    /// 1. add the first var that is always valued as 1
-    /// 2. use witness mapper to re-arrange the variables
-    /// 3. convert the witness values to BigInt
-    /// 4. convert to a witness vector ordered by new index
+    /// 1. add the first var that is always valued as 1.
+    /// 2. use witness mapper to re-arrange the variables.
+    /// 3. convert the witness values to BigInt.
+    /// 4. convert to a witness vector ordered by new index.
     fn restructure_witness(&self, generated_witness: GeneratedWitness) -> Vec<BigInt> {
         let mut restructured_witness_values = HashMap::new();
 
@@ -159,12 +159,12 @@ impl SnarkjsExporter {
             .collect::<Vec<_>>()
     }
     
-    /// Generate the r1cs file in snarkjs format
+    /// Generate the r1cs file in snarkjs format.
     /// It uses the circom rust library to generate the r1cs file.
     /// The binary format spec: https://github.com/iden3/r1csfile/blob/master/doc/r1cs_bin_format.md
     pub fn gen_r1cs_file(&self, file: &str) {
-        let prime = &self.r1cs_backend.prime;
-        let field_size = field_size(prime);
+        let prime = self.r1cs_backend.prime();
+        let field_size = field_size(&prime);
 
         let r1cs = R1CSWriter::new(file.to_string(), field_size, false).unwrap();
         let mut constraint_section = R1CSWriter::start_constraints_section(r1cs).unwrap();
@@ -183,8 +183,8 @@ impl SnarkjsExporter {
         let r1cs = constraint_section.end_section().unwrap();
         let mut header_section = R1CSWriter::start_header_section(r1cs).unwrap();
         let header_data = HeaderData {
-            // Snarkjs uses this meta data to determine which curve to use
-            field: prime.clone(),
+            // Snarkjs uses this meta data to determine which curve to use.
+            field: prime,
             // Both the sizes of public inputs and outputs will be crucial for the snarkjs to determine 
             // where to extract the public inputs and outputs from the witness vector.
             // Snarkjs prove command will generate a public.json file that contains the public inputs and outputs.
@@ -193,9 +193,9 @@ impl SnarkjsExporter {
             public_inputs: self.r1cs_backend.public_inputs.len(),
             // There seems no use of this field in the snarkjs lib. It might be just a reference.
             private_inputs: self.r1cs_backend.private_input_number(),
-            // Add one to take into account the first var that is only added during the witness formation for snarkjs
+            // Add one to take into account the first var that is only added during the witness formation for snarkjs.
             total_wires: self.witness_map.len() + 1,
-            // This is for circom lang debugging, so we don't need it
+            // This is for circom lang debugging, so we don't need it.
             number_of_labels: 0,
             number_of_constraints: restructure_constraints.len(),
         };
@@ -205,13 +205,13 @@ impl SnarkjsExporter {
         R1CSWriter::finish_writing(r1cs);
     }
 
-    /// Generate the wtns file in snarkjs format
+    /// Generate the wtns file in snarkjs format.
     pub fn gen_wtns_file(&self, file: &str, witness: GeneratedWitness) {
         let restructured_witness = self.restructure_witness(witness);
 
         let mut witness_writer = WitnessWriter::new(file).unwrap();
 
-        witness_writer.write(restructured_witness, &self.r1cs_backend.prime);
+        witness_writer.write(restructured_witness, &self.r1cs_backend.prime());
     }
 
     fn convert_to_bigint(value: &Fr) -> BigInt {
@@ -223,7 +223,7 @@ impl SnarkjsExporter {
 }
 
 
-/// Witness writer for generating the wtns file in snarkjs format
+/// Witness writer for generating the wtns file in snarkjs format.
 /// The circom rust lib seems not to have the API to generate the wtns file, so we create our own based on the snarkjs lib.
 /// The implementation follows: https://github.com/iden3/snarkjs/blob/577b3f358016a486402050d3b7242876082c085f/src/wtns_utils.js#L25
 /// It uses the same binary format as the r1cs file relies on. 
@@ -234,7 +234,7 @@ struct WitnessWriter {
     section_size_position: u64,
 }
 
-/// A struct to represent a section in the snarkjs binary format
+/// A struct to represent a section in the snarkjs binary format.
 struct WritingSection;
 
 impl WitnessWriter {
@@ -279,7 +279,7 @@ impl WitnessWriter {
         })
     }
 
-    /// Start a new section for writing
+    /// Start a new section for writing.
     pub fn start_write_section(&mut self, id_section: u32) {
         // Write the section ID as ULE32
         self.inner.write_all(&id_section.to_le_bytes()); 
@@ -310,8 +310,8 @@ impl WitnessWriter {
 
     /// Write the witness to the file
     /// It stores the two sections:
-    /// - Header section: describes the field size, prime field, and the number of witnesses
-    /// - Witness section: contains the witness values
+    /// - Header section: describes the field size, prime field, and the number of witnesses.
+    /// - Witness section: contains the witness values.
     pub fn write(&mut self, witness: Vec<BigInt>, prime: &BigInt) {
         // Start writing the first section
         self.start_write_section(1);
