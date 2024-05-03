@@ -40,6 +40,39 @@ impl LinearCombination {
 
         sum
     }
+
+    /// Create a linear combination to represent constant one.
+    pub fn one() -> Self {
+        LinearCombination {
+            terms: HashMap::new(),
+            constant: Fr::from(1),
+        }
+    }
+
+    /// Create a linear combination to represent constant zero.
+    pub fn zero() -> Self {
+        LinearCombination {
+            terms: HashMap::new(),
+            constant: Fr::from(0),
+        }
+    }
+
+    /// Create a linear combination from a list of vars
+    pub fn from_vars(vars: Vec<CellVar>) -> Self {
+        let terms = vars.into_iter().map(|var| (var, Fr::from(1))).collect();
+        LinearCombination {
+            terms,
+            constant: Fr::from(0),
+        }
+    }
+
+    /// Create a linear combination from a constant.
+    pub fn from_const(cst: Fr) -> Self {
+        LinearCombination {
+            terms: HashMap::new(),
+            constant: cst,
+        }
+    }
 }
 
 /// an R1CS constraint
@@ -265,18 +298,9 @@ impl Backend for R1csBls12_381 {
 
         let x_neg = self.new_internal_var(Value::LinearCombination(vec![(one.neg(), *x)], zero), span);
 
-        let a = LinearCombination {
-            terms: HashMap::from_iter(vec![(*x, one), (x_neg, one)]),
-            constant: zero,
-        };
-        let b = LinearCombination {
-            terms: HashMap::new(),
-            constant: one,
-        };
-        let c = LinearCombination {
-            terms: HashMap::new(),
-            constant: zero,
-        };
+        let a = LinearCombination::from_vars(vec![*x, x_neg]);
+        let b = LinearCombination::one();
+        let c = LinearCombination::zero();
 
         self.add_constraint(
             "neg constraint: x + (-x) = 0",
@@ -309,21 +333,11 @@ impl Backend for R1csBls12_381 {
                 constant: zero,
             }
         } else {
-            LinearCombination {
-                terms: HashMap::from_iter(vec![(*lhs, one), (*rhs, one)]),
-                constant: zero,
-            }
+            LinearCombination::from_vars(vec![*lhs, *rhs])
         };
 
-        let b = LinearCombination {
-            terms: HashMap::new(),
-            constant: one,
-        };
-
-        let c = LinearCombination {
-            terms: HashMap::from_iter(vec![(res, one)]),
-            constant: zero,
-        };
+        let b = LinearCombination::one();
+        let c = LinearCombination::from_vars(vec![res]);
 
         self.add_constraint(
             "add constraint: lhs + rhs = res",
@@ -344,7 +358,6 @@ impl Backend for R1csBls12_381 {
         // b = 1
         // c = res
         let one = Fr::from(1);
-        let zero = Fr::from(0);
 
         let res = self.new_internal_var(Value::LinearCombination(vec![(one, *x)], *cst), span);
 
@@ -353,15 +366,8 @@ impl Backend for R1csBls12_381 {
             constant: *cst,
         };
 
-        let b = LinearCombination {
-            terms: HashMap::new(),
-            constant: one,
-        };
-
-        let c = LinearCombination {
-            terms: HashMap::from_iter(vec![(res, one)]),
-            constant: zero,
-        };
+        let b = LinearCombination::one();
+        let c = LinearCombination::from_vars(vec![res]);
 
         self.add_constraint(
             "add constraint: x + cst = res",
@@ -381,25 +387,12 @@ impl Backend for R1csBls12_381 {
         // a = lhs
         // b = rhs
         // c = res
-        let one = Fr::from(1);
-        let zero = Fr::from(0);
 
         let res = self.new_internal_var(Value::Mul(*lhs, *rhs), span);
 
-        let a = LinearCombination {
-            terms: HashMap::from_iter(vec![(*lhs, one)]),
-            constant: zero,
-        };
-
-        let b = LinearCombination {
-            terms: HashMap::from_iter(vec![(*rhs, one)]),
-            constant: zero,
-        };
-
-        let c = LinearCombination {
-            terms: HashMap::from_iter(vec![(res, one)]),
-            constant: zero,
-        };
+        let a = LinearCombination::from_vars(vec![*lhs]);
+        let b = LinearCombination::from_vars(vec![*rhs]);
+        let c = LinearCombination::from_vars(vec![res]);
 
         self.add_constraint(
             "mul constraint: lhs * rhs = res",
@@ -419,25 +412,12 @@ impl Backend for R1csBls12_381 {
         // a = x
         // b = cst
         // c = res
-        let one = Fr::from(1);
-        let zero = Fr::from(0);
 
         let res = self.new_internal_var(Value::Scale(*cst, *x), span);
 
-        let a = LinearCombination {
-            terms: HashMap::from_iter(vec![(*x, one)]),
-            constant: zero,
-        };
-
-        let b = LinearCombination {
-            terms: HashMap::new(),
-            constant: *cst,
-        };
-
-        let c = LinearCombination {
-            terms: HashMap::from_iter(vec![(res, one)]),
-            constant: zero,
-        };
+        let a = LinearCombination::from_vars(vec![*x]);
+        let b = LinearCombination::from_const(*cst);
+        let c = LinearCombination::from_vars(vec![res]);
 
         self.add_constraint(
             "mul constraint: x * cst = res",
@@ -457,23 +437,10 @@ impl Backend for R1csBls12_381 {
         // a = x
         // b = 1
         // c = cst
-        let one = Fr::from(1);
-        let zero = Fr::from(0);
 
-        let a = LinearCombination {
-            terms: HashMap::from_iter(vec![(*x, one)]),
-            constant: zero,
-        };
-
-        let b = LinearCombination {
-            terms: HashMap::new(),
-            constant: one,
-        };
-
-        let c = LinearCombination {
-            terms: HashMap::new(),
-            constant: cst,
-        };
+        let a = LinearCombination::from_vars(vec![*x]);
+        let b = LinearCombination::one();
+        let c = LinearCombination::from_const(cst);
 
         self.add_constraint(
             "eq constraint: x = cst",
@@ -491,23 +458,10 @@ impl Backend for R1csBls12_381 {
         // a = lhs
         // b = 1
         // c = rhs
-        let one = Fr::from(1);
-        let zero = Fr::from(0);
 
-        let a = LinearCombination {
-            terms: HashMap::from_iter([(*lhs, one)]),
-            constant: zero,
-        };
-
-        let b = LinearCombination {
-            terms: HashMap::new(),
-            constant: one,
-        };
-
-        let c = LinearCombination {
-            terms: HashMap::from_iter([(*rhs, one)]),
-            constant: zero,
-        };
+        let a = LinearCombination::from_vars(vec![*lhs]);
+        let b = LinearCombination::one();
+        let c = LinearCombination::from_vars(vec![*rhs]);
 
         self.add_constraint(
             "eq constraint: lhs = rhs",
