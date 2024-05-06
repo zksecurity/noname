@@ -233,3 +233,132 @@ impl VerifierIndex {
         .wrap_err("kimchi: failed to verify the proof")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use kimchi::circuits::constraints::GateError;
+
+    use crate::{
+        backends::kimchi::{KimchiVesta, VestaField},
+        compiler::{compile, generate_witness, typecheck_next_file, Sources},
+        inputs::parse_inputs,
+        type_checker::TypeChecker,
+    };
+
+    #[test]
+    fn test_public_output_constraint() -> miette::Result<()> {
+        let code = r#"fn main(pub public_input: Field, private_input: Field) -> Field {
+            let xx = private_input + public_input;
+            assert_eq(xx, 2);
+            let yy = xx + 6;
+            return yy;
+        }"#;
+
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let this_module = None;
+        let _node_id = typecheck_next_file(
+            &mut tast,
+            this_module,
+            &mut sources,
+            "inline_test_output.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        // parse inputs
+        let public_inputs = parse_inputs(r#"{"public_input": "1"}"#).unwrap();
+        let private_inputs = parse_inputs(r#"{"private_input": "1"}"#).unwrap();
+
+        let public_input_val: u64 = public_inputs
+            .0
+            .get("public_input")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse()
+            .unwrap();
+        let output_val = 8;
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            public_inputs,
+            private_inputs,
+        )?;
+
+        assert_eq!(
+            generated_witness.full_public_inputs,
+            vec![
+                VestaField::from(public_input_val),
+                VestaField::from(output_val)
+            ]
+        );
+
+        let mut full_public_inputs = generated_witness.full_public_inputs.clone();
+        let mut witness = generated_witness.all_witness.to_kimchi_witness();
+        let gate_count = prover_index.compiled_circuit.circuit.backend.gates.len();
+        assert_eq!(gate_count, 6);
+        assert_eq!(witness[0][0], VestaField::from(public_input_val));
+        // this is the gate contains the output var
+        let output_row = 1;
+        assert_eq!(witness[0][output_row], VestaField::from(output_val));
+        // this is the assert_eq gate which contains result var and the output var
+        let result_row = gate_count - 1;
+        assert_eq!(witness[0][result_row], VestaField::from(output_val));
+
+        // should pass the sanity check
+        prover_index
+            .index
+            .verify(&witness, &full_public_inputs)
+            .unwrap();
+
+        // first fradulent attempt: modifying one of the public output values
+        // attemp to modify the output value
+        let invalid_output = VestaField::from(output_val + 1);
+        full_public_inputs[1] = invalid_output;
+
+        // this is the gate for the output value
+        witness[0][output_row] = invalid_output;
+
+        // verify the witness
+        let result = prover_index.index.verify(&witness, &full_public_inputs);
+
+        assert!(result.is_err(), "should failed with incorrect output");
+
+        // should fail the wire check, since the output value at the end (row 5) is different from this change (row 1)
+        match result.unwrap_err() {
+            GateError::DisconnectedWires(w1, w2) => {
+                assert_eq!(w1.row, output_row);
+                assert_eq!(w1.col, 0);
+                assert_eq!(w2.row, result_row);
+                assert_eq!(w2.col, 0);
+            }
+            _ => panic!("Expected DisconnectedWires error"),
+        }
+
+        // second fradulent attempt: sync the value for all the output vars in all the gates
+        witness[0][result_row] = invalid_output;
+
+        let result = prover_index.index.verify(&witness, &full_public_inputs);
+
+        assert!(result.is_err(), "should failed with incorrect output");
+
+        // should fail the wire check, since the output value is different from the result value in the last gate
+        match result.unwrap_err() {
+            GateError::Custom { row, err } => {
+                assert_eq!(row, result_row);
+                assert_eq!(err, "generic: incorrect gate");
+            }
+            _ => panic!("Expected incorrect generic gate error"),
+        }
+
+        Ok(())
+    }
+}
