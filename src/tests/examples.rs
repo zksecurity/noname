@@ -3,10 +3,14 @@ use std::path::Path;
 use rstest::rstest;
 
 use crate::{
-    backends::{kimchi::{KimchiVesta, VestaField}, r1cs::R1csBls12_381, BackendKind},
+    backends::{
+        kimchi::{KimchiVesta, VestaField},
+        r1cs::R1csBls12_381,
+        BackendKind,
+    },
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, ExtField},
-    type_checker::TypeChecker
+    type_checker::TypeChecker,
 };
 
 fn test_file(
@@ -48,7 +52,9 @@ fn test_file(
 
             // check compiled ASM only if it's not too large
             if prover_index.len() < 100 {
-                let expected_asm = std::fs::read_to_string(prefix.clone().join(format!("{file_name}.asm"))).unwrap();
+                let expected_asm =
+                    std::fs::read_to_string(prefix.clone().join(format!("{file_name}.asm")))
+                        .unwrap();
 
                 let obtained_asm = prover_index.asm(&mut Sources::new(), false);
                 if obtained_asm != expected_asm {
@@ -60,16 +66,21 @@ fn test_file(
                 }
             }
 
-
             // create proof
-            let (proof, full_public_inputs, public_output) =
-                prover_index.prove(&sources, public_inputs.clone(), private_inputs.clone(), false)?;
+            let (proof, full_public_inputs, public_output) = prover_index.prove(
+                &sources,
+                public_inputs.clone(),
+                private_inputs.clone(),
+                false,
+            )?;
 
             if public_output != expected_public_output {
                 eprintln!("obtained by executing the circuit:");
                 public_output.iter().for_each(|x| eprintln!("- {x}"));
                 eprintln!("passed as output by the verifier:");
-                expected_public_output.iter().for_each(|x| eprintln!("- {x}"));
+                expected_public_output
+                    .iter()
+                    .for_each(|x| eprintln!("- {x}"));
                 panic!("Obtained output does not match expected output");
             }
 
@@ -94,8 +105,10 @@ fn test_file(
             let compiled_circuit = compile(&sources, tast, r1cs)?;
 
             // this should check the constraints
-            compiled_circuit.generate_witness(public_inputs.clone(), private_inputs.clone()).unwrap();
-        },
+            compiled_circuit
+                .generate_witness(public_inputs.clone(), private_inputs.clone())
+                .unwrap();
+        }
     }
 
     Ok(())
@@ -236,7 +249,7 @@ fn test_const(#[case] backend: BackendKind) -> miette::Result<()> {
         public_inputs,
         private_inputs,
         expected_public_output,
-        backend
+        backend,
     )?;
 
     Ok(())
@@ -273,7 +286,13 @@ fn test_types_array(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "1", "yy": "4"}"#;
 
-    test_file("types_array", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "types_array",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+    )?;
 
     Ok(())
 }
@@ -291,7 +310,7 @@ fn test_iterate(#[case] backend: BackendKind) -> miette::Result<()> {
         public_inputs,
         private_inputs,
         expected_public_output,
-        backend
+        backend,
     )?;
 
     Ok(())

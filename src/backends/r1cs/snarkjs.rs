@@ -1,20 +1,20 @@
 use ark_bls12_381::Fr;
 use ark_ff::fields::PrimeField;
 
+use crate::error::Result;
 use constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
 use itertools::Itertools;
-use crate::error::Result;
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};
-use std::io::{Seek, SeekFrom};
 use std::io::{BufWriter, Write};
+use std::io::{Seek, SeekFrom};
 use std::vec;
 
 // use ark_ff::BigInteger;
 
-use num_bigint_dig::BigInt;
 use super::{GeneratedWitness, LinearCombination, R1csBls12_381};
+use num_bigint_dig::BigInt;
 
 #[derive(Debug)]
 struct SnarkjsConstraint {
@@ -32,7 +32,7 @@ struct SnarkjsLinearCombination {
 impl SnarkjsLinearCombination {
     fn to_hashmap(&self) -> HashMap<usize, BigInt> {
         let mut terms = self.terms.clone();
-        
+
         // add the constant term with var indexed at 0
         if terms.insert(0, self.constant.clone()).is_some() {
             // sanity check
@@ -71,13 +71,16 @@ impl SnarkjsExporter {
     /// 2. The public outputs are stacked first.
     /// 3. The public inputs are stacked next.
     /// 4. The rest of the witness vars are stacked last.
-    pub fn new (r1cs_backend: R1csBls12_381) -> SnarkjsExporter {
+    pub fn new(r1cs_backend: R1csBls12_381) -> SnarkjsExporter {
         let mut witness_map = HashMap::new();
-        
+
         // group all the public items together
         // outputs are intended to be before inputs
-        let public_items = r1cs_backend.public_outputs.iter().chain(r1cs_backend.public_inputs.iter());
-        
+        let public_items = r1cs_backend
+            .public_outputs
+            .iter()
+            .chain(r1cs_backend.public_inputs.iter());
+
         // keep track of the public vars index for easy lookup
         let mut public_items_set: HashSet<usize> = HashSet::new();
 
@@ -108,12 +111,16 @@ impl SnarkjsExporter {
     /// - use witness mapper to re-arrange the variables.
     /// - convert the factors to BigInt.
     fn restructure_lc(&self, lc: &LinearCombination) -> SnarkjsLinearCombination {
-        let terms = lc.terms.iter().map(|(cvar, factor)| {
-            let new_index: usize = *self.witness_map.get(&cvar.index).unwrap();
-            let factor_bigint = Self::convert_to_bigint(factor);
+        let terms = lc
+            .terms
+            .iter()
+            .map(|(cvar, factor)| {
+                let new_index: usize = *self.witness_map.get(&cvar.index).unwrap();
+                let factor_bigint = Self::convert_to_bigint(factor);
 
-            (new_index, factor_bigint)
-        }).collect();
+                (new_index, factor_bigint)
+            })
+            .collect();
 
         let constant = Self::convert_to_bigint(&lc.constant);
 
@@ -158,7 +165,7 @@ impl SnarkjsExporter {
             .map(|x| x.1.clone())
             .collect::<Vec<_>>()
     }
-    
+
     /// Generate the r1cs file in snarkjs format.
     /// It uses the circom rust library to generate the r1cs file.
     /// The binary format spec: https://github.com/iden3/r1csfile/blob/master/doc/r1cs_bin_format.md
@@ -185,7 +192,7 @@ impl SnarkjsExporter {
         let header_data = HeaderData {
             // Snarkjs uses this meta data to determine which curve to use.
             field: prime,
-            // Both the sizes of public inputs and outputs will be crucial for the snarkjs to determine 
+            // Both the sizes of public inputs and outputs will be crucial for the snarkjs to determine
             // where to extract the public inputs and outputs from the witness vector.
             // Snarkjs prove command will generate a public.json file that contains the public inputs and outputs.
             // So if the sizes are not correct, the public.json will not be generated correctly, which might potential contains the private inputs.
@@ -222,11 +229,10 @@ impl SnarkjsExporter {
     }
 }
 
-
 /// Witness writer for generating the wtns file in snarkjs format.
 /// The circom rust lib seems not to have the API to generate the wtns file, so we create our own based on the snarkjs lib.
 /// The implementation follows: https://github.com/iden3/snarkjs/blob/577b3f358016a486402050d3b7242876082c085f/src/wtns_utils.js#L25
-/// It uses the same binary format as the r1cs file relies on. 
+/// It uses the same binary format as the r1cs file relies on.
 /// Although it is the same binary file protocol, but the witness file has simpler data points than the r1cs file.
 struct WitnessWriter {
     inner: BufWriter<File>,
@@ -239,9 +245,7 @@ struct WritingSection;
 
 impl WitnessWriter {
     // Initialize a FileWriter
-    fn new(
-        path: &str,
-    ) -> Result<WitnessWriter> {
+    fn new(path: &str) -> Result<WitnessWriter> {
         // file type for the witness file
         let file_type = "wtns";
         // version of the file format
@@ -282,11 +286,11 @@ impl WitnessWriter {
     /// Start a new section for writing.
     fn start_write_section(&mut self, id_section: u32) {
         // Write the section ID as ULE32
-        self.inner.write_all(&id_section.to_le_bytes()); 
+        self.inner.write_all(&id_section.to_le_bytes());
         // Get the current position
-        self.section_size_position = self.inner.stream_position().unwrap(); 
+        self.section_size_position = self.inner.stream_position().unwrap();
         // Temporarily write 0 as ULE64 for the section size
-        self.inner.write_all(&0u64.to_le_bytes()); 
+        self.inner.write_all(&0u64.to_le_bytes());
         self.writing_section = Some(WritingSection);
     }
 
@@ -294,16 +298,16 @@ impl WitnessWriter {
     fn end_write_section(&mut self) {
         let current_pos = self.inner.stream_position().unwrap();
         // Calculate the size of the section
-        let section_size = current_pos - self.section_size_position - 8; 
+        let section_size = current_pos - self.section_size_position - 8;
 
         // Move back to where the size needs to be written
-        self.inner.seek(SeekFrom::Start(self.section_size_position)); 
+        self.inner.seek(SeekFrom::Start(self.section_size_position));
         // Write the actual section size
-        self.inner.write_all(&section_size.to_le_bytes()); 
+        self.inner.write_all(&section_size.to_le_bytes());
         // Return to the end of the section
-        self.inner.seek(SeekFrom::Start(current_pos)); 
+        self.inner.seek(SeekFrom::Start(current_pos));
         // Flush the buffer to ensure all data is written to the file
-        self.inner.flush(); 
+        self.inner.flush();
 
         self.writing_section = None;
     }
@@ -322,7 +326,7 @@ impl WitnessWriter {
         self.write_big_int(prime.clone(), field_n_bytes);
         // Write the number of witnesses
         self.inner.write_all(&(witness.len() as u32).to_le_bytes());
-        
+
         self.end_write_section();
 
         // Start writing the second section
@@ -351,7 +355,12 @@ mod tests {
     use ark_bls12_381::Fr;
     use num_bigint_dig::BigInt;
 
-    use crate::{backends::{r1cs::R1csBls12_381, Backend}, constants::Span, var::Value, witness::WitnessEnv};
+    use crate::{
+        backends::{r1cs::R1csBls12_381, Backend},
+        constants::Span,
+        var::Value,
+        witness::WitnessEnv,
+    };
 
     #[test]
     fn test_restructure_witness() {
@@ -363,19 +372,25 @@ mod tests {
         let public_input_val = 3;
         let sum_val = var1_val + public_input_val;
         let var1 = r1cs.new_internal_var(Value::Constant(Fr::from(var1_val)), span);
-        let public_input_var = r1cs.add_public_input(Value::Constant(Fr::from(public_input_val)), span);
+        let public_input_var =
+            r1cs.add_public_input(Value::Constant(Fr::from(public_input_val)), span);
         let sum_var = r1cs.add(&var1, &public_input_var, span);
         r1cs.add_public_output(Value::PublicOutput(Some(sum_var)), span);
         let public_output_val = sum_val;
 
         // convert witness to snarkjs format
         let mut snarkjs_exporter = super::SnarkjsExporter::new(r1cs);
-        assert_eq!(snarkjs_exporter.witness_map.len(), snarkjs_exporter.r1cs_backend.witness_vars.len());
+        assert_eq!(
+            snarkjs_exporter.witness_map.len(),
+            snarkjs_exporter.r1cs_backend.witness_vars.len()
+        );
 
         // mock finalizing the circuit
         snarkjs_exporter.r1cs_backend.finalized = true;
         let mut witness_env = WitnessEnv::default();
-        let generated_witness = snarkjs_exporter.r1cs_backend.generate_witness(&mut witness_env);
+        let generated_witness = snarkjs_exporter
+            .r1cs_backend
+            .generate_witness(&mut witness_env);
 
         let rearranged_witness = snarkjs_exporter.restructure_witness(generated_witness.unwrap());
 
@@ -386,7 +401,7 @@ mod tests {
                 BigInt::from(1),
                 // output ordered before input
                 BigInt::from(public_output_val),
-                // public input 
+                // public input
                 BigInt::from(public_input_val),
                 // private inputs (the rest of the witness vars)
                 BigInt::from(var1_val),
@@ -397,16 +412,23 @@ mod tests {
         // instead, maybe refactor this test to check if the constraits are evaluated to zero with the reordered witness?
         // so we just check the accrued results (to simplify this test)
         let restructure_constraints = snarkjs_exporter.restructure_constraints();
-        for (rc, oc) in restructure_constraints.iter().zip(snarkjs_exporter.r1cs_backend.constraints.iter()) {
+        for (rc, oc) in restructure_constraints
+            .iter()
+            .zip(snarkjs_exporter.r1cs_backend.constraints.iter())
+        {
             // concat the terms from a b c
             let all_original_terms = [oc.a.terms.clone(), oc.b.terms.clone(), oc.c.terms.clone()];
-            let all_restructured_terms = [rc.a.terms.clone(), rc.b.terms.clone(), rc.c.terms.clone()];
+            let all_restructured_terms =
+                [rc.a.terms.clone(), rc.b.terms.clone(), rc.c.terms.clone()];
 
             for (oterms, rterms) in all_original_terms.iter().zip(all_restructured_terms) {
                 assert_eq!(oterms.len(), rterms.len());
                 for original_var in oterms.keys() {
                     // check if the original var is in the restructured terms after reordering
-                    let new_index = snarkjs_exporter.witness_map.get(&original_var.index).unwrap();
+                    let new_index = snarkjs_exporter
+                        .witness_map
+                        .get(&original_var.index)
+                        .unwrap();
                     assert!(rterms.contains_key(new_index));
                 }
             }

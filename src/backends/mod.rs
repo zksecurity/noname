@@ -86,7 +86,12 @@ pub trait Backend: Clone {
         self.compute_val(env, self.witness_vars(var), var.index)
     }
 
-    fn compute_val(&self, env: &mut WitnessEnv<Self::Field>, val: &Value<Self>, var_index: usize) -> Result<Self::Field> {
+    fn compute_val(
+        &self,
+        env: &mut WitnessEnv<Self::Field>,
+        val: &Value<Self>,
+        var_index: usize,
+    ) -> Result<Self::Field> {
         if let Some(res) = env.cached_values.get(&var_index) {
             return Ok(*res);
         }

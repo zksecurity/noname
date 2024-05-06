@@ -1,8 +1,8 @@
 use clap::Parser as _;
 use miette::Result;
 use noname::cli::{
-    cmd_build, cmd_check, cmd_init, cmd_new, cmd_prove, cmd_test, cmd_run, cmd_verify, CmdBuild, CmdCheck,
-    CmdInit, CmdNew, CmdProve, CmdTest, CmdRun, CmdVerify,
+    cmd_build, cmd_check, cmd_init, cmd_new, cmd_prove, cmd_run, cmd_test, cmd_verify, CmdBuild,
+    CmdCheck, CmdInit, CmdNew, CmdProve, CmdRun, CmdTest, CmdVerify,
 };
 
 #[derive(clap::Parser)]
@@ -35,7 +35,7 @@ enum Commands {
     //Clean,
     /// Generate circuit and witness
     Run(CmdRun),
-    
+
     /// Run the main function and produce a proof
     Prove(CmdProve),
 

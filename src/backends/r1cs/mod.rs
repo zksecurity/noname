@@ -3,16 +3,19 @@ pub mod snarkjs;
 
 use std::collections::{HashMap, HashSet};
 
-use std::ops::Neg;
 use ark_bls12_381::Fr;
 use ark_ff::{Field, Zero};
+use std::ops::Neg;
 
 use itertools::izip;
 use kimchi::circuits::polynomials::foreign_field_add::witness;
 use num_bigint_dig::{BigInt, Sign};
 
 use crate::error::{Error, ErrorKind};
-use crate::{circuit_writer::DebugInfo, var::{CellVar, Value}};
+use crate::{
+    circuit_writer::DebugInfo,
+    var::{CellVar, Value},
+};
 
 use super::Backend;
 
@@ -92,7 +95,6 @@ impl Constraint {
     }
 }
 
-
 /// R1CS backend with bls12_381 field.
 #[derive(Clone)]
 pub struct R1csBls12_381 {
@@ -129,12 +131,7 @@ impl R1csBls12_381 {
 
     /// Add an r1cs constraint that is 3 linear combinations.
     /// This represents one constraint: a * b = c
-    fn add_constraint(
-        &mut self,
-        note: &str,
-        c: Constraint,
-        span: crate::constants::Span,
-    ) {
+    fn add_constraint(&mut self, note: &str, c: Constraint, span: crate::constants::Span) {
         let debug_info = DebugInfo {
             note: note.to_string(),
             span,
@@ -255,16 +252,19 @@ impl Backend for R1csBls12_381 {
         assert!(self.finalized, "the circuit is not finalized yet!");
 
         // generate witness through witness vars vector
-        let mut witness = self.witness_vars.iter().enumerate().map(|(index, val)| {
-            match val {
-                // Defer calculation for output vars.
-                // The reasoning behind this is to avoid deep recursion potentially triggered by the public output var at the beginning.
-                Value::PublicOutput(_) => Ok(Fr::zero()),
-                _ => {
-                    self.compute_val(witness_env, val, index)
+        let mut witness = self
+            .witness_vars
+            .iter()
+            .enumerate()
+            .map(|(index, val)| {
+                match val {
+                    // Defer calculation for output vars.
+                    // The reasoning behind this is to avoid deep recursion potentially triggered by the public output var at the beginning.
+                    Value::PublicOutput(_) => Ok(Fr::zero()),
+                    _ => self.compute_val(witness_env, val, index),
                 }
-            }
-        }).collect::<crate::error::Result<Vec<Fr>>>()?;
+            })
+            .collect::<crate::error::Result<Vec<Fr>>>()?;
 
         // The original vars of public outputs are not part of the constraints
         // so we need to compute them separately
@@ -273,7 +273,9 @@ impl Backend for R1csBls12_381 {
             witness[var.index] = val;
         }
 
-        for (index, (constraint, debug_info)) in izip!(&self.constraints, &self.debug_info).enumerate() {
+        for (index, (constraint, debug_info)) in
+            izip!(&self.constraints, &self.debug_info).enumerate()
+        {
             // assert a * b = c
             let ab = constraint.a.evaluate(&witness) * constraint.b.evaluate(&witness);
             let c = constraint.c.evaluate(&witness);
@@ -294,7 +296,7 @@ impl Backend for R1csBls12_381 {
     fn generate_asm(&self, sources: &crate::compiler::Sources, debug: bool) -> String {
         todo!()
     }
-    
+
     fn neg(&mut self, x: &CellVar, span: crate::constants::Span) -> CellVar {
         // To constrain:
         // x + (-x) = 0
@@ -307,21 +309,18 @@ impl Backend for R1csBls12_381 {
         let one = Fr::from(1);
         let zero = Fr::from(0);
 
-        let x_neg = self.new_internal_var(Value::LinearCombination(vec![(one.neg(), *x)], zero), span);
+        let x_neg =
+            self.new_internal_var(Value::LinearCombination(vec![(one.neg(), *x)], zero), span);
 
         let a = LinearCombination::from_vars(vec![*x, x_neg]);
         let b = LinearCombination::one();
         let c = LinearCombination::zero();
 
-        self.add_constraint(
-            "neg constraint: x + (-x) = 0",
-            Constraint{a, b, c},
-            span
-        );
+        self.add_constraint("neg constraint: x + (-x) = 0", Constraint { a, b, c }, span);
 
         x_neg
     }
-    
+
     fn add(&mut self, lhs: &CellVar, rhs: &CellVar, span: crate::constants::Span) -> CellVar {
         // To constrain:
         // lhs + rhs = res
@@ -334,7 +333,10 @@ impl Backend for R1csBls12_381 {
         let one = Fr::from(1);
         let zero = Fr::from(0);
 
-        let res = self.new_internal_var(Value::LinearCombination(vec![(one, *lhs), (one, *rhs)], zero), span);
+        let res = self.new_internal_var(
+            Value::LinearCombination(vec![(one, *lhs), (one, *rhs)], zero),
+            span,
+        );
 
         // IMPORTANT: since terms use CellVar as key,
         // HashMap automatically overrides it to single one term if the two vars are the same CellVar
@@ -352,14 +354,19 @@ impl Backend for R1csBls12_381 {
 
         self.add_constraint(
             "add constraint: lhs + rhs = res",
-            Constraint{a, b, c},
-            span
+            Constraint { a, b, c },
+            span,
         );
 
         res
     }
-    
-    fn add_const(&mut self, x: &CellVar, cst: &Self::Field, span: crate::constants::Span) -> CellVar {
+
+    fn add_const(
+        &mut self,
+        x: &CellVar,
+        cst: &Self::Field,
+        span: crate::constants::Span,
+    ) -> CellVar {
         // To constrain:
         // x + cst = res
         // given:
@@ -382,13 +389,13 @@ impl Backend for R1csBls12_381 {
 
         self.add_constraint(
             "add constraint: x + cst = res",
-            Constraint{a, b, c},
-            span
+            Constraint { a, b, c },
+            span,
         );
 
         res
     }
-    
+
     fn mul(&mut self, lhs: &CellVar, rhs: &CellVar, span: crate::constants::Span) -> CellVar {
         // To constrain:
         // lhs * rhs = res
@@ -407,14 +414,19 @@ impl Backend for R1csBls12_381 {
 
         self.add_constraint(
             "mul constraint: lhs * rhs = res",
-            Constraint{a, b, c},
-            span
+            Constraint { a, b, c },
+            span,
         );
 
         res
     }
-    
-    fn mul_const(&mut self, x: &CellVar, cst: &Self::Field, span: crate::constants::Span) -> CellVar {
+
+    fn mul_const(
+        &mut self,
+        x: &CellVar,
+        cst: &Self::Field,
+        span: crate::constants::Span,
+    ) -> CellVar {
         // To constrain:
         // x * cst = res
         // given:
@@ -432,13 +444,13 @@ impl Backend for R1csBls12_381 {
 
         self.add_constraint(
             "mul constraint: x * cst = res",
-            Constraint{a, b, c},
-            span
+            Constraint { a, b, c },
+            span,
         );
 
         res
     }
-    
+
     fn assert_eq_const(&mut self, x: &CellVar, cst: Self::Field, span: crate::constants::Span) {
         // To constrain:
         // x = cst
@@ -453,11 +465,7 @@ impl Backend for R1csBls12_381 {
         let b = LinearCombination::one();
         let c = LinearCombination::from_const(cst);
 
-        self.add_constraint(
-            "eq constraint: x = cst",
-            Constraint{a, b, c},
-            span
-        );
+        self.add_constraint("eq constraint: x = cst", Constraint { a, b, c }, span);
     }
 
     fn assert_eq_var(&mut self, lhs: &CellVar, rhs: &CellVar, span: crate::constants::Span) {
@@ -474,13 +482,9 @@ impl Backend for R1csBls12_381 {
         let b = LinearCombination::one();
         let c = LinearCombination::from_vars(vec![*rhs]);
 
-        self.add_constraint(
-            "eq constraint: lhs = rhs",
-            Constraint{a, b, c},
-            span
-        );
+        self.add_constraint("eq constraint: lhs = rhs", Constraint { a, b, c }, span);
     }
-    
+
     /// Adds the public input cell vars.
     fn add_public_input(&mut self, val: Value<Self>, span: crate::constants::Span) -> CellVar {
         let var = self.new_internal_var(val, span);
@@ -488,7 +492,7 @@ impl Backend for R1csBls12_381 {
 
         var
     }
-    
+
     /// Adds the public output cell vars.
     fn add_public_output(&mut self, val: Value<Self>, span: crate::constants::Span) -> CellVar {
         let var = self.new_internal_var(val, span);
@@ -497,4 +501,3 @@ impl Backend for R1csBls12_381 {
         var
     }
 }
-

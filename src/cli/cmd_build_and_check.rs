@@ -304,7 +304,7 @@ pub struct CmdRun {
     path: Option<PathBuf>,
 
     /// Backend to use for running the noname file.
-    /// supported backends: 
+    /// supported backends:
     /// - `snarkjs-r1cs`
     #[clap(short, long, value_parser)]
     backend: Option<String>,
@@ -320,24 +320,24 @@ pub struct CmdRun {
 
 pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
     let curr_dir = args
-    .path
-    .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
+        .path
+        .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-let backend = args.backend.unwrap();
+    let backend = args.backend.unwrap();
 
-// parse inputs
+    // parse inputs
     let public_inputs = if let Some(s) = args.public_inputs {
         parse_inputs(&s)?
     } else {
         JsonInputs::default()
     };
-    
+
     let private_inputs = if let Some(s) = args.private_inputs {
         parse_inputs(&s)?
     } else {
         JsonInputs::default()
     };
-    
+
     match backend.as_str() {
         "kimchi-vesta" => todo!(),
         "snarkjs-r1cs" => {
@@ -355,7 +355,10 @@ let backend = args.backend.unwrap();
 
             snarkjs_exporter.gen_r1cs_file(&curr_dir.join("output.r1cs").into_string());
 
-            snarkjs_exporter.gen_wtns_file(&curr_dir.join("output.wtns").into_string(), generated_witness);
+            snarkjs_exporter.gen_wtns_file(
+                &curr_dir.join("output.wtns").into_string(),
+                generated_witness,
+            );
         }
         _ => miette::bail!("unknown backend: `{}`", backend),
     }
