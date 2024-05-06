@@ -229,13 +229,11 @@ impl Backend for R1csBls12_381 {
         }
 
         // check if every cell vars end up being a cell var in the circuit or public output
-        for index in 0..self.witness_vars.len() {
-            if !written_vars.contains(&index) {
-                // check if outputs contains the cell var that has the same index
-                if !self.public_outputs.iter().any(|&x| x.index == index) {
-                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
-                }
-            }
+        for (index, _) in self.witness_vars.iter().enumerate() {
+            assert!(
+                written_vars.contains(&index),
+                "there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"
+            );
         }
 
         self.finalized = true;
