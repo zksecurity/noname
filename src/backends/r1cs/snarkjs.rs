@@ -239,7 +239,7 @@ struct WritingSection;
 
 impl WitnessWriter {
     // Initialize a FileWriter
-    pub fn new(
+    fn new(
         path: &str,
     ) -> Result<WitnessWriter> {
         // file type for the witness file
@@ -280,7 +280,7 @@ impl WitnessWriter {
     }
 
     /// Start a new section for writing.
-    pub fn start_write_section(&mut self, id_section: u32) {
+    fn start_write_section(&mut self, id_section: u32) {
         // Write the section ID as ULE32
         self.inner.write_all(&id_section.to_le_bytes()); 
         // Get the current position
@@ -291,7 +291,7 @@ impl WitnessWriter {
     }
 
     /// End the current section
-    pub fn end_write_section(&mut self) {
+    fn end_write_section(&mut self) {
         let current_pos = self.inner.stream_position().unwrap();
         // Calculate the size of the section
         let section_size = current_pos - self.section_size_position - 8; 
@@ -312,7 +312,7 @@ impl WitnessWriter {
     /// It stores the two sections:
     /// - Header section: describes the field size, prime field, and the number of witnesses.
     /// - Witness section: contains the witness values.
-    pub fn write(&mut self, witness: Vec<BigInt>, prime: &BigInt) {
+    fn write(&mut self, witness: Vec<BigInt>, prime: &BigInt) {
         // Start writing the first section
         self.start_write_section(1);
         // Write field size in number of bytes

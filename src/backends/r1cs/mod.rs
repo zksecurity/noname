@@ -29,7 +29,7 @@ pub struct LinearCombination {
 
 impl LinearCombination {
     /// Evaluate the linear combination with the given witness.
-    pub fn evaluate(&self, witness: &[Fr]) -> Fr {
+    fn evaluate(&self, witness: &[Fr]) -> Fr {
         let mut sum = Fr::zero();
 
         for (var, factor) in &self.terms {
@@ -42,7 +42,7 @@ impl LinearCombination {
     }
 
     /// Create a linear combination to represent constant one.
-    pub fn one() -> Self {
+    fn one() -> Self {
         LinearCombination {
             terms: HashMap::new(),
             constant: Fr::from(1),
@@ -50,7 +50,7 @@ impl LinearCombination {
     }
 
     /// Create a linear combination to represent constant zero.
-    pub fn zero() -> Self {
+    fn zero() -> Self {
         LinearCombination {
             terms: HashMap::new(),
             constant: Fr::from(0),
@@ -58,7 +58,7 @@ impl LinearCombination {
     }
 
     /// Create a linear combination from a list of vars
-    pub fn from_vars(vars: Vec<CellVar>) -> Self {
+    fn from_vars(vars: Vec<CellVar>) -> Self {
         let terms = vars.into_iter().map(|var| (var, Fr::from(1))).collect();
         LinearCombination {
             terms,
@@ -67,7 +67,7 @@ impl LinearCombination {
     }
 
     /// Create a linear combination from a constant.
-    pub fn from_const(cst: Fr) -> Self {
+    fn from_const(cst: Fr) -> Self {
         LinearCombination {
             terms: HashMap::new(),
             constant: cst,
@@ -87,7 +87,7 @@ pub struct Constraint {
 
 impl Constraint {
     /// Convert the 3 linear combinations to an array.
-    pub fn as_array(&self) -> [&LinearCombination; 3] {
+    fn as_array(&self) -> [&LinearCombination; 3] {
         [&self.a, &self.b, &self.c]
     }
 }
@@ -129,7 +129,7 @@ impl R1csBls12_381 {
 
     /// Add an r1cs constraint that is 3 linear combinations.
     /// This represents one constraint: a * b = c
-    pub fn add_constraint(
+    fn add_constraint(
         &mut self,
         note: &str,
         c: Constraint,
@@ -146,7 +146,7 @@ impl R1csBls12_381 {
 
     /// Compute the number of private inputs
     /// based on the number of all witness variables, public inputs and public outputs.
-    pub fn private_input_number(&self) -> usize {
+    fn private_input_number(&self) -> usize {
         self.witness_vars.len() - self.public_inputs.len() - self.public_outputs.len()
     }
 }
