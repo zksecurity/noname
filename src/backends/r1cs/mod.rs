@@ -256,7 +256,14 @@ impl Backend for R1csBls12_381 {
 
         // generate witness through witness vars vector
         let mut witness = self.witness_vars.iter().enumerate().map(|(index, val)| {
-            self.compute_val(witness_env, val, index)
+            match val {
+                // Defer calculation for output vars.
+                // The reasoning behind this is to avoid deep recursion potentially triggered by the public output var at the beginning.
+                Value::PublicOutput(_) => Ok(Fr::zero()),
+                _ => {
+                    self.compute_val(witness_env, val, index)
+                }
+            }
         }).collect::<crate::error::Result<Vec<Fr>>>()?;
 
         // The original vars of public outputs are not part of the constraints
