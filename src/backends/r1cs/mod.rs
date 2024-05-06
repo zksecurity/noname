@@ -7,9 +7,11 @@ use std::ops::Neg;
 use ark_bls12_381::Fr;
 use ark_ff::{Field, Zero};
 
+use itertools::izip;
 use kimchi::circuits::polynomials::foreign_field_add::witness;
 use num_bigint_dig::{BigInt, Sign};
 
+use crate::error::{Error, ErrorKind};
 use crate::{circuit_writer::DebugInfo, var::{CellVar, Value}};
 
 use super::Backend;
@@ -264,12 +266,18 @@ impl Backend for R1csBls12_381 {
             witness[var.index] = val;
         }
 
-        for constraint in &self.constraints {
+        for (index, (constraint, debug_info)) in izip!(&self.constraints, &self.debug_info).enumerate() {
             // assert a * b = c
-            assert_eq!(
-                constraint.a.evaluate(&witness) * constraint.b.evaluate(&witness), 
-                constraint.c.evaluate(&witness)
-            );
+            let ab = constraint.a.evaluate(&witness) * constraint.b.evaluate(&witness);
+            let c = constraint.c.evaluate(&witness);
+
+            if ab != c {
+                return Err(Error::new(
+                    "runtime",
+                    ErrorKind::InvalidWitness(index),
+                    debug_info.span,
+                ));
+            }
         }
 
         Ok(GeneratedWitness { witness })
