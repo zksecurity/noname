@@ -236,17 +236,13 @@ impl VerifierIndex {
 
 #[cfg(test)]
 mod tests {
+    use kimchi::circuits::constraints::GateError;
+
     use crate::{
-        backends::{
-            kimchi::{KimchiVesta, VestaField},
-            Backend,
-        },
+        backends::kimchi::{KimchiVesta, VestaField},
         compiler::{compile, generate_witness, typecheck_next_file, Sources},
-        constants::Span,
         inputs::parse_inputs,
         type_checker::TypeChecker,
-        var::{ConstOrCell, Value, Var},
-        witness::WitnessEnv,
     };
 
     #[test]
@@ -308,12 +304,14 @@ mod tests {
         let mut full_public_inputs = generated_witness.full_public_inputs.clone();
         let mut witness = generated_witness.all_witness.to_kimchi_witness();
         let gate_count = prover_index.compiled_circuit.circuit.backend.gates.len();
-        // assert_eq!(gate_count, 6);
+        assert_eq!(gate_count, 6);
         assert_eq!(witness[0][0], VestaField::from(public_input_val));
         // this is the gate contains the output var
-        assert_eq!(witness[0][1], VestaField::from(output_val));
-        // this is the assert_eq gate which result var and the output var
-        // assert_eq!(witness[0][gate_count - 1], VestaField::from(output_val));
+        let output_row = 1;
+        assert_eq!(witness[0][output_row], VestaField::from(output_val));
+        // this is the assert_eq gate which contains result var and the output var
+        let result_row = gate_count - 1;
+        assert_eq!(witness[0][result_row], VestaField::from(output_val));
 
         // should pass the sanity check
         prover_index
@@ -321,23 +319,45 @@ mod tests {
             .verify(&witness, &full_public_inputs)
             .unwrap();
 
-        // modify the public output value
+        // first fradulent attempt: modifying one of the public output values
+        // attemp to modify the output value
         let invalid_output = VestaField::from(output_val + 1);
-        // this is the gate for the output value
-        witness[0][1] = invalid_output;
-        // this is the gate for constraining the output value to the result of the circuit
-        // witness[0][5] = invalid_output;
-
-        // use the same output value as the witness
         full_public_inputs[1] = invalid_output;
+
+        // this is the gate for the output value
+        witness[0][output_row] = invalid_output;
 
         // verify the witness
         let result = prover_index.index.verify(&witness, &full_public_inputs);
 
-        assert!(
-            result.is_err(),
-            "Sanity check on witness succeeded with incorrect output"
-        );
+        assert!(result.is_err(), "should failed with incorrect output");
+
+        // should fail the wire check, since the output value at the end (row 5) is different from this change (row 1)
+        match result.unwrap_err() {
+            GateError::DisconnectedWires(w1, w2) => {
+                assert_eq!(w1.row, output_row);
+                assert_eq!(w1.col, 0);
+                assert_eq!(w2.row, result_row);
+                assert_eq!(w2.col, 0);
+            }
+            _ => panic!("Expected DisconnectedWires error"),
+        }
+
+        // second fradulent attempt: sync the value for all the output vars in all the gates
+        witness[0][result_row] = invalid_output;
+
+        let result = prover_index.index.verify(&witness, &full_public_inputs);
+
+        assert!(result.is_err(), "should failed with incorrect output");
+
+        // should fail the wire check, since the output value is different from the result value in the last gate
+        match result.unwrap_err() {
+            GateError::Custom { row, err } => {
+                assert_eq!(row, result_row);
+                assert_eq!(err, "generic: incorrect gate");
+            }
+            _ => panic!("Expected incorrect generic gate error"),
+        }
 
         Ok(())
     }
