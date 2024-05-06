@@ -12,8 +12,6 @@ use num_bigint_dig::{BigInt, Sign};
 
 use crate::{circuit_writer::DebugInfo, var::{CellVar, Value}};
 
-use self::builtin::poseidon;
-
 use super::Backend;
 
 /// Linear combination of variables and constants.
@@ -167,7 +165,7 @@ impl Backend for R1csBls12_381 {
     }
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
-        poseidon
+        builtin::poseidon
     }
 
     fn new_internal_var(
@@ -252,9 +250,7 @@ impl Backend for R1csBls12_381 {
         &self,
         witness_env: &mut crate::witness::WitnessEnv<Self::Field>,
     ) -> crate::error::Result<Self::GeneratedWitness> {
-        if !self.finalized {
-            panic!("the circuit is not finalized yet!");
-        }
+        assert!(self.finalized, "the circuit is not finalized yet!");
 
         // generate witness through witness vars vector
         let mut witness = self.witness_vars.iter().enumerate().map(|(index, val)| {
