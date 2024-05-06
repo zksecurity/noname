@@ -241,50 +241,102 @@ mod tests {
             kimchi::{KimchiVesta, VestaField},
             Backend,
         },
+        compiler::{compile, generate_witness, typecheck_next_file, Sources},
         constants::Span,
+        inputs::parse_inputs,
+        type_checker::TypeChecker,
         var::{ConstOrCell, Value, Var},
         witness::WitnessEnv,
     };
 
     #[test]
     fn test_public_output_constraint() -> miette::Result<()> {
-        // setup a simple circuit
-        let mut backend = KimchiVesta::new(false);
+        let code = r#"fn main(pub public_input: Field, private_input: Field) -> Field {
+            let xx = private_input + public_input;
+            assert_eq(xx, 2);
+            let yy = xx + 6;
+            return yy;
+        }"#;
 
-        let span = Span::default();
-        let input_val = VestaField::from(1);
-        let input_var = backend.add_public_input(Value::Constant(input_val), span);
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let this_module = None;
+        let _node_id = typecheck_next_file(
+            &mut tast,
+            this_module,
+            &mut sources,
+            "inline_test_output.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
 
-        let output_var = backend.add_public_output(Value::PublicOutput(None), span);
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
 
-        // 1 + 1 = 2
-        let const_val = VestaField::from(1);
-        let res_val = input_val + const_val;
-        let res_var = backend.add_const(&input_var, &const_val, span);
-        let public_outputs = Some(Var::new_cvar(ConstOrCell::Cell(output_var), span));
-        let returned_cells = Some(Vec::from([res_var]));
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
 
-        backend
-            .finalize_circuit(public_outputs, returned_cells, vec![], span)
+        // parse inputs
+        let public_inputs = parse_inputs(r#"{"public_input": "1"}"#).unwrap();
+        let private_inputs = parse_inputs(r#"{"private_input": "1"}"#).unwrap();
+
+        let public_input_val: u64 = public_inputs
+            .0
+            .get("public_input")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse()
+            .unwrap();
+        let output_val = 8;
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            public_inputs,
+            private_inputs,
+        )?;
+
+        assert_eq!(
+            generated_witness.full_public_inputs,
+            vec![
+                VestaField::from(public_input_val),
+                VestaField::from(output_val)
+            ]
+        );
+
+        let mut full_public_inputs = generated_witness.full_public_inputs.clone();
+        let mut witness = generated_witness.all_witness.to_kimchi_witness();
+        let gate_count = prover_index.compiled_circuit.circuit.backend.gates.len();
+        // assert_eq!(gate_count, 6);
+        assert_eq!(witness[0][0], VestaField::from(public_input_val));
+        // this is the gate contains the output var
+        assert_eq!(witness[0][1], VestaField::from(output_val));
+        // this is the assert_eq gate which result var and the output var
+        // assert_eq!(witness[0][gate_count - 1], VestaField::from(output_val));
+
+        // should pass the sanity check
+        prover_index
+            .index
+            .verify(&witness, &full_public_inputs)
             .unwrap();
 
-        // test with kimchi prover
-        let mut witness_env = WitnessEnv::default();
-        let generated_witness = backend.generate_witness(&mut witness_env).unwrap();
-        let witness = generated_witness.all_witness.to_kimchi_witness();
+        // modify the public output value
+        let invalid_output = VestaField::from(output_val + 1);
+        // this is the gate for the output value
+        witness[0][1] = invalid_output;
+        // this is the gate for constraining the output value to the result of the circuit
+        // witness[0][5] = invalid_output;
 
-        let (prover_index, _) = backend.compile_to_indexes().unwrap();
+        // use the same output value as the witness
+        full_public_inputs[1] = invalid_output;
 
-        // correct output value
-        let mock_public_entries = [input_val, res_val];
-        prover_index.verify(&witness, &mock_public_entries).unwrap();
+        // verify the witness
+        let result = prover_index.index.verify(&witness, &full_public_inputs);
 
-        // incorrect output value
-        let mock_public_entries = [input_val, VestaField::from(1)];
-        let result = prover_index.verify(&witness, &mock_public_entries);
         assert!(
             result.is_err(),
-            "Verification unexpectedly succeeded with incorrect output"
+            "Sanity check on witness succeeded with incorrect output"
         );
 
         Ok(())
