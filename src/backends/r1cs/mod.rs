@@ -17,7 +17,12 @@ use crate::{
     var::{CellVar, Value},
 };
 
-use super::Backend;
+use super::{Backend, BackendField};
+
+// Because the associated field type is BackendField, we need to implement it for the actual field types in order to use them.
+// todo: are there better alternatives to this approach? (to have a combined trait while not having to implement it for each field type)
+impl BackendField for ark_bls12_381::Fr {}
+impl BackendField for ark_bn254::Fr {}
 
 /// Linear combination of variables and constants.
 /// For example, the linear combination is represented as a * f_a + b * f_b + f_c
