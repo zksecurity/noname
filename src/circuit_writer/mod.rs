@@ -223,6 +223,17 @@ impl<B: Backend> CircuitWriter<B> {
         let private_input_indices = circuit_writer.private_input_indices.clone();
         let public_output = circuit_writer.public_output.clone();
 
+        // constraint public outputs to the result of the circuit
+        if let Some(public_output) = &public_output {
+            let cvars = &public_output.cvars;
+
+            for (pub_var, ret_var) in cvars.iter().zip(&returned_cells.clone().unwrap()) {
+                circuit_writer
+                    .backend
+                    .assert_eq_var(pub_var.cvar().unwrap(), ret_var, main_span);
+            }
+        }
+
         circuit_writer.backend.finalize_circuit(
             public_output,
             returned_cells,

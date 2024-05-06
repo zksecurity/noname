@@ -341,7 +341,6 @@ impl Backend for KimchiVesta {
                 let prev = self
                     .witness_vars
                     .insert(var_idx, Value::PublicOutput(Some(ret_var)));
-                // .insert(var_idx, Value::PublicOutput(Some(*ret_var)));
                 assert!(prev.is_some());
             }
         }
@@ -361,11 +360,10 @@ impl Backend for KimchiVesta {
 
         let mut witness = vec![];
         // compute each rows' vars, except for the deferred ones (public output)
-        let mut public_outputs_vars: Vec<(usize, CellVar)> = vec![];
+        let mut public_outputs_vars: HashMap<CellVar, Vec<(usize, usize)>> = HashMap::new();
 
-        for (row, (gate, row_of_vars, debug_info)) in
-            izip!(self.gates.iter(), &self.rows_of_vars, &self.debug_info).enumerate()
-        {
+        // calculate witness except for public outputs
+        for (row, row_of_vars) in self.rows_of_vars.iter().enumerate() {
             // create the witness row
             let mut witness_row = [Self::Field::zero(); NUM_REGISTERS];
 
@@ -373,7 +371,10 @@ impl Backend for KimchiVesta {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
                     if matches!(self.witness_vars(*var), Value::PublicOutput(_)) {
-                        public_outputs_vars.push((row, *var));
+                        public_outputs_vars
+                            .entry(*var)
+                            .or_default()
+                            .push((row, col));
                         Self::Field::zero()
                     } else {
                         self.compute_var(witness_env, *var)?
@@ -384,7 +385,24 @@ impl Backend for KimchiVesta {
                 witness_row[col] = val;
             }
 
-            // check if the row makes sense
+            witness.push(witness_row);
+        }
+
+        // compute public output at last
+        let mut public_outputs = vec![];
+
+        for (var, rows_cols) in public_outputs_vars {
+            let val = self.compute_var(witness_env, var)?;
+            for (row, col) in rows_cols {
+                witness[row][col] = val;
+            }
+            public_outputs.push(val);
+        }
+
+        // sanity check the witness
+        for (row, (gate, witness_row, debug_info)) in
+            izip!(self.gates.iter(), &witness, &self.debug_info).enumerate()
+        {
             let is_not_public_input = row >= self.public_input_size;
             if is_not_public_input {
                 #[allow(clippy::single_match)]
@@ -414,18 +432,6 @@ impl Backend for KimchiVesta {
                     _ => (),
                 }
             }
-
-            //
-            witness.push(witness_row);
-        }
-
-        // compute public output at last
-        let mut public_outputs = vec![];
-
-        for (row, var) in public_outputs_vars {
-            let val = self.compute_var(witness_env, var)?;
-            witness[row][0] = val;
-            public_outputs.push(val);
         }
 
         // extract full public input (containing the public output)
