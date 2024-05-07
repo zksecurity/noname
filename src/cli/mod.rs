@@ -4,7 +4,9 @@ pub mod cmd_prove_and_verify;
 pub mod manifest;
 pub mod packages;
 
-pub use cmd_build_and_check::{cmd_build, cmd_check, cmd_test, CmdBuild, CmdCheck, CmdTest};
+pub use cmd_build_and_check::{
+    cmd_build, cmd_check, cmd_run, cmd_test, CmdBuild, CmdCheck, CmdRun, CmdTest,
+};
 pub use cmd_new_and_init::{cmd_init, cmd_new, CmdInit, CmdNew};
 pub use cmd_prove_and_verify::{cmd_prove, cmd_verify, CmdProve, CmdVerify};
 

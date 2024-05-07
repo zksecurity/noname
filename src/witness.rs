@@ -11,7 +11,6 @@ use crate::{
     error::{Error, ErrorKind, Result},
     inputs::JsonInputs,
     type_checker::FnInfo,
-    var::CellVar,
 };
 
 #[derive(Debug, Default)]
@@ -21,7 +20,7 @@ where
 {
     pub var_values: HashMap<String, Vec<F>>,
 
-    pub cached_values: HashMap<CellVar, F>,
+    pub cached_values: HashMap<usize, F>,
 }
 
 impl<F: Field> WitnessEnv<F> {

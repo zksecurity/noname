@@ -1,8 +1,8 @@
 use clap::Parser as _;
 use miette::Result;
 use noname::cli::{
-    cmd_build, cmd_check, cmd_init, cmd_new, cmd_prove, cmd_test, cmd_verify, CmdBuild, CmdCheck,
-    CmdInit, CmdNew, CmdProve, CmdTest, CmdVerify,
+    cmd_build, cmd_check, cmd_init, cmd_new, cmd_prove, cmd_run, cmd_test, cmd_verify, CmdBuild,
+    CmdCheck, CmdInit, CmdNew, CmdProve, CmdRun, CmdTest, CmdVerify,
 };
 
 #[derive(clap::Parser)]
@@ -33,10 +33,10 @@ enum Commands {
 
     // Remove the target directory. This command does not currently work
     //Clean,
-    /// Run the main function and produce a proof
-    Run(CmdProve),
+    /// Generate circuit and witness
+    Run(CmdRun),
 
-    /// An alias of the `--run` command.
+    /// Run the main function and produce a proof
     Prove(CmdProve),
 
     /// Verify a proof. This command does not currently work
@@ -59,7 +59,7 @@ fn main() -> Result<()> {
         Commands::Check(args) => cmd_check(args),
         //        Commands::Add => todo!(),
         //        Commands::Clean => todo!(),
-        Commands::Run(args) => cmd_prove(args),
+        Commands::Run(args) => cmd_run(args),
         Commands::Prove(args) => cmd_prove(args),
         Commands::Verify(args) => cmd_verify(args),
 

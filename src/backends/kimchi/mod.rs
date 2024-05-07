@@ -243,8 +243,8 @@ impl Backend for KimchiVesta {
         builtin::poseidon
     }
 
-    fn witness_vars(&self) -> &HashMap<usize, Value<Self>> {
-        &self.witness_vars
+    fn witness_vars(&self, var: CellVar) -> &Value<Self> {
+        self.witness_vars.get(&var.index).unwrap()
     }
 
     fn new_internal_var(&mut self, val: Value<KimchiVesta>, span: Span) -> CellVar {
@@ -370,7 +370,7 @@ impl Backend for KimchiVesta {
             for (col, var) in row_of_vars.iter().enumerate() {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
-                    if matches!(self.witness_vars()[&var.index], Value::PublicOutput(_)) {
+                    if matches!(self.witness_vars(*var), Value::PublicOutput(_)) {
                         public_outputs_vars
                             .entry(*var)
                             .or_default()
