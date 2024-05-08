@@ -222,6 +222,12 @@ pub struct CmdTest {
     #[clap(short, long, value_parser)]
     path: PathBuf,
 
+    /// Backend to use for running the noname file.
+    /// supported backends:
+    /// - `snarkjs-r1cs`
+    #[clap(short, long, value_parser)]
+    backend: String,
+
     /// public inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
     #[clap(long)]
     public_inputs: Option<String>,
@@ -234,6 +240,7 @@ pub struct CmdTest {
     #[clap(short, long)]
     debug: bool,
 
+    // todo: this is kimchi specific and it doesn't work atm. we might just remove this option at this stage?
     /// disable the double generic gate optimization of kimchi (by default noname uses that optimization)
     #[clap(long)]
     no_double: bool,
@@ -250,6 +257,8 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
             )
         })?;
 
+    let backend = args.backend;
+
     // parse inputs
     let public_inputs = if let Some(s) = args.public_inputs {
         parse_inputs(&s)?
@@ -265,34 +274,59 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
 
     // compile
     let mut sources = Sources::new();
-    let mut tast = TypeChecker::new();
-    let _node_id = typecheck_next_file(
-        &mut tast,
-        None,
-        &mut sources,
-        args.path.to_string(),
-        code,
-        0,
-    )?;
 
-    let kimchi_vesta = KimchiVesta::new(!args.no_double);
-    let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+    match backend.as_str() {
+        "kimchi-vesta" => {
+            let mut tast = TypeChecker::new();
+            let _node_id = typecheck_next_file(
+                &mut tast,
+                None,
+                &mut sources,
+                args.path.to_string(),
+                code,
+                0,
+            )?;
+            let kimchi_vesta = KimchiVesta::new(!args.no_double);
+            let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
 
-    let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
-    println!("successfully compiled");
+            let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
+            println!("successfully compiled");
 
-    // print ASM
-    let asm = prover_index.asm(&sources, args.debug);
-    println!("{asm}");
+            // print ASM
+            let asm = prover_index.asm(&sources, args.debug);
+            println!("{asm}");
 
-    // create proof
-    let (proof, full_public_inputs, _public_output) =
-        prover_index.prove(&sources, public_inputs, private_inputs, args.debug)?;
-    println!("proof created");
+            // create proof
+            let (proof, full_public_inputs, _public_output) =
+                prover_index.prove(&sources, public_inputs, private_inputs, args.debug)?;
+            println!("proof created");
 
-    // verify proof
-    verifier_index.verify(full_public_inputs, proof)?;
-    println!("proof verified");
+            // verify proof
+            verifier_index.verify(full_public_inputs, proof)?;
+            println!("proof verified");
+        }
+        "snarkjs-r1cs" => {
+            let mut tast = TypeChecker::new();
+            let _node_id = typecheck_next_file(
+                &mut tast,
+                None,
+                &mut sources,
+                args.path.to_string(),
+                code,
+                0,
+            )?;
+            let r1cs = R1csBls12_381::new();
+            let compiled_circuit = compile(&sources, tast, r1cs)?;
+
+            // print ASM
+            let asm = compiled_circuit.asm(&sources, args.debug);
+            println!("{asm}");
+
+            // generate and verify witness
+            compiled_circuit.generate_witness(public_inputs, private_inputs)?;
+        }
+        _ => miette::bail!("unknown backend: `{}`", backend),
+    }
 
     Ok(())
 }
