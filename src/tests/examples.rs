@@ -21,10 +21,11 @@ fn test_file(
     backend: BackendKind,
 ) -> miette::Result<()> {
     let version = env!("CARGO_MANIFEST_DIR");
-    let prefix = Path::new(version).join("examples");
+    let prefix_examples = Path::new(version).join("examples");
 
     // read noname file
-    let code = std::fs::read_to_string(prefix.clone().join(format!("{file_name}.no"))).unwrap();
+    let code =
+        std::fs::read_to_string(prefix_examples.clone().join(format!("{file_name}.no"))).unwrap();
 
     // parse inputs
     let public_inputs = parse_inputs(public_inputs).unwrap();
@@ -51,9 +52,10 @@ fn test_file(
             let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes().unwrap();
 
             // check compiled ASM only if it's not too large
+            let prefix_asm = prefix_examples.join("fixture/asm/kimchi");
             if prover_index.len() < 100 {
                 let expected_asm =
-                    std::fs::read_to_string(prefix.clone().join(format!("{file_name}.asm")))
+                    std::fs::read_to_string(prefix_asm.clone().join(format!("{file_name}.asm")))
                         .unwrap();
 
                 let obtained_asm = prover_index.asm(&mut Sources::new(), false);
@@ -108,6 +110,23 @@ fn test_file(
             compiled_circuit
                 .generate_witness(public_inputs.clone(), private_inputs.clone())
                 .unwrap();
+
+            // check the ASM
+            if compiled_circuit.circuit.backend.len() < 100 {
+                let prefix_asm = prefix_examples.join("fixture/asm/r1cs");
+                let expected_asm =
+                    std::fs::read_to_string(prefix_asm.clone().join(format!("{file_name}.asm")))
+                        .unwrap();
+                let obtained_asm = compiled_circuit.asm(&Sources::new(), false);
+
+                if obtained_asm != expected_asm {
+                    eprintln!("obtained:");
+                    eprintln!("{obtained_asm}");
+                    eprintln!("expected:");
+                    eprintln!("{expected_asm}");
+                    panic!("Obtained ASM does not match expected ASM");
+                }
+            }
         }
     }
 

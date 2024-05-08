@@ -7,16 +7,17 @@ use ark_bls12_381::Fr;
 use ark_ff::{Field, Zero};
 use std::ops::Neg;
 
-use itertools::izip;
-use kimchi::circuits::polynomials::foreign_field_add::witness;
+use itertools::{izip, Itertools};
 use num_bigint_dig::{BigInt, Sign};
 
 use crate::error::{Error, ErrorKind};
+use crate::helpers::PrettyField;
 use crate::{
     circuit_writer::DebugInfo,
     var::{CellVar, Value},
 };
 
+use super::kimchi::asm::display_source;
 use super::Backend;
 
 /// Linear combination of variables and constants.
@@ -119,6 +120,11 @@ impl R1csBls12_381 {
             public_outputs: Vec::new(),
             finalized: false,
         }
+    }
+
+    /// Returns the number of constraints.
+    pub fn len(&self) -> usize {
+        self.constraints.len()
     }
 
     // todo: how can we create this r1cs backend with different associated field types, but still using the same backend implementation? using macro?
@@ -290,9 +296,64 @@ impl Backend for R1csBls12_381 {
         Ok(GeneratedWitness { witness })
     }
 
-    // todo: we can think of a format for r1cs for easier debugging
     fn generate_asm(&self, sources: &crate::compiler::Sources, debug: bool) -> String {
-        todo!()
+        let zero = Fr::from(0);
+
+        let mut res = String::new();
+        res.push_str(&crate::helpers::noname_version());
+
+        for ((row, constraint), debug_info) in
+            izip!(self.constraints.iter().enumerate(), &self.debug_info)
+        {
+            if debug {
+                // first info row: show the current row of constraints
+                res.push_str(&format!("╭{}\n", "─".repeat(80)));
+                res.push_str(&format!("│ {row} │ "));
+            }
+
+            // format the a b c linear combinations in order
+            let fmt_lcs: Vec<String> = constraint
+                .as_array()
+                .iter()
+                .map(|lc| {
+                    let mut terms: Vec<String> = lc
+                        .terms
+                        .iter()
+                        // sort by var index to make it determisitic for asm generation
+                        .sorted_by(|(a, _), (b, _)| a.index.cmp(&b.index))
+                        .map(|(var, factor)| match factor.pretty().as_str() {
+                            // if the factor is 1, we don't need to show it
+                            "1" => format!("v_{}", var.index),
+                            _ => format!("{} * v_{}", factor.pretty(), var.index),
+                        })
+                        .collect();
+
+                    // ignore the constant if it's zero
+                    if lc.constant != zero {
+                        terms.push(lc.constant.pretty());
+                    }
+
+                    // check if it needs to cancatenate the terms with a plus sign
+                    match terms.len() {
+                        0 => "0".to_string(),
+                        1 => terms[0].clone(),
+                        _ => terms.join(" + "),
+                    }
+                })
+                .collect();
+
+            let (a, b, c) = (&fmt_lcs[0], &fmt_lcs[1], &fmt_lcs[2]);
+
+            // format an entire constraint
+            res.push_str(&format!("{} == ({}) * ({})\n", c, a, b));
+
+            if debug {
+                // link the constraint to the source code
+                display_source(&mut res, sources, &[debug_info.clone()]);
+            }
+        }
+
+        res
     }
 
     fn neg(&mut self, x: &CellVar, span: crate::constants::Span) -> CellVar {
