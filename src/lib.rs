@@ -63,4 +63,8 @@ pub mod helpers {
         sponge.absorb(&input);
         sponge.squeeze()
     }
+
+    pub fn noname_version() -> String {
+        format!("@ noname.{}\n\n", env!("CARGO_PKG_VERSION"))
+    }
 }

@@ -457,7 +457,7 @@ impl Backend for KimchiVesta {
         let mut res = "".to_string();
 
         // version
-        res.push_str("@ noname.0.7.0\n\n");
+        res.push_str(&crate::helpers::noname_version());
 
         // vars
         let mut vars: OrderedHashSet<VestaField> = OrderedHashSet::default();
