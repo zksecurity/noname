@@ -25,12 +25,18 @@ impl BackendField for ark_bn254::Fr {}
 /// a and b are represented by CellVar.
 /// The constant f_c is represented by the constant field, will always multiply with the variable at index 0 which is always 1.
 #[derive(Clone, Debug)]
-pub struct LinearCombination<F> where F: BackendField {
+pub struct LinearCombination<F>
+where
+    F: BackendField,
+{
     pub terms: HashMap<CellVar, F>,
     pub constant: F,
 }
 
-impl<F> LinearCombination<F> where F: BackendField {
+impl<F> LinearCombination<F>
+where
+    F: BackendField,
+{
     /// Evaluate the linear combination with the given witness.
     fn evaluate(&self, witness: &[F]) -> F {
         let mut sum = F::zero();
@@ -82,13 +88,19 @@ impl<F> LinearCombination<F> where F: BackendField {
 /// Each constraint comprises of 3 linear combinations from 3 matrices.
 /// It represents a constraint in math: a * b = c.
 #[derive(Clone, Debug)]
-pub struct Constraint<F> where F: BackendField {
+pub struct Constraint<F>
+where
+    F: BackendField,
+{
     pub a: LinearCombination<F>,
     pub b: LinearCombination<F>,
     pub c: LinearCombination<F>,
 }
 
-impl<F> Constraint<F> where F: BackendField {
+impl<F> Constraint<F>
+where
+    F: BackendField,
+{
     /// Convert the 3 linear combinations to an array.
     fn as_array(&self) -> [&LinearCombination<F>; 3] {
         [&self.a, &self.b, &self.c]
@@ -97,7 +109,10 @@ impl<F> Constraint<F> where F: BackendField {
 
 /// R1CS backend with bls12_381 field.
 #[derive(Clone)]
-pub struct R1CS<F> where F: BackendField {
+pub struct R1CS<F>
+where
+    F: BackendField,
+{
     /// Constraints in the r1cs.
     constraints: Vec<Constraint<F>>,
     witness_vars: Vec<Value<Self>>,
@@ -109,7 +124,10 @@ pub struct R1CS<F> where F: BackendField {
     finalized: bool,
 }
 
-impl<F> R1CS<F> where F: BackendField {
+impl<F> R1CS<F>
+where
+    F: BackendField,
+{
     pub fn new() -> Self {
         Self {
             constraints: Vec::new(),
@@ -147,11 +165,17 @@ impl<F> R1CS<F> where F: BackendField {
 
 #[derive(Debug)]
 /// An intermediate struct for SnarkjsExporter to reorder the witness and convert to snarkjs format.
-pub struct GeneratedWitness<F> where F: BackendField {
+pub struct GeneratedWitness<F>
+where
+    F: BackendField,
+{
     pub witness: Vec<F>,
 }
 
-impl<F> Backend for R1CS<F> where F: BackendField {
+impl<F> Backend for R1CS<F>
+where
+    F: BackendField,
+{
     type Field = F;
 
     type GeneratedWitness = GeneratedWitness<F>;
@@ -356,12 +380,7 @@ impl<F> Backend for R1CS<F> where F: BackendField {
         res
     }
 
-    fn add_const(
-        &mut self,
-        x: &CellVar,
-        cst: &F,
-        span: crate::constants::Span,
-    ) -> CellVar {
+    fn add_const(&mut self, x: &CellVar, cst: &F, span: crate::constants::Span) -> CellVar {
         // To constrain:
         // x + cst = res
         // given:
@@ -416,12 +435,7 @@ impl<F> Backend for R1CS<F> where F: BackendField {
         res
     }
 
-    fn mul_const(
-        &mut self,
-        x: &CellVar,
-        cst: &F,
-        span: crate::constants::Span,
-    ) -> CellVar {
+    fn mul_const(&mut self, x: &CellVar, cst: &F, span: crate::constants::Span) -> CellVar {
         // To constrain:
         // x * cst = res
         // given:

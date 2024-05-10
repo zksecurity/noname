@@ -3,7 +3,11 @@ use std::path::Path;
 use rstest::rstest;
 
 use crate::{
-    backends::{kimchi::{KimchiVesta, VestaField}, r1cs::R1CS, BackendKind},
+    backends::{
+        kimchi::{KimchiVesta, VestaField},
+        r1cs::R1CS,
+        BackendKind,
+    },
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, ExtField},
     type_checker::TypeChecker,

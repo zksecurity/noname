@@ -367,8 +367,12 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
             verifier_index.verify(full_public_inputs, proof)?;
             println!("proof verified");
         }
-        BackendKind::R1csBls12_381(r1cs) => run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?,
-        BackendKind::R1csBn128(r1cs) => run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?,
+        BackendKind::R1csBls12_381(r1cs) => {
+            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
+        }
+        BackendKind::R1csBn128(r1cs) => {
+            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
+        }
     }
 
     Ok(())

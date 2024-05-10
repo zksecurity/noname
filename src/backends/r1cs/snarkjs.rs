@@ -1,17 +1,17 @@
-use constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
-use itertools::Itertools;
 use crate::backends::BackendField;
 use crate::error::Result;
+use constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
+use itertools::Itertools;
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};
-use std::io::{BufWriter, Write, Seek, SeekFrom};
+use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::vec;
 
 // use ark_ff::BigInteger;
 
-use num_bigint_dig::BigInt;
 use super::{GeneratedWitness, LinearCombination, R1CS};
+use num_bigint_dig::BigInt;
 
 #[derive(Debug)]
 struct SnarkjsConstraint {
@@ -50,7 +50,10 @@ fn field_size(prime: &BigInt) -> usize {
 }
 
 /// A struct to export r1cs circuit and witness to the snarkjs formats.
-pub struct SnarkjsExporter<F> where F: BackendField {
+pub struct SnarkjsExporter<F>
+where
+    F: BackendField,
+{
     /// A R1CS backend with the circuit finalized.
     r1cs_backend: R1CS<F>,
     /// A mapping between the witness vars' indexes in the backend and the new indexes arranged for the snarkjs format.
@@ -61,14 +64,17 @@ pub struct SnarkjsExporter<F> where F: BackendField {
     witness_map: HashMap<usize, usize>,
 }
 
-impl<F> SnarkjsExporter<F> where F: BackendField {
+impl<F> SnarkjsExporter<F>
+where
+    F: BackendField,
+{
     /// During the initialization, the witness map is created to re-arrange the witness vector.
     /// The reordering of witness vars:
     /// 1. The first var is always reserved and valued as 1.
     /// 2. The public outputs are stacked first.
     /// 3. The public inputs are stacked next.
     /// 4. The rest of the witness vars are stacked last.
-    pub fn new (r1cs_backend: R1CS<F>) -> SnarkjsExporter<F> {
+    pub fn new(r1cs_backend: R1CS<F>) -> SnarkjsExporter<F> {
         let mut witness_map = HashMap::new();
 
         // group all the public items together
@@ -108,9 +114,12 @@ impl<F> SnarkjsExporter<F> where F: BackendField {
     /// - use witness mapper to re-arrange the variables.
     /// - convert the factors to BigInt.
     fn restructure_lc(&self, lc: &LinearCombination<F>) -> SnarkjsLinearCombination {
-        let terms = lc.terms.iter().map(|(cvar, factor)| {
-            let new_index: usize = *self.witness_map.get(&cvar.index).unwrap();
-            let factor_bigint = Self::convert_to_bigint(factor);
+        let terms = lc
+            .terms
+            .iter()
+            .map(|(cvar, factor)| {
+                let new_index: usize = *self.witness_map.get(&cvar.index).unwrap();
+                let factor_bigint = Self::convert_to_bigint(factor);
 
                 (new_index, factor_bigint)
             })
@@ -349,7 +358,12 @@ mod tests {
     use ark_bls12_381::Fr;
     use num_bigint_dig::BigInt;
 
-    use crate::{backends::{r1cs::R1CS, Backend}, constants::Span, var::Value, witness::WitnessEnv};
+    use crate::{
+        backends::{r1cs::R1CS, Backend},
+        constants::Span,
+        var::Value,
+        witness::WitnessEnv,
+    };
 
     #[test]
     fn test_restructure_witness() {
