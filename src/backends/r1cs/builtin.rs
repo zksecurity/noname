@@ -1,20 +1,15 @@
-use ark_bls12_381::Fr;
-
 use crate::{
-    circuit_writer::{CircuitWriter, VarInfo},
-    constants::Span,
-    error::Result,
-    var::Var,
+    backends::BackendField, circuit_writer::{CircuitWriter, VarInfo}, constants::Span, error::Result, var::Var
 };
 
-use super::R1csBls12_381;
+use super::R1CS;
 
 // todo: impl this
-pub fn poseidon(
-    compiler: &mut CircuitWriter<R1csBls12_381>,
-    vars: &[VarInfo<Fr>],
+pub fn poseidon<F>(
+    compiler: &mut CircuitWriter<R1CS<F>>,
+    vars: &[VarInfo<F>],
     span: Span,
-) -> Result<Option<Var<Fr>>> {
+) -> Result<Option<Var<F>>> where F: BackendField {
     // dummy for now
     unimplemented!()
 }

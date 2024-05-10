@@ -3,12 +3,7 @@ pub mod snarkjs;
 
 use std::collections::{HashMap, HashSet};
 
-use ark_bls12_381::Fr;
-use ark_ff::{Field, Zero};
-use std::ops::Neg;
-
 use itertools::izip;
-use kimchi::circuits::polynomials::foreign_field_add::witness;
 use num_bigint_dig::{BigInt, Sign};
 
 use crate::error::{Error, ErrorKind};
@@ -30,15 +25,15 @@ impl BackendField for ark_bn254::Fr {}
 /// a and b are represented by CellVar.
 /// The constant f_c is represented by the constant field, will always multiply with the variable at index 0 which is always 1.
 #[derive(Clone, Debug)]
-pub struct LinearCombination {
-    pub terms: HashMap<CellVar, Fr>,
-    pub constant: Fr,
+pub struct LinearCombination<F> where F: BackendField {
+    pub terms: HashMap<CellVar, F>,
+    pub constant: F,
 }
 
-impl LinearCombination {
+impl<F> LinearCombination<F> where F: BackendField {
     /// Evaluate the linear combination with the given witness.
-    fn evaluate(&self, witness: &[Fr]) -> Fr {
-        let mut sum = Fr::zero();
+    fn evaluate(&self, witness: &[F]) -> F {
+        let mut sum = F::zero();
 
         for (var, factor) in &self.terms {
             sum += *witness.get(var.index).unwrap() * factor;
@@ -53,7 +48,7 @@ impl LinearCombination {
     fn one() -> Self {
         LinearCombination {
             terms: HashMap::new(),
-            constant: Fr::from(1),
+            constant: F::one(),
         }
     }
 
@@ -61,21 +56,21 @@ impl LinearCombination {
     fn zero() -> Self {
         LinearCombination {
             terms: HashMap::new(),
-            constant: Fr::from(0),
+            constant: F::zero(),
         }
     }
 
     /// Create a linear combination from a list of vars
     fn from_vars(vars: Vec<CellVar>) -> Self {
-        let terms = vars.into_iter().map(|var| (var, Fr::from(1))).collect();
+        let terms = vars.into_iter().map(|var| (var, F::one())).collect();
         LinearCombination {
             terms,
-            constant: Fr::from(0),
+            constant: F::zero(),
         }
     }
 
     /// Create a linear combination from a constant.
-    fn from_const(cst: Fr) -> Self {
+    fn from_const(cst: F) -> Self {
         LinearCombination {
             terms: HashMap::new(),
             constant: cst,
@@ -87,25 +82,25 @@ impl LinearCombination {
 /// Each constraint comprises of 3 linear combinations from 3 matrices.
 /// It represents a constraint in math: a * b = c.
 #[derive(Clone, Debug)]
-pub struct Constraint {
-    pub a: LinearCombination,
-    pub b: LinearCombination,
-    pub c: LinearCombination,
+pub struct Constraint<F> where F: BackendField {
+    pub a: LinearCombination<F>,
+    pub b: LinearCombination<F>,
+    pub c: LinearCombination<F>,
 }
 
-impl Constraint {
+impl<F> Constraint<F> where F: BackendField {
     /// Convert the 3 linear combinations to an array.
-    fn as_array(&self) -> [&LinearCombination; 3] {
+    fn as_array(&self) -> [&LinearCombination<F>; 3] {
         [&self.a, &self.b, &self.c]
     }
 }
 
 /// R1CS backend with bls12_381 field.
 #[derive(Clone)]
-pub struct R1csBls12_381 {
+pub struct R1CS<F> where F: BackendField {
     /// Constraints in the r1cs.
-    constraints: Vec<Constraint>,
-    witness_vars: Vec<Value<R1csBls12_381>>,
+    constraints: Vec<Constraint<F>>,
+    witness_vars: Vec<Value<Self>>,
     debug_info: Vec<DebugInfo>,
     /// Record the public inputs for reordering the witness vector
     public_inputs: Vec<CellVar>,
@@ -114,7 +109,7 @@ pub struct R1csBls12_381 {
     finalized: bool,
 }
 
-impl R1csBls12_381 {
+impl<F> R1CS<F> where F: BackendField {
     pub fn new() -> Self {
         Self {
             constraints: Vec::new(),
@@ -126,17 +121,14 @@ impl R1csBls12_381 {
         }
     }
 
-    // todo: how can we create this r1cs backend with different associated field types, but still using the same backend implementation? using macro?
-    /// So that we can get the associated field type, instead of passing it as a parameter here.
-    /// There are two fields supported by the snarkjs for r1cs: bn128 and ark_bls12_381.
-    /// Currently we are using ark_bls12_381
+    /// Returns the prime for snarkjs based on the curve field.
     fn prime(&self) -> BigInt {
-        BigInt::from_slice_native(Sign::Plus, Fr::characteristic())
+        BigInt::from_slice_native(Sign::Plus, F::characteristic())
     }
 
     /// Add an r1cs constraint that is 3 linear combinations.
     /// This represents one constraint: a * b = c
-    fn add_constraint(&mut self, note: &str, c: Constraint, span: crate::constants::Span) {
+    fn add_constraint(&mut self, note: &str, c: Constraint<F>, span: crate::constants::Span) {
         let debug_info = DebugInfo {
             note: note.to_string(),
             span,
@@ -155,21 +147,21 @@ impl R1csBls12_381 {
 
 #[derive(Debug)]
 /// An intermediate struct for SnarkjsExporter to reorder the witness and convert to snarkjs format.
-pub struct GeneratedWitness {
-    pub witness: Vec<Fr>,
+pub struct GeneratedWitness<F> where F: BackendField {
+    pub witness: Vec<F>,
 }
 
-impl Backend for R1csBls12_381 {
-    type Field = Fr;
+impl<F> Backend for R1CS<F> where F: BackendField {
+    type Field = F;
 
-    type GeneratedWitness = GeneratedWitness;
+    type GeneratedWitness = GeneratedWitness<F>;
 
     fn witness_vars(&self, var: CellVar) -> &Value<Self> {
         self.witness_vars.get(var.index).unwrap()
     }
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
-        builtin::poseidon
+        builtin::poseidon::<F>
     }
 
     fn new_internal_var(
@@ -189,7 +181,7 @@ impl Backend for R1csBls12_381 {
         &mut self,
         //todo: do we need this?
         label: Option<&'static str>,
-        value: Self::Field,
+        value: F,
         span: crate::constants::Span,
     ) -> CellVar {
         let x = self.new_internal_var(Value::Constant(value), span);
@@ -205,7 +197,7 @@ impl Backend for R1csBls12_381 {
     /// - we might just need the returned_cells argument, as the backend can record the public outputs itself?
     fn finalize_circuit(
         &mut self,
-        public_output: Option<crate::var::Var<Self::Field>>,
+        public_output: Option<crate::var::Var<F>>,
         returned_cells: Option<Vec<CellVar>>,
         _private_input_indices: Vec<usize>,
         _main_span: crate::constants::Span,
@@ -250,7 +242,7 @@ impl Backend for R1csBls12_381 {
     /// This process should check if the constraints are satisfied.
     fn generate_witness(
         &self,
-        witness_env: &mut crate::witness::WitnessEnv<Self::Field>,
+        witness_env: &mut crate::witness::WitnessEnv<F>,
     ) -> crate::error::Result<Self::GeneratedWitness> {
         assert!(self.finalized, "the circuit is not finalized yet!");
 
@@ -263,11 +255,11 @@ impl Backend for R1csBls12_381 {
                 match val {
                     // Defer calculation for output vars.
                     // The reasoning behind this is to avoid deep recursion potentially triggered by the public output var at the beginning.
-                    Value::PublicOutput(_) => Ok(Fr::zero()),
+                    Value::PublicOutput(_) => Ok(F::zero()),
                     _ => self.compute_val(witness_env, val, index),
                 }
             })
-            .collect::<crate::error::Result<Vec<Fr>>>()?;
+            .collect::<crate::error::Result<Vec<F>>>()?;
 
         // The original vars of public outputs are not part of the constraints
         // so we need to compute them separately
@@ -309,8 +301,8 @@ impl Backend for R1csBls12_381 {
         // a = x + (-x)
         // b = 1
         // c = 0
-        let one = Fr::from(1);
-        let zero = Fr::from(0);
+        let one = F::one();
+        let zero = F::zero();
 
         let x_neg =
             self.new_internal_var(Value::LinearCombination(vec![(one.neg(), *x)], zero), span);
@@ -333,8 +325,8 @@ impl Backend for R1csBls12_381 {
         // a = lhs + rhs
         // b = 1
         // c = res
-        let one = Fr::from(1);
-        let zero = Fr::from(0);
+        let one = F::one();
+        let zero = F::zero();
 
         let res = self.new_internal_var(
             Value::LinearCombination(vec![(one, *lhs), (one, *rhs)], zero),
@@ -345,7 +337,7 @@ impl Backend for R1csBls12_381 {
         // HashMap automatically overrides it to single one term if the two vars are the same CellVar
         let a = if lhs == rhs {
             LinearCombination {
-                terms: HashMap::from_iter(vec![(*lhs, Fr::from(2))]),
+                terms: HashMap::from_iter(vec![(*lhs, F::from(2u32))]),
                 constant: zero,
             }
         } else {
@@ -367,7 +359,7 @@ impl Backend for R1csBls12_381 {
     fn add_const(
         &mut self,
         x: &CellVar,
-        cst: &Self::Field,
+        cst: &F,
         span: crate::constants::Span,
     ) -> CellVar {
         // To constrain:
@@ -378,7 +370,7 @@ impl Backend for R1csBls12_381 {
         // a = x + cst
         // b = 1
         // c = res
-        let one = Fr::from(1);
+        let one = F::one();
 
         let res = self.new_internal_var(Value::LinearCombination(vec![(one, *x)], *cst), span);
 
@@ -427,7 +419,7 @@ impl Backend for R1csBls12_381 {
     fn mul_const(
         &mut self,
         x: &CellVar,
-        cst: &Self::Field,
+        cst: &F,
         span: crate::constants::Span,
     ) -> CellVar {
         // To constrain:
@@ -454,7 +446,7 @@ impl Backend for R1csBls12_381 {
         res
     }
 
-    fn assert_eq_const(&mut self, x: &CellVar, cst: Self::Field, span: crate::constants::Span) {
+    fn assert_eq_const(&mut self, x: &CellVar, cst: F, span: crate::constants::Span) {
         // To constrain:
         // x = cst
         // given:
