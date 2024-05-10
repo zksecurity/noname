@@ -38,7 +38,10 @@ pub mod helpers {
         poseidon::{ArithmeticSponge, Sponge},
     };
 
-    use crate::backends::{kimchi::VestaField, r1cs::{R1csBls12381Field, R1csBn128Field}};
+    use crate::backends::{
+        kimchi::VestaField,
+        r1cs::{R1csBls12381Field, R1csBn128Field},
+    };
 
     /// A trait to display [Field] in pretty ways.
     pub trait PrettyField: ark_ff::PrimeField {

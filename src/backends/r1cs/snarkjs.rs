@@ -358,7 +358,10 @@ mod tests {
     use num_bigint_dig::BigInt;
 
     use crate::{
-        backends::{r1cs::{R1csBls12381Field, R1CS}, Backend},
+        backends::{
+            r1cs::{R1csBls12381Field, R1CS},
+            Backend,
+        },
         constants::Span,
         var::Value,
         witness::WitnessEnv,
@@ -374,8 +377,10 @@ mod tests {
         let public_input_val = 3;
         let sum_val = var1_val + public_input_val;
         let var1 = r1cs.new_internal_var(Value::Constant(R1csBls12381Field::from(var1_val)), span);
-        let public_input_var =
-            r1cs.add_public_input(Value::Constant(R1csBls12381Field::from(public_input_val)), span);
+        let public_input_var = r1cs.add_public_input(
+            Value::Constant(R1csBls12381Field::from(public_input_val)),
+            span,
+        );
         let sum_var = r1cs.add(&var1, &public_input_var, span);
         r1cs.add_public_output(Value::PublicOutput(Some(sum_var)), span);
         let public_output_val = sum_val;

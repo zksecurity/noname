@@ -4,7 +4,9 @@ use rstest::rstest;
 
 use crate::{
     backends::{
-        kimchi::{KimchiVesta, VestaField}, r1cs::R1CS, BackendKind
+        kimchi::{KimchiVesta, VestaField},
+        r1cs::R1CS,
+        BackendKind,
     },
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, ExtField},
@@ -119,7 +121,10 @@ fn test_file(
 
             if generated_witness.outputs != expected_public_output {
                 eprintln!("obtained by executing the circuit:");
-                generated_witness.outputs.iter().for_each(|x| eprintln!("- {x}"));
+                generated_witness
+                    .outputs
+                    .iter()
+                    .for_each(|x| eprintln!("- {x}"));
                 eprintln!("passed as output by the verifier:");
                 expected_public_output
                     .iter()

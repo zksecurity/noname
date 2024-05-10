@@ -13,7 +13,10 @@ use crate::{
     witness::WitnessEnv,
 };
 
-use self::{kimchi::KimchiVesta, r1cs::{R1csBls12381Field, R1csBn128Field, R1CS}};
+use self::{
+    kimchi::KimchiVesta,
+    r1cs::{R1csBls12381Field, R1csBn128Field, R1CS},
+};
 
 pub mod kimchi;
 pub mod r1cs;
