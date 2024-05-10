@@ -170,6 +170,7 @@ where
     F: BackendField,
 {
     pub witness: Vec<F>,
+    pub outputs: Vec<F>,
 }
 
 impl<F> Backend for R1CS<F>
@@ -308,7 +309,13 @@ where
             }
         }
 
-        Ok(GeneratedWitness { witness })
+        let outputs = self
+            .public_outputs
+            .iter()
+            .map(|var| witness[var.index])
+            .collect();
+
+        Ok(GeneratedWitness { witness, outputs })
     }
 
     // todo: we can think of a format for r1cs for easier debugging

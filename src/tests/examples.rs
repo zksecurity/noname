@@ -4,9 +4,7 @@ use rstest::rstest;
 
 use crate::{
     backends::{
-        kimchi::{KimchiVesta, VestaField},
-        r1cs::R1CS,
-        BackendKind,
+        kimchi::{KimchiVesta, VestaField}, r1cs::R1CS, BackendKind
     },
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, ExtField},
@@ -17,7 +15,7 @@ fn test_file(
     file_name: &str,
     public_inputs: &str,
     private_inputs: &str,
-    expected_public_output: Vec<VestaField>,
+    expected_public_output: Vec<u32>,
     backend: BackendKind,
 ) -> miette::Result<()> {
     let version = env!("CARGO_MANIFEST_DIR");
@@ -74,6 +72,11 @@ fn test_file(
                 false,
             )?;
 
+            let expected_public_output = expected_public_output
+                .iter()
+                .map(|x| VestaField::from(*x))
+                .collect::<Vec<_>>();
+
             if public_output != expected_public_output {
                 eprintln!("obtained by executing the circuit:");
                 public_output.iter().for_each(|x| eprintln!("- {x}"));
@@ -105,9 +108,24 @@ fn test_file(
             let compiled_circuit = compile(&sources, tast, r1cs)?;
 
             // this should check the constraints
-            compiled_circuit
+            let generated_witness = compiled_circuit
                 .generate_witness(public_inputs.clone(), private_inputs.clone())
                 .unwrap();
+
+            let expected_public_output = expected_public_output
+                .iter()
+                .map(|x| ark_bls12_381::Fr::from(*x))
+                .collect::<Vec<_>>();
+
+            if generated_witness.outputs != expected_public_output {
+                eprintln!("obtained by executing the circuit:");
+                generated_witness.outputs.iter().for_each(|x| eprintln!("- {x}"));
+                eprintln!("passed as output by the verifier:");
+                expected_public_output
+                    .iter()
+                    .for_each(|x| eprintln!("- {x}"));
+                panic!("Obtained output does not match expected output");
+            }
         }
         BackendKind::R1csBn128(_) => todo!(),
     }
@@ -243,7 +261,7 @@ fn test_types(#[case] backend: BackendKind) -> miette::Result<()> {
 fn test_const(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"player": "1"}"#;
-    let expected_public_output = vec![VestaField::from(2)];
+    let expected_public_output = vec![2];
 
     test_file(
         "const",
@@ -304,7 +322,7 @@ fn test_types_array(#[case] backend: BackendKind) -> miette::Result<()> {
 fn test_iterate(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"bedroom_holes": "2"}"#;
-    let expected_public_output = vec![VestaField::from(4)];
+    let expected_public_output = vec![4];
 
     test_file(
         "iterate",
