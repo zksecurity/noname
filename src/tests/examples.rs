@@ -114,7 +114,7 @@ fn test_file(
 
             let expected_public_output = expected_public_output
                 .iter()
-                .map(|x| ark_bls12_381::Fr::from(*x))
+                .map(|x| crate::backends::r1cs::R1csBls12381Field::from(*x))
                 .collect::<Vec<_>>();
 
             if generated_witness.outputs != expected_public_output {

@@ -13,7 +13,7 @@ use crate::{
     witness::WitnessEnv,
 };
 
-use self::{kimchi::KimchiVesta, r1cs::R1CS};
+use self::{kimchi::KimchiVesta, r1cs::{R1csBls12381Field, R1csBn128Field, R1CS}};
 
 pub mod kimchi;
 pub mod r1cs;
@@ -26,8 +26,8 @@ pub trait BackendField:
 
 pub enum BackendKind {
     KimchiVesta(KimchiVesta),
-    R1csBls12_381(R1CS<ark_bls12_381::Fr>),
-    R1csBn128(R1CS<ark_bn254::Fr>),
+    R1csBls12_381(R1CS<R1csBls12381Field>),
+    R1csBn128(R1CS<R1csBn128Field>),
 }
 
 impl BackendKind {
