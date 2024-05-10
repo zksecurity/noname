@@ -17,7 +17,6 @@ use crate::{
     var::{CellVar, Value},
 };
 
-use super::kimchi::asm::display_source;
 use super::Backend;
 
 /// Linear combination of variables and constants.
@@ -349,7 +348,7 @@ impl Backend for R1csBls12_381 {
 
             if debug {
                 // link the constraint to the source code
-                display_source(&mut res, sources, &[debug_info.clone()]);
+                crate::helpers::display_source(&mut res, sources, &[debug_info.clone()]);
             }
         }
 
