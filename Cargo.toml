@@ -9,7 +9,8 @@ description = "a programming language for writing zkapps"
 [dependencies]
 ark-ec = "0.3.0"                                                                                                # elliptic curve library
 ark-ff = "0.3.0"
-ark-bls12-381 = "0.3.0"
+ark-bls12-381 = "0.3.0"                                                                                         # bls12-381 curve for r1cs backend
+ark-bn254 = "0.3.0"                                                                                             # bn128 curve for r1cs backend
 ark-serialize = "0.3.0"                                                                                         # serialization of arkworks types
 ena = "0.14.0"                                                                                                  # union-find implementation for the wiring
 num-bigint = "0.4.3"                                                                                            # big int library

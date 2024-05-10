@@ -22,7 +22,22 @@ pub trait BackendField: Field + FromStr + TryFrom<BigUint> + TryInto<BigUint> + 
 
 pub enum BackendKind {
     KimchiVesta(KimchiVesta),
-    R1CS(R1csBls12_381),
+    R1csBls12_381(R1CS<ark_bls12_381::Fr>),
+    R1csBn128(R1CS<ark_bn254::Fr>),
+}
+
+impl BackendKind {
+    pub fn new_kimchi_vesta(use_double_generic: bool) -> Self {
+        Self::KimchiVesta(KimchiVesta::new(use_double_generic))
+    }
+
+    pub fn new_r1cs_bls12_381() -> Self {
+        Self::R1csBls12_381(R1CS::new())
+    }
+
+    pub fn new_r1cs_bn128() -> Self {
+        Self::R1csBn128(R1CS::new())
+    }
 }
 
 // TODO: should it be cloneable? It is now so because FnInfo needs to be cloneable.
