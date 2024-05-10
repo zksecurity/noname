@@ -1,4 +1,3 @@
-use ark_ff::PrimeField;
 use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic};
 
@@ -382,7 +381,7 @@ fn run_r1cs_backend<F>(
     private_inputs: JsonInputs,
 ) -> miette::Result<()>
 where
-    F: BackendField + PrimeField,
+    F: BackendField,
 {
     // Assuming `curr_dir`, `public_inputs`, and `private_inputs` are available in the scope
     let (sources, tast) = produce_all_asts(curr_dir)?;

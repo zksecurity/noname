@@ -1,5 +1,3 @@
-use ark_ff::fields::PrimeField;
-
 use constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
 use itertools::Itertools;
 use crate::backends::BackendField;
@@ -63,7 +61,7 @@ pub struct SnarkjsExporter<F> where F: BackendField {
     witness_map: HashMap<usize, usize>,
 }
 
-impl<F> SnarkjsExporter<F> where F: BackendField + PrimeField {
+impl<F> SnarkjsExporter<F> where F: BackendField {
     /// During the initialization, the witness map is created to re-arrange the witness vector.
     /// The reordering of witness vars:
     /// 1. The first var is always reserved and valued as 1.

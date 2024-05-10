@@ -4,12 +4,7 @@ use ark_ff::{Field, Zero};
 use num_bigint::BigUint;
 
 use crate::{
-    compiler::Sources,
-    constants::Span,
-    error::{Error, ErrorKind, Result},
-    imports::FnHandle,
-    var::{CellVar, Value, Var},
-    witness::WitnessEnv,
+    compiler::Sources, constants::Span, error::{Error, ErrorKind, Result}, helpers::PrettyField, imports::FnHandle, var::{CellVar, Value, Var}, witness::WitnessEnv
 };
 
 use self::{kimchi::KimchiVesta, r1cs::R1CS};
@@ -18,7 +13,7 @@ pub mod kimchi;
 pub mod r1cs;
 
 /// This trait serves as an alias for a bundle of traits
-pub trait BackendField: Field + FromStr + TryFrom<BigUint> + TryInto<BigUint> + Into<BigUint> {}
+pub trait BackendField: Field + FromStr + TryFrom<BigUint> + TryInto<BigUint> + Into<BigUint> + PrettyField {}
 
 pub enum BackendKind {
     KimchiVesta(KimchiVesta),

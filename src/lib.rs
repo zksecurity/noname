@@ -55,6 +55,8 @@ pub mod helpers {
     }
 
     impl PrettyField for VestaField {}
+    impl PrettyField for ark_bls12_381::Fr {}
+    impl PrettyField for ark_bn254::Fr {}
 
     pub fn poseidon(input: [VestaField; 2]) -> VestaField {
         let mut sponge: ArithmeticSponge<VestaField, PlonkSpongeConstantsKimchi> =
