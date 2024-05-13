@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, str::FromStr};
 
 use rstest::rstest;
 
@@ -17,7 +17,7 @@ fn test_file(
     file_name: &str,
     public_inputs: &str,
     private_inputs: &str,
-    expected_public_output: Vec<u32>,
+    expected_public_output: Vec<&str>,
     backend: BackendKind,
 ) -> miette::Result<()> {
     let version = env!("CARGO_MANIFEST_DIR");
@@ -76,7 +76,7 @@ fn test_file(
 
             let expected_public_output = expected_public_output
                 .iter()
-                .map(|x| VestaField::from(*x))
+                .map(|x| VestaField::from_str(x).unwrap())
                 .collect::<Vec<_>>();
 
             if public_output != expected_public_output {
@@ -116,7 +116,7 @@ fn test_file(
 
             let expected_public_output = expected_public_output
                 .iter()
-                .map(|x| crate::backends::r1cs::R1csBls12381Field::from(*x))
+                .map(|x| crate::backends::r1cs::R1csBls12381Field::from_str(x).unwrap())
                 .collect::<Vec<_>>();
 
             if generated_witness.outputs != expected_public_output {
@@ -161,7 +161,7 @@ fn test_public_output(#[case] backend: BackendKind) -> miette::Result<()> {
         "public_output",
         public_inputs,
         private_inputs,
-        vec![8u32.into()],
+        vec!["8"],
         backend,
     )?;
 
@@ -266,7 +266,7 @@ fn test_types(#[case] backend: BackendKind) -> miette::Result<()> {
 fn test_const(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"player": "1"}"#;
-    let expected_public_output = vec![2];
+    let expected_public_output = vec!["2"];
 
     test_file(
         "const",
@@ -327,7 +327,7 @@ fn test_types_array(#[case] backend: BackendKind) -> miette::Result<()> {
 fn test_iterate(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"bedroom_holes": "2"}"#;
-    let expected_public_output = vec![4];
+    let expected_public_output = vec!["4"];
 
     test_file(
         "iterate",
