@@ -240,10 +240,9 @@ pub struct CmdTest {
     #[clap(short, long)]
     debug: bool,
 
-    // todo: this is kimchi specific and it doesn't work atm. we might just remove this option at this stage?
-    /// disable the double generic gate optimization of kimchi (by default noname uses that optimization)
+    /// enable the double generic gate optimization of kimchi (by default noname uses that optimization)
     #[clap(long)]
-    no_double: bool,
+    double: bool,
 }
 
 pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
@@ -286,7 +285,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
                 code,
                 0,
             )?;
-            let kimchi_vesta = KimchiVesta::new(!args.no_double);
+            let kimchi_vesta = KimchiVesta::new(args.double);
             let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
 
             let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
