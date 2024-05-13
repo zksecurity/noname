@@ -122,7 +122,7 @@ impl R1csBls12_381 {
     }
 
     /// Returns the number of constraints.
-    pub fn len(&self) -> usize {
+    pub fn num_constraints(&self) -> usize {
         self.constraints.len()
     }
 

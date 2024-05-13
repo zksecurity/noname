@@ -112,7 +112,7 @@ fn test_file(
                 .unwrap();
 
             // check the ASM
-            if compiled_circuit.circuit.backend.len() < 100 {
+            if compiled_circuit.circuit.backend.num_constraints() < 100 {
                 let prefix_asm = prefix_examples.join("fixture/asm/r1cs");
                 let expected_asm =
                     std::fs::read_to_string(prefix_asm.clone().join(format!("{file_name}.asm")))
