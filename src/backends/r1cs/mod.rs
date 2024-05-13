@@ -299,7 +299,7 @@ impl Backend for R1csBls12_381 {
         let zero = Fr::from(0);
 
         let mut res = String::new();
-        res.push_str(&crate::helpers::noname_version());
+        res.push_str(&crate::utils::noname_version());
 
         for ((row, constraint), debug_info) in
             izip!(self.constraints.iter().enumerate(), &self.debug_info)
@@ -348,7 +348,7 @@ impl Backend for R1csBls12_381 {
 
             if debug {
                 // link the constraint to the source code
-                crate::helpers::display_source(&mut res, sources, &[debug_info.clone()]);
+                crate::utils::display_source(&mut res, sources, &[debug_info.clone()]);
             }
         }
 

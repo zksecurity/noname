@@ -457,7 +457,7 @@ impl Backend for KimchiVesta {
         let mut res = "".to_string();
 
         // version
-        res.push_str(&crate::helpers::noname_version());
+        res.push_str(&crate::utils::noname_version());
 
         // vars
         let mut vars: OrderedHashSet<VestaField> = OrderedHashSet::default();
@@ -467,7 +467,7 @@ impl Backend for KimchiVesta {
         }
 
         if debug && !vars.is_empty() {
-            crate::helpers::title(&mut res, "VARS");
+            crate::utils::title(&mut res, "VARS");
         }
 
         for (idx, var) in vars.iter().enumerate() {
@@ -476,7 +476,7 @@ impl Backend for KimchiVesta {
 
         // gates
         if debug {
-            crate::helpers::title(&mut res, "GATES");
+            crate::utils::title(&mut res, "GATES");
         }
 
         for (row, (Gate { typ, coeffs }, debug_info)) in
@@ -506,7 +506,7 @@ impl Backend for KimchiVesta {
 
             if debug {
                 // source
-                crate::helpers::display_source(&mut res, sources, &[debug_info.clone()]);
+                crate::utils::display_source(&mut res, sources, &[debug_info.clone()]);
 
                 // note
                 res.push_str("    ▲\n");
@@ -519,7 +519,7 @@ impl Backend for KimchiVesta {
 
         // wiring
         if debug {
-            crate::helpers::title(&mut res, "WIRING");
+            crate::utils::title(&mut res, "WIRING");
         }
 
         let mut cycles: Vec<_> = self
@@ -544,7 +544,7 @@ impl Backend for KimchiVesta {
                 .unzip();
 
             if debug {
-                crate::helpers::display_source(&mut res, sources, &debug_infos);
+                crate::utils::display_source(&mut res, sources, &debug_infos);
             }
 
             let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");
