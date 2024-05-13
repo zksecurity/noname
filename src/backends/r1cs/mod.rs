@@ -1,10 +1,11 @@
 pub mod builtin;
 pub mod snarkjs;
 
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, str::FromStr};
 
 use itertools::izip;
-use num_bigint_dig::{BigInt, Sign};
+use num_bigint_dig::BigInt;
+use ark_ff::FpParameters;
 
 use crate::error::{Error, ErrorKind};
 use crate::{
@@ -18,7 +19,6 @@ pub type R1csBls12381Field = ark_bls12_381::Fr;
 pub type R1csBn128Field = ark_bn254::Fr;
 
 // Because the associated field type is BackendField, we need to implement it for the actual field types in order to use them.
-// todo: are there better alternatives to this approach? (to have a combined trait while not having to implement it for each field type)
 impl BackendField for R1csBls12381Field {}
 impl BackendField for R1csBn128Field {}
 
@@ -144,7 +144,7 @@ where
 
     /// Returns the prime for snarkjs based on the curve field.
     fn prime(&self) -> BigInt {
-        BigInt::from_slice_native(Sign::Plus, F::characteristic())
+        BigInt::from_str(&F::Params::MODULUS.to_string()).unwrap()
     }
 
     /// Add an r1cs constraint that is 3 linear combinations.
