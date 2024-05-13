@@ -1,14 +1,12 @@
 pub mod builtin;
 pub mod snarkjs;
 
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
+use std::collections::{HashMap, HashSet};
 
 use ark_ff::FpParameters;
 use itertools::izip;
 use num_bigint_dig::BigInt;
+use num_traits::Num;
 
 use crate::error::{Error, ErrorKind};
 use crate::{
@@ -147,7 +145,7 @@ where
 
     /// Returns the prime for snarkjs based on the curve field.
     fn prime(&self) -> BigInt {
-        BigInt::from_str(&F::Params::MODULUS.to_string()).unwrap()
+        BigInt::from_str_radix(&F::Params::MODULUS.to_string(), 16).unwrap()
     }
 
     /// Add an r1cs constraint that is 3 linear combinations.
@@ -521,5 +519,35 @@ where
         self.public_outputs.push(var);
 
         var
+    }
+}
+
+mod tests {
+    use crate::backends::BackendKind;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case::bls12381(BackendKind::new_r1cs_bls12_381())]
+    #[case::bn128(BackendKind::new_r1cs_bn128())]
+    fn test_prime(#[case] r1cs: BackendKind) {
+        match r1cs {
+            BackendKind::R1csBls12_381(r1cs) => {
+                let prime = r1cs.prime().to_string();
+                assert_eq!(
+                    prime,
+                    "52435875175126190479447740508185965837690552500527637822603658699938581184513"
+                );
+            }
+            BackendKind::R1csBn128(r1cs) => {
+                let prime = r1cs.prime().to_string();
+                assert_eq!(
+                    prime,
+                    "21888242871839275222246405745257275088548364400416034343698204186575808495617"
+                );
+            }
+            _ => {
+                panic!("unexpected backend kind")
+            }
+        }
     }
 }
