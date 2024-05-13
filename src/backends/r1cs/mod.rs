@@ -17,11 +17,11 @@ use crate::{
 use super::{Backend, BackendField};
 
 pub type R1csBls12381Field = ark_bls12_381::Fr;
-pub type R1csBn128Field = ark_bn254::Fr;
+pub type R1csBn254Field = ark_bn254::Fr;
 
 // Because the associated field type is BackendField, we need to implement it for the actual field types in order to use them.
 impl BackendField for R1csBls12381Field {}
-impl BackendField for R1csBn128Field {}
+impl BackendField for R1csBn254Field {}
 
 /// Linear combination of variables and constants.
 /// For example, the linear combination is represented as a * f_a + b * f_b + f_c
@@ -528,7 +528,7 @@ mod tests {
 
     #[rstest]
     #[case::bls12381(BackendKind::new_r1cs_bls12_381())]
-    #[case::bn128(BackendKind::new_r1cs_bn128())]
+    #[case::bn254(BackendKind::new_r1cs_bn254())]
     fn test_prime(#[case] r1cs: BackendKind) {
         match r1cs {
             BackendKind::R1csBls12_381(r1cs) => {
@@ -538,7 +538,7 @@ mod tests {
                     "52435875175126190479447740508185965837690552500527637822603658699938581184513"
                 );
             }
-            BackendKind::R1csBn128(r1cs) => {
+            BackendKind::R1csBn254(r1cs) => {
                 let prime = r1cs.prime().to_string();
                 assert_eq!(
                     prime,

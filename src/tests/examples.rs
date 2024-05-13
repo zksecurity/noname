@@ -132,7 +132,7 @@ fn test_file(
                 panic!("Obtained output does not match expected output");
             }
         }
-        BackendKind::R1csBn128(_) => todo!(),
+        BackendKind::R1csBn254(_) => todo!(),
     }
 
     Ok(())

@@ -15,7 +15,7 @@ use crate::{
 
 use self::{
     kimchi::KimchiVesta,
-    r1cs::{R1csBls12381Field, R1csBn128Field, R1CS},
+    r1cs::{R1csBls12381Field, R1csBn254Field, R1CS},
 };
 
 pub mod kimchi;
@@ -30,7 +30,7 @@ pub trait BackendField:
 pub enum BackendKind {
     KimchiVesta(KimchiVesta),
     R1csBls12_381(R1CS<R1csBls12381Field>),
-    R1csBn128(R1CS<R1csBn128Field>),
+    R1csBn254(R1CS<R1csBn254Field>),
 }
 
 impl BackendKind {
@@ -42,8 +42,8 @@ impl BackendKind {
         Self::R1csBls12_381(R1CS::new())
     }
 
-    pub fn new_r1cs_bn128() -> Self {
-        Self::R1csBn128(R1CS::new())
+    pub fn new_r1cs_bn254() -> Self {
+        Self::R1csBn254(R1CS::new())
     }
 }
 

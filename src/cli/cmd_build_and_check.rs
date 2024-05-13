@@ -308,7 +308,7 @@ pub struct CmdRun {
         short,
         long,
         value_parser,
-        help = "Supported backends: `kimchi-vesta`, `r1cs-bls12-381`, `r1cs-bn128`"
+        help = "Supported backends: `kimchi-vesta`, `r1cs-bls12-381`, `r1cs-bn254"
     )]
     backend: Option<String>,
 
@@ -344,7 +344,7 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
     let backend_kind = match backend.as_str() {
         "kimchi-vesta" => BackendKind::new_kimchi_vesta(false),
         "r1cs-bls12-381" => BackendKind::new_r1cs_bls12_381(),
-        "r1cs-bn128" => BackendKind::new_r1cs_bn128(),
+        "r1cs-bn254" => BackendKind::new_r1cs_bn254(),
         _ => miette::bail!("unknown backend: `{}`", backend),
     };
 
@@ -355,7 +355,7 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
         BackendKind::R1csBls12_381(r1cs) => {
             run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
         }
-        BackendKind::R1csBn128(r1cs) => {
+        BackendKind::R1csBn254(r1cs) => {
             run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
         }
     }
