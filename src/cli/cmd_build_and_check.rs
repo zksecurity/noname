@@ -349,23 +349,8 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
     };
 
     match backend_kind {
-        BackendKind::KimchiVesta(kimchi_vesta) => {
-            // produce all TASTs
-            let (sources, tast) = produce_all_asts(&curr_dir)?;
-            println!("running noname file");
-
-            let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
-
-            let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
-
-            // create proof
-            let (proof, full_public_inputs, _public_output) =
-                prover_index.prove(&sources, public_inputs, private_inputs, false)?;
-            println!("proof created");
-
-            // verify proof
-            verifier_index.verify(full_public_inputs, proof)?;
-            println!("proof verified");
+        BackendKind::KimchiVesta(_) => {
+            unimplemented!("kimchi-vesta backend is not yet supported for this command")
         }
         BackendKind::R1csBls12_381(r1cs) => {
             run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?

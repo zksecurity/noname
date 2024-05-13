@@ -1,11 +1,14 @@
 pub mod builtin;
 pub mod snarkjs;
 
-use std::{collections::{HashMap, HashSet}, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
+use ark_ff::FpParameters;
 use itertools::izip;
 use num_bigint_dig::BigInt;
-use ark_ff::FpParameters;
 
 use crate::error::{Error, ErrorKind};
 use crate::{
