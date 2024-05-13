@@ -98,4 +98,3 @@ where
         self.ordered.is_empty()
     }
 }
-
