@@ -8,8 +8,6 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::vec;
 
-// use ark_ff::BigInteger;
-
 use super::{GeneratedWitness, LinearCombination, R1CS};
 use num_bigint_dig::BigInt;
 
@@ -173,7 +171,7 @@ where
     /// It uses the circom rust library to generate the r1cs file.
     /// The binary format spec: https://github.com/iden3/r1csfile/blob/master/doc/r1cs_bin_format.md
     pub fn gen_r1cs_file(&self, file: &str) {
-        let prime = self.r1cs_backend.prime();
+        let prime = self.backend_prime();
         let field_size = field_size(&prime);
 
         let r1cs = R1CSWriter::new(file.to_string(), field_size, false).unwrap();
@@ -221,7 +219,14 @@ where
 
         let mut witness_writer = WitnessWriter::new(file).unwrap();
 
-        witness_writer.write(restructured_witness, &self.r1cs_backend.prime());
+        witness_writer.write(restructured_witness, &self.backend_prime());
+    }
+
+    fn backend_prime(&self) -> BigInt {
+        BigInt::from_bytes_le(
+            num_bigint_dig::Sign::Plus, 
+            &self.r1cs_backend.prime().to_bytes_le()
+        )
     }
 
     fn convert_to_bigint(value: &F) -> BigInt {

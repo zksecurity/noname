@@ -5,8 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 use ark_ff::FpParameters;
 use itertools::izip;
-use num_bigint_dig::BigInt;
-use num_traits::Num;
+use num_bigint::BigUint;
 
 use crate::error::{Error, ErrorKind};
 use crate::{
@@ -144,8 +143,8 @@ where
     }
 
     /// Returns the prime for snarkjs based on the curve field.
-    fn prime(&self) -> BigInt {
-        BigInt::from_str_radix(&F::Params::MODULUS.to_string(), 16).unwrap()
+    fn prime(&self) -> BigUint {
+        F::Params::MODULUS.into()
     }
 
     /// Add an r1cs constraint that is 3 linear combinations.
