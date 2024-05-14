@@ -11,7 +11,7 @@ use crate::{
         Backend, BackendField, BackendKind,
     },
     cli::packages::path_to_package,
-    compiler::{compile, typecheck_next_file, Sources},
+    compiler::{compile, generate_witness, typecheck_next_file, Sources},
     inputs::{parse_inputs, JsonInputs},
     type_checker::TypeChecker,
 };
@@ -378,11 +378,11 @@ where
 {
     // Assuming `curr_dir`, `public_inputs`, and `private_inputs` are available in the scope
     let (sources, tast) = produce_all_asts(curr_dir)?;
-    println!("running noname file");
 
     let compiled_circuit = compile(&sources, tast, r1cs)?;
 
-    let generated_witness = compiled_circuit.generate_witness(public_inputs, private_inputs)?;
+    let generated_witness =
+        generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
 
     let snarkjs_exporter = SnarkjsExporter::new(compiled_circuit.circuit.backend);
 
@@ -409,9 +409,8 @@ where
     let (tast, sources) = typecheck_file(path)?;
 
     let compiled_circuit = compile(&sources, tast, r1cs)?;
-    println!("successfully compiled");
 
-    compiled_circuit.generate_witness(public_inputs, private_inputs)?;
+    generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
 
     let asm = compiled_circuit.asm(&sources, debug);
 
