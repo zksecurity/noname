@@ -261,8 +261,6 @@ pub struct CmdTest {
     path: PathBuf,
 
     /// Backend to use for running the noname file.
-    /// supported backends:
-    /// - `snarkjs-r1cs`
     #[clap(
         short,
         long,
