@@ -402,7 +402,7 @@ fn test_r1cs_backend<F: BackendField>(
     public_inputs: JsonInputs,
     private_inputs: JsonInputs,
     debug: bool,
-) -> miette::Result<()> 
+) -> miette::Result<()>
 where
     F: BackendField,
 {
@@ -423,23 +423,11 @@ where
 fn typecheck_file<B: Backend>(path: &PathBuf) -> miette::Result<(TypeChecker<B>, Sources)> {
     let code = std::fs::read_to_string(path)
         .into_diagnostic()
-        .wrap_err_with(|| {
-            format!(
-                "could not read file: `{}` (are you sure it exists?)",
-                path
-            )
-        })?;
+        .wrap_err_with(|| format!("could not read file: `{}` (are you sure it exists?)", path))?;
 
     let mut sources = Sources::new();
     let mut tast = TypeChecker::<B>::new();
-    let _node_id = typecheck_next_file(
-        &mut tast,
-        None,
-        &mut sources,
-        path.to_string(),
-        code,
-        0,
-    )?;
+    let _node_id = typecheck_next_file(&mut tast, None, &mut sources, path.to_string(), code, 0)?;
 
     Ok((tast, sources))
 }
