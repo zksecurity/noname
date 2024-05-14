@@ -320,10 +320,14 @@ impl Backend for R1csBls12_381 {
                         .iter()
                         // sort by var index to make it determisitic for asm generation
                         .sorted_by(|(a, _), (b, _)| a.index.cmp(&b.index))
-                        .map(|(var, factor)| match factor.pretty().as_str() {
-                            // if the factor is 1, we don't need to show it
-                            "1" => format!("v_{}", var.index),
-                            _ => format!("{} * v_{}", factor.pretty(), var.index),
+                        .map(|(var, factor)| {
+                            // starting from index 1, as the first var is reserved for the constant
+                            let index = var.index + 1;
+                            match factor.pretty().as_str() {
+                                // if the factor is 1, we don't need to show it
+                                "1" => format!("v_{}", index),
+                                _ => format!("{} * v_{}", factor.pretty(), index),
+                            }
                         })
                         .collect();
 
