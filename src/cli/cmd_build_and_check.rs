@@ -26,13 +26,13 @@ use super::packages::{
 const COMPILED_DIR: &str = "compiled";
 
 #[derive(Clone)]
-enum BACKEND_OPT {
+enum BackendOpt {
     KimchiVesta,
     R1csBls12_381,
     R1csBn254,
 }
 
-impl BACKEND_OPT {
+impl BackendOpt {
     pub fn from_str(s: &str) -> miette::Result<Self> {
         BACKEND_OPT_MAP
             .get(s)
@@ -41,11 +41,11 @@ impl BACKEND_OPT {
     }
 }
 
-static BACKEND_OPT_MAP: Lazy<HashMap<&'static str, BACKEND_OPT>> = Lazy::new(|| {
+static BACKEND_OPT_MAP: Lazy<HashMap<&'static str, BackendOpt>> = Lazy::new(|| {
     let mut m = HashMap::new();
-    m.insert("kimchi-vesta", BACKEND_OPT::KimchiVesta);
-    m.insert("r1cs-bls12-381", BACKEND_OPT::R1csBls12_381);
-    m.insert("r1cs-bn254", BACKEND_OPT::R1csBn254);
+    m.insert("kimchi-vesta", BackendOpt::KimchiVesta);
+    m.insert("r1cs-bls12-381", BackendOpt::R1csBls12_381);
+    m.insert("r1cs-bn254", BackendOpt::R1csBn254);
     m
 });
 
@@ -304,10 +304,10 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         JsonInputs::default()
     };
 
-    let backend_kind = match BACKEND_OPT::from_str(backend.as_str())? {
-        BACKEND_OPT::KimchiVesta => BackendKind::new_kimchi_vesta(false),
-        BACKEND_OPT::R1csBls12_381 => BackendKind::new_r1cs_bls12_381(),
-        BACKEND_OPT::R1csBn254 => BackendKind::new_r1cs_bn254(),
+    let backend_kind = match BackendOpt::from_str(backend.as_str())? {
+        BackendOpt::KimchiVesta => BackendKind::new_kimchi_vesta(false),
+        BackendOpt::R1csBls12_381 => BackendKind::new_r1cs_bls12_381(),
+        BackendOpt::R1csBn254 => BackendKind::new_r1cs_bn254(),
     };
 
     match backend_kind {
@@ -387,10 +387,10 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
         JsonInputs::default()
     };
 
-    let backend_kind = match BACKEND_OPT::from_str(backend.as_str())? {
-        BACKEND_OPT::KimchiVesta => BackendKind::new_kimchi_vesta(false),
-        BACKEND_OPT::R1csBls12_381 => BackendKind::new_r1cs_bls12_381(),
-        BACKEND_OPT::R1csBn254 => BackendKind::new_r1cs_bn254(),
+    let backend_kind = match BackendOpt::from_str(backend.as_str())? {
+        BackendOpt::KimchiVesta => BackendKind::new_kimchi_vesta(false),
+        BackendOpt::R1csBls12_381 => BackendKind::new_r1cs_bls12_381(),
+        BackendOpt::R1csBn254 => BackendKind::new_r1cs_bn254(),
     };
 
     match backend_kind {
