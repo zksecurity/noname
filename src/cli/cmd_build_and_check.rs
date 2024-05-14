@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic};
+use once_cell::sync::Lazy;
 
 use crate::{
     backends::{
@@ -21,6 +24,41 @@ use super::packages::{
 };
 
 const COMPILED_DIR: &str = "compiled";
+
+#[derive(Clone)]
+enum BackendOpt {
+    KimchiVesta,
+    R1csBls12_381,
+    R1csBn254,
+}
+
+impl BackendOpt {
+    pub fn from_str(s: &str) -> miette::Result<Self> {
+        BACKEND_OPT_MAP
+            .get(s)
+            .cloned()
+            .ok_or_else(|| miette::miette!("unknown backend: `{}`", s))
+    }
+}
+
+static BACKEND_OPT_MAP: Lazy<HashMap<&'static str, BackendOpt>> = Lazy::new(|| {
+    let mut m = HashMap::new();
+    m.insert("kimchi-vesta", BackendOpt::KimchiVesta);
+    m.insert("r1cs-bls12-381", BackendOpt::R1csBls12_381);
+    m.insert("r1cs-bn254", BackendOpt::R1csBn254);
+    m
+});
+
+static SUPPORTED_BACKENDS: Lazy<String> = Lazy::new(|| {
+    format!(
+        "Supported backends: `{}`",
+        BACKEND_OPT_MAP
+            .keys()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>()
+            .join(", ")
+    )
+});
 
 #[derive(clap::Parser)]
 pub struct CmdBuild {
@@ -223,9 +261,12 @@ pub struct CmdTest {
     path: PathBuf,
 
     /// Backend to use for running the noname file.
-    /// supported backends:
-    /// - `snarkjs-r1cs`
-    #[clap(short, long, value_parser)]
+    #[clap(
+        short,
+        long,
+        value_parser,
+        help = SUPPORTED_BACKENDS.as_str()
+    )]
     backend: String,
 
     /// public inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
@@ -261,11 +302,10 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         JsonInputs::default()
     };
 
-    let backend_kind = match backend.as_str() {
-        "kimchi-vesta" => BackendKind::new_kimchi_vesta(false),
-        "r1cs-bls12-381" => BackendKind::new_r1cs_bls12_381(),
-        "r1cs-bn254" => BackendKind::new_r1cs_bn254(),
-        _ => miette::bail!("unknown backend: `{}`", backend),
+    let backend_kind = match BackendOpt::from_str(backend.as_str())? {
+        BackendOpt::KimchiVesta => BackendKind::new_kimchi_vesta(false),
+        BackendOpt::R1csBls12_381 => BackendKind::new_r1cs_bls12_381(),
+        BackendOpt::R1csBn254 => BackendKind::new_r1cs_bn254(),
     };
 
     match backend_kind {
@@ -312,7 +352,7 @@ pub struct CmdRun {
         short,
         long,
         value_parser,
-        help = "Supported backends: `kimchi-vesta`, `r1cs-bls12-381`, `r1cs-bn254"
+        help = SUPPORTED_BACKENDS.as_str()
     )]
     backend: Option<String>,
 
@@ -345,11 +385,10 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
         JsonInputs::default()
     };
 
-    let backend_kind = match backend.as_str() {
-        "kimchi-vesta" => BackendKind::new_kimchi_vesta(false),
-        "r1cs-bls12-381" => BackendKind::new_r1cs_bls12_381(),
-        "r1cs-bn254" => BackendKind::new_r1cs_bn254(),
-        _ => miette::bail!("unknown backend: `{}`", backend),
+    let backend_kind = match BackendOpt::from_str(backend.as_str())? {
+        BackendOpt::KimchiVesta => BackendKind::new_kimchi_vesta(false),
+        BackendOpt::R1csBls12_381 => BackendKind::new_r1cs_bls12_381(),
+        BackendOpt::R1csBn254 => BackendKind::new_r1cs_bn254(),
     };
 
     match backend_kind {
