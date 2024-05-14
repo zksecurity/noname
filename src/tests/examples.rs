@@ -1,11 +1,11 @@
-use std::path::Path;
+use std::{path::Path, str::FromStr};
 
 use rstest::rstest;
 
 use crate::{
     backends::{
         kimchi::{KimchiVesta, VestaField},
-        r1cs::R1csBls12_381,
+        r1cs::R1CS,
         BackendKind,
     },
     compiler::{compile, typecheck_next_file, Sources},
@@ -17,7 +17,7 @@ fn test_file(
     file_name: &str,
     public_inputs: &str,
     private_inputs: &str,
-    expected_public_output: Vec<VestaField>,
+    expected_public_output: Vec<&str>,
     backend: BackendKind,
 ) -> miette::Result<()> {
     let version = env!("CARGO_MANIFEST_DIR");
@@ -74,6 +74,11 @@ fn test_file(
                 false,
             )?;
 
+            let expected_public_output = expected_public_output
+                .iter()
+                .map(|x| VestaField::from_str(x).unwrap())
+                .collect::<Vec<_>>();
+
             if public_output != expected_public_output {
                 eprintln!("obtained by executing the circuit:");
                 public_output.iter().for_each(|x| eprintln!("- {x}"));
@@ -87,7 +92,7 @@ fn test_file(
             // verify proof
             verifier_index.verify(full_public_inputs, proof).unwrap();
         }
-        BackendKind::R1CS(r1cs) => {
+        BackendKind::R1csBls12_381(r1cs) => {
             // compile
             let mut sources = Sources::new();
             let mut tast = TypeChecker::new();
@@ -105,10 +110,29 @@ fn test_file(
             let compiled_circuit = compile(&sources, tast, r1cs)?;
 
             // this should check the constraints
-            compiled_circuit
+            let generated_witness = compiled_circuit
                 .generate_witness(public_inputs.clone(), private_inputs.clone())
                 .unwrap();
+
+            let expected_public_output = expected_public_output
+                .iter()
+                .map(|x| crate::backends::r1cs::R1csBls12381Field::from_str(x).unwrap())
+                .collect::<Vec<_>>();
+
+            if generated_witness.outputs != expected_public_output {
+                eprintln!("obtained by executing the circuit:");
+                generated_witness
+                    .outputs
+                    .iter()
+                    .for_each(|x| eprintln!("- {x}"));
+                eprintln!("passed as output by the verifier:");
+                expected_public_output
+                    .iter()
+                    .for_each(|x| eprintln!("- {x}"));
+                panic!("Obtained output does not match expected output");
+            }
         }
+        BackendKind::R1csBn254(_) => todo!(),
     }
 
     Ok(())
@@ -116,7 +140,7 @@ fn test_file(
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_arithmetic(#[case] backend: BackendKind) -> miette::Result<()> {
     let public_inputs = r#"{"public_input": "1"}"#;
     let private_inputs = r#"{"private_input": "1"}"#;
@@ -128,7 +152,7 @@ fn test_arithmetic(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_public_output(#[case] backend: BackendKind) -> miette::Result<()> {
     let public_inputs = r#"{"public_input": "1"}"#;
     let private_inputs = r#"{"private_input": "1"}"#;
@@ -137,7 +161,7 @@ fn test_public_output(#[case] backend: BackendKind) -> miette::Result<()> {
         "public_output",
         public_inputs,
         private_inputs,
-        vec![8u32.into()],
+        vec!["8"],
         backend,
     )?;
 
@@ -166,7 +190,7 @@ fn test_poseidon(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_bool(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"private_input": false}"#;
     let public_inputs = r#"{"public_input": true}"#;
@@ -178,7 +202,7 @@ fn test_bool(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_mutable(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"xx": "2", "yy": "3"}"#;
     let public_inputs = r#"{}"#;
@@ -190,7 +214,7 @@ fn test_mutable(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_for_loop(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"private_input": ["2", "3", "4"]}"#;
     let public_inputs = r#"{"public_input": "9"}"#;
@@ -202,7 +226,7 @@ fn test_for_loop(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_array(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"public_input": ["1", "2"]}"#;
@@ -214,7 +238,7 @@ fn test_array(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_equals(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": ["3", "3"]}"#;
@@ -226,7 +250,7 @@ fn test_equals(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_types(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "1", "yy": "2"}"#;
@@ -238,11 +262,11 @@ fn test_types(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_const(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"player": "1"}"#;
-    let expected_public_output = vec![VestaField::from(2)];
+    let expected_public_output = vec!["2"];
 
     test_file(
         "const",
@@ -257,7 +281,7 @@ fn test_const(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_functions(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"one": "1"}"#;
@@ -269,7 +293,7 @@ fn test_functions(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_methods(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "1"}"#;
@@ -281,7 +305,7 @@ fn test_methods(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_types_array(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "1", "yy": "4"}"#;
@@ -299,11 +323,11 @@ fn test_types_array(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_iterate(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"bedroom_holes": "2"}"#;
-    let expected_public_output = vec![VestaField::from(4)];
+    let expected_public_output = vec!["4"];
 
     test_file(
         "iterate",
@@ -318,7 +342,7 @@ fn test_iterate(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_assignment(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "2"}"#;
@@ -330,7 +354,7 @@ fn test_assignment(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_if_else(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "1"}"#;
@@ -342,7 +366,7 @@ fn test_if_else(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1CS(R1csBls12_381::new()))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_sudoku(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"solution": { "inner": ["9", "5", "3", "6", "2", "1", "7", "8", "4", "1", "4", "8", "7", "5", "9", "2", "6", "3", "2", "7", "6", "8", "3", "4", "9", "5", "1", "3", "6", "9", "2", "7", "5", "4", "1", "8", "4", "8", "5", "9", "1", "6", "3", "7", "2", "7", "1", "2", "3", "4", "8", "6", "9", "5", "6", "3", "7", "1", "8", "2", "5", "4", "9", "5", "2", "1", "4", "9", "7", "8", "3", "6", "8", "9", "4", "5", "6", "3", "1", "2", "7"] }}"#;
     let public_inputs = r#"{"grid": { "inner": ["0", "5", "3", "6", "2", "1", "7", "8", "4", "0", "4", "8", "7", "5", "9", "2", "6", "3", "2", "7", "6", "8", "3", "4", "9", "5", "1", "3", "6", "9", "2", "7", "0", "4", "1", "8", "4", "8", "5", "9", "1", "6", "3", "7", "2", "0", "1", "2", "3", "4", "8", "6", "9", "5", "6", "3", "0", "1", "8", "2", "5", "4", "9", "5", "2", "1", "4", "9", "0", "8", "3", "6", "8", "9", "4", "5", "6", "3", "1", "2", "7"] }}"#;

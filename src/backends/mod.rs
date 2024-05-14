@@ -7,25 +7,50 @@ use crate::{
     compiler::Sources,
     constants::Span,
     error::{Error, ErrorKind, Result},
+    helpers::PrettyField,
     imports::FnHandle,
     var::{CellVar, Value, Var},
     witness::WitnessEnv,
 };
 
-use self::{kimchi::KimchiVesta, r1cs::R1csBls12_381};
+use self::{
+    kimchi::KimchiVesta,
+    r1cs::{R1csBls12381Field, R1csBn254Field, R1CS},
+};
 
 pub mod kimchi;
 pub mod r1cs;
 
+/// This trait serves as an alias for a bundle of traits
+pub trait BackendField:
+    Field + FromStr + TryFrom<BigUint> + TryInto<BigUint> + Into<BigUint> + PrettyField
+{
+}
+
 pub enum BackendKind {
     KimchiVesta(KimchiVesta),
-    R1CS(R1csBls12_381),
+    R1csBls12_381(R1CS<R1csBls12381Field>),
+    R1csBn254(R1CS<R1csBn254Field>),
+}
+
+impl BackendKind {
+    pub fn new_kimchi_vesta(use_double_generic: bool) -> Self {
+        Self::KimchiVesta(KimchiVesta::new(use_double_generic))
+    }
+
+    pub fn new_r1cs_bls12_381() -> Self {
+        Self::R1csBls12_381(R1CS::new())
+    }
+
+    pub fn new_r1cs_bn254() -> Self {
+        Self::R1csBn254(R1CS::new())
+    }
 }
 
 // TODO: should it be cloneable? It is now so because FnInfo needs to be cloneable.
 pub trait Backend: Clone {
     /// The circuit field / scalar field that the circuit is written on.
-    type Field: Field + FromStr + TryFrom<BigUint> + TryInto<BigUint> + Into<BigUint>;
+    type Field: BackendField;
 
     /// The generated witness type for the backend. Each backend may define its own witness format to be generated.
     type GeneratedWitness;

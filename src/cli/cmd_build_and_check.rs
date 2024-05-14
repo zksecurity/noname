@@ -7,8 +7,8 @@ use crate::{
             prover::{ProverIndex, VerifierIndex},
             KimchiVesta,
         },
-        r1cs::{snarkjs::SnarkjsExporter, R1csBls12_381},
-        Backend,
+        r1cs::{snarkjs::SnarkjsExporter, R1CS},
+        Backend, BackendField, BackendKind,
     },
     cli::packages::path_to_package,
     compiler::{compile, typecheck_next_file, Sources},
@@ -304,9 +304,12 @@ pub struct CmdRun {
     path: Option<PathBuf>,
 
     /// Backend to use for running the noname file.
-    /// supported backends:
-    /// - `snarkjs-r1cs`
-    #[clap(short, long, value_parser)]
+    #[clap(
+        short,
+        long,
+        value_parser,
+        help = "Supported backends: `kimchi-vesta`, `r1cs-bls12-381`, `r1cs-bn254"
+    )]
     backend: Option<String>,
 
     /// JSON encoding of the public inputs. For example: `--public-inputs {"a": "1", "b": ["2", "3"]}`.
@@ -338,31 +341,53 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
         JsonInputs::default()
     };
 
-    match backend.as_str() {
-        "kimchi-vesta" => todo!(),
-        "snarkjs-r1cs" => {
-            // produce all TASTs
-            let (sources, tast) = produce_all_asts(&curr_dir)?;
-            println!("running noname file");
-
-            let r1cs = R1csBls12_381::new();
-            let compiled_circuit = compile(&sources, tast, r1cs)?;
-
-            let generated_witness =
-                compiled_circuit.generate_witness(public_inputs, private_inputs)?;
-
-            let snarkjs_exporter = SnarkjsExporter::new(compiled_circuit.circuit.backend);
-
-            snarkjs_exporter.gen_r1cs_file(&curr_dir.join("output.r1cs").into_string());
-
-            snarkjs_exporter.gen_wtns_file(
-                &curr_dir.join("output.wtns").into_string(),
-                generated_witness,
-            );
-        }
+    let backend_kind = match backend.as_str() {
+        "kimchi-vesta" => BackendKind::new_kimchi_vesta(false),
+        "r1cs-bls12-381" => BackendKind::new_r1cs_bls12_381(),
+        "r1cs-bn254" => BackendKind::new_r1cs_bn254(),
         _ => miette::bail!("unknown backend: `{}`", backend),
+    };
+
+    match backend_kind {
+        BackendKind::KimchiVesta(_) => {
+            unimplemented!("kimchi-vesta backend is not yet supported for this command")
+        }
+        BackendKind::R1csBls12_381(r1cs) => {
+            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
+        }
+        BackendKind::R1csBn254(r1cs) => {
+            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
+        }
     }
 
-    //
+    Ok(())
+}
+
+fn run_r1cs_backend<F>(
+    r1cs: R1CS<F>,
+    curr_dir: &PathBuf,
+    public_inputs: JsonInputs,
+    private_inputs: JsonInputs,
+) -> miette::Result<()>
+where
+    F: BackendField,
+{
+    // Assuming `curr_dir`, `public_inputs`, and `private_inputs` are available in the scope
+    let (sources, tast) = produce_all_asts(curr_dir)?;
+    println!("running noname file");
+
+    let compiled_circuit = compile(&sources, tast, r1cs)?;
+
+    let generated_witness = compiled_circuit.generate_witness(public_inputs, private_inputs)?;
+
+    let snarkjs_exporter = SnarkjsExporter::new(compiled_circuit.circuit.backend);
+
+    snarkjs_exporter.gen_r1cs_file(&curr_dir.join("output.r1cs").into_string());
+
+    snarkjs_exporter.gen_wtns_file(
+        &curr_dir.join("output.wtns").into_string(),
+        generated_witness,
+    );
+
     Ok(())
 }
