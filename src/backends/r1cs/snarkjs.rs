@@ -224,8 +224,8 @@ where
 
     fn backend_prime(&self) -> BigInt {
         BigInt::from_bytes_le(
-            num_bigint_dig::Sign::Plus, 
-            &self.r1cs_backend.prime().to_bytes_le()
+            num_bigint_dig::Sign::Plus,
+            &self.r1cs_backend.prime().to_bytes_le(),
         )
     }
 
