@@ -1,19 +1,14 @@
-use ark_bls12_381::Fr;
-use ark_ff::fields::PrimeField;
-
+use crate::backends::BackendField;
 use crate::error::Result;
 use constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
 use itertools::Itertools;
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};
-use std::io::{BufWriter, Write};
-use std::io::{Seek, SeekFrom};
+use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::vec;
 
-// use ark_ff::BigInteger;
-
-use super::{GeneratedWitness, LinearCombination, R1csBls12_381};
+use super::{GeneratedWitness, LinearCombination, R1CS};
 use num_bigint_dig::BigInt;
 
 #[derive(Debug)]
@@ -53,9 +48,12 @@ fn field_size(prime: &BigInt) -> usize {
 }
 
 /// A struct to export r1cs circuit and witness to the snarkjs formats.
-pub struct SnarkjsExporter {
+pub struct SnarkjsExporter<F>
+where
+    F: BackendField,
+{
     /// A R1CS backend with the circuit finalized.
-    r1cs_backend: R1csBls12_381,
+    r1cs_backend: R1CS<F>,
     /// A mapping between the witness vars' indexes in the backend and the new indexes arranged for the snarkjs format.
     /// <original, new>: The key (left) is the original index of the witness var in the backend, and the value (right) is the new index.
     /// This mapping is used to re-arrange the witness values to align with the snarkjs format.
@@ -64,14 +62,17 @@ pub struct SnarkjsExporter {
     witness_map: HashMap<usize, usize>,
 }
 
-impl SnarkjsExporter {
+impl<F> SnarkjsExporter<F>
+where
+    F: BackendField,
+{
     /// During the initialization, the witness map is created to re-arrange the witness vector.
     /// The reordering of witness vars:
     /// 1. The first var is always reserved and valued as 1.
     /// 2. The public outputs are stacked first.
     /// 3. The public inputs are stacked next.
     /// 4. The rest of the witness vars are stacked last.
-    pub fn new(r1cs_backend: R1csBls12_381) -> SnarkjsExporter {
+    pub fn new(r1cs_backend: R1CS<F>) -> SnarkjsExporter<F> {
         let mut witness_map = HashMap::new();
 
         // group all the public items together
@@ -110,7 +111,7 @@ impl SnarkjsExporter {
     /// Restructure the linear combination to align with the snarkjs format.
     /// - use witness mapper to re-arrange the variables.
     /// - convert the factors to BigInt.
-    fn restructure_lc(&self, lc: &LinearCombination) -> SnarkjsLinearCombination {
+    fn restructure_lc(&self, lc: &LinearCombination<F>) -> SnarkjsLinearCombination {
         let terms = lc
             .terms
             .iter()
@@ -145,7 +146,7 @@ impl SnarkjsExporter {
     /// 2. use witness mapper to re-arrange the variables.
     /// 3. convert the witness values to BigInt.
     /// 4. convert to a witness vector ordered by new index.
-    fn restructure_witness(&self, generated_witness: GeneratedWitness) -> Vec<BigInt> {
+    fn restructure_witness(&self, generated_witness: GeneratedWitness<F>) -> Vec<BigInt> {
         let mut restructured_witness_values = HashMap::new();
 
         // add the first var that is always valued as 1
@@ -170,7 +171,7 @@ impl SnarkjsExporter {
     /// It uses the circom rust library to generate the r1cs file.
     /// The binary format spec: https://github.com/iden3/r1csfile/blob/master/doc/r1cs_bin_format.md
     pub fn gen_r1cs_file(&self, file: &str) {
-        let prime = self.r1cs_backend.prime();
+        let prime = self.backend_prime();
         let field_size = field_size(&prime);
 
         let r1cs = R1CSWriter::new(file.to_string(), field_size, false).unwrap();
@@ -213,15 +214,22 @@ impl SnarkjsExporter {
     }
 
     /// Generate the wtns file in snarkjs format.
-    pub fn gen_wtns_file(&self, file: &str, witness: GeneratedWitness) {
+    pub fn gen_wtns_file(&self, file: &str, witness: GeneratedWitness<F>) {
         let restructured_witness = self.restructure_witness(witness);
 
         let mut witness_writer = WitnessWriter::new(file).unwrap();
 
-        witness_writer.write(restructured_witness, &self.r1cs_backend.prime());
+        witness_writer.write(restructured_witness, &self.backend_prime());
     }
 
-    fn convert_to_bigint(value: &Fr) -> BigInt {
+    fn backend_prime(&self) -> BigInt {
+        BigInt::from_bytes_le(
+            num_bigint_dig::Sign::Plus,
+            &self.r1cs_backend.prime().to_bytes_le(),
+        )
+    }
+
+    fn convert_to_bigint(value: &F) -> BigInt {
         BigInt::from_bytes_le(
             num_bigint_dig::Sign::Plus,
             &ark_ff::BigInteger::to_bytes_le(&value.into_repr()),
@@ -352,11 +360,13 @@ impl WitnessWriter {
 
 #[cfg(test)]
 mod tests {
-    use ark_bls12_381::Fr;
     use num_bigint_dig::BigInt;
 
     use crate::{
-        backends::{r1cs::R1csBls12_381, Backend},
+        backends::{
+            r1cs::{R1csBls12381Field, R1CS},
+            Backend,
+        },
         constants::Span,
         var::Value,
         witness::WitnessEnv,
@@ -364,16 +374,18 @@ mod tests {
 
     #[test]
     fn test_restructure_witness() {
-        let mut r1cs = R1csBls12_381::new();
+        let mut r1cs = R1CS::new();
 
         // mock a constraint
         let span = Span::default();
         let var1_val = 2;
         let public_input_val = 3;
         let sum_val = var1_val + public_input_val;
-        let var1 = r1cs.new_internal_var(Value::Constant(Fr::from(var1_val)), span);
-        let public_input_var =
-            r1cs.add_public_input(Value::Constant(Fr::from(public_input_val)), span);
+        let var1 = r1cs.new_internal_var(Value::Constant(R1csBls12381Field::from(var1_val)), span);
+        let public_input_var = r1cs.add_public_input(
+            Value::Constant(R1csBls12381Field::from(public_input_val)),
+            span,
+        );
         let sum_var = r1cs.add(&var1, &public_input_var, span);
         r1cs.add_public_output(Value::PublicOutput(Some(sum_var)), span);
         let public_output_val = sum_val;

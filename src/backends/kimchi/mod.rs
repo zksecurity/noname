@@ -35,7 +35,9 @@ pub type VestaField = kimchi::mina_curves::pasta::Fp;
 /// Number of columns in the execution trace.
 pub const NUM_REGISTERS: usize = kimchi::circuits::wires::COLUMNS;
 
-use super::Backend;
+use super::{Backend, BackendField};
+
+impl BackendField for VestaField {}
 
 #[derive(Debug)]
 pub struct Witness(Vec<[VestaField; NUM_REGISTERS]>);
