@@ -4,10 +4,11 @@ pub mod snarkjs;
 use std::collections::{HashMap, HashSet};
 
 use ark_ff::FpParameters;
-use itertools::izip;
+use itertools::{izip, Itertools as _};
 use num_bigint::BigUint;
 
 use crate::error::{Error, ErrorKind};
+use crate::helpers::PrettyField;
 use crate::{
     circuit_writer::DebugInfo,
     var::{CellVar, Value},
@@ -140,6 +141,11 @@ where
             public_outputs: Vec::new(),
             finalized: false,
         }
+    }
+
+    /// Returns the number of constraints.
+    pub fn num_constraints(&self) -> usize {
+        self.constraints.len()
     }
 
     /// Returns the prime for snarkjs based on the curve field.
@@ -321,9 +327,68 @@ where
         Ok(GeneratedWitness { witness, outputs })
     }
 
-    // todo: we can think of a format for r1cs for easier debugging
     fn generate_asm(&self, sources: &crate::compiler::Sources, debug: bool) -> String {
-        todo!()
+        let zero = F::zero();
+
+        let mut res = String::new();
+        res.push_str(&crate::utils::noname_version());
+
+        for ((row, constraint), debug_info) in
+            izip!(self.constraints.iter().enumerate(), &self.debug_info)
+        {
+            if debug {
+                // first info row: show the current row of constraints
+                res.push_str(&format!("╭{}\n", "─".repeat(80)));
+                res.push_str(&format!("│ {row} │ "));
+            }
+
+            // format the a b c linear combinations in order
+            let fmt_lcs: Vec<String> = constraint
+                .as_array()
+                .iter()
+                .map(|lc| {
+                    let mut terms: Vec<String> = lc
+                        .terms
+                        .iter()
+                        // sort by var index to make it determisitic for asm generation
+                        .sorted_by(|(a, _), (b, _)| a.index.cmp(&b.index))
+                        .map(|(var, factor)| {
+                            // starting from index 1, as the first var is reserved for the constant
+                            let index = var.index + 1;
+                            match factor.pretty().as_str() {
+                                // if the factor is 1, we don't need to show it
+                                "1" => format!("v_{}", index),
+                                _ => format!("{} * v_{}", factor.pretty(), index),
+                            }
+                        })
+                        .collect();
+
+                    // ignore the constant if it's zero
+                    if lc.constant != zero {
+                        terms.push(lc.constant.pretty());
+                    }
+
+                    // check if it needs to cancatenate the terms with a plus sign
+                    match terms.len() {
+                        0 => "0".to_string(),
+                        1 => terms[0].clone(),
+                        _ => terms.join(" + "),
+                    }
+                })
+                .collect();
+
+            let (a, b, c) = (&fmt_lcs[0], &fmt_lcs[1], &fmt_lcs[2]);
+
+            // format an entire constraint
+            res.push_str(&format!("{} == ({}) * ({})\n", c, a, b));
+
+            if debug {
+                // link the constraint to the source code
+                crate::utils::display_source(&mut res, sources, &[debug_info.clone()]);
+            }
+        }
+
+        res
     }
 
     fn neg(&mut self, x: &CellVar, span: crate::constants::Span) -> CellVar {

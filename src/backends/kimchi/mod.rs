@@ -12,7 +12,7 @@ use itertools::{izip, Itertools};
 use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 
 use crate::{
-    backends::kimchi::asm::{display_source, parse_coeffs},
+    backends::kimchi::asm::parse_coeffs,
     circuit_writer::{
         writer::{AnnotatedCell, Cell, PendingGate},
         DebugInfo, Gate, GateKind, Wiring,
@@ -27,7 +27,7 @@ use crate::{
 
 use ark_ff::{One, Zero};
 
-use self::asm::{extract_vars_from_coeffs, title, OrderedHashSet};
+use self::asm::{extract_vars_from_coeffs, OrderedHashSet};
 
 /// We use the scalar field of Vesta as our circuit field.
 pub type VestaField = kimchi::mina_curves::pasta::Fp;
@@ -459,7 +459,7 @@ impl Backend for KimchiVesta {
         let mut res = "".to_string();
 
         // version
-        res.push_str("@ noname.0.7.0\n\n");
+        res.push_str(&crate::utils::noname_version());
 
         // vars
         let mut vars: OrderedHashSet<VestaField> = OrderedHashSet::default();
@@ -469,7 +469,7 @@ impl Backend for KimchiVesta {
         }
 
         if debug && !vars.is_empty() {
-            title(&mut res, "VARS");
+            crate::utils::title(&mut res, "VARS");
         }
 
         for (idx, var) in vars.iter().enumerate() {
@@ -478,7 +478,7 @@ impl Backend for KimchiVesta {
 
         // gates
         if debug {
-            title(&mut res, "GATES");
+            crate::utils::title(&mut res, "GATES");
         }
 
         for (row, (Gate { typ, coeffs }, debug_info)) in
@@ -508,7 +508,7 @@ impl Backend for KimchiVesta {
 
             if debug {
                 // source
-                display_source(&mut res, sources, &[debug_info.clone()]);
+                crate::utils::display_source(&mut res, sources, &[debug_info.clone()]);
 
                 // note
                 res.push_str("    ▲\n");
@@ -521,7 +521,7 @@ impl Backend for KimchiVesta {
 
         // wiring
         if debug {
-            title(&mut res, "WIRING");
+            crate::utils::title(&mut res, "WIRING");
         }
 
         let mut cycles: Vec<_> = self
@@ -546,7 +546,7 @@ impl Backend for KimchiVesta {
                 .unzip();
 
             if debug {
-                display_source(&mut res, sources, &debug_infos);
+                crate::utils::display_source(&mut res, sources, &debug_infos);
             }
 
             let s = cells.iter().map(|cell| format!("{cell}")).join(" -> ");

@@ -11,7 +11,7 @@ use crate::{
         Backend, BackendField, BackendKind,
     },
     cli::packages::path_to_package,
-    compiler::{compile, typecheck_next_file, Sources},
+    compiler::{compile, generate_witness, typecheck_next_file, Sources},
     inputs::{parse_inputs, JsonInputs},
     type_checker::TypeChecker,
 };
@@ -222,6 +222,12 @@ pub struct CmdTest {
     #[clap(short, long, value_parser)]
     path: PathBuf,
 
+    /// Backend to use for running the noname file.
+    /// supported backends:
+    /// - `snarkjs-r1cs`
+    #[clap(short, long, value_parser)]
+    backend: String,
+
     /// public inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
     #[clap(long)]
     public_inputs: Option<String>,
@@ -234,21 +240,13 @@ pub struct CmdTest {
     #[clap(short, long)]
     debug: bool,
 
-    /// disable the double generic gate optimization of kimchi (by default noname uses that optimization)
+    /// enable the double generic gate optimization of kimchi (by default noname uses that optimization)
     #[clap(long)]
-    no_double: bool,
+    double: bool,
 }
 
 pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
-    // read source code
-    let code = std::fs::read_to_string(&args.path)
-        .into_diagnostic()
-        .wrap_err_with(|| {
-            format!(
-                "could not read file: `{}` (are you sure it exists?)",
-                args.path
-            )
-        })?;
+    let backend = args.backend;
 
     // parse inputs
     let public_inputs = if let Some(s) = args.public_inputs {
@@ -263,36 +261,42 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         JsonInputs::default()
     };
 
-    // compile
-    let mut sources = Sources::new();
-    let mut tast = TypeChecker::new();
-    let _node_id = typecheck_next_file(
-        &mut tast,
-        None,
-        &mut sources,
-        args.path.to_string(),
-        code,
-        0,
-    )?;
+    let backend_kind = match backend.as_str() {
+        "kimchi-vesta" => BackendKind::new_kimchi_vesta(false),
+        "r1cs-bls12-381" => BackendKind::new_r1cs_bls12_381(),
+        "r1cs-bn254" => BackendKind::new_r1cs_bn254(),
+        _ => miette::bail!("unknown backend: `{}`", backend),
+    };
 
-    let kimchi_vesta = KimchiVesta::new(!args.no_double);
-    let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+    match backend_kind {
+        BackendKind::KimchiVesta(_) => {
+            let (tast, sources) = typecheck_file(&args.path)?;
+            let kimchi_vesta = KimchiVesta::new(args.double);
+            let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
 
-    let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
-    println!("successfully compiled");
+            let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
+            println!("successfully compiled");
 
-    // print ASM
-    let asm = prover_index.asm(&sources, args.debug);
-    println!("{asm}");
+            // print ASM
+            let asm = prover_index.asm(&sources, args.debug);
+            println!("{asm}");
 
-    // create proof
-    let (proof, full_public_inputs, _public_output) =
-        prover_index.prove(&sources, public_inputs, private_inputs, args.debug)?;
-    println!("proof created");
+            // create proof
+            let (proof, full_public_inputs, _public_output) =
+                prover_index.prove(&sources, public_inputs, private_inputs, args.debug)?;
+            println!("proof created");
 
-    // verify proof
-    verifier_index.verify(full_public_inputs, proof)?;
-    println!("proof verified");
+            // verify proof
+            verifier_index.verify(full_public_inputs, proof)?;
+            println!("proof verified");
+        }
+        BackendKind::R1csBls12_381(r1cs) => {
+            test_r1cs_backend(r1cs, &args.path, public_inputs, private_inputs, args.debug)?;
+        }
+        BackendKind::R1csBn254(r1cs) => {
+            test_r1cs_backend(r1cs, &args.path, public_inputs, private_inputs, args.debug)?;
+        }
+    }
 
     Ok(())
 }
@@ -374,11 +378,11 @@ where
 {
     // Assuming `curr_dir`, `public_inputs`, and `private_inputs` are available in the scope
     let (sources, tast) = produce_all_asts(curr_dir)?;
-    println!("running noname file");
 
     let compiled_circuit = compile(&sources, tast, r1cs)?;
 
-    let generated_witness = compiled_circuit.generate_witness(public_inputs, private_inputs)?;
+    let generated_witness =
+        generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
 
     let snarkjs_exporter = SnarkjsExporter::new(compiled_circuit.circuit.backend);
 
@@ -390,4 +394,39 @@ where
     );
 
     Ok(())
+}
+
+fn test_r1cs_backend<F: BackendField>(
+    r1cs: R1CS<F>,
+    path: &PathBuf,
+    public_inputs: JsonInputs,
+    private_inputs: JsonInputs,
+    debug: bool,
+) -> miette::Result<()>
+where
+    F: BackendField,
+{
+    let (tast, sources) = typecheck_file(path)?;
+
+    let compiled_circuit = compile(&sources, tast, r1cs)?;
+
+    generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
+
+    let asm = compiled_circuit.asm(&sources, debug);
+
+    println!("{}", asm);
+
+    Ok(())
+}
+
+fn typecheck_file<B: Backend>(path: &PathBuf) -> miette::Result<(TypeChecker<B>, Sources)> {
+    let code = std::fs::read_to_string(path)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("could not read file: `{}` (are you sure it exists?)", path))?;
+
+    let mut sources = Sources::new();
+    let mut tast = TypeChecker::<B>::new();
+    let _node_id = typecheck_next_file(&mut tast, None, &mut sources, path.to_string(), code, 0)?;
+
+    Ok((tast, sources))
 }

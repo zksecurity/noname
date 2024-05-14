@@ -18,6 +18,7 @@ pub mod serialization;
 pub mod stdlib;
 pub mod syntax;
 pub mod type_checker;
+pub mod utils;
 pub mod var;
 pub mod witness;
 
