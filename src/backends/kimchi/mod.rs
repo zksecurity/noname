@@ -372,9 +372,18 @@ impl Backend for KimchiVesta {
         Ok(())
     }
 
+    fn compute_var(
+        &self,
+        env: &mut crate::witness::WitnessEnv<Self::Field>,
+        var: Self::CellVar,
+    ) -> crate::error::Result<Self::Field> {
+        let val = self.witness_vars.get(&var.index).unwrap();
+        self.compute_val(env, val, var.index)
+    }
+
     fn generate_witness(
         &self,
-        witness_env: &mut WitnessEnv<VestaField, Self::CellVar>,
+        witness_env: &mut WitnessEnv<VestaField>,
     ) -> Result<GeneratedWitness> {
         if !self.finalized {
             unreachable!("the circuit must be finalized before generating a witness");

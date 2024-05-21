@@ -294,11 +294,20 @@ where
         Ok(())
     }
 
+    fn compute_var(
+        &self,
+        env: &mut crate::witness::WitnessEnv<Self::Field>,
+        var: Self::CellVar,
+    ) -> crate::error::Result<Self::Field> {
+        let val = self.witness_vars.get(var.index).unwrap();
+        self.compute_val(env, val, var.index)
+    }
+
     /// Generate the witnesses
     /// This process should check if the constraints are satisfied.
     fn generate_witness(
         &self,
-        witness_env: &mut crate::witness::WitnessEnv<F, Self::CellVar>,
+        witness_env: &mut crate::witness::WitnessEnv<F>,
     ) -> crate::error::Result<Self::GeneratedWitness> {
         assert!(self.finalized, "the circuit is not finalized yet!");
 
@@ -312,12 +321,7 @@ where
                     // Defer calculation for output vars.
                     // The reasoning behind this is to avoid deep recursion potentially triggered by the public output var at the beginning.
                     Value::PublicOutput(_) => Ok(F::zero()),
-                    _ => {
-                        // wrap as CellVar
-                        // todo: we might have a cache for CellVar somewhere to retrieve the span by var index
-                        let var = R1csCellVar::new(index, Span::default());
-                        self.compute_var(witness_env, var)
-                    }
+                    _ => self.compute_val(witness_env, val, index)
                 }
             })
             .collect::<crate::error::Result<Vec<F>>>()?;

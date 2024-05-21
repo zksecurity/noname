@@ -14,17 +14,16 @@ use crate::{
 };
 
 #[derive(Debug, Default)]
-pub struct WitnessEnv<F, C>
+pub struct WitnessEnv<F>
 where
     F: Field,
-    C: CellVar,
 {
     pub var_values: HashMap<String, Vec<F>>,
 
-    pub cached_values: HashMap<C, F>,
+    pub cached_values: HashMap<usize, F>,
 }
 
-impl<F: Field, C: CellVar> WitnessEnv<F, C> {
+impl<F: Field> WitnessEnv<F> {
     pub fn add_value(&mut self, name: String, val: Vec<F>) {
         assert!(self.var_values.insert(name, val).is_none());
     }
