@@ -95,6 +95,10 @@ pub struct KimchiVesta {
 
     /// Size of the public input.
     pub(crate) public_input_size: usize,
+
+    /// Indexes used by the private inputs
+    /// (this is useful to check that they appear in the circuit)
+    pub(crate) private_input_indices: Vec<usize>,
 }
 
 impl Witness {
@@ -140,6 +144,7 @@ impl KimchiVesta {
             debug_info: vec![],
             finalized: false,
             public_input_size: 0,
+            private_input_indices: vec![],
         }
     }
 
@@ -303,9 +308,8 @@ impl Backend for KimchiVesta {
 
     fn finalize_circuit(
         &mut self,
-        public_output: Option<Var<VestaField>>,
-        returned_cells: Option<Vec<CellVar>>,
-        private_input_indices: Vec<usize>,
+        public_output: Option<Var<Self::Field, Self::CellVar>>,
+        returned_cells: Option<Vec<KimchiCellVar>>,
         main_span: Span,
     ) -> Result<()> {
         // TODO: the current tests pass even this is commented out. Add a test case for this one.
@@ -330,7 +334,7 @@ impl Backend for KimchiVesta {
 
         for var in 0..self.next_variable {
             if !written_vars.contains(&var) {
-                if private_input_indices.contains(&var) {
+                if self.private_input_indices.contains(&var) {
                     // TODO: is this error useful?
                     let err = Error::new(
                         "constraint-finalization",
@@ -714,7 +718,14 @@ impl Backend for KimchiVesta {
         cvar
     }
 
-    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar {
+    fn add_private_input(&mut self, val: Value<Self>, span: Span) -> Self::CellVar {
+        let cvar = self.new_internal_var(val, span);
+        self.private_input_indices.push(cvar.index);
+
+        cvar
+    }
+
+    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> KimchiCellVar {
         // create the var
         let cvar = self.new_internal_var(val, span);
 

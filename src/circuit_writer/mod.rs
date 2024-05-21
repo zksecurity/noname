@@ -44,11 +44,7 @@ where
     ///    it will set this `public_output` variable again to the correct vars.
     /// 3. During witness generation, the public output computation
     ///    is delayed until the very end.
-    pub(crate) public_output: Option<Var<B::Field>>,
-
-    /// Indexes used by the private inputs
-    /// (this is useful to check that they appear in the circuit)
-    pub(crate) private_input_indices: Vec<usize>,
+    pub(crate) public_output: Option<Var<B::Field, B::CellVar>>,
 }
 
 /// Debug information related to a single row in a circuit.
@@ -143,7 +139,6 @@ impl<B: Backend> CircuitWriter<B> {
             typed,
             backend,
             public_output: None,
-            private_input_indices: vec![],
         }
     }
 
@@ -224,7 +219,6 @@ impl<B: Backend> CircuitWriter<B> {
         // compile function
         let returned_cells = circuit_writer.compile_main_function(fn_env, &function)?;
         let main_span = circuit_writer.main_info().unwrap().span;
-        let private_input_indices = circuit_writer.private_input_indices.clone();
         let public_output = circuit_writer.public_output.clone();
 
         // constraint public outputs to the result of the circuit
@@ -238,12 +232,9 @@ impl<B: Backend> CircuitWriter<B> {
             }
         }
 
-        circuit_writer.backend.finalize_circuit(
-            public_output,
-            returned_cells,
-            private_input_indices,
-            main_span,
-        )?;
+        circuit_writer
+            .backend
+            .finalize_circuit(public_output, returned_cells, main_span)?;
 
         //
         Ok(CompiledCircuit::new(circuit_writer))

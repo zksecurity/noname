@@ -742,9 +742,8 @@ impl<B: Backend> CircuitWriter<B> {
             // create the var
             let cvar = self
                 .backend
-                .new_internal_var(Value::External(name.clone(), idx), span);
+                .add_private_input(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
-            self.private_input_indices.push(cvar.index);
         }
 
         Var::new(cvars, span)

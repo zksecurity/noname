@@ -136,6 +136,8 @@ where
     debug_info: Vec<DebugInfo>,
     /// Record the public inputs for reordering the witness vector
     public_inputs: Vec<R1csCellVar>,
+    /// Record the private inputs for checking
+    private_input_indices: Vec<usize>,
     /// Record the public outputs for reordering the witness vector
     public_outputs: Vec<R1csCellVar>,
     finalized: bool,
@@ -151,6 +153,7 @@ where
             witness_vars: Vec::new(),
             debug_info: Vec::new(),
             public_inputs: Vec::new(),
+            private_input_indices: Vec::new(),
             public_outputs: Vec::new(),
             finalized: false,
         }
@@ -240,15 +243,12 @@ where
 
     /// Final checks for generating the circuit.
     /// todo: we might need to rethink about this interface
-    /// - private_input_indices are not needed in this r1cs backend.
-    /// - main_span could be better initialized with the backend, so it doesn't have to pass in here?
     /// - we might just need the returned_cells argument, as the backend can record the public outputs itself?
     fn finalize_circuit(
         &mut self,
-        public_output: Option<crate::var::Var<F>>,
-        returned_cells: Option<Vec<CellVar>>,
-        _private_input_indices: Vec<usize>,
-        _main_span: crate::constants::Span,
+        public_output: Option<crate::var::Var<Self::Field, Self::CellVar>>,
+        returned_cells: Option<Vec<R1csCellVar>>,
+        main_span: crate::constants::Span,
     ) -> crate::error::Result<()> {
         // store the return value in the public input that was created for that
         if let Some(public_output) = public_output {
@@ -275,10 +275,18 @@ where
 
         // check if every cell vars end up being a cell var in the circuit or public output
         for (index, _) in self.witness_vars.iter().enumerate() {
-            assert!(
-                written_vars.contains(&index),
-                "there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"
-            );
+            if !written_vars.contains(&index) {
+                if self.private_input_indices.contains(&index) {
+                    let err = Error::new(
+                        "constraint-finalization",
+                        ErrorKind::PrivateInputNotUsed,
+                        main_span,
+                    );
+                    return Err(err);
+                } else {
+                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
+                }
+            }
         }
 
         self.finalized = true;
@@ -612,6 +620,14 @@ where
     fn add_public_input(&mut self, val: Value<Self>, span: crate::constants::Span) -> R1csCellVar {
         let var = self.new_internal_var(val, span);
         self.public_inputs.push(var);
+
+        var
+    }
+
+    /// Adds the private input cell vars.
+    fn add_private_input(&mut self, val: Value<Self>, span: Span) -> Self::CellVar {
+        let var = self.new_internal_var(val, span);
+        self.private_input_indices.push(var.index);
 
         var
     }

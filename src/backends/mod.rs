@@ -100,6 +100,9 @@ pub trait Backend: Clone {
     /// Process a public input
     fn add_public_input(&mut self, val: Value<Self>, span: Span) -> Self::CellVar;
 
+    /// Process a private input
+    fn add_private_input(&mut self, val: Value<Self>, span: Span) -> Self::CellVar;
+
     /// Process a public output
     fn add_public_output(&mut self, val: Value<Self>, span: Span) -> Self::CellVar;
 
