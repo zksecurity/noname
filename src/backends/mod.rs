@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{fmt::Debug, hash::Hash, str::FromStr};
 
 use ark_ff::{Field, Zero};
 use num_bigint::BigUint;
@@ -9,7 +9,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
-    var::{CellVar, Value, Var},
+    var::{Value, Var},
     witness::WitnessEnv,
 };
 
@@ -26,6 +26,11 @@ pub trait BackendField:
     Field + FromStr + TryFrom<BigUint> + TryInto<BigUint> + Into<BigUint> + PrettyField
 {
 }
+
+/// This trait allows different backends to have different cell var types.
+/// It is intended to make it opaque to the frondend.
+pub trait CellVar: Default + Clone + Copy + Debug + PartialEq + Eq + Hash {}
+
 
 pub enum BackendKind {
     KimchiVesta(KimchiVesta),
@@ -52,12 +57,16 @@ pub trait Backend: Clone {
     /// The circuit field / scalar field that the circuit is written on.
     type Field: BackendField;
 
+    /// The CellVar type for the backend.
+    /// Different backend is allowed to have different CellVar types.
+    type CellVar: CellVar;
+
     /// The generated witness type for the backend. Each backend may define its own witness format to be generated.
     type GeneratedWitness;
 
     /// This provides a standard way to access to all the internal vars.
     /// Different backends should be accessible in the same way by the variable index.
-    fn witness_vars(&self, var: CellVar) -> &Value<Self>;
+    fn witness_vars(&self, var: Self::CellVar) -> &Value<Self>;
 
     // TODO: as the builtins grows, we might better change this to a crypto struct that holds all the builtin function pointers.
     /// poseidon crypto builtin function for different backends
@@ -65,34 +74,34 @@ pub trait Backend: Clone {
 
     /// Create a new cell variable and record it.
     /// It increments the variable index for look up later.
-    fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> CellVar;
+    fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> Self::CellVar;
 
     /// negate a var
-    fn neg(&mut self, var: &CellVar, span: Span) -> CellVar;
+    fn neg(&mut self, var: &Self::CellVar, span: Span) -> Self::CellVar;
 
     /// add two vars
-    fn add(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar;
+    fn add(&mut self, lhs: &Self::CellVar, rhs: &Self::CellVar, span: Span) -> Self::CellVar;
 
     /// add a var with a constant
-    fn add_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar;
+    fn add_const(&mut self, var: &Self::CellVar, cst: &Self::Field, span: Span) -> Self::CellVar;
 
     /// multiply a var with another var
-    fn mul(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar;
+    fn mul(&mut self, lhs: &Self::CellVar, rhs: &Self::CellVar, span: Span) -> Self::CellVar;
 
     /// multiply a var with a constant
-    fn mul_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar;
+    fn mul_const(&mut self, var: &Self::CellVar, cst: &Self::Field, span: Span) -> Self::CellVar;
 
     /// add a constraint to assert a var equals a constant
-    fn assert_eq_const(&mut self, var: &CellVar, cst: Self::Field, span: Span);
+    fn assert_eq_const(&mut self, var: &Self::CellVar, cst: Self::Field, span: Span);
 
     /// add a constraint to assert a var equals another var
-    fn assert_eq_var(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span);
+    fn assert_eq_var(&mut self, lhs: &Self::CellVar, rhs: &Self::CellVar, span: Span);
 
     /// Process a public input
-    fn add_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar;
+    fn add_public_input(&mut self, val: Value<Self>, span: Span) -> Self::CellVar;
 
     /// Process a public output
-    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar;
+    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> Self::CellVar;
 
     /// This should be called only when you want to constrain a constant for real.
     /// Gates that handle constants should always make sure to call this function when they want them constrained.
@@ -101,7 +110,7 @@ pub trait Backend: Clone {
         label: Option<&'static str>,
         value: Self::Field,
         span: Span,
-    ) -> CellVar;
+    ) -> Self::CellVar;
 
     /// Compute the value of the symbolic cell variables.
     /// It recursively does the computation down the stream until it is not a symbolic variable.
@@ -169,16 +178,15 @@ pub trait Backend: Clone {
     /// Finalize the circuit by doing some sanitizing checks.
     fn finalize_circuit(
         &mut self,
-        public_output: Option<Var<Self::Field>>,
-        returned_cells: Option<Vec<CellVar>>,
-        private_input_indices: Vec<usize>,
+        public_output: Option<Var<Self::Field, Self::CellVar>>,
+        returned_cells: Option<Vec<Self::CellVar>>,
         main_span: Span,
     ) -> Result<()>;
 
     /// Generate the witness for a backend.
     fn generate_witness(
         &self,
-        witness_env: &mut WitnessEnv<Self::Field>,
+        witness_env: &mut WitnessEnv<Self::Field, Self::CellVar>,
     ) -> Result<Self::GeneratedWitness>;
 
     /// Generate the asm for a backend.

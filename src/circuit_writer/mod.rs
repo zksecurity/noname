@@ -89,9 +89,9 @@ impl<B: Backend> CircuitWriter<B> {
 
     pub fn add_local_var(
         &self,
-        fn_env: &mut FnEnv<B::Field>,
+        fn_env: &mut FnEnv<B::Field, B::CellVar>,
         var_name: String,
-        var_info: VarInfo<B::Field>,
+        var_info: VarInfo<B::Field, B::CellVar>,
     ) {
         // check for consts first
         let qualified = FullyQualified::local(var_name.clone());
@@ -105,7 +105,11 @@ impl<B: Backend> CircuitWriter<B> {
         fn_env.add_local_var(var_name, var_info)
     }
 
-    pub fn get_local_var(&self, fn_env: &FnEnv<B::Field>, var_name: &str) -> VarInfo<B::Field> {
+    pub fn get_local_var(
+        &self,
+        fn_env: &FnEnv<B::Field, B::CellVar>,
+        var_name: &str,
+    ) -> VarInfo<B::Field, B::CellVar> {
         // check for consts first
         let qualified = FullyQualified::local(var_name.to_string());
         if let Some(cst_info) = self.typed.const_info(&qualified) {

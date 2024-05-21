@@ -17,7 +17,11 @@ pub fn is_valid<F: Field>(f: F) -> bool {
     f.is_one() || f.is_zero()
 }
 
-pub fn check<B: Backend>(compiler: &mut CircuitWriter<B>, xx: &ConstOrCell<B::Field>, span: Span) {
+pub fn check<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    xx: &ConstOrCell<B::Field, B::CellVar>,
+    span: Span,
+) {
     let one = B::Field::one();
 
     match xx {
@@ -35,10 +39,10 @@ pub fn check<B: Backend>(compiler: &mut CircuitWriter<B>, xx: &ConstOrCell<B::Fi
 
 pub fn and<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    lhs: &ConstOrCell<B::Field>,
-    rhs: &ConstOrCell<B::Field>,
+    lhs: &ConstOrCell<B::Field, B::CellVar>,
+    rhs: &ConstOrCell<B::Field, B::CellVar>,
     span: Span,
-) -> Var<B::Field> {
+) -> Var<B::Field, B::CellVar> {
     match (lhs, rhs) {
         // two constants
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs * *rhs, span),
@@ -65,9 +69,9 @@ pub fn and<B: Backend>(
 
 pub fn not<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    var: &ConstOrCell<B::Field>,
+    var: &ConstOrCell<B::Field, B::CellVar>,
     span: Span,
-) -> Var<B::Field> {
+) -> Var<B::Field, B::CellVar> {
     match var {
         ConstOrCell::Const(cst) => {
             let value = if cst.is_one() {
@@ -92,10 +96,10 @@ pub fn not<B: Backend>(
 
 pub fn or<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    lhs: &ConstOrCell<B::Field>,
-    rhs: &ConstOrCell<B::Field>,
+    lhs: &ConstOrCell<B::Field, B::CellVar>,
+    rhs: &ConstOrCell<B::Field, B::CellVar>,
     span: Span,
-) -> Var<B::Field> {
+) -> Var<B::Field, B::CellVar> {
     let not_lhs = not(compiler, lhs, span);
     let not_rhs = not(compiler, rhs, span);
     let both_false = and(compiler, &not_lhs[0], &not_rhs[0], span);

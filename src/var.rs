@@ -4,7 +4,7 @@ use ark_ff::Field;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backends::Backend,
+    backends::{Backend, CellVar},
     circuit_writer::{CircuitWriter, FnEnv, VarInfo},
     constants::Span,
     error::Result,
@@ -12,29 +12,8 @@ use crate::{
     witness::WitnessEnv,
 };
 
-/// An internal variable that relates to a specific cell (of the execution trace),
-/// or multiple cells (if wired), in the circuit.
-///
-/// Note: a [CellVar] is potentially not directly added to the rows,
-/// for example a private input is converted directly to a (number of) [CellVar],
-/// but only added to the rows when it appears in a constraint for the first time.
-///
-/// As the final step of the compilation,
-/// we double check that all cellvars have appeared in the rows at some point.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct CellVar {
-    pub index: usize,
-    pub span: Span,
-}
-
-impl CellVar {
-    pub fn new(index: usize, span: Span) -> Self {
-        Self { index, span }
-    }
-}
-
 /// The signature of a hint function
-pub type HintFn<B: Backend> = dyn Fn(&B, &mut WitnessEnv<B::Field>) -> Result<B::Field>;
+pub type HintFn<B: Backend> = dyn Fn(&B, &mut WitnessEnv<B::Field, B::CellVar>) -> Result<B::Field>;
 
 /// A variable's actual value in the witness can be computed in different ways.
 #[derive(Clone, Serialize, Deserialize)]
@@ -56,16 +35,16 @@ where
     /// Or it's a linear combination of internal circuit variables (+ a constant).
     // TODO: probably values of internal variables should be cached somewhere
     #[serde(skip)]
-    LinearCombination(Vec<(B::Field, CellVar)>, B::Field /* cst */),
+    LinearCombination(Vec<(B::Field, B::CellVar)>, B::Field /* cst */),
 
-    Mul(CellVar, CellVar),
+    Mul(B::CellVar, B::CellVar),
 
     #[serde(skip)]
-    Scale(B::Field, CellVar),
+    Scale(B::Field, B::CellVar),
 
     /// Returns the inverse of the given variable.
     /// Note that it will potentially return 0 if the given variable is 0.
-    Inverse(CellVar),
+    Inverse(B::CellVar),
 
     /// A public or private input to the function
     /// There's an index associated to a variable name, as the variable could be composed of several field elements.
@@ -73,7 +52,7 @@ where
 
     /// A public output.
     /// This is tracked separately as public inputs as it needs to be computed later.
-    PublicOutput(Option<CellVar>),
+    PublicOutput(Option<B::CellVar>),
 }
 
 impl<B: Backend> std::fmt::Debug for Value<B> {
@@ -93,19 +72,20 @@ impl<B: Backend> std::fmt::Debug for Value<B> {
 
 /// Represents a cell in the execution trace.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum ConstOrCell<F>
+pub enum ConstOrCell<F, C>
 where
     F: Field,
+    C: CellVar,
 {
     /// A constant value.
     #[serde(skip)]
     Const(F),
 
     /// A cell in the execution trace.
-    Cell(CellVar),
+    Cell(C),
 }
 
-impl<F: Field> ConstOrCell<F> {
+impl<F: Field, C: CellVar> ConstOrCell<F, C> {
     pub fn is_const(&self) -> bool {
         matches!(self, Self::Const(..))
     }
@@ -117,16 +97,9 @@ impl<F: Field> ConstOrCell<F> {
         }
     }
 
-    pub fn cvar(&self) -> Option<&CellVar> {
+    pub fn cvar(&self) -> Option<&C> {
         match self {
             Self::Cell(cvar) => Some(cvar),
-            _ => None,
-        }
-    }
-
-    pub fn idx(&self) -> Option<usize> {
-        match self {
-            Self::Cell(cell) => Some(cell.index),
             _ => None,
         }
     }
@@ -134,30 +107,31 @@ impl<F: Field> ConstOrCell<F> {
 
 /// Represents a variable in the noname language, or an anonymous variable during computation of expressions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Var<F>
+pub struct Var<F, C>
 where
     F: Field,
+    C: CellVar,
 {
     /// The type of variable.
-    pub cvars: Vec<ConstOrCell<F>>,
+    pub cvars: Vec<ConstOrCell<F, C>>,
 
     /// The span that created the variable.
     pub span: Span,
 }
 
-impl<F: Field> Var<F> {
-    pub fn new(cvars: Vec<ConstOrCell<F>>, span: Span) -> Self {
+impl<F: Field, C: CellVar> Var<F, C> {
+    pub fn new(cvars: Vec<ConstOrCell<F, C>>, span: Span) -> Self {
         Self { cvars, span }
     }
 
-    pub fn new_cvar(cvar: ConstOrCell<F>, span: Span) -> Self {
+    pub fn new_cvar(cvar: ConstOrCell<F, C>, span: Span) -> Self {
         Self {
             cvars: vec![cvar],
             span,
         }
     }
 
-    pub fn new_var(cvar: CellVar, span: Span) -> Self {
+    pub fn new_var(cvar: C, span: Span) -> Self {
         Self {
             cvars: vec![ConstOrCell::Cell(cvar)],
             span,
@@ -186,7 +160,7 @@ impl<F: Field> Var<F> {
         self.cvars.is_empty()
     }
 
-    pub fn get(&self, idx: usize) -> Option<&ConstOrCell<F>> {
+    pub fn get(&self, idx: usize) -> Option<&ConstOrCell<F, C>> {
         if idx < self.cvars.len() {
             Some(&self.cvars[idx])
         } else {
@@ -202,18 +176,18 @@ impl<F: Field> Var<F> {
         }
     }
 
-    pub fn range(&self, start: usize, len: usize) -> &[ConstOrCell<F>] {
+    pub fn range(&self, start: usize, len: usize) -> &[ConstOrCell<F, C>] {
         &self.cvars[start..(start + len)]
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, ConstOrCell<F>> {
+    pub fn iter(&self) -> std::slice::Iter<'_, ConstOrCell<F, C>> {
         self.cvars.iter()
     }
 }
 
 // implement indexing into Var
-impl<F: Field> std::ops::Index<usize> for Var<F> {
-    type Output = ConstOrCell<F>;
+impl<F: Field, C: CellVar> std::ops::Index<usize> for Var<F, C> {
+    type Output = ConstOrCell<F, C>;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.cvars[index]
@@ -228,7 +202,7 @@ where
     B: Backend,
 {
     /// A [Var].
-    Var(Var<B::Field>),
+    Var(Var<B::Field, B::CellVar>),
 
     /// A reference to a noname variable in the environment.
     /// Potentially narrowing it down to a range of cells in that variable.
@@ -255,8 +229,8 @@ impl<B: Backend> VarOrRef<B> {
     pub(crate) fn value(
         self,
         circuit_writer: &CircuitWriter<B>,
-        fn_env: &FnEnv<B::Field>,
-    ) -> Var<B::Field> {
+        fn_env: &FnEnv<B::Field, B::CellVar>,
+    ) -> Var<B::Field, B::CellVar> {
         match self {
             VarOrRef::Var(var) => var,
             VarOrRef::Ref {
@@ -271,7 +245,7 @@ impl<B: Backend> VarOrRef<B> {
         }
     }
 
-    pub(crate) fn from_var_info(var_name: String, var_info: VarInfo<B::Field>) -> Self {
+    pub(crate) fn from_var_info(var_name: String, var_info: VarInfo<B::Field, B::CellVar>) -> Self {
         if var_info.mutable {
             Self::Ref {
                 var_name,

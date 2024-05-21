@@ -1,17 +1,20 @@
 use std::collections::HashMap;
 
-use ark_ff::Field;
-
-use crate::{parser::types::TyKind, var::Var};
+use crate::{
+    backends::{BackendField, CellVar},
+    parser::types::TyKind,
+    var::Var,
+};
 
 /// Information about a variable.
 #[derive(Debug, Clone)]
-pub struct VarInfo<F>
+pub struct VarInfo<F, C>
 where
-    F: Field,
+    F: BackendField,
+    C: CellVar,
 {
     /// The variable.
-    pub var: Var<F>,
+    pub var: Var<F, C>,
 
     // TODO: we could also store this on the expression node... but I think this is lighter
     pub mutable: bool,
@@ -22,12 +25,12 @@ where
     pub typ: Option<TyKind>,
 }
 
-impl<F: Field> VarInfo<F> {
-    pub fn new(var: Var<F>, mutable: bool, typ: Option<TyKind>) -> Self {
+impl<F: BackendField, C: CellVar> VarInfo<F, C> {
+    pub fn new(var: Var<F, C>, mutable: bool, typ: Option<TyKind>) -> Self {
         Self { var, mutable, typ }
     }
 
-    pub fn reassign(&self, var: Var<F>) -> Self {
+    pub fn reassign(&self, var: Var<F, C>) -> Self {
         Self {
             var,
             mutable: self.mutable,
@@ -35,7 +38,7 @@ impl<F: Field> VarInfo<F> {
         }
     }
 
-    pub fn reassign_range(&self, var: Var<F>, start: usize, len: usize) -> Self {
+    pub fn reassign_range(&self, var: Var<F, C>, start: usize, len: usize) -> Self {
         // sanity check
         assert_eq!(var.len(), len);
 
@@ -58,9 +61,10 @@ impl<F: Field> VarInfo<F> {
 /// This include inputs and output of the function,  as well as local variables.
 /// You can think of it as a function call stack.
 #[derive(Default, Debug, Clone)]
-pub struct FnEnv<F>
+pub struct FnEnv<F, C>
 where
-    F: Field,
+    F: BackendField,
+    C: CellVar,
 {
     /// The current nesting level.
     /// Starting at 0 (top level), and increasing as we go into a block.
@@ -70,10 +74,10 @@ where
     /// and any other external variables created in the circuit
     /// This needs to be garbage collected when we exit a scope.
     /// Note: The `usize` is the scope in which the variable was created.
-    vars: HashMap<String, (usize, VarInfo<F>)>,
+    vars: HashMap<String, (usize, VarInfo<F, C>)>,
 }
 
-impl<F: Field> FnEnv<F> {
+impl<F: BackendField, C: CellVar> FnEnv<F, C> {
     /// Creates a new FnEnv
     pub fn new() -> Self {
         Self::default()
@@ -109,7 +113,7 @@ impl<F: Field> FnEnv<F> {
 
     /// Stores type information about a local variable.
     /// Note that we forbid shadowing at all scopes.
-    pub fn add_local_var(&mut self, var_name: String, var_info: VarInfo<F>) {
+    pub fn add_local_var(&mut self, var_name: String, var_info: VarInfo<F, C>) {
         let scope = self.current_scope;
 
         if self
@@ -124,7 +128,7 @@ impl<F: Field> FnEnv<F> {
     /// Retrieves type information on a variable, given a name.
     /// If the variable is not in scope, return false.
     // TODO: return an error no?
-    pub fn get_local_var(&self, var_name: &str) -> VarInfo<F> {
+    pub fn get_local_var(&self, var_name: &str) -> VarInfo<F, C> {
         let (scope, var_info) = self
             .vars
             .get(var_name)
@@ -136,7 +140,7 @@ impl<F: Field> FnEnv<F> {
         var_info.clone()
     }
 
-    pub fn reassign_local_var(&mut self, var_name: &str, var: Var<F>) {
+    pub fn reassign_local_var(&mut self, var_name: &str, var: Var<F, C>) {
         // get the scope first, we don't want to modify that
         let (scope, var_info) = self
             .vars
@@ -156,7 +160,7 @@ impl<F: Field> FnEnv<F> {
     }
 
     /// Same as [Self::reassign_var], but only reassigns a specific range of the variable.
-    pub fn reassign_var_range(&mut self, var_name: &str, var: Var<F>, start: usize, len: usize) {
+    pub fn reassign_var_range(&mut self, var_name: &str, var: Var<F, C>, start: usize, len: usize) {
         // get the scope first, we don't want to modify that
         let (scope, var_info) = self
             .vars
