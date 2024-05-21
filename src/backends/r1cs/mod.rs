@@ -312,7 +312,12 @@ where
                     // Defer calculation for output vars.
                     // The reasoning behind this is to avoid deep recursion potentially triggered by the public output var at the beginning.
                     Value::PublicOutput(_) => Ok(F::zero()),
-                    _ => self.compute_val(witness_env, val, index),
+                    _ => {
+                        // wrap as CellVar
+                        // todo: we might have a cache for CellVar somewhere to retrieve the span by var index
+                        let var = R1csCellVar::new(index, Span::default());
+                        self.compute_var(witness_env, var)
+                    }
                 }
             })
             .collect::<crate::error::Result<Vec<F>>>()?;

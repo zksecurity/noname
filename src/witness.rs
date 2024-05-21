@@ -5,7 +5,7 @@ use itertools::chain;
 //use serde::{Deserialize, Serialize};
 
 use crate::{
-    backends::Backend,
+    backends::{Backend, CellVar},
     circuit_writer::CircuitWriter,
     compiler::Sources,
     error::{Error, ErrorKind, Result},
@@ -14,16 +14,17 @@ use crate::{
 };
 
 #[derive(Debug, Default)]
-pub struct WitnessEnv<F>
+pub struct WitnessEnv<F, C>
 where
     F: Field,
+    C: CellVar,
 {
     pub var_values: HashMap<String, Vec<F>>,
 
-    pub cached_values: HashMap<usize, F>,
+    pub cached_values: HashMap<C, F>,
 }
 
-impl<F: Field> WitnessEnv<F> {
+impl<F: Field, C: CellVar> WitnessEnv<F, C> {
     pub fn add_value(&mut self, name: String, val: Vec<F>) {
         assert!(self.var_values.insert(name, val).is_none());
     }

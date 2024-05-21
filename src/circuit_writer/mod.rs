@@ -243,7 +243,7 @@ impl<B: Backend> CircuitWriter<B> {
     /// A wrapper for the backend generate_witness
     pub fn generate_witness(
         &self,
-        witness_env: &mut WitnessEnv<B::Field>,
+        witness_env: &mut WitnessEnv<B::Field, B::CellVar>,
     ) -> Result<B::GeneratedWitness> {
         self.backend.generate_witness(witness_env)
     }
