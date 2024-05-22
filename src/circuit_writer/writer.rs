@@ -7,10 +7,7 @@ use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backends::{
-        kimchi::VestaField,
-        Backend
-    },
+    backends::{kimchi::VestaField, Backend},
     circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
     constants::Span,
     constraints::{boolean, field},

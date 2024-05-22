@@ -397,7 +397,10 @@ impl Backend for KimchiVesta {
             for (col, var) in row_of_vars.iter().enumerate() {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
-                    if matches!(self.witness_vars.get(&var.index), Some(Value::PublicOutput(_))) {
+                    if matches!(
+                        self.witness_vars.get(&var.index),
+                        Some(Value::PublicOutput(_))
+                    ) {
                         public_outputs_vars
                             .entry(*var)
                             .or_default()

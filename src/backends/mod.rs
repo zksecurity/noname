@@ -31,7 +31,6 @@ pub trait BackendField:
 /// It is intended to make it opaque to the frondend.
 pub trait CellVar: Default + Clone + Copy + Debug + PartialEq + Eq + Hash {}
 
-
 pub enum BackendKind {
     KimchiVesta(KimchiVesta),
     R1csBls12_381(R1CS<R1csBls12381Field>),
@@ -117,12 +116,17 @@ pub trait Backend: Clone {
         env: &mut WitnessEnv<Self::Field>,
         var: Self::CellVar,
     ) -> Result<Self::Field>;
-    
+
     /// Compute the value of the symbolic cell variables.
     /// It recursively does the computation down the stream until it is not a symbolic variable.
     /// - The symbolic variables are stored in the witness_vars.
     /// - The computed values are stored in the cached_values.
-    fn compute_val(&self, env: &mut WitnessEnv<Self::Field>, val: &Value<Self>, cache_key: usize) -> Result<Self::Field> {
+    fn compute_val(
+        &self,
+        env: &mut WitnessEnv<Self::Field>,
+        val: &Value<Self>,
+        cache_key: usize,
+    ) -> Result<Self::Field> {
         if let Some(res) = env.cached_values.get(&cache_key) {
             return Ok(*res);
         }
