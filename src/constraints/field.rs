@@ -256,7 +256,7 @@ pub fn if_else_inner<B: Backend>(
     //
 
     // if cond is constant, easy
-    match cond {
+    let cond = match cond {
         ConstOrCell::Const(cond) => {
             if cond.is_one() {
                 return Var::new_cvar(*then_, span);
@@ -264,7 +264,7 @@ pub fn if_else_inner<B: Backend>(
                 return Var::new_cvar(*else_, span);
             }
         }
-        ConstOrCell::Cell(cond) => *cond,
+        ConstOrCell::Cell(_) => cond,
     };
 
     // determine the res via arithemtic
