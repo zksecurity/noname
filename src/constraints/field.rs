@@ -268,7 +268,7 @@ pub fn if_else_inner<B: Backend>(
         ConstOrCell::Cell(_) => (),
     };
 
-    // determine the res via arithemtic
+    // determine the result via arithemtic
     let cond_then = mul(compiler, then_, cond, span);
     let one = ConstOrCell::Const(B::Field::one());
     let one_minus_cond = sub(compiler, &one, cond, span);
