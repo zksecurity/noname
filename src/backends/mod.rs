@@ -64,10 +64,6 @@ pub trait Backend: Clone {
     /// The generated witness type for the backend. Each backend may define its own witness format to be generated.
     type GeneratedWitness;
 
-    /// This provides a standard way to access to all the internal vars.
-    /// Different backends should be accessible in the same way by the variable index.
-    fn witness_vars(&self, var: Self::CellVar) -> &Value<Self>;
-
     // TODO: as the builtins grows, we might better change this to a crypto struct that holds all the builtin function pointers.
     /// poseidon crypto builtin function for different backends
     fn poseidon() -> FnHandle<Self>;

@@ -207,10 +207,6 @@ where
 
     type GeneratedWitness = GeneratedWitness<F>;
 
-    fn witness_vars(&self, var: R1csCellVar) -> &Value<Self> {
-        self.witness_vars.get(var.index).unwrap()
-    }
-
     fn poseidon() -> crate::imports::FnHandle<Self> {
         builtin::poseidon::<F>
     }
