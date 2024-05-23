@@ -5,7 +5,7 @@ use kimchi::circuits::polynomials::poseidon::{POS_ROWS_PER_HASH, ROUNDS_PER_ROW}
 use kimchi::mina_poseidon::constants::{PlonkSpongeConstantsKimchi, SpongeConstants};
 use kimchi::mina_poseidon::permutation::full_round;
 
-use super::{KimchiVesta, VestaField};
+use super::{KimchiCellVar, KimchiVesta, VestaField};
 use crate::backends::kimchi::NUM_REGISTERS;
 use crate::backends::Backend;
 
@@ -19,9 +19,9 @@ use crate::{
 
 pub fn poseidon(
     compiler: &mut CircuitWriter<KimchiVesta>,
-    vars: &[VarInfo<VestaField>],
+    vars: &[VarInfo<VestaField, KimchiCellVar>],
     span: Span,
-) -> Result<Option<Var<VestaField>>> {
+) -> Result<Option<Var<VestaField, KimchiCellVar>>> {
     //
     // sanity checks
     //

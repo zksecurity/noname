@@ -10,6 +10,7 @@ use std::{
 
 use itertools::{izip, Itertools};
 use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     backends::kimchi::asm::parse_coeffs,
@@ -21,7 +22,7 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
-    var::{CellVar, Value, Var},
+    var::{Value, Var},
     witness::WitnessEnv,
 };
 
@@ -35,7 +36,7 @@ pub type VestaField = kimchi::mina_curves::pasta::Fp;
 /// Number of columns in the execution trace.
 pub const NUM_REGISTERS: usize = kimchi::circuits::wires::COLUMNS;
 
-use super::{Backend, BackendField};
+use super::{Backend, BackendField, CellVar};
 
 impl BackendField for VestaField {}
 
@@ -64,11 +65,11 @@ pub struct KimchiVesta {
     /// The execution trace table with vars as placeholders.
     /// It is created during circuit generation,
     /// and used by the witness generator.
-    pub(crate) rows_of_vars: Vec<Vec<Option<CellVar>>>,
+    pub(crate) rows_of_vars: Vec<Vec<Option<KimchiCellVar>>>,
 
     /// We cache the association between a constant and its _constrained_ variable,
     /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
-    pub(crate) cached_constants: HashMap<VestaField, CellVar>,
+    pub(crate) cached_constants: HashMap<VestaField, KimchiCellVar>,
 
     /// The gates created by the circuit generation.
     gates: Vec<Gate>,
@@ -94,6 +95,10 @@ pub struct KimchiVesta {
 
     /// Size of the public input.
     pub(crate) public_input_size: usize,
+
+    /// Indexes used by the private inputs
+    /// (this is useful to check that they appear in the circuit)
+    pub(crate) private_input_indices: Vec<usize>,
 }
 
 impl Witness {
@@ -139,6 +144,7 @@ impl KimchiVesta {
             debug_info: vec![],
             finalized: false,
             public_input_size: 0,
+            private_input_indices: vec![],
         }
     }
 
@@ -147,7 +153,7 @@ impl KimchiVesta {
         &mut self,
         note: &'static str,
         typ: GateKind,
-        vars: Vec<Option<CellVar>>,
+        vars: Vec<Option<KimchiCellVar>>,
         coeffs: Vec<VestaField>,
         span: Span,
     ) {
@@ -200,7 +206,7 @@ impl KimchiVesta {
     fn add_generic_gate(
         &mut self,
         label: &'static str,
-        mut vars: Vec<Option<CellVar>>,
+        mut vars: Vec<Option<KimchiCellVar>>,
         mut coeffs: Vec<VestaField>,
         span: Span,
     ) {
@@ -237,21 +243,32 @@ impl KimchiVesta {
     }
 }
 
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct KimchiCellVar {
+    pub index: usize,
+    pub span: Span,
+}
+
+impl CellVar for KimchiCellVar {}
+
+impl KimchiCellVar {
+    fn new(index: usize, span: Span) -> Self {
+        Self { index, span }
+    }
+}
+
 impl Backend for KimchiVesta {
     type Field = VestaField;
+    type CellVar = KimchiCellVar;
     type GeneratedWitness = GeneratedWitness;
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
         builtin::poseidon
     }
 
-    fn witness_vars(&self, var: CellVar) -> &Value<Self> {
-        self.witness_vars.get(&var.index).unwrap()
-    }
-
-    fn new_internal_var(&mut self, val: Value<KimchiVesta>, span: Span) -> CellVar {
+    fn new_internal_var(&mut self, val: Value<KimchiVesta>, span: Span) -> KimchiCellVar {
         // create new var
-        let var = CellVar::new(self.next_variable, span);
+        let var = KimchiCellVar::new(self.next_variable, span);
         self.next_variable += 1;
 
         // store it in the circuit_writer
@@ -265,7 +282,7 @@ impl Backend for KimchiVesta {
         label: Option<&'static str>,
         value: VestaField,
         span: Span,
-    ) -> CellVar {
+    ) -> KimchiCellVar {
         if let Some(cvar) = self.cached_constants.get(&value) {
             return *cvar;
         }
@@ -287,9 +304,8 @@ impl Backend for KimchiVesta {
 
     fn finalize_circuit(
         &mut self,
-        public_output: Option<Var<VestaField>>,
-        returned_cells: Option<Vec<CellVar>>,
-        private_input_indices: Vec<usize>,
+        public_output: Option<Var<Self::Field, Self::CellVar>>,
+        returned_cells: Option<Vec<KimchiCellVar>>,
         main_span: Span,
     ) -> Result<()> {
         // TODO: the current tests pass even this is commented out. Add a test case for this one.
@@ -314,7 +330,7 @@ impl Backend for KimchiVesta {
 
         for var in 0..self.next_variable {
             if !written_vars.contains(&var) {
-                if private_input_indices.contains(&var) {
+                if self.private_input_indices.contains(&var) {
                     // TODO: is this error useful?
                     let err = Error::new(
                         "constraint-finalization",
@@ -339,7 +355,7 @@ impl Backend for KimchiVesta {
 
             for (pub_var, ret_var) in cvars.clone().iter().zip(returned_cells.unwrap()) {
                 // replace the computation of the public output vars with the actual variables being returned here
-                let var_idx = pub_var.idx().unwrap();
+                let var_idx = pub_var.cvar().unwrap().index;
                 let prev = self
                     .witness_vars
                     .insert(var_idx, Value::PublicOutput(Some(ret_var)));
@@ -352,6 +368,15 @@ impl Backend for KimchiVesta {
         Ok(())
     }
 
+    fn compute_var(
+        &self,
+        env: &mut crate::witness::WitnessEnv<Self::Field>,
+        var: Self::CellVar,
+    ) -> crate::error::Result<Self::Field> {
+        let val = self.witness_vars.get(&var.index).unwrap();
+        self.compute_val(env, val, var.index)
+    }
+
     fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<VestaField>,
@@ -362,7 +387,7 @@ impl Backend for KimchiVesta {
 
         let mut witness = vec![];
         // compute each rows' vars, except for the deferred ones (public output)
-        let mut public_outputs_vars: HashMap<CellVar, Vec<(usize, usize)>> = HashMap::new();
+        let mut public_outputs_vars: HashMap<KimchiCellVar, Vec<(usize, usize)>> = HashMap::new();
 
         // calculate witness except for public outputs
         for (row, row_of_vars) in self.rows_of_vars.iter().enumerate() {
@@ -372,7 +397,10 @@ impl Backend for KimchiVesta {
             for (col, var) in row_of_vars.iter().enumerate() {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
-                    if matches!(self.witness_vars(*var), Value::PublicOutput(_)) {
+                    if matches!(
+                        self.witness_vars.get(&var.index),
+                        Some(Value::PublicOutput(_))
+                    ) {
                         public_outputs_vars
                             .entry(*var)
                             .or_default()
@@ -560,7 +588,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn neg(&mut self, var: &CellVar, span: Span) -> CellVar {
+    fn neg(&mut self, var: &KimchiCellVar, span: Span) -> KimchiCellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -578,7 +606,7 @@ impl Backend for KimchiVesta {
         neg_var
     }
 
-    fn add(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar {
+    fn add(&mut self, lhs: &KimchiCellVar, rhs: &KimchiCellVar, span: Span) -> KimchiCellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -599,7 +627,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn add_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar {
+    fn add_const(&mut self, var: &KimchiCellVar, cst: &Self::Field, span: Span) -> KimchiCellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -618,7 +646,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn mul(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) -> CellVar {
+    fn mul(&mut self, lhs: &KimchiCellVar, rhs: &KimchiCellVar, span: Span) -> KimchiCellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -636,7 +664,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn mul_const(&mut self, var: &CellVar, cst: &Self::Field, span: Span) -> CellVar {
+    fn mul_const(&mut self, var: &KimchiCellVar, cst: &Self::Field, span: Span) -> KimchiCellVar {
         let zero = Self::Field::zero();
         let one = Self::Field::one();
 
@@ -655,7 +683,7 @@ impl Backend for KimchiVesta {
         res
     }
 
-    fn assert_eq_const(&mut self, cvar: &CellVar, cst: Self::Field, span: Span) {
+    fn assert_eq_const(&mut self, cvar: &KimchiCellVar, cst: Self::Field, span: Span) {
         self.add_generic_gate(
             "constrain var - cst = 0 to check equality",
             vec![Some(*cvar)],
@@ -670,7 +698,7 @@ impl Backend for KimchiVesta {
         );
     }
 
-    fn assert_eq_var(&mut self, lhs: &CellVar, rhs: &CellVar, span: Span) {
+    fn assert_eq_var(&mut self, lhs: &KimchiCellVar, rhs: &KimchiCellVar, span: Span) {
         // TODO: use permutation to check that
         self.add_generic_gate(
             "constrain lhs - rhs = 0 to assert that they are equal",
@@ -680,7 +708,7 @@ impl Backend for KimchiVesta {
         );
     }
 
-    fn add_public_input(&mut self, val: Value<Self>, span: Span) -> CellVar {
+    fn add_public_input(&mut self, val: Value<Self>, span: Span) -> KimchiCellVar {
         // create the var
         let cvar = self.new_internal_var(val, span);
 
@@ -698,7 +726,14 @@ impl Backend for KimchiVesta {
         cvar
     }
 
-    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> CellVar {
+    fn add_private_input(&mut self, val: Value<Self>, span: Span) -> Self::CellVar {
+        let cvar = self.new_internal_var(val, span);
+        self.private_input_indices.push(cvar.index);
+
+        cvar
+    }
+
+    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> KimchiCellVar {
         // create the var
         let cvar = self.new_internal_var(val, span);
 

@@ -6,15 +6,14 @@ use std::collections::{HashMap, HashSet};
 use ark_ff::FpParameters;
 use itertools::{izip, Itertools as _};
 use num_bigint::BigUint;
+use serde::{Deserialize, Serialize};
 
+use crate::constants::Span;
 use crate::error::{Error, ErrorKind};
 use crate::helpers::PrettyField;
-use crate::{
-    circuit_writer::DebugInfo,
-    var::{CellVar, Value},
-};
+use crate::{circuit_writer::DebugInfo, var::Value};
 
-use super::{Backend, BackendField};
+use super::{Backend, BackendField, CellVar};
 
 pub type R1csBls12381Field = ark_bls12_381::Fr;
 pub type R1csBn254Field = ark_bn254::Fr;
@@ -22,6 +21,20 @@ pub type R1csBn254Field = ark_bn254::Fr;
 // Because the associated field type is BackendField, we need to implement it for the actual field types in order to use them.
 impl BackendField for R1csBls12381Field {}
 impl BackendField for R1csBn254Field {}
+
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct R1csCellVar {
+    pub index: usize,
+    pub span: Span,
+}
+
+impl CellVar for R1csCellVar {}
+
+impl R1csCellVar {
+    fn new(index: usize, span: Span) -> Self {
+        Self { index, span }
+    }
+}
 
 /// Linear combination of variables and constants.
 /// For example, the linear combination is represented as a * f_a + b * f_b + f_c
@@ -33,7 +46,7 @@ pub struct LinearCombination<F>
 where
     F: BackendField,
 {
-    pub terms: HashMap<CellVar, F>,
+    pub terms: HashMap<R1csCellVar, F>,
     pub constant: F,
 }
 
@@ -71,7 +84,7 @@ where
     }
 
     /// Create a linear combination from a list of vars
-    fn from_vars(vars: Vec<CellVar>) -> Self {
+    fn from_vars(vars: Vec<R1csCellVar>) -> Self {
         let terms = vars.into_iter().map(|var| (var, F::one())).collect();
         LinearCombination {
             terms,
@@ -122,9 +135,11 @@ where
     witness_vars: Vec<Value<Self>>,
     debug_info: Vec<DebugInfo>,
     /// Record the public inputs for reordering the witness vector
-    public_inputs: Vec<CellVar>,
+    public_inputs: Vec<R1csCellVar>,
+    /// Record the private inputs for checking
+    private_input_indices: Vec<usize>,
     /// Record the public outputs for reordering the witness vector
-    public_outputs: Vec<CellVar>,
+    public_outputs: Vec<R1csCellVar>,
     finalized: bool,
 }
 
@@ -138,6 +153,7 @@ where
             witness_vars: Vec::new(),
             debug_info: Vec::new(),
             public_inputs: Vec::new(),
+            private_input_indices: Vec::new(),
             public_outputs: Vec::new(),
             finalized: false,
         }
@@ -187,12 +203,9 @@ where
     F: BackendField,
 {
     type Field = F;
+    type CellVar = R1csCellVar;
 
     type GeneratedWitness = GeneratedWitness<F>;
-
-    fn witness_vars(&self, var: CellVar) -> &Value<Self> {
-        self.witness_vars.get(var.index).unwrap()
-    }
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
         builtin::poseidon::<F>
@@ -202,8 +215,8 @@ where
         &mut self,
         val: crate::var::Value<Self>,
         span: crate::constants::Span,
-    ) -> CellVar {
-        let var = CellVar::new(self.witness_vars.len(), span);
+    ) -> R1csCellVar {
+        let var = R1csCellVar::new(self.witness_vars.len(), span);
 
         // store it in the circuit_writer
         self.witness_vars.insert(var.index, val);
@@ -217,7 +230,7 @@ where
         label: Option<&'static str>,
         value: F,
         span: crate::constants::Span,
-    ) -> CellVar {
+    ) -> R1csCellVar {
         let x = self.new_internal_var(Value::Constant(value), span);
         self.assert_eq_const(&x, value, span);
 
@@ -226,15 +239,12 @@ where
 
     /// Final checks for generating the circuit.
     /// todo: we might need to rethink about this interface
-    /// - private_input_indices are not needed in this r1cs backend.
-    /// - main_span could be better initialized with the backend, so it doesn't have to pass in here?
     /// - we might just need the returned_cells argument, as the backend can record the public outputs itself?
     fn finalize_circuit(
         &mut self,
-        public_output: Option<crate::var::Var<F>>,
-        returned_cells: Option<Vec<CellVar>>,
-        _private_input_indices: Vec<usize>,
-        _main_span: crate::constants::Span,
+        public_output: Option<crate::var::Var<Self::Field, Self::CellVar>>,
+        returned_cells: Option<Vec<R1csCellVar>>,
+        main_span: crate::constants::Span,
     ) -> crate::error::Result<()> {
         // store the return value in the public input that was created for that
         if let Some(public_output) = public_output {
@@ -242,7 +252,7 @@ where
 
             for (pub_var, ret_var) in cvars.clone().iter().zip(returned_cells.unwrap()) {
                 // replace the computation of the public output vars with the actual variables being returned here
-                let var_idx = pub_var.idx().unwrap();
+                let var_idx = pub_var.cvar().unwrap().index;
                 let prev = &self.witness_vars[var_idx];
                 assert!(matches!(prev, Value::PublicOutput(None)));
                 self.witness_vars[var_idx] = Value::PublicOutput(Some(ret_var));
@@ -261,15 +271,32 @@ where
 
         // check if every cell vars end up being a cell var in the circuit or public output
         for (index, _) in self.witness_vars.iter().enumerate() {
-            assert!(
-                written_vars.contains(&index),
-                "there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"
-            );
+            if !written_vars.contains(&index) {
+                if self.private_input_indices.contains(&index) {
+                    let err = Error::new(
+                        "constraint-finalization",
+                        ErrorKind::PrivateInputNotUsed,
+                        main_span,
+                    );
+                    return Err(err);
+                } else {
+                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
+                }
+            }
         }
 
         self.finalized = true;
 
         Ok(())
+    }
+
+    fn compute_var(
+        &self,
+        env: &mut crate::witness::WitnessEnv<Self::Field>,
+        var: Self::CellVar,
+    ) -> crate::error::Result<Self::Field> {
+        let val = self.witness_vars.get(var.index).unwrap();
+        self.compute_val(env, val, var.index)
     }
 
     /// Generate the witnesses
@@ -391,7 +418,7 @@ where
         res
     }
 
-    fn neg(&mut self, x: &CellVar, span: crate::constants::Span) -> CellVar {
+    fn neg(&mut self, x: &R1csCellVar, span: crate::constants::Span) -> R1csCellVar {
         // To constrain:
         // x + (-x) = 0
         // given:
@@ -415,7 +442,12 @@ where
         x_neg
     }
 
-    fn add(&mut self, lhs: &CellVar, rhs: &CellVar, span: crate::constants::Span) -> CellVar {
+    fn add(
+        &mut self,
+        lhs: &R1csCellVar,
+        rhs: &R1csCellVar,
+        span: crate::constants::Span,
+    ) -> R1csCellVar {
         // To constrain:
         // lhs + rhs = res
         // given:
@@ -455,7 +487,12 @@ where
         res
     }
 
-    fn add_const(&mut self, x: &CellVar, cst: &F, span: crate::constants::Span) -> CellVar {
+    fn add_const(
+        &mut self,
+        x: &R1csCellVar,
+        cst: &Self::Field,
+        span: crate::constants::Span,
+    ) -> R1csCellVar {
         // To constrain:
         // x + cst = res
         // given:
@@ -485,7 +522,12 @@ where
         res
     }
 
-    fn mul(&mut self, lhs: &CellVar, rhs: &CellVar, span: crate::constants::Span) -> CellVar {
+    fn mul(
+        &mut self,
+        lhs: &R1csCellVar,
+        rhs: &R1csCellVar,
+        span: crate::constants::Span,
+    ) -> R1csCellVar {
         // To constrain:
         // lhs * rhs = res
         // given:
@@ -510,7 +552,12 @@ where
         res
     }
 
-    fn mul_const(&mut self, x: &CellVar, cst: &F, span: crate::constants::Span) -> CellVar {
+    fn mul_const(
+        &mut self,
+        x: &R1csCellVar,
+        cst: &Self::Field,
+        span: crate::constants::Span,
+    ) -> R1csCellVar {
         // To constrain:
         // x * cst = res
         // given:
@@ -535,7 +582,7 @@ where
         res
     }
 
-    fn assert_eq_const(&mut self, x: &CellVar, cst: F, span: crate::constants::Span) {
+    fn assert_eq_const(&mut self, x: &R1csCellVar, cst: Self::Field, span: crate::constants::Span) {
         // To constrain:
         // x = cst
         // given:
@@ -552,7 +599,12 @@ where
         self.add_constraint("eq constraint: x = cst", Constraint { a, b, c }, span);
     }
 
-    fn assert_eq_var(&mut self, lhs: &CellVar, rhs: &CellVar, span: crate::constants::Span) {
+    fn assert_eq_var(
+        &mut self,
+        lhs: &R1csCellVar,
+        rhs: &R1csCellVar,
+        span: crate::constants::Span,
+    ) {
         // To constrain:
         // lhs = rhs
         // given:
@@ -570,15 +622,23 @@ where
     }
 
     /// Adds the public input cell vars.
-    fn add_public_input(&mut self, val: Value<Self>, span: crate::constants::Span) -> CellVar {
+    fn add_public_input(&mut self, val: Value<Self>, span: crate::constants::Span) -> R1csCellVar {
         let var = self.new_internal_var(val, span);
         self.public_inputs.push(var);
 
         var
     }
 
+    /// Adds the private input cell vars.
+    fn add_private_input(&mut self, val: Value<Self>, span: Span) -> Self::CellVar {
+        let var = self.new_internal_var(val, span);
+        self.private_input_indices.push(var.index);
+
+        var
+    }
+
     /// Adds the public output cell vars.
-    fn add_public_output(&mut self, val: Value<Self>, span: crate::constants::Span) -> CellVar {
+    fn add_public_output(&mut self, val: Value<Self>, span: crate::constants::Span) -> R1csCellVar {
         let var = self.new_internal_var(val, span);
         self.public_outputs.push(var);
 

@@ -19,7 +19,7 @@ use crate::{
     },
     syntax::is_type,
     type_checker::FullyQualified,
-    var::{CellVar, ConstOrCell, Value, Var, VarOrRef},
+    var::{ConstOrCell, Value, Var, VarOrRef},
 };
 
 //
@@ -116,7 +116,7 @@ impl Ord for AnnotatedCell {
 impl<B: Backend> CircuitWriter<B> {
     fn compile_stmt(
         &mut self,
-        fn_env: &mut FnEnv<B::Field>,
+        fn_env: &mut FnEnv<B::Field, B::CellVar>,
         stmt: &Stmt,
     ) -> Result<Option<VarOrRef<B>>> {
         match &stmt.kind {
@@ -174,9 +174,9 @@ impl<B: Backend> CircuitWriter<B> {
     /// might return something?
     fn compile_block(
         &mut self,
-        fn_env: &mut FnEnv<B::Field>,
+        fn_env: &mut FnEnv<B::Field, B::CellVar>,
         stmts: &[Stmt],
-    ) -> Result<Option<Var<B::Field>>> {
+    ) -> Result<Option<Var<B::Field, B::CellVar>>> {
         fn_env.nest();
         for stmt in stmts {
             let res = self.compile_stmt(fn_env, stmt)?;
@@ -195,8 +195,8 @@ impl<B: Backend> CircuitWriter<B> {
     fn compile_native_function_call(
         &mut self,
         function: &FunctionDef,
-        args: Vec<VarInfo<B::Field>>,
-    ) -> Result<Option<Var<B::Field>>> {
+        args: Vec<VarInfo<B::Field, B::CellVar>>,
+    ) -> Result<Option<Var<B::Field, B::CellVar>>> {
         assert!(!function.is_main());
 
         // create new fn_env
@@ -215,7 +215,7 @@ impl<B: Backend> CircuitWriter<B> {
 
     pub(crate) fn constrain_inputs_to_main(
         &mut self,
-        input: &[ConstOrCell<B::Field>],
+        input: &[ConstOrCell<B::Field, B::CellVar>],
         input_typ: &TyKind,
         span: Span,
     ) -> Result<()> {
@@ -257,9 +257,9 @@ impl<B: Backend> CircuitWriter<B> {
     /// Compile a function. Used to compile `main()` only for now
     pub(crate) fn compile_main_function(
         &mut self,
-        fn_env: &mut FnEnv<B::Field>,
+        fn_env: &mut FnEnv<B::Field, B::CellVar>,
         function: &FunctionDef,
-    ) -> Result<Option<Vec<CellVar>>> {
+    ) -> Result<Option<Vec<B::CellVar>>> {
         assert!(function.is_main());
 
         // compile the block
@@ -293,7 +293,7 @@ impl<B: Backend> CircuitWriter<B> {
 
     fn compute_expr(
         &mut self,
-        fn_env: &mut FnEnv<B::Field>,
+        fn_env: &mut FnEnv<B::Field, B::CellVar>,
         expr: &Expr,
     ) -> Result<Option<VarOrRef<B>>> {
         match &expr.kind {
@@ -693,7 +693,12 @@ impl<B: Backend> CircuitWriter<B> {
         }
     }
 
-    pub fn add_public_inputs(&mut self, name: String, num: usize, span: Span) -> Var<B::Field> {
+    pub fn add_public_inputs(
+        &mut self,
+        name: String,
+        num: usize,
+        span: Span,
+    ) -> Var<B::Field, B::CellVar> {
         let mut cvars = Vec::with_capacity(num);
 
         for idx in 0..num {
@@ -722,16 +727,20 @@ impl<B: Backend> CircuitWriter<B> {
         self.public_output = Some(res);
     }
 
-    pub fn add_private_inputs(&mut self, name: String, num: usize, span: Span) -> Var<B::Field> {
+    pub fn add_private_inputs(
+        &mut self,
+        name: String,
+        num: usize,
+        span: Span,
+    ) -> Var<B::Field, B::CellVar> {
         let mut cvars = Vec::with_capacity(num);
 
         for idx in 0..num {
             // create the var
             let cvar = self
                 .backend
-                .new_internal_var(Value::External(name.clone(), idx), span);
+                .add_private_input(Value::External(name.clone(), idx), span);
             cvars.push(ConstOrCell::Cell(cvar));
-            self.private_input_indices.push(cvar.index);
         }
 
         Var::new(cvars, span)
@@ -743,6 +752,6 @@ pub(crate) struct PendingGate {
     pub label: &'static str,
     #[serde(skip)]
     pub coeffs: Vec<VestaField>,
-    pub vars: Vec<Option<CellVar>>,
+    pub vars: Vec<Option<crate::backends::kimchi::KimchiCellVar>>,
     pub span: Span,
 }
