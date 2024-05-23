@@ -43,7 +43,7 @@ pub fn add<B: Backend>(
             // if the constant is zero, we can ignore this gate
             if cst.is_zero() {
                 // TODO: that span is incorrect, it should come from lhs or rhs...
-                return Var::new_var(*cvar, span);
+                return Var::new_var(cvar.clone(), span);
             }
 
             let res = compiler.backend.add_const(cvar, cst, span);
@@ -178,7 +178,7 @@ fn equal_cells<B: Backend>(
                     *cst,
                     span,
                 ),
-                ConstOrCell::Cell(cvar) => *cvar,
+                ConstOrCell::Cell(cvar) => cvar.clone(),
             };
 
             let x2 = match x2 {
@@ -187,14 +187,14 @@ fn equal_cells<B: Backend>(
                     *cst,
                     span,
                 ),
-                ConstOrCell::Cell(cvar) => *cvar,
+                ConstOrCell::Cell(cvar) => cvar.clone(),
             };
 
             // 1. diff = x2 - x1
             let diff = compiler.backend.sub(&x2, &x1, span);
             let diff_inv = compiler
                 .backend
-                .new_internal_var(Value::Inverse(diff), span);
+                .new_internal_var(Value::Inverse(diff.clone()), span);
 
             // 2. diff_inv * diff = one_minus_res
             let diff_inv_mul_diff = compiler.backend.mul(&diff_inv, &diff, span);
@@ -202,7 +202,7 @@ fn equal_cells<B: Backend>(
             // 3. one_minus_res = 1 - res
             // => res = 1 - diff_inv * diff
             let res = compiler.backend.new_internal_var(
-                Value::LinearCombination(vec![(one.neg(), diff_inv_mul_diff)], one),
+                Value::LinearCombination(vec![(one.neg(), diff_inv_mul_diff.clone())], one),
                 span,
             );
             let neg_res = compiler.backend.neg(&res, span);
@@ -236,7 +236,7 @@ pub fn if_else<B: Backend>(
 
     for (then_, else_) in then_.cvars.iter().zip(&else_.cvars) {
         let var = if_else_inner(compiler, cond, then_, else_, span);
-        vars.push(var[0]);
+        vars.push(var[0].clone());
     }
 
     Var::new(vars, span)
@@ -257,9 +257,9 @@ pub fn if_else_inner<B: Backend>(
     // if cond is constant, easy
     if let ConstOrCell::Const(cond) = cond {
         if cond.is_one() {
-            return Var::new_cvar(*then_, span);
+            return Var::new_cvar(then_.clone(), span);
         } else {
-            return Var::new_cvar(*else_, span);
+            return Var::new_cvar(else_.clone(), span);
         }
     }
 

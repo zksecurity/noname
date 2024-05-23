@@ -86,9 +86,10 @@ where
         let mut public_items_set: HashSet<usize> = HashSet::new();
 
         for (index, var) in public_items.enumerate() {
+            let wv = var.to_witness_var();
             // first var is fixed, so here we start from 1
-            witness_map.insert(var.index, index + 1);
-            public_items_set.insert(var.index);
+            witness_map.insert(wv.index, index + 1);
+            public_items_set.insert(wv.index);
         }
 
         // stack in the rest of the witness vars

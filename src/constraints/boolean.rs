@@ -8,7 +8,7 @@ use crate::{
     backends::Backend,
     circuit_writer::CircuitWriter,
     constants::Span,
-    var::{ConstOrCell, Value, Var},
+    var::{ConstOrCell, Var},
 };
 
 use super::field::sub;
@@ -51,7 +51,7 @@ pub fn and<B: Backend>(
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
             if cst.is_one() {
-                Var::new_var(*cvar, span)
+                Var::new_var(cvar.clone(), span)
             } else {
                 Var::new_constant(*cst, span)
             }
@@ -84,10 +84,10 @@ pub fn not<B: Backend>(
         }
         ConstOrCell::Cell(var) => {
             let one = ConstOrCell::Const(B::Field::one());
-            let var = ConstOrCell::Cell(*var);
+            let var = ConstOrCell::Cell(var.clone());
 
             // 1 - x
-            let res = sub(compiler, &one, &var, span)[0];
+            let res = sub(compiler, &one, &var, span)[0].clone();
 
             Var::new_cvar(res, span)
         }

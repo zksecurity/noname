@@ -275,7 +275,7 @@ impl<B: Backend> CircuitWriter<B> {
                 let mut returned_cells = vec![];
                 for r in &returned.cvars {
                     match r {
-                        ConstOrCell::Cell(c) => returned_cells.push(*c),
+                        ConstOrCell::Cell(c) => returned_cells.push(c.clone()),
                         ConstOrCell::Const(_) => {
                             return Err(self.error(ErrorKind::ConstantInOutput, returned.span))
                         }

@@ -29,7 +29,7 @@ pub trait BackendField:
 
 /// This trait allows different backends to have different cell var types.
 /// It is intended to make it opaque to the frondend.
-pub trait CellVar: Default + Clone + Copy + Debug + PartialEq + Eq + Hash {}
+pub trait CellVar: Clone + Debug + PartialEq + Eq {}
 
 pub enum BackendKind {
     KimchiVesta(KimchiVesta),
@@ -148,20 +148,20 @@ pub trait Backend: Clone {
             Value::LinearCombination(lc, cst) => {
                 let mut res = *cst;
                 for (coeff, var) in lc {
-                    res += self.compute_var(env, *var)? * *coeff;
+                    res += self.compute_var(env, var.clone())? * *coeff;
                 }
                 env.cached_values.insert(cache_key, res); // cache
                 Ok(res)
             }
             Value::Mul(lhs, rhs) => {
-                let lhs = self.compute_var(env, *lhs)?;
-                let rhs = self.compute_var(env, *rhs)?;
+                let lhs = self.compute_var(env, lhs.clone())?;
+                let rhs = self.compute_var(env, rhs.clone())?;
                 let res = lhs * rhs;
                 env.cached_values.insert(cache_key, res); // cache
                 Ok(res)
             }
             Value::Inverse(v) => {
-                let v = self.compute_var(env, *v)?;
+                let v = self.compute_var(env, v.clone())?;
                 let res = v.inverse().unwrap_or_else(Self::Field::zero);
                 env.cached_values.insert(cache_key, res); // cache
                 Ok(res)
@@ -170,13 +170,13 @@ pub trait Backend: Clone {
             Value::PublicOutput(var) => {
                 // var can be none. what could be the better way to pass in the span in that case?
                 // let span = self.main_info().span;
-                let var = var.ok_or_else(|| {
+                let var = var.clone().ok_or_else(|| {
                     Error::new("runtime", ErrorKind::MissingReturn, Span::default())
                 })?;
                 self.compute_var(env, var)
             }
             Value::Scale(scalar, var) => {
-                let var = self.compute_var(env, *var)?;
+                let var = self.compute_var(env, var.clone())?;
                 Ok(*scalar * var)
             }
         }

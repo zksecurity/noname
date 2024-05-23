@@ -45,7 +45,7 @@ impl<F: BackendField, C: CellVar> VarInfo<F, C> {
         // create new cvars by modifying a specific range
         let mut cvars = self.var.cvars.clone();
         let cvars_range = &mut cvars[start..start + len];
-        cvars_range.copy_from_slice(&var.cvars);
+        cvars_range.clone_from_slice(&var.cvars);
 
         let var = Var::new(cvars, self.var.span);
 
@@ -80,7 +80,10 @@ where
 impl<F: BackendField, C: CellVar> FnEnv<F, C> {
     /// Creates a new FnEnv
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            current_scope: 0,
+            vars: HashMap::new(),
+        }
     }
 
     /// Enters a scoped block.
