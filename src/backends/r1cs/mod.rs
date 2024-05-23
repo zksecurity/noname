@@ -36,9 +36,61 @@ pub enum R1csCellVar<F: BackendField> {
     LinearCombination(LinearCombination<F>)
 }
 
-impl R1csCellVar {
-    fn new(index: usize, span: Span) -> Self {
-        Self { index, span }
+impl<F: BackendField> CellVar for R1csCellVar<F> {}
+
+impl<F: BackendField> R1csCellVar<F> {
+    fn to_witness_var(&self) -> WitnessVar {
+        match self {
+            R1csCellVar::Var(wvar) => *wvar,
+            R1csCellVar::LinearCombination(_) => panic!("unexpected linear combination"),
+        }
+    }
+
+    /// Convert the WitnessWar (if it is a WitnessVar) to a LinearCombination
+    fn into_linear_combination(self) -> LinearCombination<F> {
+        match self {
+            R1csCellVar::Var(v) => LinearCombination::from_vars(vec![v]),
+            R1csCellVar::LinearCombination(lc) => lc,
+        }
+    }
+
+    /// Add two CellVar and return as a form of LinearCombination.
+    fn add(&self, other: &Self) -> Self {
+        let lhs_lc = self.clone().into_linear_combination();
+        let rhs_lc = other.clone().into_linear_combination();
+        R1csCellVar::LinearCombination(lhs_lc.add(&rhs_lc))
+    }
+
+    /// Add a constant to the CellVar and return as a form of LinearCombination.
+    fn add_const(&self, cst: F) -> Self {
+        let lhs_lc = self.clone().into_linear_combination();
+        let cst_lc = LinearCombination::from_const(cst);
+        R1csCellVar::LinearCombination(lhs_lc.add(&cst_lc))
+    }
+    
+    /// Scale the CellVar with a constant and return as a form of LinearCombination.
+    /// It first converts the CellVar to LinearCombination and then scales it via LinearCombination operation.
+    fn scale(&self, coeff: F) -> Self {
+        let lhs_lc = self.clone().into_linear_combination();
+        R1csCellVar::LinearCombination(lhs_lc.scale(coeff))
+    }
+    
+    /// Enforces a constraint for the multiplication of two CellVars.
+    /// The constraint reduces the multiplication to a new CellVar variable,
+    /// which represents: self * other = res.
+    fn mul(&self, cs: &mut R1CS<F>, other: &Self, span: Span) -> Self {
+        let res = cs.new_internal_var(Value::Mul(self.clone(), other.clone()), span);
+        cs.enforce_constraint(self, other, &res);
+
+        res
+    }
+
+    /// Enforces a constraint for the equality of two CellVars.
+    /// It needs to constraint: self * 1 = other.
+    fn eq(&self, cs: &mut R1CS<F>, other: &Self) {
+        let one_cvar = R1csCellVar::LinearCombination(LinearCombination::one());
+        
+        cs.enforce_constraint(self, &one_cvar, other)
     }
 }
 
