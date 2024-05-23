@@ -256,17 +256,13 @@ pub fn if_else_inner<B: Backend>(
     //
 
     // if cond is constant, easy
-    match cond {
-        ConstOrCell::Const(cond) => {
-            if cond.is_one() {
-                return Var::new_cvar(*then_, span);
-            } else {
-                return Var::new_cvar(*else_, span);
-            }
+    if let ConstOrCell::Const(cond) = cond {
+        if cond.is_one() {
+            return Var::new_cvar(*then_, span);
+        } else {
+            return Var::new_cvar(*else_, span);
         }
-        // skip
-        ConstOrCell::Cell(_) => (),
-    };
+    }
 
     // determine the result via arithemtic
     let cond_then = mul(compiler, then_, cond, span);
