@@ -13,8 +13,8 @@ pub fn poseidon<F>(
     compiler: &mut CircuitWriter<R1CS<F>>,
     vars: &[VarInfo<F, R1csCellVar<F>>],
     span: Span,
-) -> Result<Option<Var<F, R1csCellVar<F>>>> 
-where 
+) -> Result<Option<Var<F, R1csCellVar<F>>>>
+where
     F: BackendField,
 {
     // dummy for now
