@@ -380,15 +380,15 @@ mod tests {
         let span = Span::default();
         let var1_val = 2;
         let public_input_val = 3;
-        let sum_val = var1_val + public_input_val;
+        let res_val = var1_val * public_input_val;
         let var1 = r1cs.new_internal_var(Value::Constant(R1csBls12381Field::from(var1_val)), span);
         let public_input_var = r1cs.add_public_input(
             Value::Constant(R1csBls12381Field::from(public_input_val)),
             span,
         );
-        let sum_var = r1cs.add(&var1, &public_input_var, span);
+        let sum_var = r1cs.mul(&var1, &public_input_var, span);
         r1cs.add_public_output(Value::PublicOutput(Some(sum_var)), span);
-        let public_output_val = sum_val;
+        let public_output_val = res_val;
 
         // convert witness to snarkjs format
         let mut snarkjs_exporter = super::SnarkjsExporter::new(r1cs);
@@ -417,13 +417,13 @@ mod tests {
                 BigInt::from(public_input_val),
                 // private inputs (the rest of the witness vars)
                 BigInt::from(var1_val),
-                BigInt::from(sum_val),
+                BigInt::from(res_val),
             ]
         );
 
-        // instead, maybe refactor this test to check if the constraits are evaluated to zero with the reordered witness?
-        // so we just check the accrued results (to simplify this test)
         let restructure_constraints = snarkjs_exporter.restructure_constraints();
+        assert_ne!(restructure_constraints.len(), 0);
+
         for (rc, oc) in restructure_constraints
             .iter()
             .zip(snarkjs_exporter.r1cs_backend.constraints.iter())
