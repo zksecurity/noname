@@ -77,6 +77,12 @@ pub trait Backend: Clone {
     /// add two vars
     fn add(&mut self, lhs: &Self::CellVar, rhs: &Self::CellVar, span: Span) -> Self::CellVar;
 
+    /// sub two vars
+    fn sub(&mut self, lhs: &Self::CellVar, rhs: &Self::CellVar, span: Span) -> Self::CellVar {
+        let rhs_neg = self.neg(rhs, span);
+        self.add(lhs, &rhs_neg, span)
+    }
+
     /// add a var with a constant
     fn add_const(&mut self, var: &Self::CellVar, cst: &Self::Field, span: Span) -> Self::CellVar;
 

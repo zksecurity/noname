@@ -191,8 +191,7 @@ fn equal_cells<B: Backend>(
             };
 
             // 1. diff = x2 - x1
-            let neg_x1 = compiler.backend.neg(&x1, span);
-            let diff = compiler.backend.add(&x2, &neg_x1, span);
+            let diff = compiler.backend.sub(&x2, &x1, span);
             let diff_inv = compiler
                 .backend
                 .new_internal_var(Value::Inverse(diff), span);
