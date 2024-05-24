@@ -343,7 +343,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
 
 #[derive(clap::Parser)]
 pub struct CmdRun {
-    /// noname file to run
+    /// the path of a noname project to run
     #[clap(short, long, value_parser)]
     path: Option<PathBuf>,
 
