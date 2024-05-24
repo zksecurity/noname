@@ -403,6 +403,8 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
         }
     }
 
+    
+
     Ok(())
 }
 
@@ -425,12 +427,19 @@ where
 
     let snarkjs_exporter = SnarkjsExporter::new(compiled_circuit.circuit.backend);
 
-    snarkjs_exporter.gen_r1cs_file(&curr_dir.join("output.r1cs").into_string());
+    let r1cs_output_path = curr_dir.join("output.r1cs");
+    let wtns_output_path = curr_dir.join("output.wtns");
+
+    snarkjs_exporter.gen_r1cs_file(&r1cs_output_path.clone().into_string());
 
     snarkjs_exporter.gen_wtns_file(
-        &curr_dir.join("output.wtns").into_string(),
+        &wtns_output_path.clone().into_string(),
         generated_witness,
     );
+
+    // display the info for the generated files
+    println!("Snarkjs R1CS file generated at: {}", r1cs_output_path);
+    println!("Snarkjs Witness file generated at: {}", wtns_output_path);
 
     Ok(())
 }
