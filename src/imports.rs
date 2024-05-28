@@ -64,9 +64,9 @@ impl std::fmt::Debug for BuiltinModule {
 /// * `-> Result<Option<Var>>`: return a `Result` with an `Option` of a `Var`. This is because built-ins can return a variable, or they can return nothing. If they return nothing, then the `Option` will be `None`. If they return a variable, then the `Option` will be `Some(Var)`.
 pub type FnHandle<B: Backend> = fn(
     &mut CircuitWriter<B>,
-    &[VarInfo<B::Field, B::CellVar>],
+    &[VarInfo<B::Field, B::Var>],
     Span,
-) -> Result<Option<Var<B::Field, B::CellVar>>>;
+) -> Result<Option<Var<B::Field, B::Var>>>;
 
 /// The different types of a noname function.
 #[derive(Clone, Serialize, Deserialize)]

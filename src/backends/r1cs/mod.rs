@@ -13,7 +13,7 @@ use crate::error::{Error, ErrorKind, Result};
 use crate::helpers::PrettyField;
 use crate::{circuit_writer::DebugInfo, var::Value};
 
-use super::{Backend, BackendField, CellVar};
+use super::{Backend, BackendField, BackendVar};
 
 pub type R1csBls12381Field = ark_bls12_381::Fr;
 pub type R1csBn254Field = ark_bn254::Fr;
@@ -36,7 +36,7 @@ pub enum R1csCellVar<F: BackendField> {
     LinearCombination(LinearCombination<F>),
 }
 
-impl<F: BackendField> CellVar for R1csCellVar<F> {}
+impl<F: BackendField> BackendVar for R1csCellVar<F> {}
 
 impl<F: BackendField> R1csCellVar<F> {
     fn to_witness_var(&self) -> WitnessVar {
@@ -314,7 +314,7 @@ where
     F: BackendField,
 {
     type Field = F;
-    type CellVar = R1csCellVar<F>;
+    type Var = R1csCellVar<F>;
     type GeneratedWitness = GeneratedWitness<F>;
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
@@ -356,7 +356,7 @@ where
     /// - we might just need the returned_cells argument, as the backend can record the public outputs itself?
     fn finalize_circuit(
         &mut self,
-        public_output: Option<crate::var::Var<Self::Field, Self::CellVar>>,
+        public_output: Option<crate::var::Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<R1csCellVar<F>>>,
         main_span: crate::constants::Span,
     ) -> crate::error::Result<()> {
@@ -407,7 +407,7 @@ where
     fn compute_var(
         &self,
         env: &mut crate::witness::WitnessEnv<Self::Field>,
-        var: Self::CellVar,
+        var: Self::Var,
     ) -> Result<Self::Field> {
         match var {
             R1csCellVar::Var(wv) => {

@@ -116,7 +116,7 @@ impl Ord for AnnotatedCell {
 impl<B: Backend> CircuitWriter<B> {
     fn compile_stmt(
         &mut self,
-        fn_env: &mut FnEnv<B::Field, B::CellVar>,
+        fn_env: &mut FnEnv<B::Field, B::Var>,
         stmt: &Stmt,
     ) -> Result<Option<VarOrRef<B>>> {
         match &stmt.kind {
@@ -174,9 +174,9 @@ impl<B: Backend> CircuitWriter<B> {
     /// might return something?
     fn compile_block(
         &mut self,
-        fn_env: &mut FnEnv<B::Field, B::CellVar>,
+        fn_env: &mut FnEnv<B::Field, B::Var>,
         stmts: &[Stmt],
-    ) -> Result<Option<Var<B::Field, B::CellVar>>> {
+    ) -> Result<Option<Var<B::Field, B::Var>>> {
         fn_env.nest();
         for stmt in stmts {
             let res = self.compile_stmt(fn_env, stmt)?;
@@ -195,8 +195,8 @@ impl<B: Backend> CircuitWriter<B> {
     fn compile_native_function_call(
         &mut self,
         function: &FunctionDef,
-        args: Vec<VarInfo<B::Field, B::CellVar>>,
-    ) -> Result<Option<Var<B::Field, B::CellVar>>> {
+        args: Vec<VarInfo<B::Field, B::Var>>,
+    ) -> Result<Option<Var<B::Field, B::Var>>> {
         assert!(!function.is_main());
 
         // create new fn_env
@@ -215,7 +215,7 @@ impl<B: Backend> CircuitWriter<B> {
 
     pub(crate) fn constrain_inputs_to_main(
         &mut self,
-        input: &[ConstOrCell<B::Field, B::CellVar>],
+        input: &[ConstOrCell<B::Field, B::Var>],
         input_typ: &TyKind,
         span: Span,
     ) -> Result<()> {
@@ -257,9 +257,9 @@ impl<B: Backend> CircuitWriter<B> {
     /// Compile a function. Used to compile `main()` only for now
     pub(crate) fn compile_main_function(
         &mut self,
-        fn_env: &mut FnEnv<B::Field, B::CellVar>,
+        fn_env: &mut FnEnv<B::Field, B::Var>,
         function: &FunctionDef,
-    ) -> Result<Option<Vec<B::CellVar>>> {
+    ) -> Result<Option<Vec<B::Var>>> {
         assert!(function.is_main());
 
         // compile the block
@@ -293,7 +293,7 @@ impl<B: Backend> CircuitWriter<B> {
 
     fn compute_expr(
         &mut self,
-        fn_env: &mut FnEnv<B::Field, B::CellVar>,
+        fn_env: &mut FnEnv<B::Field, B::Var>,
         expr: &Expr,
     ) -> Result<Option<VarOrRef<B>>> {
         match &expr.kind {
@@ -698,7 +698,7 @@ impl<B: Backend> CircuitWriter<B> {
         name: String,
         num: usize,
         span: Span,
-    ) -> Var<B::Field, B::CellVar> {
+    ) -> Var<B::Field, B::Var> {
         let mut cvars = Vec::with_capacity(num);
 
         for idx in 0..num {
@@ -732,7 +732,7 @@ impl<B: Backend> CircuitWriter<B> {
         name: String,
         num: usize,
         span: Span,
-    ) -> Var<B::Field, B::CellVar> {
+    ) -> Var<B::Field, B::Var> {
         let mut cvars = Vec::with_capacity(num);
 
         for idx in 0..num {

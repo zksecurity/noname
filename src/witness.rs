@@ -5,7 +5,7 @@ use itertools::chain;
 //use serde::{Deserialize, Serialize};
 
 use crate::{
-    backends::{Backend, CellVar},
+    backends::{Backend, BackendVar},
     circuit_writer::CircuitWriter,
     compiler::Sources,
     error::{Error, ErrorKind, Result},

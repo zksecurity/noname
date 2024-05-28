@@ -14,9 +14,9 @@ use std::ops::Neg;
 /// Negates a field element
 pub fn neg<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    cvar: &ConstOrCell<B::Field, B::CellVar>,
+    cvar: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     match cvar {
         crate::var::ConstOrCell::Const(ff) => Var::new_constant(ff.neg(), span),
         crate::var::ConstOrCell::Cell(var) => {
@@ -29,10 +29,10 @@ pub fn neg<B: Backend>(
 /// Adds two field elements
 pub fn add<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    lhs: &ConstOrCell<B::Field, B::CellVar>,
-    rhs: &ConstOrCell<B::Field, B::CellVar>,
+    lhs: &ConstOrCell<B::Field, B::Var>,
+    rhs: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     match (lhs, rhs) {
         // 2 constants
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs + *rhs, span),
@@ -60,10 +60,10 @@ pub fn add<B: Backend>(
 /// Subtracts two variables, we only support variables that are of length 1.
 pub fn sub<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    lhs: &ConstOrCell<B::Field, B::CellVar>,
-    rhs: &ConstOrCell<B::Field, B::CellVar>,
+    lhs: &ConstOrCell<B::Field, B::Var>,
+    rhs: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     let neg_rhs = neg(compiler, rhs, span);
     add(compiler, lhs, &neg_rhs.cvars[0], span)
 }
@@ -71,10 +71,10 @@ pub fn sub<B: Backend>(
 /// Multiplies two field elements
 pub fn mul<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    lhs: &ConstOrCell<B::Field, B::CellVar>,
-    rhs: &ConstOrCell<B::Field, B::CellVar>,
+    lhs: &ConstOrCell<B::Field, B::Var>,
+    rhs: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     match (lhs, rhs) {
         // 2 constants
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs * *rhs, span),
@@ -103,10 +103,10 @@ pub fn mul<B: Backend>(
 // TODO: so perhaps it's not really relevant in this file?
 pub fn equal<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    lhs: &Var<B::Field, B::CellVar>,
-    rhs: &Var<B::Field, B::CellVar>,
+    lhs: &Var<B::Field, B::Var>,
+    rhs: &Var<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     // sanity check
     assert_eq!(lhs.len(), rhs.len());
 
@@ -135,10 +135,10 @@ pub fn equal<B: Backend>(
 /// Returns a new variable set to 1 if x1 is equal to x2, 0 otherwise.
 fn equal_cells<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    x1: &ConstOrCell<B::Field, B::CellVar>,
-    x2: &ConstOrCell<B::Field, B::CellVar>,
+    x1: &ConstOrCell<B::Field, B::Var>,
+    x2: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     // These four constraints are enough:
     //
     // 1. `diff = x2 - x1`
@@ -222,11 +222,11 @@ fn equal_cells<B: Backend>(
 
 pub fn if_else<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    cond: &Var<B::Field, B::CellVar>,
-    then_: &Var<B::Field, B::CellVar>,
-    else_: &Var<B::Field, B::CellVar>,
+    cond: &Var<B::Field, B::Var>,
+    then_: &Var<B::Field, B::Var>,
+    else_: &Var<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     assert_eq!(cond.len(), 1);
     assert_eq!(then_.len(), else_.len());
 
@@ -244,11 +244,11 @@ pub fn if_else<B: Backend>(
 
 pub fn if_else_inner<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    cond: &ConstOrCell<B::Field, B::CellVar>,
-    then_: &ConstOrCell<B::Field, B::CellVar>,
-    else_: &ConstOrCell<B::Field, B::CellVar>,
+    cond: &ConstOrCell<B::Field, B::Var>,
+    then_: &ConstOrCell<B::Field, B::Var>,
+    else_: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     // we need to constrain:
     //
     // * res = (1 - cond) * else + cond * then

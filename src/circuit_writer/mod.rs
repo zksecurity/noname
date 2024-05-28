@@ -44,7 +44,7 @@ where
     ///    it will set this `public_output` variable again to the correct vars.
     /// 3. During witness generation, the public output computation
     ///    is delayed until the very end.
-    pub(crate) public_output: Option<Var<B::Field, B::CellVar>>,
+    pub(crate) public_output: Option<Var<B::Field, B::Var>>,
 }
 
 /// Debug information related to a single row in a circuit.
@@ -85,9 +85,9 @@ impl<B: Backend> CircuitWriter<B> {
 
     pub fn add_local_var(
         &self,
-        fn_env: &mut FnEnv<B::Field, B::CellVar>,
+        fn_env: &mut FnEnv<B::Field, B::Var>,
         var_name: String,
-        var_info: VarInfo<B::Field, B::CellVar>,
+        var_info: VarInfo<B::Field, B::Var>,
     ) {
         // check for consts first
         let qualified = FullyQualified::local(var_name.clone());
@@ -103,9 +103,9 @@ impl<B: Backend> CircuitWriter<B> {
 
     pub fn get_local_var(
         &self,
-        fn_env: &FnEnv<B::Field, B::CellVar>,
+        fn_env: &FnEnv<B::Field, B::Var>,
         var_name: &str,
-    ) -> VarInfo<B::Field, B::CellVar> {
+    ) -> VarInfo<B::Field, B::Var> {
         // check for consts first
         let qualified = FullyQualified::local(var_name.to_string());
         if let Some(cst_info) = self.typed.const_info(&qualified) {
