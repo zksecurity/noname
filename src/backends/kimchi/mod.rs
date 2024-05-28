@@ -371,7 +371,7 @@ impl Backend for KimchiVesta {
     fn compute_var(
         &self,
         env: &mut crate::witness::WitnessEnv<Self::Field>,
-        var: Self::Var,
+        var: &Self::Var,
     ) -> crate::error::Result<Self::Field> {
         let val = self.witness_vars.get(&var.index).unwrap();
         self.compute_val(env, val, var.index)
@@ -407,7 +407,7 @@ impl Backend for KimchiVesta {
                             .push((row, col));
                         Self::Field::zero()
                     } else {
-                        self.compute_var(witness_env, *var)?
+                        self.compute_var(witness_env, var)?
                     }
                 } else {
                     Self::Field::zero()
@@ -422,7 +422,7 @@ impl Backend for KimchiVesta {
         let mut public_outputs = vec![];
 
         for (var, rows_cols) in public_outputs_vars {
-            let val = self.compute_var(witness_env, var)?;
+            let val = self.compute_var(witness_env, &var)?;
             for (row, col) in rows_cols {
                 witness[row][col] = val;
             }

@@ -387,11 +387,11 @@ where
     fn compute_var(
         &self,
         env: &mut crate::witness::WitnessEnv<Self::Field>,
-        lc: LinearCombination<Self::Field>,
+        lc: &LinearCombination<Self::Field>,
     ) -> Result<Self::Field> {
         let mut val = lc.constant;
 
-        for (var, factor) in lc.terms {
+        for (var, factor) in &lc.terms {
             let var_val = self.witness_vars.get(var.index).unwrap();
             let calc = self.compute_val(env, var_val, var.index)? * factor;
             val += calc;
@@ -426,7 +426,7 @@ where
         // The original vars of public outputs are not part of the constraints
         // so we need to compute them separately
         for var in &self.public_outputs {
-            let val = self.compute_var(witness_env, var.to_linear_combination())?;
+            let val = self.compute_var(witness_env, &var.to_linear_combination())?;
             witness[var.index] = val;
         }
 
