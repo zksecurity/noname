@@ -23,7 +23,7 @@ impl BackendField for R1csBls12381Field {}
 impl BackendField for R1csBn254Field {}
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct WitnessVar {
+pub struct CellVar {
     pub index: usize,
     pub span: Span,
 }
@@ -32,14 +32,14 @@ pub struct WitnessVar {
 /// This enum implements the CellVar trait, so that it can be passed around at the front end where the actual type is opaque.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum R1csCellVar<F: BackendField> {
-    Var(WitnessVar),
+    Var(CellVar),
     LinearCombination(LinearCombination<F>),
 }
 
 impl<F: BackendField> BackendVar for R1csCellVar<F> {}
 
 impl<F: BackendField> R1csCellVar<F> {
-    fn to_witness_var(&self) -> WitnessVar {
+    fn to_witness_var(&self) -> CellVar {
         match self {
             R1csCellVar::Var(wvar) => *wvar,
             R1csCellVar::LinearCombination(_) => panic!("unexpected linear combination"),
@@ -104,7 +104,7 @@ pub struct LinearCombination<F>
 where
     F: BackendField,
 {
-    pub terms: HashMap<WitnessVar, F>,
+    pub terms: HashMap<CellVar, F>,
     pub constant: F,
 }
 
@@ -142,7 +142,7 @@ where
     }
 
     /// Create a linear combination from a list of vars
-    fn from_vars(vars: Vec<WitnessVar>) -> Self {
+    fn from_vars(vars: Vec<CellVar>) -> Self {
         let terms = vars.into_iter().map(|var| (var, F::one())).collect();
         LinearCombination {
             terms,
@@ -328,7 +328,7 @@ where
         val: crate::var::Value<Self>,
         span: crate::constants::Span,
     ) -> R1csCellVar<F> {
-        let var = WitnessVar {
+        let var = CellVar {
             index: self.witness_vars.len(),
             span,
         };
