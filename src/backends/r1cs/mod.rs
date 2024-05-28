@@ -80,17 +80,17 @@ impl<F: BackendField> R1csCellVar<F> {
     /// which represents: self * other = res.
     fn mul(&self, cs: &mut R1CS<F>, other: &Self, span: Span) -> Self {
         let res = cs.new_internal_var(Value::Mul(self.clone(), other.clone()), span);
-        cs.enforce_constraint(self, other, &res);
+        cs.enforce_constraint(self, other, &res, span);
 
         res
     }
 
     /// Enforces a constraint for the equality of two CellVars.
     /// It needs to constraint: self * 1 = other.
-    fn eq(&self, cs: &mut R1CS<F>, other: &Self) {
+    fn assert_eq(&self, cs: &mut R1CS<F>, other: &Self, span: Span) {
         let one_cvar = R1csCellVar::LinearCombination(LinearCombination::one());
 
-        cs.enforce_constraint(self, &one_cvar, other)
+        cs.enforce_constraint(self, &one_cvar, other, span)
     }
 }
 
@@ -285,6 +285,7 @@ where
         a_cvar: &R1csCellVar<F>,
         b_cvar: &R1csCellVar<F>,
         c_cvar: &R1csCellVar<F>,
+        span: Span,
     ) {
         let a = a_cvar.clone().into_linear_combination();
         let b = b_cvar.clone().into_linear_combination();
@@ -293,7 +294,7 @@ where
         self.add_constraint(
             "enforce constraint",
             Constraint { a, b, c },
-            Span::default(),
+            span,
         );
     }
 }
@@ -592,7 +593,7 @@ where
     fn assert_eq_const(&mut self, x: &R1csCellVar<F>, cst: F, span: crate::constants::Span) {
         let c = R1csCellVar::LinearCombination(LinearCombination::from_const(cst));
 
-        x.eq(self, &c)
+        x.assert_eq(self, &c, span)
     }
 
     fn assert_eq_var(
@@ -601,7 +602,7 @@ where
         rhs: &R1csCellVar<F>,
         span: crate::constants::Span,
     ) {
-        lhs.eq(self, rhs)
+        lhs.assert_eq(self, rhs, span)
     }
 
     /// Adds the public input cell vars.
