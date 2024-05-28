@@ -28,71 +28,14 @@ pub struct CellVar {
     pub span: Span,
 }
 
-/// A CellVar enum type that can be either a WitnessVar or a LinearCombination.
-/// This enum implements the CellVar trait, so that it can be passed around at the front end where the actual type is opaque.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum R1csCellVar<F: BackendField> {
-    Var(CellVar),
-    LinearCombination(LinearCombination<F>),
-}
-
-impl<F: BackendField> BackendVar for R1csCellVar<F> {}
-
-impl<F: BackendField> R1csCellVar<F> {
-    fn to_witness_var(&self) -> CellVar {
-        match self {
-            R1csCellVar::Var(wvar) => *wvar,
-            R1csCellVar::LinearCombination(_) => panic!("unexpected linear combination"),
-        }
-    }
-
-    /// Convert the WitnessWar (if it is a WitnessVar) to a LinearCombination
-    fn into_linear_combination(self) -> LinearCombination<F> {
-        match self {
-            R1csCellVar::Var(v) => LinearCombination::from_vars(vec![v]),
-            R1csCellVar::LinearCombination(lc) => lc,
-        }
-    }
-
-    /// Add two CellVar and return as a form of LinearCombination.
-    fn add(&self, other: &Self) -> Self {
-        let lhs_lc = self.clone().into_linear_combination();
-        let rhs_lc = other.clone().into_linear_combination();
-        R1csCellVar::LinearCombination(lhs_lc.add(&rhs_lc))
-    }
-
-    /// Add a constant to the CellVar and return as a form of LinearCombination.
-    fn add_const(&self, cst: F) -> Self {
-        let lhs_lc = self.clone().into_linear_combination();
-        let cst_lc = LinearCombination::from_const(cst);
-        R1csCellVar::LinearCombination(lhs_lc.add(&cst_lc))
-    }
-
-    /// Scale the CellVar with a constant and return as a form of LinearCombination.
-    /// It first converts the CellVar to LinearCombination and then scales it via LinearCombination operation.
-    fn scale(&self, coeff: F) -> Self {
-        let lhs_lc = self.clone().into_linear_combination();
-        R1csCellVar::LinearCombination(lhs_lc.scale(coeff))
-    }
-
-    /// Enforces a constraint for the multiplication of two CellVars.
-    /// The constraint reduces the multiplication to a new CellVar variable,
-    /// which represents: self * other = res.
-    fn mul(&self, cs: &mut R1CS<F>, other: &Self, span: Span) -> Self {
-        let res = cs.new_internal_var(Value::Mul(self.clone(), other.clone()), span);
-        cs.enforce_constraint(self, other, &res, span);
-
-        res
-    }
-
-    /// Enforces a constraint for the equality of two CellVars.
-    /// It needs to constraint: self * 1 = other.
-    fn assert_eq(&self, cs: &mut R1CS<F>, other: &Self, span: Span) {
-        let one_cvar = R1csCellVar::LinearCombination(LinearCombination::one());
-
-        cs.enforce_constraint(self, &one_cvar, other, span)
+impl CellVar {
+    /// Convert to linear combination.
+    fn to_linear_combination<F: BackendField>(self) -> LinearCombination<F> {
+        LinearCombination::from_vars(vec![self], self.span)
     }
 }
+
+impl<F: BackendField> BackendVar for LinearCombination<F> {}
 
 /// Linear combination of variables and constants.
 /// For example, the linear combination is represented as a * f_a + b * f_b + f_c
@@ -106,12 +49,28 @@ where
 {
     pub terms: HashMap<CellVar, F>,
     pub constant: F,
+    pub span: Span,
 }
 
 impl<F> LinearCombination<F>
 where
     F: BackendField,
 {
+    /// Convert to a CellVar.
+    /// It should
+    /// - be used when the linear combination is a single variable.
+    /// - panic if the linear combination is not a single variable or has a non-zero constant.
+    /// - panic if the single variable has factor other than 1.
+    fn to_cell_var(&self) -> &CellVar {
+        assert_eq!(self.terms.len(), 1);
+        assert_eq!(self.constant, F::zero());
+
+        let (var, factor) = self.terms.iter().next().unwrap();
+        assert_eq!(*factor, F::one());
+
+        var
+    }
+
     /// Evaluate the linear combination with the given witness.
     fn evaluate(&self, witness: &[F]) -> F {
         let mut sum = F::zero();
@@ -126,40 +85,44 @@ where
     }
 
     /// Create a linear combination to represent constant one.
-    fn one() -> Self {
+    fn one(span: Span) -> Self {
         LinearCombination {
             terms: HashMap::new(),
             constant: F::one(),
+            span,
         }
     }
 
     /// Create a linear combination to represent constant zero.
-    fn zero() -> Self {
+    fn zero(span: Span) -> Self {
         LinearCombination {
             terms: HashMap::new(),
             constant: F::zero(),
+            span,
         }
     }
 
     /// Create a linear combination from a list of vars
-    fn from_vars(vars: Vec<CellVar>) -> Self {
+    fn from_vars(vars: Vec<CellVar>, span: Span) -> Self {
         let terms = vars.into_iter().map(|var| (var, F::one())).collect();
         LinearCombination {
             terms,
             constant: F::zero(),
+            span
         }
     }
 
     /// Create a linear combination from a constant.
-    fn from_const(cst: F) -> Self {
+    fn from_const(cst: F, span: Span) -> Self {
         LinearCombination {
             terms: HashMap::new(),
             constant: cst,
+            span
         }
     }
 
     /// Add with another linear combination.
-    fn add(&self, other: &Self) -> Self {
+    fn add(&self, other: &Self, span: Span) -> Self {
         let mut terms = self.terms.clone();
         for (var, factor) in other.terms.iter() {
             let exists = terms.get(var);
@@ -177,20 +140,41 @@ where
         LinearCombination {
             terms,
             constant: self.constant + other.constant,
+            span
         }
     }
 
     /// Scale the linear combination with a constant.
-    fn scale(&self, coeff: F) -> Self {
+    fn scale(&self, coeff: F, span: Span) -> Self {
         let terms = self
             .terms
             .iter()
             .map(|(var, factor)| (*var, *factor * coeff))
             .collect();
+
         LinearCombination {
             terms,
             constant: self.constant * coeff,
+            span
         }
+    }
+
+    /// Enforces a constraint for the multiplication of two CellVars.
+    /// The constraint reduces the multiplication to a new CellVar variable,
+    /// which represents: self * other = res.
+    fn mul(&self, cs: &mut R1CS<F>, other: &Self, span: Span) -> Self {
+        let res = cs.new_internal_var(Value::Mul(self.clone(), other.clone()), span);
+        cs.enforce_constraint(self, other, &res, span);
+
+        res
+    }
+
+    /// Enforces a constraint for the equality of two CellVars.
+    /// It needs to constraint: self * 1 = other.
+    fn assert_eq(&self, cs: &mut R1CS<F>, other: &Self, span: Span) {
+        let one_cvar = LinearCombination::one(span);
+
+        cs.enforce_constraint(self, &one_cvar, other, span)
     }
 }
 
@@ -228,11 +212,11 @@ where
     witness_vars: Vec<Value<Self>>,
     debug_info: Vec<DebugInfo>,
     /// Record the public inputs for reordering the witness vector
-    public_inputs: Vec<R1csCellVar<F>>,
+    public_inputs: Vec<CellVar>,
     /// Record the private inputs for checking
     private_input_indices: Vec<usize>,
     /// Record the public outputs for reordering the witness vector
-    public_outputs: Vec<R1csCellVar<F>>,
+    public_outputs: Vec<CellVar>,
     finalized: bool,
 }
 
@@ -264,7 +248,7 @@ where
 
     /// Add an r1cs constraint that is 3 linear combinations.
     /// This represents one constraint: a * b = c
-    fn add_constraint(&mut self, note: &str, c: Constraint<F>, span: crate::constants::Span) {
+    fn add_constraint(&mut self, note: &str, c: Constraint<F>, span: Span) {
         let debug_info = DebugInfo {
             note: note.to_string(),
             span,
@@ -282,18 +266,14 @@ where
 
     fn enforce_constraint(
         &mut self,
-        a_cvar: &R1csCellVar<F>,
-        b_cvar: &R1csCellVar<F>,
-        c_cvar: &R1csCellVar<F>,
+        a: &LinearCombination<F>,
+        b: &LinearCombination<F>,
+        c: &LinearCombination<F>,
         span: Span,
     ) {
-        let a = a_cvar.clone().into_linear_combination();
-        let b = b_cvar.clone().into_linear_combination();
-        let c = c_cvar.clone().into_linear_combination();
-
         self.add_constraint(
             "enforce constraint",
-            Constraint { a, b, c },
+            Constraint { a: a.clone(), b: b.clone(), c: c.clone() },
             span,
         );
     }
@@ -314,7 +294,7 @@ where
     F: BackendField,
 {
     type Field = F;
-    type Var = R1csCellVar<F>;
+    type Var = LinearCombination<F>;
     type GeneratedWitness = GeneratedWitness<F>;
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
@@ -326,8 +306,8 @@ where
     fn new_internal_var(
         &mut self,
         val: crate::var::Value<Self>,
-        span: crate::constants::Span,
-    ) -> R1csCellVar<F> {
+        span: Span,
+    ) -> LinearCombination<F> {
         let var = CellVar {
             index: self.witness_vars.len(),
             span,
@@ -335,7 +315,7 @@ where
 
         self.witness_vars.insert(var.index, val);
 
-        R1csCellVar::Var(var)
+        LinearCombination::from_vars(vec![var], span)
     }
 
     fn add_constant(
@@ -343,8 +323,8 @@ where
         //todo: do we need this?
         label: Option<&'static str>,
         value: F,
-        span: crate::constants::Span,
-    ) -> R1csCellVar<F> {
+        span: Span,
+    ) -> LinearCombination<F> {
         let x = self.new_internal_var(Value::Constant(value), span);
         self.assert_eq_const(&x, value, span);
 
@@ -357,8 +337,8 @@ where
     fn finalize_circuit(
         &mut self,
         public_output: Option<crate::var::Var<Self::Field, Self::Var>>,
-        returned_cells: Option<Vec<R1csCellVar<F>>>,
-        main_span: crate::constants::Span,
+        returned_cells: Option<Vec<LinearCombination<F>>>,
+        main_span: Span,
     ) -> crate::error::Result<()> {
         // store the return value in the public input that was created for that
         if let Some(public_output) = public_output {
@@ -366,7 +346,7 @@ where
 
             for (pub_var, ret_var) in cvars.clone().iter().zip(returned_cells.unwrap()) {
                 // replace the computation of the public output vars with the actual variables being returned here
-                let var_idx = pub_var.cvar().unwrap().to_witness_var().index;
+                let var_idx = pub_var.cvar().unwrap().to_cell_var().index;
                 let prev = &self.witness_vars[var_idx];
                 assert!(matches!(prev, Value::PublicOutput(None)));
                 self.witness_vars[var_idx] = Value::PublicOutput(Some(ret_var));
@@ -407,25 +387,17 @@ where
     fn compute_var(
         &self,
         env: &mut crate::witness::WitnessEnv<Self::Field>,
-        var: Self::Var,
+        lc: LinearCombination<Self::Field>,
     ) -> Result<Self::Field> {
-        match var {
-            R1csCellVar::Var(wv) => {
-                self.compute_val(env, self.witness_vars.get(wv.index).unwrap(), wv.index)
-            }
-            // if it's a linear combination, we need to evaluate each term
-            R1csCellVar::LinearCombination(lc) => {
-                let mut val = lc.constant;
+        let mut val = lc.constant;
 
-                for (wv, factor) in lc.terms {
-                    let wv_val = self.witness_vars.get(wv.index).unwrap();
-                    let calc = self.compute_val(env, wv_val, wv.index)? * factor;
-                    val += calc;
-                }
-
-                Ok(val)
-            }
+        for (var, factor) in lc.terms {
+            let var_val = self.witness_vars.get(var.index).unwrap();
+            let calc = self.compute_val(env, var_val, var.index)? * factor;
+            val += calc;
         }
+
+        Ok(val)
     }
 
     /// Generate the witnesses
@@ -454,8 +426,8 @@ where
         // The original vars of public outputs are not part of the constraints
         // so we need to compute them separately
         for var in &self.public_outputs {
-            let val = self.compute_var(witness_env, var.clone())?;
-            witness[var.to_witness_var().index] = val;
+            let val = self.compute_var(witness_env, var.to_linear_combination())?;
+            witness[var.index] = val;
         }
 
         for (index, (constraint, debug_info)) in
@@ -477,7 +449,7 @@ where
         let outputs = self
             .public_outputs
             .iter()
-            .map(|var| witness[var.to_witness_var().index])
+            .map(|var| witness[var.index])
             .collect();
 
         Ok(GeneratedWitness { witness, outputs })
@@ -547,60 +519,61 @@ where
         res
     }
 
-    fn neg(&mut self, x: &R1csCellVar<F>, span: crate::constants::Span) -> R1csCellVar<F> {
+    fn neg(&mut self, x: &LinearCombination<F>, span: Span) -> LinearCombination<F> {
         let one = F::one();
-        let x = x.clone().into_linear_combination();
+        let x = x.clone();
 
-        R1csCellVar::LinearCombination(x.scale(one.neg()))
+        x.scale(one.neg(), span)
     }
 
     fn add(
         &mut self,
-        lhs: &R1csCellVar<F>,
-        rhs: &R1csCellVar<F>,
-        span: crate::constants::Span,
-    ) -> R1csCellVar<F> {
-        lhs.add(rhs)
+        lhs: &LinearCombination<F>,
+        rhs: &LinearCombination<F>,
+        span: Span,
+    ) -> LinearCombination<F> {
+        lhs.add(rhs, span)
     }
 
     fn add_const(
         &mut self,
-        x: &R1csCellVar<F>,
+        x: &LinearCombination<F>,
         cst: &F,
-        span: crate::constants::Span,
-    ) -> R1csCellVar<F> {
-        x.add_const(*cst)
+        span: Span,
+    ) -> LinearCombination<F> {
+        let cst_lc = LinearCombination::from_const(*cst, span);
+        x.add(&cst_lc, span)
     }
 
     fn mul(
         &mut self,
-        lhs: &R1csCellVar<F>,
-        rhs: &R1csCellVar<F>,
-        span: crate::constants::Span,
-    ) -> R1csCellVar<F> {
+        lhs: &LinearCombination<F>,
+        rhs: &LinearCombination<F>,
+        span: Span,
+    ) -> LinearCombination<F> {
         lhs.mul(self, rhs, span)
     }
 
     fn mul_const(
         &mut self,
-        x: &R1csCellVar<F>,
+        x: &LinearCombination<F>,
         cst: &F,
-        span: crate::constants::Span,
-    ) -> R1csCellVar<F> {
-        x.scale(*cst)
+        span: Span,
+    ) -> LinearCombination<F> {
+        x.scale(*cst, span)
     }
 
-    fn assert_eq_const(&mut self, x: &R1csCellVar<F>, cst: F, span: crate::constants::Span) {
-        let c = R1csCellVar::LinearCombination(LinearCombination::from_const(cst));
+    fn assert_eq_const(&mut self, x: &LinearCombination<F>, cst: F, span: Span) {
+        let c = LinearCombination::from_const(cst, span);
 
         x.assert_eq(self, &c, span)
     }
 
     fn assert_eq_var(
         &mut self,
-        lhs: &R1csCellVar<F>,
-        rhs: &R1csCellVar<F>,
-        span: crate::constants::Span,
+        lhs: &LinearCombination<F>,
+        rhs: &LinearCombination<F>,
+        span: Span,
     ) {
         lhs.assert_eq(self, rhs, span)
     }
@@ -609,18 +582,18 @@ where
     fn add_public_input(
         &mut self,
         val: Value<Self>,
-        span: crate::constants::Span,
-    ) -> R1csCellVar<F> {
+        span: Span,
+    ) -> LinearCombination<F> {
         let var = self.new_internal_var(val, span);
-        self.public_inputs.push(var.clone());
+        self.public_inputs.push(*var.to_cell_var());
 
         var
     }
 
     /// Adds the private input cell vars.
-    fn add_private_input(&mut self, val: Value<Self>, span: Span) -> R1csCellVar<F> {
+    fn add_private_input(&mut self, val: Value<Self>, span: Span) -> LinearCombination<F> {
         let var = self.new_internal_var(val, span);
-        self.private_input_indices.push(var.to_witness_var().index);
+        self.private_input_indices.push(var.to_cell_var().index);
 
         var
     }
@@ -629,10 +602,10 @@ where
     fn add_public_output(
         &mut self,
         val: Value<Self>,
-        span: crate::constants::Span,
-    ) -> R1csCellVar<F> {
+        span: Span,
+    ) -> LinearCombination<F> {
         let var = self.new_internal_var(val, span);
-        self.public_outputs.push(var.clone());
+        self.public_outputs.push(*var.to_cell_var());
 
         var
     }

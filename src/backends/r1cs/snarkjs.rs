@@ -85,11 +85,10 @@ where
         // keep track of the public vars index for easy lookup
         let mut public_items_set: HashSet<usize> = HashSet::new();
 
-        for (index, var) in public_items.enumerate() {
-            let wv = var.to_witness_var();
+        for (index, cv) in public_items.enumerate() {
             // first var is fixed, so here we start from 1
-            witness_map.insert(wv.index, index + 1);
-            public_items_set.insert(wv.index);
+            witness_map.insert(cv.index, index + 1);
+            public_items_set.insert(cv.index);
         }
 
         // stack in the rest of the witness vars
