@@ -108,7 +108,7 @@ where
         LinearCombination {
             terms,
             constant: F::zero(),
-            span
+            span,
         }
     }
 
@@ -117,7 +117,7 @@ where
         LinearCombination {
             terms: HashMap::new(),
             constant: cst,
-            span
+            span,
         }
     }
 
@@ -132,7 +132,7 @@ where
         LinearCombination {
             terms,
             constant: self.constant + other.constant,
-            span
+            span,
         }
     }
 
@@ -147,7 +147,7 @@ where
         LinearCombination {
             terms,
             constant: self.constant * coeff,
-            span
+            span,
         }
     }
 
@@ -265,7 +265,11 @@ where
     ) {
         self.add_constraint(
             "enforce constraint",
-            Constraint { a: a.clone(), b: b.clone(), c: c.clone() },
+            Constraint {
+                a: a.clone(),
+                b: b.clone(),
+                c: c.clone(),
+            },
             span,
         );
     }
@@ -527,12 +531,7 @@ where
         lhs.add(rhs, span)
     }
 
-    fn add_const(
-        &mut self,
-        x: &LinearCombination<F>,
-        cst: &F,
-        span: Span,
-    ) -> LinearCombination<F> {
+    fn add_const(&mut self, x: &LinearCombination<F>, cst: &F, span: Span) -> LinearCombination<F> {
         let cst_lc = LinearCombination::from_const(*cst, span);
         x.add(&cst_lc, span)
     }
@@ -546,12 +545,7 @@ where
         lhs.mul(self, rhs, span)
     }
 
-    fn mul_const(
-        &mut self,
-        x: &LinearCombination<F>,
-        cst: &F,
-        span: Span,
-    ) -> LinearCombination<F> {
+    fn mul_const(&mut self, x: &LinearCombination<F>, cst: &F, span: Span) -> LinearCombination<F> {
         x.scale(*cst, span)
     }
 
@@ -571,11 +565,7 @@ where
     }
 
     /// Adds the public input cell vars.
-    fn add_public_input(
-        &mut self,
-        val: Value<Self>,
-        span: Span,
-    ) -> LinearCombination<F> {
+    fn add_public_input(&mut self, val: Value<Self>, span: Span) -> LinearCombination<F> {
         let var = self.new_internal_var(val, span);
         self.public_inputs.push(*var.to_cell_var());
 
@@ -591,11 +581,7 @@ where
     }
 
     /// Adds the public output cell vars.
-    fn add_public_output(
-        &mut self,
-        val: Value<Self>,
-        span: Span,
-    ) -> LinearCombination<F> {
+    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> LinearCombination<F> {
         let var = self.new_internal_var(val, span);
         self.public_outputs.push(*var.to_cell_var());
 
