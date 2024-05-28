@@ -124,18 +124,10 @@ where
     /// Add with another linear combination.
     fn add(&self, other: &Self, span: Span) -> Self {
         let mut terms = self.terms.clone();
-        for (var, factor) in other.terms.iter() {
-            let exists = terms.get(var);
-            match exists {
-                Some(f) => {
-                    let new_factor = *f + factor;
-                    terms.insert(*var, new_factor);
-                }
-                None => {
-                    terms.insert(*var, *factor);
-                }
-            }
-        }
+
+        other.terms.iter().for_each(|(var, c1)| {
+            terms.entry(*var).and_modify(|c2| *c2 += c1).or_insert(*c1);
+        });
 
         LinearCombination {
             terms,
