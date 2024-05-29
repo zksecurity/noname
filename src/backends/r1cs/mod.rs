@@ -31,7 +31,7 @@ pub struct CellVar {
 impl CellVar {
     /// Convert to linear combination.
     fn to_linear_combination<F: BackendField>(self) -> LinearCombination<F> {
-        LinearCombination::from_vars(vec![self], self.span)
+        LinearCombination::from(self)
     }
 }
 
@@ -167,6 +167,19 @@ where
         let one_cvar = LinearCombination::one(span);
 
         cs.enforce_constraint(self, &one_cvar, other, span)
+    }
+}
+
+impl<F> From<CellVar> for LinearCombination<F>
+where
+    F: BackendField,
+{
+    fn from(var: CellVar) -> Self {
+        LinearCombination {
+            terms: [(var, F::one())].into(),
+            constant: F::zero(),
+            span: var.span,
+        }
     }
 }
 
@@ -311,7 +324,7 @@ where
 
         self.witness_vars.insert(var.index, val);
 
-        LinearCombination::from_vars(vec![var], span)
+        LinearCombination::from(var)
     }
 
     fn add_constant(
