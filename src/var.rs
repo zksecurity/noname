@@ -4,7 +4,7 @@ use ark_ff::Field;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backends::{Backend, CellVar},
+    backends::{Backend, BackendVar},
     circuit_writer::{CircuitWriter, FnEnv, VarInfo},
     constants::Span,
     error::Result,
@@ -35,16 +35,16 @@ where
     /// Or it's a linear combination of internal circuit variables (+ a constant).
     // TODO: probably values of internal variables should be cached somewhere
     #[serde(skip)]
-    LinearCombination(Vec<(B::Field, B::CellVar)>, B::Field /* cst */),
+    LinearCombination(Vec<(B::Field, B::Var)>, B::Field /* cst */),
 
-    Mul(B::CellVar, B::CellVar),
+    Mul(B::Var, B::Var),
 
     #[serde(skip)]
-    Scale(B::Field, B::CellVar),
+    Scale(B::Field, B::Var),
 
     /// Returns the inverse of the given variable.
     /// Note that it will potentially return 0 if the given variable is 0.
-    Inverse(B::CellVar),
+    Inverse(B::Var),
 
     /// A public or private input to the function
     /// There's an index associated to a variable name, as the variable could be composed of several field elements.
@@ -52,7 +52,7 @@ where
 
     /// A public output.
     /// This is tracked separately as public inputs as it needs to be computed later.
-    PublicOutput(Option<B::CellVar>),
+    PublicOutput(Option<B::Var>),
 }
 
 impl<B: Backend> std::fmt::Debug for Value<B> {
@@ -75,7 +75,7 @@ impl<B: Backend> std::fmt::Debug for Value<B> {
 pub enum ConstOrCell<F, C>
 where
     F: Field,
-    C: CellVar,
+    C: BackendVar,
 {
     /// A constant value.
     #[serde(skip)]
@@ -85,7 +85,7 @@ where
     Cell(C),
 }
 
-impl<F: Field, C: CellVar> ConstOrCell<F, C> {
+impl<F: Field, C: BackendVar> ConstOrCell<F, C> {
     pub fn is_const(&self) -> bool {
         matches!(self, Self::Const(..))
     }
@@ -110,7 +110,7 @@ impl<F: Field, C: CellVar> ConstOrCell<F, C> {
 pub struct Var<F, C>
 where
     F: Field,
-    C: CellVar,
+    C: BackendVar,
 {
     /// The type of variable.
     pub cvars: Vec<ConstOrCell<F, C>>,
@@ -119,7 +119,7 @@ where
     pub span: Span,
 }
 
-impl<F: Field, C: CellVar> Var<F, C> {
+impl<F: Field, C: BackendVar> Var<F, C> {
     pub fn new(cvars: Vec<ConstOrCell<F, C>>, span: Span) -> Self {
         Self { cvars, span }
     }
@@ -186,7 +186,7 @@ impl<F: Field, C: CellVar> Var<F, C> {
 }
 
 // implement indexing into Var
-impl<F: Field, C: CellVar> std::ops::Index<usize> for Var<F, C> {
+impl<F: Field, C: BackendVar> std::ops::Index<usize> for Var<F, C> {
     type Output = ConstOrCell<F, C>;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -202,7 +202,7 @@ where
     B: Backend,
 {
     /// A [Var].
-    Var(Var<B::Field, B::CellVar>),
+    Var(Var<B::Field, B::Var>),
 
     /// A reference to a noname variable in the environment.
     /// Potentially narrowing it down to a range of cells in that variable.
@@ -229,8 +229,8 @@ impl<B: Backend> VarOrRef<B> {
     pub(crate) fn value(
         self,
         circuit_writer: &CircuitWriter<B>,
-        fn_env: &FnEnv<B::Field, B::CellVar>,
-    ) -> Var<B::Field, B::CellVar> {
+        fn_env: &FnEnv<B::Field, B::Var>,
+    ) -> Var<B::Field, B::Var> {
         match self {
             VarOrRef::Var(var) => var,
             VarOrRef::Ref {
@@ -245,7 +245,7 @@ impl<B: Backend> VarOrRef<B> {
         }
     }
 
-    pub(crate) fn from_var_info(var_name: String, var_info: VarInfo<B::Field, B::CellVar>) -> Self {
+    pub(crate) fn from_var_info(var_name: String, var_info: VarInfo<B::Field, B::Var>) -> Self {
         if var_info.mutable {
             Self::Ref {
                 var_name,

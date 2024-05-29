@@ -14,9 +14,9 @@ use std::ops::Neg;
 /// Negates a field element
 pub fn neg<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    cvar: &ConstOrCell<B::Field, B::CellVar>,
+    cvar: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     match cvar {
         crate::var::ConstOrCell::Const(ff) => Var::new_constant(ff.neg(), span),
         crate::var::ConstOrCell::Cell(var) => {
@@ -29,10 +29,10 @@ pub fn neg<B: Backend>(
 /// Adds two field elements
 pub fn add<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    lhs: &ConstOrCell<B::Field, B::CellVar>,
-    rhs: &ConstOrCell<B::Field, B::CellVar>,
+    lhs: &ConstOrCell<B::Field, B::Var>,
+    rhs: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     match (lhs, rhs) {
         // 2 constants
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs + *rhs, span),
@@ -43,7 +43,7 @@ pub fn add<B: Backend>(
             // if the constant is zero, we can ignore this gate
             if cst.is_zero() {
                 // TODO: that span is incorrect, it should come from lhs or rhs...
-                return Var::new_var(*cvar, span);
+                return Var::new_var(cvar.clone(), span);
             }
 
             let res = compiler.backend.add_const(cvar, cst, span);
@@ -60,10 +60,10 @@ pub fn add<B: Backend>(
 /// Subtracts two variables, we only support variables that are of length 1.
 pub fn sub<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    lhs: &ConstOrCell<B::Field, B::CellVar>,
-    rhs: &ConstOrCell<B::Field, B::CellVar>,
+    lhs: &ConstOrCell<B::Field, B::Var>,
+    rhs: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     let neg_rhs = neg(compiler, rhs, span);
     add(compiler, lhs, &neg_rhs.cvars[0], span)
 }
@@ -71,10 +71,10 @@ pub fn sub<B: Backend>(
 /// Multiplies two field elements
 pub fn mul<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    lhs: &ConstOrCell<B::Field, B::CellVar>,
-    rhs: &ConstOrCell<B::Field, B::CellVar>,
+    lhs: &ConstOrCell<B::Field, B::Var>,
+    rhs: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     match (lhs, rhs) {
         // 2 constants
         (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => Var::new_constant(*lhs * *rhs, span),
@@ -103,10 +103,10 @@ pub fn mul<B: Backend>(
 // TODO: so perhaps it's not really relevant in this file?
 pub fn equal<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    lhs: &Var<B::Field, B::CellVar>,
-    rhs: &Var<B::Field, B::CellVar>,
+    lhs: &Var<B::Field, B::Var>,
+    rhs: &Var<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     // sanity check
     assert_eq!(lhs.len(), rhs.len());
 
@@ -135,10 +135,10 @@ pub fn equal<B: Backend>(
 /// Returns a new variable set to 1 if x1 is equal to x2, 0 otherwise.
 fn equal_cells<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    x1: &ConstOrCell<B::Field, B::CellVar>,
-    x2: &ConstOrCell<B::Field, B::CellVar>,
+    x1: &ConstOrCell<B::Field, B::Var>,
+    x2: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     // These four constraints are enough:
     //
     // 1. `diff = x2 - x1`
@@ -178,7 +178,7 @@ fn equal_cells<B: Backend>(
                     *cst,
                     span,
                 ),
-                ConstOrCell::Cell(cvar) => *cvar,
+                ConstOrCell::Cell(cvar) => cvar.clone(),
             };
 
             let x2 = match x2 {
@@ -187,15 +187,14 @@ fn equal_cells<B: Backend>(
                     *cst,
                     span,
                 ),
-                ConstOrCell::Cell(cvar) => *cvar,
+                ConstOrCell::Cell(cvar) => cvar.clone(),
             };
 
             // 1. diff = x2 - x1
-            let neg_x1 = compiler.backend.neg(&x1, span);
-            let diff = compiler.backend.add(&x2, &neg_x1, span);
+            let diff = compiler.backend.sub(&x2, &x1, span);
             let diff_inv = compiler
                 .backend
-                .new_internal_var(Value::Inverse(diff), span);
+                .new_internal_var(Value::Inverse(diff.clone()), span);
 
             // 2. diff_inv * diff = one_minus_res
             let diff_inv_mul_diff = compiler.backend.mul(&diff_inv, &diff, span);
@@ -203,7 +202,7 @@ fn equal_cells<B: Backend>(
             // 3. one_minus_res = 1 - res
             // => res = 1 - diff_inv * diff
             let res = compiler.backend.new_internal_var(
-                Value::LinearCombination(vec![(one.neg(), diff_inv_mul_diff)], one),
+                Value::LinearCombination(vec![(one.neg(), diff_inv_mul_diff.clone())], one),
                 span,
             );
             let neg_res = compiler.backend.neg(&res, span);
@@ -223,11 +222,11 @@ fn equal_cells<B: Backend>(
 
 pub fn if_else<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    cond: &Var<B::Field, B::CellVar>,
-    then_: &Var<B::Field, B::CellVar>,
-    else_: &Var<B::Field, B::CellVar>,
+    cond: &Var<B::Field, B::Var>,
+    then_: &Var<B::Field, B::Var>,
+    else_: &Var<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     assert_eq!(cond.len(), 1);
     assert_eq!(then_.len(), else_.len());
 
@@ -237,7 +236,7 @@ pub fn if_else<B: Backend>(
 
     for (then_, else_) in then_.cvars.iter().zip(&else_.cvars) {
         let var = if_else_inner(compiler, cond, then_, else_, span);
-        vars.push(var[0]);
+        vars.push(var[0].clone());
     }
 
     Var::new(vars, span)
@@ -245,11 +244,11 @@ pub fn if_else<B: Backend>(
 
 pub fn if_else_inner<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    cond: &ConstOrCell<B::Field, B::CellVar>,
-    then_: &ConstOrCell<B::Field, B::CellVar>,
-    else_: &ConstOrCell<B::Field, B::CellVar>,
+    cond: &ConstOrCell<B::Field, B::Var>,
+    then_: &ConstOrCell<B::Field, B::Var>,
+    else_: &ConstOrCell<B::Field, B::Var>,
     span: Span,
-) -> Var<B::Field, B::CellVar> {
+) -> Var<B::Field, B::Var> {
     // we need to constrain:
     //
     // * res = (1 - cond) * else + cond * then
@@ -258,9 +257,9 @@ pub fn if_else_inner<B: Backend>(
     // if cond is constant, easy
     if let ConstOrCell::Const(cond) = cond {
         if cond.is_one() {
-            return Var::new_cvar(*then_, span);
+            return Var::new_cvar(then_.clone(), span);
         } else {
-            return Var::new_cvar(*else_, span);
+            return Var::new_cvar(else_.clone(), span);
         }
     }
 

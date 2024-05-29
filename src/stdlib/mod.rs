@@ -74,9 +74,9 @@ pub fn builtin_fns<B: Backend>() -> Vec<FnInfo<B>> {
 /// Asserts that two vars are equal.
 fn assert_eq<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    vars: &[VarInfo<B::Field, B::CellVar>],
+    vars: &[VarInfo<B::Field, B::Var>],
     span: Span,
-) -> Result<Option<Var<B::Field, B::CellVar>>> {
+) -> Result<Option<Var<B::Field, B::Var>>> {
     // we get two vars
     assert_eq!(vars.len(), 2);
     let lhs_info = &vars[0];
@@ -134,9 +134,9 @@ fn assert_eq<B: Backend>(
 /// Asserts that a condition is true.
 fn assert<B: Backend>(
     compiler: &mut CircuitWriter<B>,
-    vars: &[VarInfo<B::Field, B::CellVar>],
+    vars: &[VarInfo<B::Field, B::Var>],
     span: Span,
-) -> Result<Option<Var<B::Field, B::CellVar>>> {
+) -> Result<Option<Var<B::Field, B::Var>>> {
     // we get a single var
     assert_eq!(vars.len(), 1);
 

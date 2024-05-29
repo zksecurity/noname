@@ -29,7 +29,7 @@ pub trait BackendField:
 
 /// This trait allows different backends to have different cell var types.
 /// It is intended to make it opaque to the frondend.
-pub trait CellVar: Default + Clone + Copy + Debug + PartialEq + Eq + Hash {}
+pub trait BackendVar: Clone + Debug + PartialEq + Eq {}
 
 pub enum BackendKind {
     KimchiVesta(KimchiVesta),
@@ -58,7 +58,7 @@ pub trait Backend: Clone {
 
     /// The CellVar type for the backend.
     /// Different backend is allowed to have different CellVar types.
-    type CellVar: CellVar;
+    type Var: BackendVar;
 
     /// The generated witness type for the backend. Each backend may define its own witness format to be generated.
     type GeneratedWitness;
@@ -69,37 +69,43 @@ pub trait Backend: Clone {
 
     /// Create a new cell variable and record it.
     /// It increments the variable index for look up later.
-    fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> Self::CellVar;
+    fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> Self::Var;
 
     /// negate a var
-    fn neg(&mut self, var: &Self::CellVar, span: Span) -> Self::CellVar;
+    fn neg(&mut self, var: &Self::Var, span: Span) -> Self::Var;
 
     /// add two vars
-    fn add(&mut self, lhs: &Self::CellVar, rhs: &Self::CellVar, span: Span) -> Self::CellVar;
+    fn add(&mut self, lhs: &Self::Var, rhs: &Self::Var, span: Span) -> Self::Var;
+
+    /// sub two vars
+    fn sub(&mut self, lhs: &Self::Var, rhs: &Self::Var, span: Span) -> Self::Var {
+        let rhs_neg = self.neg(rhs, span);
+        self.add(lhs, &rhs_neg, span)
+    }
 
     /// add a var with a constant
-    fn add_const(&mut self, var: &Self::CellVar, cst: &Self::Field, span: Span) -> Self::CellVar;
+    fn add_const(&mut self, var: &Self::Var, cst: &Self::Field, span: Span) -> Self::Var;
 
     /// multiply a var with another var
-    fn mul(&mut self, lhs: &Self::CellVar, rhs: &Self::CellVar, span: Span) -> Self::CellVar;
+    fn mul(&mut self, lhs: &Self::Var, rhs: &Self::Var, span: Span) -> Self::Var;
 
     /// multiply a var with a constant
-    fn mul_const(&mut self, var: &Self::CellVar, cst: &Self::Field, span: Span) -> Self::CellVar;
+    fn mul_const(&mut self, var: &Self::Var, cst: &Self::Field, span: Span) -> Self::Var;
 
     /// add a constraint to assert a var equals a constant
-    fn assert_eq_const(&mut self, var: &Self::CellVar, cst: Self::Field, span: Span);
+    fn assert_eq_const(&mut self, var: &Self::Var, cst: Self::Field, span: Span);
 
     /// add a constraint to assert a var equals another var
-    fn assert_eq_var(&mut self, lhs: &Self::CellVar, rhs: &Self::CellVar, span: Span);
+    fn assert_eq_var(&mut self, lhs: &Self::Var, rhs: &Self::Var, span: Span);
 
     /// Process a public input
-    fn add_public_input(&mut self, val: Value<Self>, span: Span) -> Self::CellVar;
+    fn add_public_input(&mut self, val: Value<Self>, span: Span) -> Self::Var;
 
     /// Process a private input
-    fn add_private_input(&mut self, val: Value<Self>, span: Span) -> Self::CellVar;
+    fn add_private_input(&mut self, val: Value<Self>, span: Span) -> Self::Var;
 
     /// Process a public output
-    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> Self::CellVar;
+    fn add_public_output(&mut self, val: Value<Self>, span: Span) -> Self::Var;
 
     /// This should be called only when you want to constrain a constant for real.
     /// Gates that handle constants should always make sure to call this function when they want them constrained.
@@ -108,13 +114,13 @@ pub trait Backend: Clone {
         label: Option<&'static str>,
         value: Self::Field,
         span: Span,
-    ) -> Self::CellVar;
+    ) -> Self::Var;
 
     /// Backends should implement this function to load and compute the value of a CellVar.
     fn compute_var(
         &self,
         env: &mut WitnessEnv<Self::Field>,
-        var: Self::CellVar,
+        var: &Self::Var,
     ) -> Result<Self::Field>;
 
     /// Compute the value of the symbolic cell variables.
@@ -142,20 +148,20 @@ pub trait Backend: Clone {
             Value::LinearCombination(lc, cst) => {
                 let mut res = *cst;
                 for (coeff, var) in lc {
-                    res += self.compute_var(env, *var)? * *coeff;
+                    res += self.compute_var(env, var)? * *coeff;
                 }
                 env.cached_values.insert(cache_key, res); // cache
                 Ok(res)
             }
             Value::Mul(lhs, rhs) => {
-                let lhs = self.compute_var(env, *lhs)?;
-                let rhs = self.compute_var(env, *rhs)?;
+                let lhs = self.compute_var(env, lhs)?;
+                let rhs = self.compute_var(env, rhs)?;
                 let res = lhs * rhs;
                 env.cached_values.insert(cache_key, res); // cache
                 Ok(res)
             }
             Value::Inverse(v) => {
-                let v = self.compute_var(env, *v)?;
+                let v = self.compute_var(env, v)?;
                 let res = v.inverse().unwrap_or_else(Self::Field::zero);
                 env.cached_values.insert(cache_key, res); // cache
                 Ok(res)
@@ -164,13 +170,13 @@ pub trait Backend: Clone {
             Value::PublicOutput(var) => {
                 // var can be none. what could be the better way to pass in the span in that case?
                 // let span = self.main_info().span;
-                let var = var.ok_or_else(|| {
+                let var = var.as_ref().ok_or_else(|| {
                     Error::new("runtime", ErrorKind::MissingReturn, Span::default())
                 })?;
                 self.compute_var(env, var)
             }
             Value::Scale(scalar, var) => {
-                let var = self.compute_var(env, *var)?;
+                let var = self.compute_var(env, var)?;
                 Ok(*scalar * var)
             }
         }
@@ -179,8 +185,8 @@ pub trait Backend: Clone {
     /// Finalize the circuit by doing some sanitizing checks.
     fn finalize_circuit(
         &mut self,
-        public_output: Option<Var<Self::Field, Self::CellVar>>,
-        returned_cells: Option<Vec<Self::CellVar>>,
+        public_output: Option<Var<Self::Field, Self::Var>>,
+        returned_cells: Option<Vec<Self::Var>>,
         main_span: Span,
     ) -> Result<()>;
 

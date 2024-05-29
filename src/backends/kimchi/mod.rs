@@ -36,7 +36,7 @@ pub type VestaField = kimchi::mina_curves::pasta::Fp;
 /// Number of columns in the execution trace.
 pub const NUM_REGISTERS: usize = kimchi::circuits::wires::COLUMNS;
 
-use super::{Backend, BackendField, CellVar};
+use super::{Backend, BackendField, BackendVar};
 
 impl BackendField for VestaField {}
 
@@ -249,7 +249,7 @@ pub struct KimchiCellVar {
     pub span: Span,
 }
 
-impl CellVar for KimchiCellVar {}
+impl BackendVar for KimchiCellVar {}
 
 impl KimchiCellVar {
     fn new(index: usize, span: Span) -> Self {
@@ -259,7 +259,7 @@ impl KimchiCellVar {
 
 impl Backend for KimchiVesta {
     type Field = VestaField;
-    type CellVar = KimchiCellVar;
+    type Var = KimchiCellVar;
     type GeneratedWitness = GeneratedWitness;
 
     fn poseidon() -> crate::imports::FnHandle<Self> {
@@ -304,7 +304,7 @@ impl Backend for KimchiVesta {
 
     fn finalize_circuit(
         &mut self,
-        public_output: Option<Var<Self::Field, Self::CellVar>>,
+        public_output: Option<Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<KimchiCellVar>>,
         main_span: Span,
     ) -> Result<()> {
@@ -371,7 +371,7 @@ impl Backend for KimchiVesta {
     fn compute_var(
         &self,
         env: &mut crate::witness::WitnessEnv<Self::Field>,
-        var: Self::CellVar,
+        var: &Self::Var,
     ) -> crate::error::Result<Self::Field> {
         let val = self.witness_vars.get(&var.index).unwrap();
         self.compute_val(env, val, var.index)
@@ -407,7 +407,7 @@ impl Backend for KimchiVesta {
                             .push((row, col));
                         Self::Field::zero()
                     } else {
-                        self.compute_var(witness_env, *var)?
+                        self.compute_var(witness_env, var)?
                     }
                 } else {
                     Self::Field::zero()
@@ -422,7 +422,7 @@ impl Backend for KimchiVesta {
         let mut public_outputs = vec![];
 
         for (var, rows_cols) in public_outputs_vars {
-            let val = self.compute_var(witness_env, var)?;
+            let val = self.compute_var(witness_env, &var)?;
             for (row, col) in rows_cols {
                 witness[row][col] = val;
             }
@@ -726,7 +726,7 @@ impl Backend for KimchiVesta {
         cvar
     }
 
-    fn add_private_input(&mut self, val: Value<Self>, span: Span) -> Self::CellVar {
+    fn add_private_input(&mut self, val: Value<Self>, span: Span) -> Self::Var {
         let cvar = self.new_internal_var(val, span);
         self.private_input_indices.push(cvar.index);
 

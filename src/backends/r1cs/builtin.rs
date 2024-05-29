@@ -6,14 +6,14 @@ use crate::{
     var::Var,
 };
 
-use super::{R1csCellVar, R1CS};
+use super::{LinearCombination, R1CS};
 
 // todo: impl this
 pub fn poseidon<F>(
     compiler: &mut CircuitWriter<R1CS<F>>,
-    vars: &[VarInfo<F, R1csCellVar>],
+    vars: &[VarInfo<F, LinearCombination<F>>],
     span: Span,
-) -> Result<Option<Var<F, R1csCellVar>>>
+) -> Result<Option<Var<F, LinearCombination<F>>>>
 where
     F: BackendField,
 {

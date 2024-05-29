@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    backends::{BackendField, CellVar},
+    backends::{BackendField, BackendVar},
     parser::types::TyKind,
     var::Var,
 };
@@ -11,7 +11,7 @@ use crate::{
 pub struct VarInfo<F, C>
 where
     F: BackendField,
-    C: CellVar,
+    C: BackendVar,
 {
     /// The variable.
     pub var: Var<F, C>,
@@ -25,7 +25,7 @@ where
     pub typ: Option<TyKind>,
 }
 
-impl<F: BackendField, C: CellVar> VarInfo<F, C> {
+impl<F: BackendField, C: BackendVar> VarInfo<F, C> {
     pub fn new(var: Var<F, C>, mutable: bool, typ: Option<TyKind>) -> Self {
         Self { var, mutable, typ }
     }
@@ -45,7 +45,7 @@ impl<F: BackendField, C: CellVar> VarInfo<F, C> {
         // create new cvars by modifying a specific range
         let mut cvars = self.var.cvars.clone();
         let cvars_range = &mut cvars[start..start + len];
-        cvars_range.copy_from_slice(&var.cvars);
+        cvars_range.clone_from_slice(&var.cvars);
 
         let var = Var::new(cvars, self.var.span);
 
@@ -64,7 +64,7 @@ impl<F: BackendField, C: CellVar> VarInfo<F, C> {
 pub struct FnEnv<F, C>
 where
     F: BackendField,
-    C: CellVar,
+    C: BackendVar,
 {
     /// The current nesting level.
     /// Starting at 0 (top level), and increasing as we go into a block.
@@ -77,10 +77,13 @@ where
     vars: HashMap<String, (usize, VarInfo<F, C>)>,
 }
 
-impl<F: BackendField, C: CellVar> FnEnv<F, C> {
+impl<F: BackendField, C: BackendVar> FnEnv<F, C> {
     /// Creates a new FnEnv
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            current_scope: 0,
+            vars: HashMap::new(),
+        }
     }
 
     /// Enters a scoped block.
