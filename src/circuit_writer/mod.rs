@@ -158,6 +158,16 @@ impl<B: Backend> CircuitWriter<B> {
         // create the main env
         let fn_env = &mut FnEnv::new();
 
+        // create public output
+        if let Some(typ) = &function.sig.return_type {
+            if typ.kind != TyKind::Field {
+                unimplemented!();
+            }
+
+            // create it
+            circuit_writer.add_public_outputs(1, typ.span);
+        }
+
         // create public and private inputs
         for FnArg {
             attribute,
@@ -204,16 +214,6 @@ impl<B: Backend> CircuitWriter<B> {
             let mutable = false; // TODO: should we add a mut keyword in arguments as well?
             let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
             circuit_writer.add_local_var(fn_env, name.value.clone(), var_info);
-        }
-
-        // create public output
-        if let Some(typ) = &function.sig.return_type {
-            if typ.kind != TyKind::Field {
-                unimplemented!();
-            }
-
-            // create it
-            circuit_writer.add_public_outputs(1, typ.span);
         }
 
         // compile function
