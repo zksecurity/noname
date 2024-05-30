@@ -16,17 +16,17 @@ pub struct Compiler {
     // ...
 
     /// This is used to compute the witness row by row.
-    pub rows_of_vars: Vec<Vec<Option<CellVar>>>,
+    pub witness_table: Vec<Vec<Option<CellVar>>>,
 
     // ...
 }
 ```
 
-`rows_of_vars` can essentially be seen as the execution trace table, containing variables instead of values.
+`witness_table` can essentially be seen as the execution trace table, containing variables instead of values.
 
 The witness generation goes as follows:
 
-1. Each rows in `rows_of_vars` is looked at one by one 
+1. Each rows in `witness_table` is looked at one by one 
 2. For each `CellVar` in the row:
    1. If it is set, it is evaluated using the `Value` stored in `vars_to_value`.
    2. If it set to `None`, it is simply evaluated as `0`.

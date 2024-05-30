@@ -65,7 +65,7 @@ pub struct KimchiVesta {
     /// The execution trace table with vars as placeholders.
     /// It is created during circuit generation,
     /// and used by the witness generator.
-    pub(crate) rows_of_vars: Vec<Vec<Option<KimchiCellVar>>>,
+    pub(crate) witness_table: Vec<Vec<Option<KimchiCellVar>>>,
 
     /// We cache the association between a constant and its _constrained_ variable,
     /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
@@ -135,7 +135,7 @@ impl KimchiVesta {
         Self {
             next_variable: 0,
             vars_to_value: HashMap::new(),
-            rows_of_vars: vec![],
+            witness_table: vec![],
             cached_constants: HashMap::new(),
             gates: vec![],
             wiring: HashMap::new(),
@@ -162,7 +162,7 @@ impl KimchiVesta {
         assert!(vars.len() <= NUM_REGISTERS);
 
         // construct the execution trace with vars, for the witness generation
-        self.rows_of_vars.push(vars.clone());
+        self.witness_table.push(vars.clone());
 
         // get current row
         // important: do that before adding the gate below
@@ -325,7 +325,7 @@ impl Backend for KimchiVesta {
 
         // for sanity check, we make sure that every cellvar created has ended up in a gate
         let mut written_vars = HashSet::new();
-        for row in self.rows_of_vars.iter() {
+        for row in self.witness_table.iter() {
             row.iter().flatten().for_each(|cvar| {
                 written_vars.insert(cvar.index);
             });
@@ -393,7 +393,7 @@ impl Backend for KimchiVesta {
         let mut public_outputs_vars: HashMap<KimchiCellVar, Vec<(usize, usize)>> = HashMap::new();
 
         // calculate witness except for public outputs
-        for (row, row_of_vars) in self.rows_of_vars.iter().enumerate() {
+        for (row, row_of_vars) in self.witness_table.iter().enumerate() {
             // create the witness row
             let mut witness_row = [Self::Field::zero(); NUM_REGISTERS];
 
@@ -476,7 +476,7 @@ impl Backend for KimchiVesta {
 
         // sanity checks
         assert_eq!(witness.len(), self.gates.len());
-        assert_eq!(witness.len(), self.rows_of_vars.len());
+        assert_eq!(witness.len(), self.witness_table.len());
 
         // return the public output separately as well
         Ok(GeneratedWitness {
