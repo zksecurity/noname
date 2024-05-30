@@ -266,6 +266,9 @@ impl Backend for KimchiVesta {
         builtin::poseidon
     }
 
+    // kimchi backend doesn't need to do anything here
+    fn init_circuit(&mut self, _sig: &mut crate::parser::FunctionDef) {}
+
     fn new_internal_var(&mut self, val: Value<KimchiVesta>, span: Span) -> KimchiCellVar {
         // create new var
         let var = KimchiCellVar::new(self.next_variable, span);

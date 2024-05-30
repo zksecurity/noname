@@ -9,6 +9,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
+    parser::FunctionDef,
     var::{Value, Var},
     witness::WitnessEnv,
 };
@@ -66,6 +67,9 @@ pub trait Backend: Clone {
     // TODO: as the builtins grows, we might better change this to a crypto struct that holds all the builtin function pointers.
     /// poseidon crypto builtin function for different backends
     fn poseidon() -> FnHandle<Self>;
+
+    /// Init circuit
+    fn init_circuit(&mut self, sig: &mut FunctionDef);
 
     /// Create a new cell variable and record it.
     /// It increments the variable index for look up later.

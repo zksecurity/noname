@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::constants::Span;
 use crate::error::{Error, ErrorKind, Result};
 use crate::helpers::PrettyField;
+use crate::parser::FunctionDef;
 use crate::{circuit_writer::DebugInfo, var::Value};
 
 use super::{Backend, BackendField, BackendVar};
@@ -310,6 +311,21 @@ where
         builtin::poseidon::<F>
     }
 
+    fn init_circuit(&mut self, func: &mut FunctionDef) {
+        // reorder the arguments by public and private
+        // the public inputs should be at the beginning
+        func.sig.arguments.sort_by_key(|arg| match &arg.attribute {
+            Some(attr) => match attr.kind {
+                crate::parser::types::AttributeKind::Pub => 0,
+                _ => 1,
+            },
+            None => 1,
+        });
+
+        // create the first var that is always 1
+        self.new_internal_var(Value::Constant(F::one()), Span::default());
+    }
+
     /// Create a new CellVar and record in witness_vars vector.
     /// The underlying type of CellVar is always WitnessVar.
     fn new_internal_var(
@@ -374,6 +390,11 @@ where
 
         // check if every cell vars end up being a cell var in the circuit or public output
         for (index, _) in self.witness_vars.iter().enumerate() {
+            // skip the first var that is assumed to be the factor of constants of all linear combinations
+            if index == 0 {
+                continue;
+            }
+
             if !written_vars.contains(&index) {
                 if self.private_input_indices.contains(&index) {
                     let err = Error::new(
@@ -490,12 +511,10 @@ where
                         // sort by var index to make it determisitic for asm generation
                         .sorted_by(|(a, _), (b, _)| a.index.cmp(&b.index))
                         .map(|(var, factor)| {
-                            // starting from index 1, as the first var is reserved for the constant
-                            let index = var.index + 1;
                             match factor.pretty().as_str() {
                                 // if the factor is 1, we don't need to show it
-                                "1" => format!("v_{}", index),
-                                _ => format!("{} * v_{}", factor.pretty(), index),
+                                "1" => format!("v_{}", var.index),
+                                _ => format!("{} * v_{}", factor.pretty(), var.index),
                             }
                         })
                         .collect();
@@ -602,8 +621,17 @@ where
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use crate::backends::BackendKind;
+    use crate::{
+        backends::{
+            r1cs::{R1csBls12381Field, R1CS},
+            Backend, BackendKind,
+        },
+        lexer::Token,
+        parser::{types::FnSig, FunctionDef, ParserCtx},
+    };
+    use ark_ff::One;
     use rstest::rstest;
 
     #[rstest]
@@ -628,6 +656,37 @@ mod tests {
             _ => {
                 panic!("unexpected backend kind")
             }
+        }
+    }
+
+    #[test]
+    fn test_init_circuit() {
+        let sig: &str = "main(aa: Field, pub bb: Field)";
+
+        let ctx = &mut ParserCtx::default();
+        let mut tokens = Token::parse(0, sig).unwrap();
+        let sig = FnSig::parse(ctx, &mut tokens).unwrap();
+        let mut func = FunctionDef {
+            sig,
+            body: vec![],
+            span: Default::default(),
+        };
+
+        let mut r1cs: R1CS<R1csBls12381Field> = R1CS::new();
+        r1cs.init_circuit(&mut func);
+
+        // it should reorder and the public inputs should be at the beginning
+        assert_eq!(func.sig.arguments.len(), 2);
+        assert_eq!(func.sig.arguments[0].name.value, "bb");
+        assert_eq!(func.sig.arguments[1].name.value, "aa");
+
+        // first var should be initialized as 1
+        assert_eq!(r1cs.witness_vars.len(), 1);
+        match &r1cs.witness_vars[0] {
+            crate::var::Value::Constant(cst) => {
+                assert_eq!(*cst, R1csBls12381Field::one());
+            }
+            _ => panic!("unexpected value"),
         }
     }
 }

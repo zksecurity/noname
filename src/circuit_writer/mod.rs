@@ -150,10 +150,12 @@ impl<B: Backend> CircuitWriter<B> {
         let qualified = FullyQualified::local("main".to_string());
         let main_fn_info = circuit_writer.main_info()?;
 
-        let function = match &main_fn_info.kind {
+        let mut function = match &main_fn_info.kind {
             crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
             crate::imports::FnKind::Native(fn_sig) => fn_sig.clone(),
         };
+
+        circuit_writer.backend.init_circuit(&mut function);
 
         // create the main env
         let fn_env = &mut FnEnv::new();
