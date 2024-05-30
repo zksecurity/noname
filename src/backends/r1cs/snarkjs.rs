@@ -1,9 +1,8 @@
 use crate::backends::BackendField;
 use crate::error::Result;
 use constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
-use itertools::Itertools;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::vec;
@@ -54,72 +53,26 @@ where
 {
     /// A R1CS backend with the circuit finalized.
     r1cs_backend: R1CS<F>,
-    /// A mapping between the witness vars' indexes in the backend and the new indexes arranged for the snarkjs format.
-    /// <original, new>: The key (left) is the original index of the witness var in the backend, and the value (right) is the new index.
-    /// This mapping is used to re-arrange the witness values to align with the snarkjs format.
-    /// - The format assumes the public outputs and inputs are at the beginning of the witness vector.
-    /// - The variables in the constraints needs this mapping to reference to the new witness vector.
-    witness_map: HashMap<usize, usize>,
 }
 
 impl<F> SnarkjsExporter<F>
 where
     F: BackendField,
 {
-    /// During the initialization, the witness map is created to re-arrange the witness vector.
-    /// The reordering of witness vars:
-    /// 1. The first var is always reserved and valued as 1.
-    /// 2. The public outputs are stacked first.
-    /// 3. The public inputs are stacked next.
-    /// 4. The rest of the witness vars are stacked last.
     pub fn new(r1cs_backend: R1CS<F>) -> SnarkjsExporter<F> {
-        let mut witness_map = HashMap::new();
-
-        // group all the public items together
-        // outputs are intended to be before inputs
-        let public_items = r1cs_backend
-            .public_outputs
-            .iter()
-            .chain(r1cs_backend.public_inputs.iter());
-
-        // keep track of the public vars index for easy lookup
-        let mut public_items_set: HashSet<usize> = HashSet::new();
-
-        for (index, cv) in public_items.enumerate() {
-            // first var is fixed, so here we start from 1
-            witness_map.insert(cv.index, index + 1);
-            public_items_set.insert(cv.index);
-        }
-
-        // stack in the rest of the witness vars
-        for (index, _) in r1cs_backend.witness_vars.iter().enumerate() {
-            if public_items_set.contains(&index) {
-                continue;
-            }
-            witness_map.insert(index, witness_map.len() + 1);
-        }
-
-        // witness_map should have all the witness vars
-        assert_eq!(r1cs_backend.witness_vars.len(), witness_map.len());
-
-        SnarkjsExporter {
-            r1cs_backend,
-            witness_map,
-        }
+        SnarkjsExporter { r1cs_backend }
     }
 
     /// Restructure the linear combination to align with the snarkjs format.
-    /// - use witness mapper to re-arrange the variables.
     /// - convert the factors to BigInt.
     fn restructure_lc(&self, lc: &LinearCombination<F>) -> SnarkjsLinearCombination {
         let terms = lc
             .terms
             .iter()
             .map(|(cvar, factor)| {
-                let new_index: usize = *self.witness_map.get(&cvar.index).unwrap();
                 let factor_bigint = Self::convert_to_bigint(factor);
 
-                (new_index, factor_bigint)
+                (cvar.index, factor_bigint)
             })
             .collect();
 
@@ -142,29 +95,13 @@ where
     }
 
     /// Restructure the witness vector
-    /// 1. add the first var that is always valued as 1.
-    /// 2. use witness mapper to re-arrange the variables.
-    /// 3. convert the witness values to BigInt.
-    /// 4. convert to a witness vector ordered by new index.
     fn restructure_witness(&self, generated_witness: GeneratedWitness<F>) -> Vec<BigInt> {
-        let mut restructured_witness_values = HashMap::new();
-
-        // add the first var that is always valued as 1
-        restructured_witness_values.insert(0, BigInt::from(1));
-
-        for (id, value) in generated_witness.witness.iter().enumerate() {
-            let new_index = self.witness_map.get(&id).unwrap();
-            let value_bigint = Self::convert_to_bigint(value);
-
-            restructured_witness_values.insert(*new_index, value_bigint);
-        }
-
-        // convert to vector ordered by new index
-        restructured_witness_values
+        // convert the witness to BigInt
+        generated_witness
+            .witness
             .iter()
-            .sorted_by(|a, b| a.0.cmp(b.0))
-            .map(|x| x.1.clone())
-            .collect::<Vec<_>>()
+            .map(|value| Self::convert_to_bigint(value))
+            .collect()
     }
 
     /// Generate the r1cs file in snarkjs format.
@@ -202,7 +139,7 @@ where
             // There seems no use of this field in the snarkjs lib. It might be just a reference.
             private_inputs: self.r1cs_backend.private_input_number(),
             // Add one to take into account the first var that is only added during the witness formation for snarkjs.
-            total_wires: self.witness_map.len() + 1,
+            total_wires: self.r1cs_backend.witness_vars.len(),
             // This is for circom lang debugging, so we don't need it.
             number_of_labels: 0,
             number_of_constraints: restructure_constraints.len(),
@@ -355,95 +292,5 @@ impl WitnessWriter {
         let mut buffer = vec![0u8; size];
         buffer[..bytes.len()].copy_from_slice(&bytes);
         self.inner.write_all(&buffer);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use num_bigint_dig::BigInt;
-
-    use crate::{
-        backends::{
-            r1cs::{R1csBls12381Field, R1CS},
-            Backend,
-        },
-        constants::Span,
-        var::Value,
-        witness::WitnessEnv,
-    };
-
-    #[test]
-    fn test_restructure_witness() {
-        let mut r1cs = R1CS::new();
-
-        // mock a constraint
-        let span = Span::default();
-        let var1_val = 2;
-        let public_input_val = 3;
-        let res_val = var1_val * public_input_val;
-        let var1 = r1cs.new_internal_var(Value::Constant(R1csBls12381Field::from(var1_val)), span);
-        let public_input_var = r1cs.add_public_input(
-            Value::Constant(R1csBls12381Field::from(public_input_val)),
-            span,
-        );
-        let sum_var = r1cs.mul(&var1, &public_input_var, span);
-        r1cs.add_public_output(Value::PublicOutput(Some(sum_var)), span);
-        let public_output_val = res_val;
-
-        // convert witness to snarkjs format
-        let mut snarkjs_exporter = super::SnarkjsExporter::new(r1cs);
-        assert_eq!(
-            snarkjs_exporter.witness_map.len(),
-            snarkjs_exporter.r1cs_backend.witness_vars.len()
-        );
-
-        // mock finalizing the circuit
-        snarkjs_exporter.r1cs_backend.finalized = true;
-        let mut witness_env = WitnessEnv::default();
-        let generated_witness = snarkjs_exporter
-            .r1cs_backend
-            .generate_witness(&mut witness_env);
-
-        let rearranged_witness = snarkjs_exporter.restructure_witness(generated_witness.unwrap());
-
-        assert_eq!(
-            rearranged_witness,
-            vec![
-                // first var is always 1
-                BigInt::from(1),
-                // output ordered before input
-                BigInt::from(public_output_val),
-                // public input
-                BigInt::from(public_input_val),
-                // private inputs (the rest of the witness vars)
-                BigInt::from(var1_val),
-                BigInt::from(res_val),
-            ]
-        );
-
-        let restructure_constraints = snarkjs_exporter.restructure_constraints();
-        assert_ne!(restructure_constraints.len(), 0);
-
-        for (rc, oc) in restructure_constraints
-            .iter()
-            .zip(snarkjs_exporter.r1cs_backend.constraints.iter())
-        {
-            // concat the terms from a b c
-            let all_original_terms = [oc.a.terms.clone(), oc.b.terms.clone(), oc.c.terms.clone()];
-            let all_restructured_terms =
-                [rc.a.terms.clone(), rc.b.terms.clone(), rc.c.terms.clone()];
-
-            for (oterms, rterms) in all_original_terms.iter().zip(all_restructured_terms) {
-                assert_eq!(oterms.len(), rterms.len());
-                for original_var in oterms.keys() {
-                    // check if the original var is in the restructured terms after reordering
-                    let new_index = snarkjs_exporter
-                        .witness_map
-                        .get(&original_var.index)
-                        .unwrap();
-                    assert!(rterms.contains_key(new_index));
-                }
-            }
-        }
     }
 }
