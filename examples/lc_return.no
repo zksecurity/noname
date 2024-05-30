@@ -1,0 +1,3 @@
+fn main(pub public_input: Field, private_input: Field) -> Field {
+    return private_input + public_input;
+}
