@@ -139,7 +139,7 @@ where
             // There seems no use of this field in the snarkjs lib. It might be just a reference.
             private_inputs: self.r1cs_backend.private_input_number(),
             // Add one to take into account the first var that is only added during the witness formation for snarkjs.
-            total_wires: self.r1cs_backend.witness_vars.len(),
+            total_wires: self.r1cs_backend.witness_vector.len(),
             // This is for circom lang debugging, so we don't need it.
             number_of_labels: 0,
             number_of_constraints: restructure_constraints.len(),

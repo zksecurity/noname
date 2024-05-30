@@ -215,7 +215,7 @@ where
 {
     /// Constraints in the r1cs.
     constraints: Vec<Constraint<F>>,
-    witness_vars: Vec<Value<Self>>,
+    witness_vector: Vec<Value<Self>>,
     debug_info: Vec<DebugInfo>,
     /// Record the public inputs for reordering the witness vector
     public_inputs: Vec<CellVar>,
@@ -233,7 +233,7 @@ where
     pub fn new() -> Self {
         Self {
             constraints: Vec::new(),
-            witness_vars: Vec::new(),
+            witness_vector: Vec::new(),
             debug_info: Vec::new(),
             public_inputs: Vec::new(),
             private_input_indices: Vec::new(),
@@ -267,7 +267,7 @@ where
     /// Compute the number of private inputs
     /// based on the number of all witness variables, public inputs and public outputs.
     fn private_input_number(&self) -> usize {
-        self.witness_vars.len() - self.public_inputs.len() - self.public_outputs.len()
+        self.witness_vector.len() - self.public_inputs.len() - self.public_outputs.len()
     }
 
     fn enforce_constraint(
@@ -326,7 +326,7 @@ where
         self.new_internal_var(Value::Constant(F::one()), Span::default());
     }
 
-    /// Create a new CellVar and record in witness_vars vector.
+    /// Create a new CellVar and record in witness_vector vector.
     /// The underlying type of CellVar is always WitnessVar.
     fn new_internal_var(
         &mut self,
@@ -334,11 +334,11 @@ where
         span: Span,
     ) -> LinearCombination<F> {
         let var = CellVar {
-            index: self.witness_vars.len(),
+            index: self.witness_vector.len(),
             span,
         };
 
-        self.witness_vars.insert(var.index, val);
+        self.witness_vector.insert(var.index, val);
 
         LinearCombination::from(var)
     }
@@ -372,9 +372,9 @@ where
             for (pub_var, ret_var) in cvars.clone().iter().zip(returned_cells.unwrap()) {
                 // replace the computation of the public output vars with the actual variables being returned here
                 let var_idx = pub_var.cvar().unwrap().to_cell_var().index;
-                let prev = &self.witness_vars[var_idx];
+                let prev = &self.witness_vector[var_idx];
                 assert!(matches!(prev, Value::PublicOutput(None)));
-                self.witness_vars[var_idx] = Value::PublicOutput(Some(ret_var));
+                self.witness_vector[var_idx] = Value::PublicOutput(Some(ret_var));
             }
         }
 
@@ -389,7 +389,7 @@ where
         }
 
         // check if every cell vars end up being a cell var in the circuit or public output
-        for (index, _) in self.witness_vars.iter().enumerate() {
+        for (index, _) in self.witness_vector.iter().enumerate() {
             // skip the first var that is assumed to be the factor of constants of all linear combinations
             if index == 0 {
                 continue;
@@ -422,7 +422,7 @@ where
         let mut val = lc.constant;
 
         for (var, factor) in &lc.terms {
-            let var_val = self.witness_vars.get(var.index).unwrap();
+            let var_val = self.witness_vector.get(var.index).unwrap();
             let calc = self.compute_val(env, var_val, var.index)? * factor;
             val += calc;
         }
@@ -440,7 +440,7 @@ where
 
         // generate witness through witness vars vector
         let mut witness = self
-            .witness_vars
+            .witness_vector
             .iter()
             .enumerate()
             .map(|(index, val)| {
@@ -681,8 +681,8 @@ mod tests {
         assert_eq!(func.sig.arguments[1].name.value, "aa");
 
         // first var should be initialized as 1
-        assert_eq!(r1cs.witness_vars.len(), 1);
-        match &r1cs.witness_vars[0] {
+        assert_eq!(r1cs.witness_vector.len(), 1);
+        match &r1cs.witness_vector[0] {
             crate::var::Value::Constant(cst) => {
                 assert_eq!(*cst, R1csBls12381Field::one());
             }
