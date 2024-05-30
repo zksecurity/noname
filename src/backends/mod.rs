@@ -129,7 +129,7 @@ pub trait Backend: Clone {
 
     /// Compute the value of the symbolic cell variables.
     /// It recursively does the computation down the stream until it is not a symbolic variable.
-    /// - The symbolic variables are stored in the witness_vars.
+    /// - The cell vars are stored in the vars_to_value.
     /// - The computed values are stored in the cached_values.
     fn compute_val(
         &self,

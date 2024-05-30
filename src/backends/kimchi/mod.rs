@@ -60,7 +60,7 @@ pub struct KimchiVesta {
 
     /// This is how you compute the value of each variable during witness generation.
     /// It is created during circuit generation.
-    pub(crate) witness_vars: HashMap<usize, Value<Self>>,
+    pub(crate) vars_to_value: HashMap<usize, Value<Self>>,
 
     /// The execution trace table with vars as placeholders.
     /// It is created during circuit generation,
@@ -134,7 +134,7 @@ impl KimchiVesta {
     pub fn new(double_generic_gate_optimization: bool) -> Self {
         Self {
             next_variable: 0,
-            witness_vars: HashMap::new(),
+            vars_to_value: HashMap::new(),
             rows_of_vars: vec![],
             cached_constants: HashMap::new(),
             gates: vec![],
@@ -275,7 +275,7 @@ impl Backend for KimchiVesta {
         self.next_variable += 1;
 
         // store it in the circuit_writer
-        self.witness_vars.insert(var.index, val);
+        self.vars_to_value.insert(var.index, val);
 
         var
     }
@@ -360,7 +360,7 @@ impl Backend for KimchiVesta {
                 // replace the computation of the public output vars with the actual variables being returned here
                 let var_idx = pub_var.cvar().unwrap().index;
                 let prev = self
-                    .witness_vars
+                    .vars_to_value
                     .insert(var_idx, Value::PublicOutput(Some(ret_var)));
                 assert!(prev.is_some());
             }
@@ -376,7 +376,7 @@ impl Backend for KimchiVesta {
         env: &mut crate::witness::WitnessEnv<Self::Field>,
         var: &Self::Var,
     ) -> crate::error::Result<Self::Field> {
-        let val = self.witness_vars.get(&var.index).unwrap();
+        let val = self.vars_to_value.get(&var.index).unwrap();
         self.compute_val(env, val, var.index)
     }
 
@@ -401,7 +401,7 @@ impl Backend for KimchiVesta {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
                     if matches!(
-                        self.witness_vars.get(&var.index),
+                        self.vars_to_value.get(&var.index),
                         Some(Value::PublicOutput(_))
                     ) {
                         public_outputs_vars
