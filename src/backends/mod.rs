@@ -9,6 +9,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
+    parser::FunctionDef,
     var::{Value, Var},
     witness::WitnessEnv,
 };
@@ -67,6 +68,11 @@ pub trait Backend: Clone {
     /// poseidon crypto builtin function for different backends
     fn poseidon() -> FnHandle<Self>;
 
+    /// Init circuit
+    fn init_circuit(&mut self) {
+        // do nothing by default
+    }
+
     /// Create a new cell variable and record it.
     /// It increments the variable index for look up later.
     fn new_internal_var(&mut self, val: Value<Self>, span: Span) -> Self::Var;
@@ -123,10 +129,6 @@ pub trait Backend: Clone {
         var: &Self::Var,
     ) -> Result<Self::Field>;
 
-    /// Compute the value of the symbolic cell variables.
-    /// It recursively does the computation down the stream until it is not a symbolic variable.
-    /// - The symbolic variables are stored in the witness_vars.
-    /// - The computed values are stored in the cached_values.
     fn compute_val(
         &self,
         env: &mut WitnessEnv<Self::Field>,
