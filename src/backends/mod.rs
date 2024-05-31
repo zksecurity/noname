@@ -69,7 +69,9 @@ pub trait Backend: Clone {
     fn poseidon() -> FnHandle<Self>;
 
     /// Init circuit
-    fn init_circuit(&mut self, sig: &mut FunctionDef);
+    fn init_circuit(&mut self) {
+        // do nothing by default
+    }
 
     /// Create a new cell variable and record it.
     /// It increments the variable index for look up later.

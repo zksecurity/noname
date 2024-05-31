@@ -57,6 +57,9 @@ pub struct DebugInfo {
     pub note: String,
 }
 
+type HandleInput<B: Backend> =
+    fn(&mut CircuitWriter<B>, String, usize, Span) -> Var<B::Field, B::Var>;
+
 impl<B: Backend> CircuitWriter<B> {
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
         self.typed.expr_type(expr)
@@ -150,12 +153,13 @@ impl<B: Backend> CircuitWriter<B> {
         let qualified = FullyQualified::local("main".to_string());
         let main_fn_info = circuit_writer.main_info()?;
 
-        let mut function = match &main_fn_info.kind {
+        let function = match &main_fn_info.kind {
             crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
             crate::imports::FnKind::Native(fn_sig) => fn_sig.clone(),
         };
 
-        circuit_writer.backend.init_circuit(&mut function);
+        // initialize the circuit
+        circuit_writer.backend.init_circuit();
 
         // create the main env
         let fn_env = &mut FnEnv::new();
@@ -170,52 +174,24 @@ impl<B: Backend> CircuitWriter<B> {
             circuit_writer.add_public_outputs(1, typ.span);
         }
 
-        // create public and private inputs
-        for FnArg {
-            attribute,
-            name,
-            typ,
-            ..
-        } in &function.sig.arguments
-        {
-            // get length
-            let len = match &typ.kind {
-                TyKind::Field => 1,
-                TyKind::Array(typ, len) => {
-                    if !matches!(**typ, TyKind::Field) {
-                        unimplemented!();
+        // public inputs should be handled first
+        for arg in function.sig.arguments.iter().filter(|arg| arg.is_public()) {
+            match &arg.attribute {
+                Some(attr) => {
+                    if !matches!(attr.kind, AttributeKind::Pub) {
+                        return Err(
+                            circuit_writer.error(ErrorKind::InvalidAttribute(attr.kind), attr.span)
+                        );
                     }
-                    *len as usize
                 }
-                TyKind::Bool => 1,
-                typ => circuit_writer.size_of(typ),
-            };
+                None => panic!("public arguments must have a pub attribute"),
+            }
+            circuit_writer.handle_arg(arg, fn_env, CircuitWriter::add_public_inputs)?;
+        }
 
-            // create the variable
-            let var = if let Some(attr) = attribute {
-                if !matches!(attr.kind, AttributeKind::Pub) {
-                    return Err(
-                        circuit_writer.error(ErrorKind::InvalidAttribute(attr.kind), attr.span)
-                    );
-                }
-                circuit_writer.add_public_inputs(name.value.clone(), len, name.span)
-            } else {
-                circuit_writer.add_private_inputs(name.value.clone(), len, name.span)
-            };
-
-            // constrain what needs to be constrained
-            // (for example, booleans need to be constrained to be 0 or 1)
-            // note: we constrain private inputs as well as public inputs
-            // in theory we might not need to check the validity of public inputs,
-            // but we are being extra cautious due to attacks
-            // where the prover gives the verifier malformed inputs that look legit.
-            // (See short address attacks in Ethereum.)
-            circuit_writer.constrain_inputs_to_main(&var.cvars, &typ.kind, typ.span)?;
-
-            // add argument variable to the ast env
-            let mutable = false; // TODO: should we add a mut keyword in arguments as well?
-            let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
-            circuit_writer.add_local_var(fn_env, name.value.clone(), var_info);
+        // then handle private inputs
+        for arg in function.sig.arguments.iter().filter(|arg| !arg.is_public()) {
+            circuit_writer.handle_arg(arg, fn_env, CircuitWriter::add_private_inputs)?;
         }
 
         // compile function
@@ -248,5 +224,46 @@ impl<B: Backend> CircuitWriter<B> {
         witness_env: &mut WitnessEnv<B::Field>,
     ) -> Result<B::GeneratedWitness> {
         self.backend.generate_witness(witness_env)
+    }
+
+    fn handle_arg(
+        &mut self,
+        arg: &FnArg,
+        fn_env: &mut FnEnv<B::Field, B::Var>,
+        handle_input: HandleInput<B>,
+    ) -> Result<()> {
+        let FnArg { name, typ, .. } = arg;
+
+        // get length
+        let len = match &typ.kind {
+            TyKind::Field => 1,
+            TyKind::Array(typ, len) => {
+                if !matches!(**typ, TyKind::Field) {
+                    unimplemented!();
+                }
+                *len as usize
+            }
+            TyKind::Bool => 1,
+            typ => self.size_of(typ),
+        };
+
+        // create the variable
+        let var = handle_input(self, name.value.clone(), len, name.span);
+
+        // constrain what needs to be constrained
+        // (for example, booleans need to be constrained to be 0 or 1)
+        // note: we constrain private inputs as well as public inputs
+        // in theory we might not need to check the validity of public inputs,
+        // but we are being extra cautious due to attacks
+        // where the prover gives the verifier malformed inputs that look legit.
+        // (See short address attacks in Ethereum.)
+        self.constrain_inputs_to_main(&var.cvars, &typ.kind, typ.span)?;
+
+        // add argument variable to the ast env
+        let mutable = false; // TODO: should we add a mut keyword in arguments as well?
+        let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
+        self.add_local_var(fn_env, name.value.clone(), var_info);
+
+        Ok(())
     }
 }

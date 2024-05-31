@@ -311,17 +311,7 @@ where
         builtin::poseidon::<F>
     }
 
-    fn init_circuit(&mut self, func: &mut FunctionDef) {
-        // reorder the arguments by public and private
-        // the public inputs should be at the beginning
-        func.sig.arguments.sort_by_key(|arg| match &arg.attribute {
-            Some(attr) => match attr.kind {
-                crate::parser::types::AttributeKind::Pub => 0,
-                _ => 1,
-            },
-            None => 1,
-        });
-
+    fn init_circuit(&mut self) {
         // create the first var that is always 1
         self.new_internal_var(Value::Constant(F::one()), Span::default());
     }
@@ -661,24 +651,8 @@ mod tests {
 
     #[test]
     fn test_init_circuit() {
-        let sig: &str = "main(aa: Field, pub bb: Field)";
-
-        let ctx = &mut ParserCtx::default();
-        let mut tokens = Token::parse(0, sig).unwrap();
-        let sig = FnSig::parse(ctx, &mut tokens).unwrap();
-        let mut func = FunctionDef {
-            sig,
-            body: vec![],
-            span: Default::default(),
-        };
-
         let mut r1cs: R1CS<R1csBls12381Field> = R1CS::new();
-        r1cs.init_circuit(&mut func);
-
-        // it should reorder and the public inputs should be at the beginning
-        assert_eq!(func.sig.arguments.len(), 2);
-        assert_eq!(func.sig.arguments[0].name.value, "bb");
-        assert_eq!(func.sig.arguments[1].name.value, "aa");
+        r1cs.init_circuit();
 
         // first var should be initialized as 1
         assert_eq!(r1cs.witness_vector.len(), 1);
