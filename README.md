@@ -1,6 +1,8 @@
 # Noname
 
-This is **work-in-progress** to implement a high-level (Rust and Golang-inspired) programming language to write zkapps for [kimchi](https://github.com/o1-labs/proof-systems).
+This is **work-in-progress** to implement a high-level (Rust and Golang-inspired) programming language to write zkapps for [kimchi](https://github.com/o1-labs/proof-systems) or [SnarkJS](https://github.com/iden3/snarkjs). The arithmetic backends it currently supports are:
+ - Kimchi 
+ - R1CS
 
 If you don't know what zero-knowledge proofs, zkapps, or kimchi are, check out [that blogpost](https://minaprotocol.com/blog/kimchi-the-latest-update-to-minas-proof-system).
 
