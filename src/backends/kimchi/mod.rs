@@ -60,12 +60,12 @@ pub struct KimchiVesta {
 
     /// This is how you compute the value of each variable during witness generation.
     /// It is created during circuit generation.
-    pub(crate) witness_vars: HashMap<usize, Value<Self>>,
+    pub(crate) vars_to_value: HashMap<usize, Value<Self>>,
 
     /// The execution trace table with vars as placeholders.
     /// It is created during circuit generation,
     /// and used by the witness generator.
-    pub(crate) rows_of_vars: Vec<Vec<Option<KimchiCellVar>>>,
+    pub(crate) witness_table: Vec<Vec<Option<KimchiCellVar>>>,
 
     /// We cache the association between a constant and its _constrained_ variable,
     /// this is to avoid creating a new constraint every time we need to hardcode the same constant.
@@ -134,8 +134,8 @@ impl KimchiVesta {
     pub fn new(double_generic_gate_optimization: bool) -> Self {
         Self {
             next_variable: 0,
-            witness_vars: HashMap::new(),
-            rows_of_vars: vec![],
+            vars_to_value: HashMap::new(),
+            witness_table: vec![],
             cached_constants: HashMap::new(),
             gates: vec![],
             wiring: HashMap::new(),
@@ -162,7 +162,7 @@ impl KimchiVesta {
         assert!(vars.len() <= NUM_REGISTERS);
 
         // construct the execution trace with vars, for the witness generation
-        self.rows_of_vars.push(vars.clone());
+        self.witness_table.push(vars.clone());
 
         // get current row
         // important: do that before adding the gate below
@@ -272,7 +272,7 @@ impl Backend for KimchiVesta {
         self.next_variable += 1;
 
         // store it in the circuit_writer
-        self.witness_vars.insert(var.index, val);
+        self.vars_to_value.insert(var.index, val);
 
         var
     }
@@ -322,7 +322,7 @@ impl Backend for KimchiVesta {
 
         // for sanity check, we make sure that every cellvar created has ended up in a gate
         let mut written_vars = HashSet::new();
-        for row in self.rows_of_vars.iter() {
+        for row in self.witness_table.iter() {
             row.iter().flatten().for_each(|cvar| {
                 written_vars.insert(cvar.index);
             });
@@ -357,7 +357,7 @@ impl Backend for KimchiVesta {
                 // replace the computation of the public output vars with the actual variables being returned here
                 let var_idx = pub_var.cvar().unwrap().index;
                 let prev = self
-                    .witness_vars
+                    .vars_to_value
                     .insert(var_idx, Value::PublicOutput(Some(ret_var)));
                 assert!(prev.is_some());
             }
@@ -373,7 +373,7 @@ impl Backend for KimchiVesta {
         env: &mut crate::witness::WitnessEnv<Self::Field>,
         var: &Self::Var,
     ) -> crate::error::Result<Self::Field> {
-        let val = self.witness_vars.get(&var.index).unwrap();
+        let val = self.vars_to_value.get(&var.index).unwrap();
         self.compute_val(env, val, var.index)
     }
 
@@ -390,7 +390,7 @@ impl Backend for KimchiVesta {
         let mut public_outputs_vars: HashMap<KimchiCellVar, Vec<(usize, usize)>> = HashMap::new();
 
         // calculate witness except for public outputs
-        for (row, row_of_vars) in self.rows_of_vars.iter().enumerate() {
+        for (row, row_of_vars) in self.witness_table.iter().enumerate() {
             // create the witness row
             let mut witness_row = [Self::Field::zero(); NUM_REGISTERS];
 
@@ -398,7 +398,7 @@ impl Backend for KimchiVesta {
                 let val = if let Some(var) = var {
                     // if it's a public output, defer it's computation
                     if matches!(
-                        self.witness_vars.get(&var.index),
+                        self.vars_to_value.get(&var.index),
                         Some(Value::PublicOutput(_))
                     ) {
                         public_outputs_vars
@@ -473,7 +473,7 @@ impl Backend for KimchiVesta {
 
         // sanity checks
         assert_eq!(witness.len(), self.gates.len());
-        assert_eq!(witness.len(), self.rows_of_vars.len());
+        assert_eq!(witness.len(), self.witness_table.len());
 
         // return the public output separately as well
         Ok(GeneratedWitness {

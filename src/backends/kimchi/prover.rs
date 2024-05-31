@@ -296,8 +296,8 @@ mod tests {
         assert_eq!(
             generated_witness.full_public_inputs,
             vec![
+                VestaField::from(output_val),
                 VestaField::from(public_input_val),
-                VestaField::from(output_val)
             ]
         );
 
@@ -305,9 +305,9 @@ mod tests {
         let mut witness = generated_witness.all_witness.to_kimchi_witness();
         let gate_count = prover_index.compiled_circuit.circuit.backend.gates.len();
         assert_eq!(gate_count, 6);
-        assert_eq!(witness[0][0], VestaField::from(public_input_val));
+        assert_eq!(witness[0][0], VestaField::from(output_val));
         // this is the gate contains the output var
-        let output_row = 1;
+        let output_row = 0;
         assert_eq!(witness[0][output_row], VestaField::from(output_val));
         // this is the assert_eq gate which contains result var and the output var
         let result_row = gate_count - 1;
@@ -350,10 +350,10 @@ mod tests {
 
         assert!(result.is_err(), "should failed with incorrect output");
 
-        // should fail the wire check, since the output value is different from the result value in the last gate
+        // should fail constraint check for the output value
         match result.unwrap_err() {
             GateError::Custom { row, err } => {
-                assert_eq!(row, result_row);
+                assert_eq!(row, output_row);
                 assert_eq!(err, "generic: incorrect gate");
             }
             _ => panic!("Expected incorrect generic gate error"),

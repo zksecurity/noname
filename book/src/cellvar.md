@@ -22,7 +22,7 @@ pub fn new_internal_var(&mut self, val: Value, span: Span) -> CellVar {
     self.next_variable += 1;
 
     // store it in the compiler
-    self.witness_vars.insert(var, val);
+    self.vars_to_value.insert(var, val);
 
     var
 }
