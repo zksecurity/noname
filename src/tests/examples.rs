@@ -189,6 +189,24 @@ fn test_public_output(#[case] backend: BackendKind) -> miette::Result<()> {
 
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_lc_return(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"public_input": "1"}"#;
+    let private_inputs = r#"{"private_input": "1"}"#;
+
+    test_file(
+        "lc_return",
+        public_inputs,
+        private_inputs,
+        vec!["2"],
+        backend,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 //todo: #[case::r1cs(BackendKind::R1CS(R1CS::new()))]
 fn test_poseidon(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"private_input": ["1", "1"]}"#;
