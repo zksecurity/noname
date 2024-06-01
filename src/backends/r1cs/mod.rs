@@ -380,7 +380,9 @@ where
 
         // check if every cell vars end up being a cell var in the circuit or public output
         for (index, _) in self.witness_vector.iter().enumerate() {
-            // skip the first var that is assumed to be the factor of constants of all linear combinations
+            // Skip the first var which is always 1
+            // - In a linear combination, each of the vars can be paired with a coefficient.
+            // - The first var is assumed to be the factor of the constant of a linear combination.
             if index == 0 {
                 continue;
             }
