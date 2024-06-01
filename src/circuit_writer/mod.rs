@@ -57,9 +57,6 @@ pub struct DebugInfo {
     pub note: String,
 }
 
-type HandleInput<B: Backend> =
-    fn(&mut CircuitWriter<B>, String, usize, Span) -> Var<B::Field, B::Var>;
-
 impl<B: Backend> CircuitWriter<B> {
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
         self.typed.expr_type(expr)
@@ -230,7 +227,7 @@ impl<B: Backend> CircuitWriter<B> {
         &mut self,
         arg: &FnArg,
         fn_env: &mut FnEnv<B::Field, B::Var>,
-        handle_input: HandleInput<B>,
+        handle_input: fn(&mut CircuitWriter<B>, String, usize, Span) -> Var<B::Field, B::Var>,
     ) -> Result<()> {
         let FnArg { name, typ, .. } = arg;
 
