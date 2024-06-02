@@ -1,0 +1,2 @@
+# Syntax highlighting of .no files as Rust
+*.no linguist-language=Rust
