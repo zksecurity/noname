@@ -161,8 +161,8 @@ fn test_file(
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_arithmetic(#[case] backend: BackendKind) -> miette::Result<()> {
-    let public_inputs = r#"{"public_input": "1"}"#;
-    let private_inputs = r#"{"private_input": "1"}"#;
+    let public_inputs = r#"{"public_input": "2"}"#;
+    let private_inputs = r#"{"private_input": "2"}"#;
 
     test_file("arithmetic", public_inputs, private_inputs, vec![], backend)?;
 
