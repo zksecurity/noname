@@ -220,7 +220,7 @@ where
     /// Record the public inputs for reordering the witness vector
     public_inputs: Vec<CellVar>,
     /// Record the private inputs for checking
-    private_input_indices: Vec<usize>,
+    private_input_indices: Vec<(usize, Span)>,
     /// Record the public outputs for reordering the witness vector
     public_outputs: Vec<CellVar>,
     finalized: bool,
@@ -386,11 +386,15 @@ where
             }
 
             if !written_vars.contains(&index) {
-                if self.private_input_indices.contains(&index) {
+                if let Some((_, private_input_span)) = self
+                    .private_input_indices
+                    .iter()
+                    .find(|(private_input_id, _)| private_input_id == &index)
+                {
                     let err = Error::new(
                         "constraint-finalization",
                         ErrorKind::PrivateInputNotUsed,
-                        main_span,
+                        *private_input_span,
                     );
                     return Err(err);
                 } else {
@@ -597,7 +601,8 @@ where
     /// Adds the private input cell vars.
     fn add_private_input(&mut self, val: Value<Self>, span: Span) -> LinearCombination<F> {
         let var = self.new_internal_var(val, span);
-        self.private_input_indices.push(var.to_cell_var().index);
+        self.private_input_indices
+            .push((var.to_cell_var().index, span));
 
         var
     }
