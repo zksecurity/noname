@@ -5,9 +5,9 @@ Noname is a language that closely resembles Rust.
 For example, in the following program you can see a `main` function:
 
 ```rust
-fn main(pub public_input: Field, private_input: Field) {
+fn main(pub public_input: Field, private_input: Field, target: Field) {
     let x = private_input + public_input;
-    assert_eq(x, 2);
+    assert_eq(x, target);
 }
 ```
 
@@ -20,7 +20,7 @@ The only differences with Rust are:
 To run such a file, and assuming you have [Rust](https://rustup.rs/) installed, you can type in the terminal:
 
 ```
-$ cargo run -- --path path/to/file.no --private-inputs '{"private_input": ["1"]}' --public-inputs '{"public_input": ["1"]}'
+$ cargo run -- test --path path/to/file.no --public-inputs '{"public_input": "1", "target": "2"}' --private-inputs '{"private_input": "1"}' --backend kimchi-vesta'
 ```
 
 As you can see, inputs are passed with a JSON format, and the values are expected to be encoded in decimal numbers.
