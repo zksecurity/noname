@@ -15,9 +15,8 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build Rust Documentation
-        run: |
-          rustup install nightly
-          RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo +nightly doc --no-deps
+        uses: dtolnay/rust-toolchain@nightly
+        run: RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo doc --no-deps
 
       - name: Build the mdbook
         run: |
