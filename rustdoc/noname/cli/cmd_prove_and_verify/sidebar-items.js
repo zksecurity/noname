@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["cmd_prove",""],["cmd_verify",""]],"struct":[["CmdProve",""],["CmdVerify",""]]};
+window.SIDEBAR_ITEMS = {"fn":["cmd_prove","cmd_verify"],"struct":["CmdProve","CmdVerify"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BackendKind"],"mod":["kimchi","r1cs"],"trait":["Backend","BackendField","BackendVar"]};

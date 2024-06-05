@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":[["BUILTIN_FNS_DEFS",""],["QUALIFIED_BUILTINS",""]],"fn":[["get_std_fn",""],["parse_fn_sigs","Takes a list of function signatures (as strings) and their associated function pointer, returns the same list but with the parsed functions (as [FunctionSig])."]],"mod":[["crypto",""]],"static":[["CRYPTO_MODULE",""]]};
+window.SIDEBAR_ITEMS = {"constant":["BUILTIN_SIGS","QUALIFIED_BUILTINS"],"fn":["builtin_fns","get_builtin_fn"],"mod":["crypto"],"static":["BUILTIN_FN_NAMES"]};

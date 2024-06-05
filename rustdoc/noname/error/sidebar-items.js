@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":[["ErrorKind","The type of error."]],"struct":[["Error","An error in noname."]],"type":[["Result",""]]};
+window.SIDEBAR_ITEMS = {"enum":["ErrorKind"],"struct":["Error"],"type":["Result"]};

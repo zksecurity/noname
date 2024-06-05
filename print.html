@@ -1,18 +1,17 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js light">
+<html lang="en" class="light" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>noname</title>
-        <meta name="robots" content="noindex" />
+        <meta name="robots" content="noindex">
 
 
         <!-- Custom HTML head -->
         
-        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#ffffff">
 
         <link rel="icon" href="favicon.svg">
         <link rel="shortcut icon" href="favicon.png">
@@ -31,18 +30,19 @@
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="././mdbook-admonish.css">
+        <link rel="stylesheet" href="./mdbook-admonish.css">
 
     </head>
-    <body>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
         <!-- Provide site root to javascript -->
-        <script type="text/javascript">
+        <script>
             var path_to_root = "";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
-        <script type="text/javascript">
+        <script>
             try {
                 var theme = localStorage.getItem('mdbook-theme');
                 var sidebar = localStorage.getItem('mdbook-sidebar');
@@ -58,50 +58,81 @@
         </script>
 
         <!-- Set the theme before any content is loaded, prevents flash -->
-        <script type="text/javascript">
+        <script>
             var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             var html = document.querySelector('html');
-            html.classList.remove('no-js')
             html.classList.remove('light')
             html.classList.add(theme);
-            html.classList.add('js');
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
         </script>
 
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
         <!-- Hide / unhide sidebar before it is displayed -->
-        <script type="text/javascript">
-            var html = document.querySelector('html');
-            var sidebar = 'hidden';
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
             }
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
                 <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded "><a href="literals.html"><strong aria-hidden="true">11.</strong> Literals and the const keyword</a></li><li class="chapter-item expanded "><a href="expressions.html"><strong aria-hidden="true">12.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="modules.html"><strong aria-hidden="true">13.</strong> Modules</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">14.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">15.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">16.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">17.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">18.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">19.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">20.</strong> Witness Generation</a></li></ol>
             </div>
-            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
         </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
 
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
                                 <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
+                <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
-                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
-                        </button>
+                        </label>
                         <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
@@ -137,7 +168,7 @@
                 </div>
 
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
-                <script type="text/javascript">
+                <script>
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
                     document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
                     Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
@@ -148,15 +179,14 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="noname"><a class="header" href="#noname">NoName</a></h1>
-<p>This is the book on NoName, a high-level language to write circuits using the <a href="">kimchi</a> zero-knowledge proof system.</p>
+<p>This is the book on NoName, a high-level language to write circuits using the <a href="https://github.com/o1-labs/proof-systems">kimchi</a> zero-knowledge proof system.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="basics"><a class="header" href="#basics">Basics</a></h1>
 <p>Noname is a language that closely resembles Rust.</p>
 <p>For example, in the following program you can see a <code>main</code> function:</p>
 <pre><pre class="playground"><code class="language-rust">fn main(pub public_input: Field, private_input: Field) {
     let x = private_input + public_input;
     assert_eq(x, 2);
-}
-</code></pre></pre>
+}</code></pre></pre>
 <p>The only differences with Rust are:</p>
 <ul>
 <li>The <code>pub</code> keyword is used to mark <em>public</em> inputs. By default all arguments are private.</li>
@@ -164,7 +194,7 @@
 <li>a <code>Field</code> type is used as main types everywhere. It is defined in <code>field.rs</code> to be the pasta Fp field (the base field of the Pallas curve). If these words mean nothing to you, just see <code>Field</code> as a large number. Ideally programs should be written without this type, but for now custom types do not exist.</li>
 </ul>
 <p>To run such a file, and assuming you have <a href="https://rustup.rs/">Rust</a> installed, you can type in the terminal:</p>
-<pre><code>$ cargo run -- --path path/to/file.no --private-inputs '{&quot;private_input&quot;: [&quot;1&quot;]}' --public-inputs '{&quot;public_input&quot;: [&quot;1&quot;]}'
+<pre><code>$ cargo run -- --path path/to/file.no --private-inputs '{"private_input": ["1"]}' --public-inputs '{"public_input": ["1"]}'
 </code></pre>
 <p>As you can see, inputs are passed with a JSON format, and the values are expected to be encoded in decimal numbers.</p>
 <h2 id="builtins-and-use-statements"><a class="header" href="#builtins-and-use-statements">Builtins and use statements</a></h2>
@@ -181,12 +211,11 @@ If you do this, you must know that you can only import a library, but not its fu
 fn main(pub public_input: Field, private_input: [Field; 2]) {
     let digest = crypto::poseidon(private_input);
     assert_eq(digest[0], public_input);
-}
-</code></pre></pre>
-<p>Note that currently, only built-in libraries (written in Rust) are working. 
+}</code></pre></pre>
+<p>Note that currently, only built-in libraries (written in Rust) are working.
 In the future we’d like for other libraries to be written in the noname language.</p>
 <h2 id="field"><a class="header" href="#field">Field</a></h2>
-<p>The <code>Field</code> type is the primitive type upon which all other types are built. 
+<p>The <code>Field</code> type is the primitive type upon which all other types are built.
 It is good to know about it as it is used in many places, and is error prone: it does not match the size of commonly-found types like <code>u32</code> and <code>u64</code> and can have unexpected behaviors as it can overflow or underflow  without emitting an error.</p>
 <p>Ideally, you should never use the <code>Field</code> type, but currently the library is quite limited and the ideal world is far away.</p>
 <p>Note that you can define <code>Field</code> elements directly in the code by writing a decimal number directly. For example:</p>
@@ -194,16 +223,14 @@ It is good to know about it as it is used in many places, and is error prone: it
 </span><span class="boring">fn main() {
 </span>let x = 2;
 assert(y, 4);
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h2 id="arrays"><a class="header" href="#arrays">Arrays</a></h2>
 <p>While there are no dynamic arrays (or vectors), you can use fixed-size arrays like in Rust.</p>
 <p>For the moment, I believe that arrays can only be declared in a function argument as the following declaration hasn’t been implemented yet:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let x = [1, 2, y];
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h2 id="boolean"><a class="header" href="#boolean">Boolean</a></h2>
 <p>Booleans are similar to Rust’s boolean. They are currently the only built-in type besides <code>Field</code> and arrays.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -211,8 +238,7 @@ assert(y, 4);
 </span>let x = true;
 let y = false;
 assert(!(x &amp; y));
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h2 id="mutability"><a class="header" href="#mutability">Mutability</a></h2>
 <p>Variables are by default not mutable. To make a variable mutable, you must use the <code>mut</code> keyword:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -222,8 +248,7 @@ x = 2; // GOOD
 
 let y = 1;
 y = x + y; // BAD
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h2 id="for-loops"><a class="header" href="#for-loops">For loops</a></h2>
 <pre><pre class="playground"><code class="language-rust">fn main(pub public_input: Field, private_input: [Field; 3]) {
     let mut sum = 0;
@@ -233,8 +258,7 @@ y = x + y; // BAD
     }
 
     assert_eq(sum, public_input);
-}
-</code></pre></pre>
+}</code></pre></pre>
 <h2 id="constants"><a class="header" href="#constants">Constants</a></h2>
 <p>Like variables and function names, constants must be lowercase.</p>
 <p>At the moment they can only represent field elements. Perhaps it would be nice to be able to represent different types in the future.</p>
@@ -246,8 +270,7 @@ fn main(pub player: Field) -&gt; Field {
     let next_player = player + 1;
     assert_eq(player_two, next_player);
     return next_player;
-}
-</code></pre></pre>
+}</code></pre></pre>
 <h2 id="if-else-statements"><a class="header" href="#if-else-statements">If Else statements</a></h2>
 <p>Currently, if/else statements are not supported. Only the ternary operator is:</p>
 <pre><pre class="playground"><code class="language-rust">fn main(pub xx: Field) {
@@ -255,8 +278,7 @@ fn main(pub player: Field) -&gt; Field {
     let cond = xx == 1;
     let yy = cond ? plus : xx ;
     assert_eq(yy, 2);
-}
-</code></pre></pre>
+}</code></pre></pre>
 <p>The two branches of the ternary operator must be variables (as in the xample), or array accesses (e.g. <code>thing[0]</code>), or field accesses (e.g. <code>thing.field</code>).</p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <pre><pre class="playground"><code class="language-rust">fn add(x: Field, y: Field) -&gt; Field {
@@ -273,8 +295,7 @@ fn main(pub one: Field) {
 
     let eight = double(4);
     assert_eq(eight, double(four));
-}
-</code></pre></pre>
+}</code></pre></pre>
 <h2 id="custom-types"><a class="header" href="#custom-types">Custom types</a></h2>
 <pre><pre class="playground"><code class="language-rust">struct Thing {
     x: Field,
@@ -289,8 +310,7 @@ fn main(pub x: Field, pub y: Field) {
     
     assert_eq(thing.x, x);
     assert_eq(thing.y, y);
-}
-</code></pre></pre>
+}</code></pre></pre>
 <h2 id="methods-on-custom-types"><a class="header" href="#methods-on-custom-types">Methods on custom types</a></h2>
 <pre><pre class="playground"><code class="language-rust">struct Thing {
     x: Field,
@@ -321,15 +341,13 @@ fn Thing.update_and_verify(self) {
 fn main(pub x: Field) {
     let thing = Thing.new(x, x + x);
     thing.update_and_verify();
-}
-</code></pre></pre>
+}</code></pre></pre>
 <p>technically you can even call static methods from a variable of that type:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let y = thing.new(3, 4);
-<span class="boring">}
-</span></code></pre></pre>
-<div id="admonition-note" class="admonition note">
+<span class="boring">}</span></code></pre></pre>
+<div id="admonition-note" class="admonition admonish-note">
 <div class="admonition-title">
 <p>Note</p>
 <p><a class="admonition-anchor-link" href="basics.html#admonition-note"></a></p>
@@ -354,14 +372,13 @@ let y = 4;
 for i in 0..4 {
     let y = i; // this won't compile either
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="compilation"><a class="header" href="#compilation">Compilation</a></h1>
 <p>The compilation of noname programs goes through the following flow:</p>
 <ol>
 <li><strong>Lexer</strong>. A lexer (<code>lexer.rs</code>) is used to parse the source code into a list of tokens. This is pretty primitive, but will detect some minor syntax issues.</li>
 <li><strong>Parser</strong>. A parser (<code>parser.rs</code>) is used to parse meaning from the code. It will convert the tokens output by the lexer into an <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">abstract syntax tree (AST)</a> using strong types like <a href=""><code>Statement</code></a> and <a href=""><code>Expression</code></a> (TODO: link to rust doc). It will also error if some code does not make sense according to the grammar (see the <a href="grammar.html">Grammar chapter</a>).</li>
-<li><strong>Type checking</strong>. A type checker (<code>type_checker.rs</code>) takes the AST produced by the parser and does import resolution and type checking: 
+<li><strong>Type checking</strong>. A type checker (<code>type_checker.rs</code>) takes the AST produced by the parser and does import resolution and type checking:
 <ul>
 <li><strong>Built-in functions</strong>. Functions like <code>assert_eq</code> are injected into the environment.</li>
 <li><strong>Custom imports</strong>. Modules imported via the <code>use</code> keyword are resolved and added to the environment. For now, these can only be built-in functions, and noname functions or libraries are not supported (of course it is essential to support them in the future).</li>
@@ -380,7 +397,7 @@ for i in 0..4 {
 <p>A note on topology:</p>
 <ul>
 <li><strong>functions</strong>: noname functions each contain their scope and can be interacted with their interface (arguments and return value)</li>
-<li><strong>module/program</strong>: a noname module is a single file (this is a nice current limitation of noname) containing functions, constants, and structures. </li>
+<li><strong>module/program</strong>: a noname module is a single file (this is a nice current limitation of noname) containing functions, constants, and structures.</li>
 <li><strong>library</strong>: a noname library is a module/program without a <code>main()</code> function, as well as dependencies (other libraries)</li>
 <li><strong>executable</strong>: a noname executable is like a library, except that its module/program has a <code>main()</code> function.</li>
 </ul>
@@ -414,12 +431,11 @@ sign := /a-zA-Z_/
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct Span(pub usize, pub usize);
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>which represents a location in the original source code:</p>
 <ul>
 <li>the first number is the offset in the source code file</li>
-<li>the second numebr if the length of the span (e.g. 1 character)</li>
+<li>the second number if the length of the span (e.g. 1 character)</li>
 </ul>
 <p>We start tracking spans in the lexer, and then pass them around to the parser, and then to the compiler. Even gates and wirings have spans associated with them so that we can easily debug those.</p>
 <h2 id="filename"><a class="header" href="#filename">Filename</a></h2>
@@ -430,8 +446,7 @@ sign := /a-zA-Z_/
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>some_module::some_ident.stuff.z
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>The identifier <code>some_module</code>, appearing before the <code>::</code>, is an optional module, pointing to code that exists in another library. It is always lowercase.</p>
 <p>The identifier <code>some_ident</code> is mandatory. It can represent a type (if it starts with a capital letter), a function name, a variable name, a constant name, etc.</p>
 <p>More identifiers can be concatenated together to form a longer path (using <code>.</code>).
@@ -454,8 +469,7 @@ pub struct Path {
     /// Its span.
     pub span: Span,
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h2 id="expressions-using-path"><a class="header" href="#expressions-using-path">Expressions using Path</a></h2>
 <p>A path does not represent an expression by itself. The following expressions make use of <code>path</code>:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -488,31 +502,27 @@ pub struct Path {
     /// `module::SomeType { field1: expr1; field2: expr2 }`
     CustomTypeDeclaration(Path, Vec&lt;(Ident, Expr)&gt;),
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="type-checker"><a class="header" href="#type-checker">Type Checker</a></h1>
 <p>Noname uses a simple type checker to ensure that all types are consistent in the program.</p>
 <p>For example, in code like:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let x = y + z;
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>the type checker will ensure that <code>y</code> and <code>z</code> are both field elements (because the operation <code>+</code> is used).</p>
 <p>And in code like:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>assert_eq(a, b);
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>the type checker will ensure that <code>a</code> and <code>b</code> are of the same types, since they are being compared.</p>
 <h2 id="type-inference"><a class="header" href="#type-inference">Type inference</a></h2>
 <p>The type checker can do some simple type inference. For example, in the following code:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let x = y + z;
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>the type of <code>x</code> is inferred to be the same as the type of <code>y</code> and <code>z</code>.</p>
 <p>Inference is willingly kept naive, as more type inference would lead to less readable code.</p>
 <h2 id="scope"><a class="header" href="#scope">Scope</a></h2>
@@ -525,8 +535,7 @@ for i in 0..2 {
     let y = x + 1; // x exists inside of this for loop
 }
 let z = 1 + y; // BAD: y doesn't exist outside of the for loop
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>To do this, each function is passed an <a href="">Environment</a> which contains a list of all variables along with their type information.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -543,8 +552,7 @@ let z = 1 + y; // BAD: y doesn't exist outside of the for loop
     /// stores the imported modules
     pub modules: HashMap&lt;String, ImportedModule&gt;,
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>So that shadowing is disallowed, even in different scopes, there is only one variable that is stored, but the scope is stored in <code>TypeInfo</code> and matched against the current scope to see if the current scope is the same or a direct child.</p>
 <p>An environment is unique to a function, as it is important that different functions can use the same variable names.</p>
 <p>Some notes:</p>
@@ -565,8 +573,7 @@ let z = 1 + y; // BAD: y doesn't exist outside of the for loop
 <pre><pre class="playground"><code class="language-rust">fn main(pub public_input: Field, private_input: Field) {
     let x = private_input + public_input;
     assert_eq(x, 2);
-}
-</code></pre></pre>
+}</code></pre></pre>
 <p>will be compiled to the following noname asm:</p>
 <pre><code>@ noname.0.5.0
 
@@ -592,15 +599,13 @@ DoubleGeneric&lt;1,-1&gt;
     x: Field,
     y: Field,
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>and can declare and access such structs like so:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let thing = Thing { x: 1, y: 2 };
 let z = thing.x + thing.y;
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>Internally, a struct is represented within the <a href="https://mimoo.github.io/noname/rustdoc/var/struct.Var.html"><code>Var</code></a> type.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="methods"><a class="header" href="#methods">Methods</a></h1>
 <h2 id="a-method-on-what"><a class="header" href="#a-method-on-what">A method on what?</a></h2>
@@ -609,8 +614,7 @@ let z = thing.x + thing.y;
 </span><span class="boring">fn main() {
 </span>let thing = Thing { x: 1, y: 2 };
 let z = thing.valid(3);
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>at this point the circuit-writer knows that <code>Thing</code> has a method called <code>valid</code>, but will still wonder what the type of <code>thing</code> is.</p>
 <p>due to this, the circuit-writer needs to store the type of local variables in scope. And this is why <code>FnEnv</code> also keeps track of the type of local variables:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -640,14 +644,12 @@ pub struct VarInfo {
     /// because we need to know the type for method calls.
     pub typ: TyKind,
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>This still doesn’t fix our problem. In the line:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let thing = Thing { x: 1, y: 2 };
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>the local variable <code>thing</code> is stored, but the right hand side is computed via the <code>compute_expr()</code> function which will go through the AST and potentially create different anonymous variables until it can compute a value.</p>
 <p>There’s three ways to solve this:</p>
 <ol>
@@ -666,8 +668,7 @@ pub struct TypedGlobalEnv {
     /// This can be used by the circuit-writer when it needs type information.
     node_types: HashMap&lt;usize, TyKind&gt;,
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="literals-and-the-const-keyword"><a class="header" href="#literals-and-the-const-keyword">Literals and the <code>const</code> keyword</a></h1>
 <p>We want to be able to support a few things:</p>
 <ul>
@@ -680,16 +681,14 @@ pub struct TypedGlobalEnv {
 </span><span class="boring">fn main() {
 </span>let x = 3;
 assert_eq(y[5], 4);
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>The third point allows us to write things like that:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn House.get(self, room: Field) -&gt; Field {
     return House.rooms[room];
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>Since <code>House</code> takes a <code>Field</code> here, it can in theory be used with anything during type checking.</p>
 <p>This is bad. There are two solutions:</p>
 <ol>
@@ -699,7 +698,7 @@ assert_eq(y[5], 4);
 <p>Approach 1. is not elegant, because it means that it is not clear from the signature of the function alone that the <code>room</code> argument must be a constant.
 The user of the function will only get warned when trying to compile the program.</p>
 <p>Approach 2. is interesting, because we already have such a type internally to track literals: a <code>BigInt</code>.
-The name is a bit misleading in the case of array accesses, because we additionaly enforce that it is NOT a big integer, but rather a 32-bit integer (<code>u32</code> in Rust).</p>
+The name is a bit misleading in the case of array accesses, because we additionally enforce that it is NOT a big integer, but rather a 32-bit integer (<code>u32</code> in Rust).</p>
 <h2 id="implementing-a-literal-type"><a class="header" href="#implementing-a-literal-type">Implementing a literal type</a></h2>
 <p>Approach 2 can be implemented in two ways:</p>
 <p>a. Use a brand new type, like <code>BigInt</code> for literals.
@@ -712,8 +711,7 @@ b. Use a <code>const</code> attribute to indicate that it is a constant.</p>
 </span>fn House.get(self, const room: Field) -&gt; Field {
 // versus
 fn House.get(self, room: const Field) -&gt; Field {
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>To contrast, the two other existing attributes (<code>pub</code> and <code>mut</code>) are placed in front of the variable names, not the type names.</p>
 <p>One could argue that the type is the same, but the variable being passed is a constant, and so it makes more sense to implement the first version.
 This is what we do in noname.</p>
@@ -736,14 +734,13 @@ pub struct FnArg {
     pub attribute: Option&lt;Attribute&gt;,
     pub span: Span,
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>When a function is parsed by the type checker, a <code>const Field</code> is transformed into a <code>BigInt</code>.
 And as such, the type checker will be happy with that variable being used to index into an array, or being used by other functions expecting a constant.</p>
-<p>What about other types being <code>const</code>? 
+<p>What about other types being <code>const</code>?
 I don’t think it makes sense for now, as I can only think of array access requiring this.
 So we don’t implement it.</p>
-<div id="admonition-note" class="admonition note">
+<div id="admonition-note" class="admonition admonish-note">
 <div class="admonition-title">
 <p>Note</p>
 <p><a class="admonition-anchor-link" href="literals.html#admonition-note"></a></p>
@@ -762,56 +759,49 @@ It is represented as an expression in noname:</p>
 </span>pub enum ExprKind {
     // ...
     FieldAccess { lhs: Box&lt;Expr&gt;, rhs: Ident }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>The reason why the left-hand side is also an expression, as opposed to just a variable pointing to a struct, is that we need to support code like this:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let a = b.c.d;
 let e = f[3].g;
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>Note that there are other usecases that are not allowed at the moment for readability reasons.
 For example we could have allowed the following to be valid noname:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let res = some_function().some_field;
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>but instead we require developers to write their logic in the following way:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let temp = some_function();
 let res = temp.some_field;
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>In the example</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let a = b.c.d;
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>the expression node representing the right hand side could be seen as:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>ExprKind::FieldAccess {
     lhs: Expr { kind: ExprKind::FieldAccess { // x.y
-        lhs: Expr { kind: ExprKind::Variable { name: &quot;x&quot; } },
-        rhs: Ident { value: &quot;y&quot; },
+        lhs: Expr { kind: ExprKind::Variable { name: "x" } },
+        rhs: Ident { value: "y" },
     },
-    rhs: Ident { value: &quot;z&quot; }, ///  [x.y].z
+    rhs: Ident { value: "z" }, ///  [x.y].z
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h2 id="assignments"><a class="header" href="#assignments">Assignments</a></h2>
-<p>Imagine that we want to mutate a variable. 
+<p>Imagine that we want to mutate a variable.
 For example:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>x.y.z = 42;
 x[4] = 25;
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>At some point the <a href="">circuit-writer</a> would have to go through an expression node looking like this:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -819,8 +809,7 @@ x[4] = 25;
     lhs: /* the left hand side as an Expr */,
     rhs: Expr { kind: ExprKind::BigInt { value: 42 } },
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>At this point, the problem is that to go through each expression node, we use the following API, which only gets us a <code>Var</code>:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -830,8 +819,7 @@ x[4] = 25;
     fn_env: &amp;mut FnEnv,
     expr: &amp;Expr,
 ) -&gt; Result&lt;Option&lt;Var&gt;&gt; {
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>So parsing the <code>x.y</code> node would return a variable that either represents <code>x</code> or represents <code>y</code>.
 The parent call would then use the result to produce <code>x.y.z</code> with a similar outcome.
 Then, we would either have <code>x</code> or <code>z</code> (depending on the strategy we chose) when we reach the assignment expression node.
@@ -855,7 +843,7 @@ pub enum VarOrRef {
 
     /// A reference to a noname variable in the environment.
     /// Potentially narrowing it down to a range of cells in that variable.
-    /// For example, `x[2]` would be represented with &quot;x&quot; and the range `(2, 1)`,
+    /// For example, `x[2]` would be represented with "x" and the range `(2, 1)`,
     /// if `x` is an array of `Field` elements.
     Ref {
         var_name: String,
@@ -863,10 +851,9 @@ pub enum VarOrRef {
         len: usize,
     },
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>and we modify the <a href="">circuit-writer</a> to always return a <a href=""><code>VarOrRef</code></a> when processing an expression node in the AST.</p>
-<div id="admonition-note" class="admonition note">
+<div id="admonition-note" class="admonition admonish-note">
 <div class="admonition-title">
 <p>Note</p>
 <p><a class="admonition-anchor-link" href="expressions.html#admonition-note"></a></p>
@@ -921,8 +908,7 @@ This way, if there is a bug in the type checker, this will turn unsafe code into
             }
         }
     }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h3 id="type-checker-1"><a class="header" href="#type-checker-1">Type checker</a></h3>
 <p>While the type checker does not care about the range within a variable, it also needs to figure out if a variable is mutable or not.</p>
 <p>That information is in two places:</p>
@@ -936,8 +922,8 @@ This way, if there is a bug in the type checker, this will turn unsafe code into
 <div style="break-before: page; page-break-before: always;"></div><h1 id="modules"><a class="header" href="#modules">Modules</a></h1>
 <p>In noname, the concept of a module is basically a file. A project either is a binary (<code>main.no</code>) or a library (<code>lib.no</code>). That’s it.</p>
 <p>A binary or a library can use other libraries by importing them. To do that, a binary or library’s manifest file <code>Noname.toml</code> must contain a <code>dependencies</code> key listing all the other libraries as Github handles like <code>user/repo</code> (e.g. <code>mimoo/sudoku</code>).
-Libraries will then be retrieved from Github. </p>
-<div id="admonition-note" class="admonition note">
+Libraries will then be retrieved from Github.</p>
+<div id="admonition-note" class="admonition admonish-note">
 <div class="admonition-title">
 <p>Note</p>
 <p><a class="admonition-anchor-link" href="modules.html#admonition-note"></a></p>
@@ -962,7 +948,7 @@ fn main(pub digest: [Field; 2]) {
 use b::some_lib;
 </code></pre>
 <p>There is currently no solution to this problem.</p>
-<div id="admonition-note-1" class="admonition note">
+<div id="admonition-note-1" class="admonition admonish-note">
 <div class="admonition-title">
 <p>Note</p>
 <p><a class="admonition-anchor-link" href="modules.html#admonition-note-1"></a></p>
@@ -985,7 +971,7 @@ But in the current module, we store them as their alias, so that we can use them
 TAST: contains &lt;some_lib -&gt; a::some_lib&gt;
 </code></pre>
 <h2 id="compilation-and-circuit-generation"><a class="header" href="#compilation-and-circuit-generation">Compilation and circuit generation</a></h2>
-<p>Once type checking is done, the circuit writer is given access to all of the dependencies’ TAST (which also contain their AST). 
+<p>Once type checking is done, the circuit writer is given access to all of the dependencies’ TAST (which also contain their AST).
 This way, it can jump from AST to AST to generate an unrolled circuit.</p>
 <h2 id="another-solution"><a class="header" href="#another-solution">Another solution</a></h2>
 <p>This is a bit annoying. We need a context switcher in both the constraint writer and the type checker, and it’s almost the same code.</p>
@@ -1009,8 +995,7 @@ This way, it can jump from AST to AST to generate an unrolled circuit.</p>
     // For example, a 3rd party library might have written `use a::b as c;`.
     // For this reason we must store this as a fully-qualified module.
     pub(crate) current_module: Option&lt;UserRepo&gt;,
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>and then access to the TAST is gated so we can switch context on demand, or figure out what’s the current context:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1023,7 +1008,7 @@ This way, it can jump from AST to AST to generate an unrolled circuit.</p>
             self.dependencies
                 .get_type_checker(current_module)
                 .expect(&amp;format!(
-                    &quot;bug in the compiler: couldn't find current module: {:?}&quot;,
+                    "bug in the compiler: couldn't find current module: {:?}",
                     current_module
                 ))
         } else {
@@ -1132,7 +1117,7 @@ This way, it can jump from AST to AST to generate an unrolled circuit.</p>
                 .dependencies
                 .get_type_checker(module)
                 .expect(&amp;format!(
-                    &quot;type checker bug: can't find current module's (`{module:?}`) file&quot;
+                    "type checker bug: can't find current module's (`{module:?}`) file"
                 ))
                 .src
         } else {
@@ -1143,7 +1128,7 @@ This way, it can jump from AST to AST to generate an unrolled circuit.</p>
     pub fn get_file(&amp;self, module: &amp;Option&lt;UserRepo&gt;) -&gt; &amp;str {
         if let Some(module) = module {
             &amp;self.dependencies.get_file(module).expect(&amp;format!(
-                &quot;type checker bug: can't find current module's (`{module:?}`) file&quot;
+                "type checker bug: can't find current module's (`{module:?}`) file"
             ))
         } else {
             &amp;self.typed.filename
@@ -1163,7 +1148,7 @@ This way, it can jump from AST to AST to generate an unrolled circuit.</p>
         let type_checker = self.current_type_checker();
         if let Some(_cst_info) = type_checker.constants.get(&amp;var_name) {
             panic!(
-                &quot;type checker bug: we already have a constant with the same name (`{var_name}`)!&quot;
+                "type checker bug: we already have a constant with the same name (`{var_name}`)!"
             );
         }
 
@@ -1182,8 +1167,7 @@ This way, it can jump from AST to AST to generate an unrolled circuit.</p>
         // then check for local variables
         fn_env.get_local_var(var_name)
     }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>we basically have to implement the same in the type checker… It always sort of looks the same. A handy function is either called with <code>get_fn</code> or <code>expr_type</code> or <code>node_type</code> etc. or we call a block of code with <code>do_in_submodule</code>.</p>
 <p>all of these basically start by figuring out the <code>curr_type_checker</code>:</p>
 <ul>
@@ -1217,7 +1201,7 @@ This way, it can jump from AST to AST to generate an unrolled circuit.</p>
 <ul>
 <li>fully qualify all things that need to be fully qualified: structs, functions, methods (which are defined as function currently, should we not do that?), consts. And that’s it?</li>
 <li>create a <code>Hashmap&lt;usize, String&gt;</code> to store all the filenames</li>
-<li>add the <code>usize</code> in all <code>Span</code> </li>
+<li>add the <code>usize</code> in all <code>Span</code></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="cellvar"><a class="header" href="#cellvar">CellVar</a></h1>
 <p>A <a href="https://mimoo.github.io/noname/rustdoc/var/struct.CellVar.html"><code>CellVar</code></a> type is a type that represents an internal variable. Importantly, it is named after the fact that it relates to a specific cell, or even multiple cells if they will have the same value (using some wiring), in the execution trace.</p>
@@ -1228,8 +1212,7 @@ This way, it can jump from AST to AST to generate an unrolled circuit.</p>
     index: usize,
     span: Span,
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>It is tracked using a <code>usize</code>, which is just a counter that the compiler increments every time a new <code>CellVar</code> is created.</p>
 <p>A <code>CellVar</code> is created via the <code>new_internal_var</code> function which does two things: increments the variable counter, and stores some information on how to compute it (which will be useful during witness generation)</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -1240,12 +1223,11 @@ This way, it can jump from AST to AST to generate an unrolled circuit.</p>
     self.next_variable += 1;
 
     // store it in the compiler
-    self.witness_vars.insert(var, val);
+    self.vars_to_value.insert(var, val);
 
     var
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>a <code>Value</code> tells us how to compute the <code>CellVar</code> during witness generation:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1267,10 +1249,9 @@ This way, it can jump from AST to AST to generate an unrolled circuit.</p>
     /// This is tracked separately as public inputs as it needs to be computed later.
     PublicOutput(Option&lt;CellVar&gt;),
 }
-<span class="boring">}
-</span></code></pre></pre>
-<p>Note: a <code>CellVar</code> is potentially not directly added to the rows of the execution trace. 
-For example, a private input is converted directly to a (number of) <code>CellVar</code>(s), 
+<span class="boring">}</span></code></pre></pre>
+<p>Note: a <code>CellVar</code> is potentially not directly added to the rows of the execution trace.
+For example, a private input is converted directly to a (number of) <code>CellVar</code>(s),
 but only added to the rows when it appears in a constraint for the first time.</p>
 <p>As the final step of the compilation, we double check that all <code>CellVar</code>s have appeared in the rows of the execution trace at some point. If they haven’t, it can mean two things:</p>
 <ul>
@@ -1279,13 +1260,13 @@ but only added to the rows when it appears in a constraint for the first time.</
 </ul>
 <p>TODO: explain the LinearCombination. I think we only need an <code>Add((Field, Var), (Field, Var), Field)</code></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="vars"><a class="header" href="#vars">Vars</a></h1>
-<p>We already have <a href="./cellvar.html"><code>CellVar</code></a>s, why have <a href="https://mimoo.github.io/noname/rustdoc/var/struct.Var.html"><code>Var</code></a>s? 
-The distinction is a matter of abstraction: </p>
+<p>We already have <a href="./cellvar.html"><code>CellVar</code></a>s, why have <a href="https://mimoo.github.io/noname/rustdoc/var/struct.Var.html"><code>Var</code></a>s?
+The distinction is a matter of abstraction:</p>
 <ul>
 <li><code>CellVar</code>s are low-level: they track actual cells of the execution trace. When a single <code>CellVar</code> is assigned to multiple cells the wiring must make sure the cells are wired (so that they can only have the same value).</li>
 <li><code>Var</code>s are a higher-level concept: they track variables that are created in the noname language either directly (e.g. <code>let x = 3</code>) or indirectly (e.g. in <code>x + (y + z)</code> the term <code>y + z</code> is stored under an anonymous <code>Var</code>)</li>
 </ul>
-<p>While a <code>CellVar</code> represents a single field element, a <code>Var</code> can potentially represent several field elements (and as such several cells in the execution trace). 
+<p>While a <code>CellVar</code> represents a single field element, a <code>Var</code> can potentially represent several field elements (and as such several cells in the execution trace).
 Here are some examples of <code>Var</code>s:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1300,8 +1281,7 @@ let z = [y, x, 6];
 
 // or a custom type
 let s = Thing { x, y };
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>Internally, a <a href="https://mimoo.github.io/noname/rustdoc/var/struct.Var.html"><code>Var</code></a> is represented as such:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1343,9 +1323,8 @@ pub struct Var {
     /// The span that created the variable.
     pub span: Span,
 }
-<span class="boring">}
-</span></code></pre></pre>
-<div id="admonition-note" class="admonition note">
+<span class="boring">}</span></code></pre></pre>
+<div id="admonition-note" class="admonition admonish-note">
 <div class="admonition-title">
 <p>Note</p>
 <p><a class="admonition-anchor-link" href="var.html#admonition-note"></a></p>
@@ -1361,12 +1340,11 @@ pub struct Var {
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let x = t + (z + y);
-<span class="boring">}
-</span></code></pre></pre>
-<p>the <code>z + y</code> is parsed as an expression (a binary operation involving <code>z</code> and <code>y</code>) and stored under a var <code>var1</code>. 
+<span class="boring">}</span></code></pre></pre>
+<p>the <code>z + y</code> is parsed as an expression (a binary operation involving <code>z</code> and <code>y</code>) and stored under a var <code>var1</code>.
 Then <code>t + ...</code> is also parsed as another binary operation expression and stored under another var <code>var2</code>.
 Finally the <code>let x = ...</code> is parsed as an assignment statement, and <code>x</code> is stored as a local variable associated to the right handside var <code>var2</code>.</p>
-<div id="admonition-note-1" class="admonition note">
+<div id="admonition-note-1" class="admonition admonish-note">
 <div class="admonition-title">
 <p>Note</p>
 <p><a class="admonition-anchor-link" href="var.html#admonition-note-1"></a></p>
@@ -1381,8 +1359,7 @@ Finally the <code>let x = ...</code> is parsed as an assignment statement, and <
 </span><span class="boring">fn main() {
 </span>let x = 2 + y;
 assert_eq(x, 4);
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>It is important that constants are tracked differently than <code>CellVar</code>s for several reasons:</p>
 <ul>
 <li>It is sometimes useless to constrain them directly. For example, in <code>let x = 3 + 7;</code> you can see that we should not constrain <code>3</code> and <code>7</code> separately, but rather the result <code>10</code>.</li>
@@ -1406,15 +1383,14 @@ It uses the generic gate to constrain the value, and is not cached (so calling i
 
     var
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>Note that the <code>Value</code> keep track of the constant as well.</p>
-<p>Warning: gadgets must all handle constants gracefuly.
+<p>Warning: gadgets must all handle constants gracefully.
 That is, they must constrain constants themselves (by calling <code>CircuitWriter::add_constant</code>).</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="global-environment"><a class="header" href="#global-environment">Global environment</a></h1>
 <p>In this chapter we will talk about functions.</p>
 <h2 id="local-functions"><a class="header" href="#local-functions">Local functions</a></h2>
-<p>Third-party libraries can have function names that collide with your own function names. 
+<p>Third-party libraries can have function names that collide with your own function names.
 Due to this, they are tracked in a different data structure that we will see later.</p>
 <p>Local functions include:</p>
 <ul>
@@ -1423,7 +1399,7 @@ Due to this, they are tracked in a different data structure that we will see lat
 <li><strong>normal functions</strong>, these are functions that you define in your program. They can be recursive.</li>
 <li><strong>methods</strong>, these are functions that are defined on a type. They can be recursive as well.</li>
 </ul>
-<p>Built-ins are different from all other functions listed because they are not written in noname, but written in Rust within the compiler. </p>
+<p>Built-ins are different from all other functions listed because they are not written in noname, but written in Rust within the compiler.</p>
 <p>For this reason we track functions according to this enum:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1447,8 +1423,7 @@ pub struct FnInfo {
     pub kind: FnKind,
     pub span: Span,
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>Note that the signature of a <code>FnHandle</code> is designed to:</p>
 <ul>
 <li><code>&amp;mut CircuitWriter</code>: take a mutable reference to the circuit writer, this is because built-ins need to be able to register new variables and add gates to the circuit</li>
@@ -1466,8 +1441,7 @@ pub struct FnInfo {
 
     // ...
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h2 id="handling-builtins"><a class="header" href="#handling-builtins">Handling builtins</a></h2>
 <p>Builtins are handled in a special way. They are not written in noname, but in Rust.</p>
 <h2 id="handling-local-functions"><a class="header" href="#handling-local-functions">Handling local functions</a></h2>
@@ -1480,7 +1454,7 @@ pub struct FnInfo {
 <li>store all built-ins in the <code>functions</code> map of the <code>GlobalEnv</code></li>
 <li>resolve all imports (e.g. <code>use std::crypto</code>)</li>
 <li>type check each function individually, and save their signature in the <code>GlobalEnv</code> using the <code>FnSig</code> type</li>
-<li>type check function calls with the signatures they just saved </li>
+<li>type check function calls with the signatures they just saved</li>
 </ul>
 <p>(TODO: this means that function declaration must be ordered. I think it is a GOOD thing)</p>
 <p>When a function is called, we do the following:</p>
@@ -1519,9 +1493,8 @@ pub enum FuncInScope {
     /// path, and signature of the function
     Library(Vec&lt;String&gt;, FnSig),
 }
-<span class="boring">}
-</span></code></pre></pre>
-<div id="admonition-note" class="admonition note">
+<span class="boring">}</span></code></pre></pre>
+<div id="admonition-note" class="admonition admonish-note">
 <div class="admonition-title">
 <p>Note</p>
 <p><a class="admonition-anchor-link" href="functions.html#admonition-note"></a></p>
@@ -1547,8 +1520,7 @@ let y = 4;
 for i in 0..4 {
     let y = i; // this won't compile either
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>Scopes are only used for:</p>
 <ul>
 <li>for loops</li>
@@ -1575,7 +1547,7 @@ In addition, all variables from a scope must be disabled (but not deleted, in or
 
     /// Exits a scoped block.
     pub fn pop(&amp;mut self) {
-        self.current_scope.checked_sub(1).expect(&quot;scope bug&quot;);
+        self.current_scope.checked_sub(1).expect("scope bug");
 
         // disable variables as we exit the scope
         for (name, (scope, type_info)) in self.vars.iter_mut() {
@@ -1619,12 +1591,11 @@ In addition, all variables from a scope must be disabled (but not deleted, in or
         }
     }
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="public-outputs"><a class="header" href="#public-outputs">Public Outputs</a></h1>
 <p>Public outputs are usually part of the public inputs in Plonk.</p>
-<p>In noname, public ouputs are treated differently than the public inputs for one reason: unlike (real) public inputs they cannot be computed directly during witness generation (proving).</p>
-<p>This is because public inputs are listed first in the circuit. During witness generation, we go through each rows and evaluate the values of the cells to construct the execution trace. 
+<p>In noname, public outputs are treated differently than the public inputs for one reason: unlike (real) public inputs they cannot be computed directly during witness generation (proving).</p>
+<p>This is because public inputs are listed first in the circuit. During witness generation, we go through each rows and evaluate the values of the cells to construct the execution trace.
 When we reach the public output part of the public input, we do not yet have enough information to construct the values.
 Thus, we ignore them, and fill them later on.</p>
 <p>During the compilation, we create <code>CellVars</code> to keep track of the public output:</p>
@@ -1643,14 +1614,13 @@ Thus, we ignore them, and fill them later on.</p>
     ///    is delayed until the very end.
     pub public_output: Option&lt;CellVars&gt;,
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>During witness generation (see the <a href="./witness-generation.html">Witness Generation chapter</a>), we indeed defer computation the first time we go through the public output rows:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let val = if let Some(var) = var {
     // if it's a public output, defer it's computation
-    if matches!(self.witness_vars[&amp;var], Value::PublicOutput(_)) {
+    if matches!(self.vars_to_value[&amp;var], Value::PublicOutput(_)) {
         public_outputs_vars.push((row, *var));
         Field::zero()
     } else {
@@ -1660,8 +1630,7 @@ Thus, we ignore them, and fill them later on.</p>
     Field::zero()
 };
 witness_row[col] = val;
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>and at the end we go back to them:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1673,17 +1642,15 @@ for (row, var) in public_outputs_vars {
     witness[row][0] = val;
     public_output.push(val);
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>and finally we return the public output to the prover so that they can send it to the verifier, as well as the “full public input” which is the concatenation of the public input and the public output (needed to finalized the proof):</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// return the public output separately as well
 Ok((Witness(witness), full_public_inputs, public_output))
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="witness-generation"><a class="header" href="#witness-generation">Witness Generation</a></h1>
-<p>Witness generation is the process of creating the execution trace table during proving. 
+<p>Witness generation is the process of creating the execution trace table during proving.
 The execution trace table is then passed to the <a href="">kimchi</a> proof system which will create the final proof.</p>
 <p>The code creates a series of instructions during compilation for the witness generation to follow.
 These instructions are stored as two different fields:</p>
@@ -1693,24 +1660,23 @@ These instructions are stored as two different fields:</p>
     // ...
 
     /// This is how you compute the value of each variable, for witness generation.
-    pub witness_vars: HashMap&lt;CellVar, Value&gt;,
+    pub vars_to_value: HashMap&lt;CellVar, Value&gt;,
 
     // ...
 
     /// This is used to compute the witness row by row.
-    pub rows_of_vars: Vec&lt;Vec&lt;Option&lt;CellVar&gt;&gt;&gt;,
+    pub witness_table: Vec&lt;Vec&lt;Option&lt;CellVar&gt;&gt;&gt;,
 
     // ...
 }
-<span class="boring">}
-</span></code></pre></pre>
-<p><code>rows_of_vars</code> can essentially be seen as the execution trace table, containing variables instead of values.</p>
+<span class="boring">}</span></code></pre></pre>
+<p><code>witness_table</code> can essentially be seen as the execution trace table, containing variables instead of values.</p>
 <p>The witness generation goes as follows:</p>
 <ol>
-<li>Each rows in <code>rows_of_vars</code> is looked at one by one </li>
+<li>Each rows in <code>witness_table</code> is looked at one by one</li>
 <li>For each <code>CellVar</code> in the row:
 <ol>
-<li>If it is set, it is evaluated using the <code>Value</code> stored in <code>witness_vars</code>.</li>
+<li>If it is set, it is evaluated using the <code>Value</code> stored in <code>vars_to_value</code>.</li>
 <li>If it set to <code>None</code>, it is simply evaluated as <code>0</code>.</li>
 </ol>
 </li>
@@ -1737,26 +1703,27 @@ These instructions are stored as two different fields:</p>
 
 
 
-        <script type="text/javascript">
+        <script>
             window.playground_copyable = true;
         </script>
 
 
-        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
 
-        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
-        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
 
         <!-- Custom JS scripts -->
 
-        <script type="text/javascript">
+        <script>
         window.addEventListener('load', function() {
             window.setTimeout(window.print, 100);
         });
         </script>
 
+    </div>
     </body>
 </html>

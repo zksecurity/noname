@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js light">
+<html lang="en" class="light" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
@@ -8,10 +8,9 @@
 
         <!-- Custom HTML head -->
         
-        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#ffffff">
 
         <link rel="icon" href="favicon.svg">
         <link rel="shortcut icon" href="favicon.png">
@@ -30,18 +29,19 @@
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="././mdbook-admonish.css">
+        <link rel="stylesheet" href="./mdbook-admonish.css">
 
     </head>
-    <body>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
         <!-- Provide site root to javascript -->
-        <script type="text/javascript">
+        <script>
             var path_to_root = "";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
-        <script type="text/javascript">
+        <script>
             try {
                 var theme = localStorage.getItem('mdbook-theme');
                 var sidebar = localStorage.getItem('mdbook-sidebar');
@@ -57,50 +57,81 @@
         </script>
 
         <!-- Set the theme before any content is loaded, prevents flash -->
-        <script type="text/javascript">
+        <script>
             var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             var html = document.querySelector('html');
-            html.classList.remove('no-js')
             html.classList.remove('light')
             html.classList.add(theme);
-            html.classList.add('js');
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
         </script>
 
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
         <!-- Hide / unhide sidebar before it is displayed -->
-        <script type="text/javascript">
-            var html = document.querySelector('html');
-            var sidebar = 'hidden';
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
             }
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
                 <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html" class="active"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded "><a href="literals.html"><strong aria-hidden="true">11.</strong> Literals and the const keyword</a></li><li class="chapter-item expanded "><a href="expressions.html"><strong aria-hidden="true">12.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="modules.html"><strong aria-hidden="true">13.</strong> Modules</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">14.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">15.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">16.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">17.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">18.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">19.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">20.</strong> Witness Generation</a></li></ol>
             </div>
-            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
         </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
 
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
                                 <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
+                <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
-                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
-                        </button>
+                        </label>
                         <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
@@ -136,7 +167,7 @@
                 </div>
 
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
-                <script type="text/javascript">
+                <script>
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
                     document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
                     Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
@@ -152,8 +183,7 @@
 <pre><pre class="playground"><code class="language-rust">fn main(pub public_input: Field, private_input: Field) {
     let x = private_input + public_input;
     assert_eq(x, 2);
-}
-</code></pre></pre>
+}</code></pre></pre>
 <p>The only differences with Rust are:</p>
 <ul>
 <li>The <code>pub</code> keyword is used to mark <em>public</em> inputs. By default all arguments are private.</li>
@@ -161,7 +191,7 @@
 <li>a <code>Field</code> type is used as main types everywhere. It is defined in <code>field.rs</code> to be the pasta Fp field (the base field of the Pallas curve). If these words mean nothing to you, just see <code>Field</code> as a large number. Ideally programs should be written without this type, but for now custom types do not exist.</li>
 </ul>
 <p>To run such a file, and assuming you have <a href="https://rustup.rs/">Rust</a> installed, you can type in the terminal:</p>
-<pre><code>$ cargo run -- --path path/to/file.no --private-inputs '{&quot;private_input&quot;: [&quot;1&quot;]}' --public-inputs '{&quot;public_input&quot;: [&quot;1&quot;]}'
+<pre><code>$ cargo run -- --path path/to/file.no --private-inputs '{"private_input": ["1"]}' --public-inputs '{"public_input": ["1"]}'
 </code></pre>
 <p>As you can see, inputs are passed with a JSON format, and the values are expected to be encoded in decimal numbers.</p>
 <h2 id="builtins-and-use-statements"><a class="header" href="#builtins-and-use-statements">Builtins and use statements</a></h2>
@@ -178,12 +208,11 @@ If you do this, you must know that you can only import a library, but not its fu
 fn main(pub public_input: Field, private_input: [Field; 2]) {
     let digest = crypto::poseidon(private_input);
     assert_eq(digest[0], public_input);
-}
-</code></pre></pre>
-<p>Note that currently, only built-in libraries (written in Rust) are working. 
+}</code></pre></pre>
+<p>Note that currently, only built-in libraries (written in Rust) are working.
 In the future we’d like for other libraries to be written in the noname language.</p>
 <h2 id="field"><a class="header" href="#field">Field</a></h2>
-<p>The <code>Field</code> type is the primitive type upon which all other types are built. 
+<p>The <code>Field</code> type is the primitive type upon which all other types are built.
 It is good to know about it as it is used in many places, and is error prone: it does not match the size of commonly-found types like <code>u32</code> and <code>u64</code> and can have unexpected behaviors as it can overflow or underflow  without emitting an error.</p>
 <p>Ideally, you should never use the <code>Field</code> type, but currently the library is quite limited and the ideal world is far away.</p>
 <p>Note that you can define <code>Field</code> elements directly in the code by writing a decimal number directly. For example:</p>
@@ -191,16 +220,14 @@ It is good to know about it as it is used in many places, and is error prone: it
 </span><span class="boring">fn main() {
 </span>let x = 2;
 assert(y, 4);
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h2 id="arrays"><a class="header" href="#arrays">Arrays</a></h2>
 <p>While there are no dynamic arrays (or vectors), you can use fixed-size arrays like in Rust.</p>
 <p>For the moment, I believe that arrays can only be declared in a function argument as the following declaration hasn’t been implemented yet:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let x = [1, 2, y];
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h2 id="boolean"><a class="header" href="#boolean">Boolean</a></h2>
 <p>Booleans are similar to Rust’s boolean. They are currently the only built-in type besides <code>Field</code> and arrays.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -208,8 +235,7 @@ assert(y, 4);
 </span>let x = true;
 let y = false;
 assert(!(x &amp; y));
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h2 id="mutability"><a class="header" href="#mutability">Mutability</a></h2>
 <p>Variables are by default not mutable. To make a variable mutable, you must use the <code>mut</code> keyword:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -219,8 +245,7 @@ x = 2; // GOOD
 
 let y = 1;
 y = x + y; // BAD
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h2 id="for-loops"><a class="header" href="#for-loops">For loops</a></h2>
 <pre><pre class="playground"><code class="language-rust">fn main(pub public_input: Field, private_input: [Field; 3]) {
     let mut sum = 0;
@@ -230,8 +255,7 @@ y = x + y; // BAD
     }
 
     assert_eq(sum, public_input);
-}
-</code></pre></pre>
+}</code></pre></pre>
 <h2 id="constants"><a class="header" href="#constants">Constants</a></h2>
 <p>Like variables and function names, constants must be lowercase.</p>
 <p>At the moment they can only represent field elements. Perhaps it would be nice to be able to represent different types in the future.</p>
@@ -243,8 +267,7 @@ fn main(pub player: Field) -&gt; Field {
     let next_player = player + 1;
     assert_eq(player_two, next_player);
     return next_player;
-}
-</code></pre></pre>
+}</code></pre></pre>
 <h2 id="if-else-statements"><a class="header" href="#if-else-statements">If Else statements</a></h2>
 <p>Currently, if/else statements are not supported. Only the ternary operator is:</p>
 <pre><pre class="playground"><code class="language-rust">fn main(pub xx: Field) {
@@ -252,8 +275,7 @@ fn main(pub player: Field) -&gt; Field {
     let cond = xx == 1;
     let yy = cond ? plus : xx ;
     assert_eq(yy, 2);
-}
-</code></pre></pre>
+}</code></pre></pre>
 <p>The two branches of the ternary operator must be variables (as in the xample), or array accesses (e.g. <code>thing[0]</code>), or field accesses (e.g. <code>thing.field</code>).</p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <pre><pre class="playground"><code class="language-rust">fn add(x: Field, y: Field) -&gt; Field {
@@ -270,8 +292,7 @@ fn main(pub one: Field) {
 
     let eight = double(4);
     assert_eq(eight, double(four));
-}
-</code></pre></pre>
+}</code></pre></pre>
 <h2 id="custom-types"><a class="header" href="#custom-types">Custom types</a></h2>
 <pre><pre class="playground"><code class="language-rust">struct Thing {
     x: Field,
@@ -286,8 +307,7 @@ fn main(pub x: Field, pub y: Field) {
     
     assert_eq(thing.x, x);
     assert_eq(thing.y, y);
-}
-</code></pre></pre>
+}</code></pre></pre>
 <h2 id="methods-on-custom-types"><a class="header" href="#methods-on-custom-types">Methods on custom types</a></h2>
 <pre><pre class="playground"><code class="language-rust">struct Thing {
     x: Field,
@@ -318,15 +338,13 @@ fn Thing.update_and_verify(self) {
 fn main(pub x: Field) {
     let thing = Thing.new(x, x + x);
     thing.update_and_verify();
-}
-</code></pre></pre>
+}</code></pre></pre>
 <p>technically you can even call static methods from a variable of that type:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let y = thing.new(3, 4);
-<span class="boring">}
-</span></code></pre></pre>
-<div id="admonition-note" class="admonition note">
+<span class="boring">}</span></code></pre></pre>
+<div id="admonition-note" class="admonition admonish-note">
 <div class="admonition-title">
 <p>Note</p>
 <p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
@@ -351,8 +369,7 @@ let y = 4;
 for i in 0..4 {
     let y = i; // this won't compile either
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 
                     </main>
 
@@ -362,7 +379,7 @@ for i in 0..4 {
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="compilation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="compilation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -376,7 +393,7 @@ for i in 0..4 {
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="compilation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="compilation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -386,21 +403,22 @@ for i in 0..4 {
 
 
 
-        <script type="text/javascript">
+        <script>
             window.playground_copyable = true;
         </script>
 
 
-        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
 
-        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
-        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
 
         <!-- Custom JS scripts -->
 
 
+    </div>
     </body>
 </html>

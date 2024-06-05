@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NUM_REGISTERS"],"mod":["asm","builtin","prover"],"struct":["GeneratedWitness","KimchiCellVar","KimchiVesta","Witness"],"type":["VestaField"]};

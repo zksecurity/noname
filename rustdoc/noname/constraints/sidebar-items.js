@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":[["boolean","Custom types"],["field",""]]};
+window.SIDEBAR_ITEMS = {"mod":["boolean","field"]};

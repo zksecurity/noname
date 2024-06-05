@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["extract_vars_from_coeffs","parse_coeffs"],"struct":["OrderedHashSet"]};

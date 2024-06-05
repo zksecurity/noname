@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["read_manifest","This retrieves a dependency listed in the manifest file. It downloads it from github, and stores it under the `deps` directory. A dependency is expected go be given as “user/repo”."]],"struct":[["Manifest",""],["Package",""]]};
+window.SIDEBAR_ITEMS = {"fn":["read_manifest"],"struct":["Manifest","Package"]};

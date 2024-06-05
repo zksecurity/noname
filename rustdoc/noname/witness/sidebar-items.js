@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["CompiledCircuit","The compiled circuit."],["Witness",""],["WitnessEnv",""]]};
+window.SIDEBAR_ITEMS = {"struct":["CompiledCircuit","WitnessEnv"]};

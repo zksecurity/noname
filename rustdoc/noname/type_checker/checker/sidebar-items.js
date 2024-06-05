@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["FnInfo","Keeps track of the signature of a user-defined function."],["StructInfo","Keeps track of the signature of a user-defined struct."]]};
+window.SIDEBAR_ITEMS = {"struct":["FnInfo","StructInfo"]};

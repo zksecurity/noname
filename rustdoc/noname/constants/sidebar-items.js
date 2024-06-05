@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":[["NUM_REGISTERS","Number of columns in the execution trace."]],"struct":[["Span",""]],"type":[["Field","We use the scalar field of Vesta as our circuit field."]]};
+window.SIDEBAR_ITEMS = {"struct":["Span"]};
