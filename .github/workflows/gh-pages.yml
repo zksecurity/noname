@@ -1,5 +1,8 @@
 name: Deploy Book & Docs to GitHub Pages
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
