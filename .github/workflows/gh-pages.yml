@@ -14,8 +14,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
-      - name: Build Rust Documentation
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
+
+      - name: Build Rust Documentation
         run: RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo doc --no-deps
 
       - name: Build the mdbook
