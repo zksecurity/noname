@@ -6,7 +6,7 @@ permissions:
 on:
   push:
     branches:
-      - fix-book-ci
+      - main
 
 jobs:
   release:
