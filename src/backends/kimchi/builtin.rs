@@ -172,7 +172,7 @@ pub fn poseidon(
     let vars = final_row
         .iter()
         .flatten()
-        .copied()
+        .cloned()
         .map(ConstOrCell::Cell)
         .collect();
 
