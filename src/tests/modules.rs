@@ -26,7 +26,7 @@ fn Lol.new() -> Lol {
 }
 ";
 
-const LIB: &str = r#"
+const LIB: &str = r"
 use mimoo::liblib;
 
 // test a library's type that links to its own type
@@ -60,9 +60,9 @@ fn new_liblib() -> liblib::Lol {
 fn test_liblib(ff: Field, lol: liblib::Lol) {
     lol.match(ff);
 }
-"#;
+";
 
-const MAIN: &str = r#"
+const MAIN: &str = r"
 use mimoo::lib;
 
 fn main(pub xx: Field, yy: Field) {
@@ -79,7 +79,7 @@ fn main(pub xx: Field, yy: Field) {
     let lol = lib::new_liblib();
     lib::test_liblib(1, lol);
 }
-"#;
+";
 
 #[test]
 fn test_simple_module() -> miette::Result<()> {

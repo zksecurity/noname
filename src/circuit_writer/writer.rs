@@ -35,7 +35,7 @@ pub enum GateKind {
 
 impl From<GateKind> for kimchi::circuits::gate::GateType {
     fn from(gate_kind: GateKind) -> Self {
-        use kimchi::circuits::gate::GateType::*;
+        use kimchi::circuits::gate::GateType::{Generic, Poseidon, Zero};
         match gate_kind {
             GateKind::Zero => Zero,
             GateKind::DoubleGeneric => Generic,
@@ -56,6 +56,7 @@ pub struct Gate {
 }
 
 impl Gate {
+    #[must_use]
     pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<VestaField> {
         kimchi::circuits::gate::CircuitGate {
             typ: self.typ.into(),
@@ -99,7 +100,7 @@ impl PartialEq for AnnotatedCell {
 
 impl PartialOrd for AnnotatedCell {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.cell.partial_cmp(&other.cell)
+        Some(self.cmp(other))
     }
 }
 
@@ -235,7 +236,7 @@ impl<B: Backend> CircuitWriter<B> {
                 module,
                 name: struct_name,
             } => {
-                let qualified = FullyQualified::new(module, &struct_name);
+                let qualified = FullyQualified::new(module, struct_name);
                 let struct_info = self
                     .struct_info(&qualified)
                     .ok_or(self.error(ErrorKind::UnexpectedError("struct not found"), span))?
@@ -340,7 +341,8 @@ impl<B: Backend> CircuitWriter<B> {
                     vars.push(var_info);
                 }
 
-                let res = match &fn_info.kind {
+                //
+                match &fn_info.kind {
                     // assert() <-- for example
                     FnKind::BuiltIn(_sig, handle) => {
                         let res = handle(self, &vars, expr.span);
@@ -352,13 +354,10 @@ impl<B: Backend> CircuitWriter<B> {
                     FnKind::Native(func) => {
                         // module::fn_name(args)
                         // ^^^^^^
-                        self.compile_native_function_call(&func, vars)
+                        self.compile_native_function_call(func, vars)
                             .map(|r| r.map(VarOrRef::Var))
                     }
-                };
-
-                //
-                res
+                }
             }
 
             ExprKind::FieldAccess { lhs, rhs } => {

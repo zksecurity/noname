@@ -27,7 +27,8 @@ pub struct Error {
 }
 
 impl Error {
-    /// Creates a new [Error] from an [ErrorKind].
+    /// Creates a new [Error] from an [`ErrorKind`].
+    #[must_use]
     pub fn new(label: &'static str, kind: ErrorKind, span: Span) -> Self {
         Self { label, kind, span }
     }

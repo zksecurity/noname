@@ -1,3 +1,7 @@
+// TODO: There is a bunch of places where there are unused vars.
+// Remove this lint allowance when fixed.
+#![allow(unused_variables)]
+
 use crate::{
     backends::Backend,
     constants::Span,
@@ -98,7 +102,7 @@ impl<B: Backend> CircuitWriter<B> {
         }
 
         //
-        fn_env.add_local_var(var_name, var_info)
+        fn_env.add_local_var(var_name, var_info);
     }
 
     pub fn get_local_var(
@@ -117,7 +121,7 @@ impl<B: Backend> CircuitWriter<B> {
         fn_env.get_local_var(var_name)
     }
 
-    /// Retrieves the [FnInfo] for the `main()` function.
+    /// Retrieves the [`FnInfo`] for the `main()` function.
     /// This function should only be called if we know there's a main function,
     /// if there's no main function it'll panic.
     pub fn main_info(&self) -> Result<&FnInfo<B>> {
@@ -215,7 +219,7 @@ impl<B: Backend> CircuitWriter<B> {
         Ok(CompiledCircuit::new(circuit_writer))
     }
 
-    /// A wrapper for the backend generate_witness
+    /// A wrapper for the backend `generate_witness`
     pub fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<B::Field>,
@@ -223,6 +227,7 @@ impl<B: Backend> CircuitWriter<B> {
         self.backend.generate_witness(witness_env)
     }
 
+    #[allow(clippy::type_complexity)]
     fn handle_arg(
         &mut self,
         arg: &FnArg,

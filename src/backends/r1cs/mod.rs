@@ -1,3 +1,7 @@
+// TODO: There is a bunch of places where there are unused vars.
+// Remove this lint allowance when fixed.
+#![allow(unused_variables)]
+
 pub mod builtin;
 pub mod snarkjs;
 
@@ -10,8 +14,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::constants::Span;
 use crate::error::{Error, ErrorKind, Result};
-use crate::helpers::PrettyField;
-use crate::parser::FunctionDef;
 use crate::{circuit_writer::DebugInfo, var::Value};
 
 use super::{Backend, BackendField, BackendVar};
@@ -39,10 +41,10 @@ impl CellVar {
 impl<F: BackendField> BackendVar for LinearCombination<F> {}
 
 /// Linear combination of variables and constants.
-/// For example, the linear combination is represented as a * f_a + b * f_b + f_c
-/// f_a and f_b are the coefficients of a and b respectively.
-/// a and b are represented by CellVar.
-/// The constant f_c is represented by the constant field, will always multiply with the variable at index 0 which is always 1.
+/// For example, the linear combination is represented as a * `f_a` + b * `f_b` + `f_c`
+/// `f_a` and `f_b` are the coefficients of a and b respectively.
+/// a and b are represented by `CellVar`.
+/// The constant `f_c` is represented by the constant field, will always multiply with the variable at index 0 which is always 1.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LinearCombination<F>
 where
@@ -57,7 +59,7 @@ impl<F> LinearCombination<F>
 where
     F: BackendField,
 {
-    /// Convert to a CellVar.
+    /// Convert to a `CellVar`.
     /// It should
     /// - be used when the linear combination is a single variable.
     /// - panic if the linear combination is not a single variable or has a non-zero constant.
@@ -133,8 +135,8 @@ where
         }
     }
 
-    /// Enforces a constraint for the multiplication of two CellVars.
-    /// The constraint reduces the multiplication to a new CellVar variable,
+    /// Enforces a constraint for the multiplication of two `CellVars`.
+    /// The constraint reduces the multiplication to a new `CellVar` variable,
     /// which represents: self * other = res.
     fn mul(&self, cs: &mut R1CS<F>, other: &Self, span: Span) -> Self {
         let res = cs.new_internal_var(Value::Mul(self.clone(), other.clone()), span);
@@ -143,12 +145,12 @@ where
         res
     }
 
-    /// Enforces a constraint for the equality of two CellVars.
+    /// Enforces a constraint for the equality of two `CellVars`.
     /// It needs to constraint: self * 1 = other.
     fn assert_eq(&self, cs: &mut R1CS<F>, other: &Self, span: Span) {
         let one_cvar = LinearCombination::one(span);
 
-        cs.enforce_constraint(self, &one_cvar, other, span)
+        cs.enforce_constraint(self, &one_cvar, other, span);
     }
 }
 
@@ -188,7 +190,7 @@ where
     }
 }
 
-/// R1CS backend with bls12_381 field.
+/// R1CS backend with `bls12_381` field.
 #[derive(Clone)]
 pub struct R1CS<F>
 where
@@ -207,10 +209,20 @@ where
     finalized: bool,
 }
 
+impl<F> Default for R1CS<F>
+where
+    F: BackendField,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F> R1CS<F>
 where
     F: BackendField,
 {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             constraints: Vec::new(),
@@ -224,6 +236,7 @@ where
     }
 
     /// Returns the number of constraints.
+    #[must_use]
     pub fn num_constraints(&self) -> usize {
         self.constraints.len()
     }
@@ -271,7 +284,7 @@ where
 }
 
 #[derive(Debug)]
-/// An intermediate struct for SnarkjsExporter to reorder the witness and convert to snarkjs format.
+/// An intermediate struct for `SnarkjsExporter` to reorder the witness and convert to snarkjs format.
 pub struct GeneratedWitness<F>
 where
     F: BackendField,
@@ -297,8 +310,8 @@ where
         self.new_internal_var(Value::Constant(F::one()), Span::default());
     }
 
-    /// Create a new CellVar and record in witness_vector vector.
-    /// The underlying type of CellVar is always WitnessVar.
+    /// Create a new `CellVar` and record in `witness_vector` vector.
+    /// The underlying type of `CellVar` is always `WitnessVar`.
     fn new_internal_var(
         &mut self,
         val: crate::var::Value<Self>,
@@ -329,7 +342,7 @@ where
 
     /// Final checks for generating the circuit.
     /// todo: we might need to rethink about this interface
-    /// - we might just need the returned_cells argument, as the backend can record the public outputs itself?
+    /// - we might just need the `returned_cells` argument, as the backend can record the public outputs itself?
     fn finalize_circuit(
         &mut self,
         public_output: Option<crate::var::Var<Self::Field, Self::Var>>,
@@ -513,7 +526,7 @@ where
             let (a, b, c) = (&fmt_lcs[0], &fmt_lcs[1], &fmt_lcs[2]);
 
             // format an entire constraint
-            res.push_str(&format!("{} == ({}) * ({})\n", c, a, b));
+            res.push_str(&format!("{c} == ({a}) * ({b})\n"));
 
             if debug {
                 // link the constraint to the source code
@@ -561,7 +574,7 @@ where
     fn assert_eq_const(&mut self, x: &LinearCombination<F>, cst: F, span: Span) {
         let c = LinearCombination::from_const(cst, span);
 
-        x.assert_eq(self, &c, span)
+        x.assert_eq(self, &c, span);
     }
 
     fn assert_eq_var(
@@ -570,7 +583,7 @@ where
         rhs: &LinearCombination<F>,
         span: Span,
     ) {
-        lhs.assert_eq(self, rhs, span)
+        lhs.assert_eq(self, rhs, span);
     }
 
     /// Adds the public input cell vars.
@@ -600,13 +613,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        backends::{
-            r1cs::{R1csBls12381Field, R1CS},
-            Backend, BackendKind,
-        },
-        lexer::Token,
-        parser::{types::FnSig, FunctionDef, ParserCtx},
+    use crate::backends::{
+        r1cs::{R1csBls12381Field, R1CS},
+        Backend, BackendKind,
     };
     use ark_ff::One;
     use rstest::rstest;

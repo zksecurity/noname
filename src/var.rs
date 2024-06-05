@@ -13,7 +13,8 @@ use crate::{
 };
 
 /// The signature of a hint function
-pub type HintFn<B: Backend> = dyn Fn(&B, &mut WitnessEnv<B::Field>) -> Result<B::Field>;
+pub type HintFn<B> =
+    dyn Fn(&B, &mut WitnessEnv<<B as Backend>::Field>) -> Result<<B as Backend>::Field>;
 
 /// A variable's actual value in the witness can be computed in different ways.
 #[derive(Clone, Serialize, Deserialize)]
@@ -120,6 +121,7 @@ where
 }
 
 impl<F: Field, C: BackendVar> Var<F, C> {
+    #[must_use]
     pub fn new(cvars: Vec<ConstOrCell<F, C>>, span: Span) -> Self {
         Self { cvars, span }
     }
@@ -147,19 +149,22 @@ impl<F: Field, C: BackendVar> Var<F, C> {
 
     pub fn new_constant_typ(cst_info: &ConstInfo<F>, span: Span) -> Self {
         let ConstInfo { value, typ: _ } = cst_info;
-        let cvars = value.into_iter().cloned().map(ConstOrCell::Const).collect();
+        let cvars = value.iter().copied().map(ConstOrCell::Const).collect();
 
         Self { cvars, span }
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.cvars.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.cvars.is_empty()
     }
 
+    #[must_use]
     pub fn get(&self, idx: usize) -> Option<&ConstOrCell<F, C>> {
         if idx < self.cvars.len() {
             Some(&self.cvars[idx])
@@ -168,6 +173,7 @@ impl<F: Field, C: BackendVar> Var<F, C> {
         }
     }
 
+    #[must_use]
     pub fn constant(&self) -> Option<F> {
         if self.cvars.len() == 1 {
             self.cvars[0].cst()
@@ -176,6 +182,7 @@ impl<F: Field, C: BackendVar> Var<F, C> {
         }
     }
 
+    #[must_use]
     pub fn range(&self, start: usize, len: usize) -> &[ConstOrCell<F, C>] {
         &self.cvars[start..(start + len)]
     }

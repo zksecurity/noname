@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::Hash, str::FromStr};
+use std::{fmt::Debug, str::FromStr};
 
 use ark_ff::{Field, Zero};
 use num_bigint::BigUint;
@@ -9,7 +9,6 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
-    parser::FunctionDef,
     var::{Value, Var},
     witness::WitnessEnv,
 };
@@ -32,6 +31,8 @@ pub trait BackendField:
 /// It is intended to make it opaque to the frondend.
 pub trait BackendVar: Clone + Debug + PartialEq + Eq {}
 
+// TODO: Fix this by `Box`ing `KimchiVesta`.
+#[allow(clippy::large_enum_variant)]
 pub enum BackendKind {
     KimchiVesta(KimchiVesta),
     R1csBls12_381(R1CS<R1csBls12381Field>),
@@ -39,14 +40,17 @@ pub enum BackendKind {
 }
 
 impl BackendKind {
+    #[must_use]
     pub fn new_kimchi_vesta(use_double_generic: bool) -> Self {
         Self::KimchiVesta(KimchiVesta::new(use_double_generic))
     }
 
+    #[must_use]
     pub fn new_r1cs_bls12_381() -> Self {
         Self::R1csBls12_381(R1CS::new())
     }
 
+    #[must_use]
     pub fn new_r1cs_bn254() -> Self {
         Self::R1csBn254(R1CS::new())
     }
@@ -57,8 +61,8 @@ pub trait Backend: Clone {
     /// The circuit field / scalar field that the circuit is written on.
     type Field: BackendField;
 
-    /// The CellVar type for the backend.
-    /// Different backend is allowed to have different CellVar types.
+    /// The `CellVar` type for the backend.
+    /// Different backend is allowed to have different `CellVar` types.
     type Var: BackendVar;
 
     /// The generated witness type for the backend. Each backend may define its own witness format to be generated.
@@ -122,7 +126,7 @@ pub trait Backend: Clone {
         span: Span,
     ) -> Self::Var;
 
-    /// Backends should implement this function to load and compute the value of a CellVar.
+    /// Backends should implement this function to load and compute the value of a `CellVar`.
     fn compute_var(
         &self,
         env: &mut WitnessEnv<Self::Field>,

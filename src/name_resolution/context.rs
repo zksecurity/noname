@@ -32,8 +32,8 @@ impl NameResCtx {
         Error::new("name resolution", kind, span)
     }
 
-    /// Resolves a single [ModulePath].
-    /// `force` is set to `true` if it is expected that the [ModulePath] is set to [ModulePath::Local].
+    /// Resolves a single [`ModulePath`].
+    /// `force` is set to `true` if it is expected that the [`ModulePath`] is set to [`ModulePath::Local`].
     /// This is usually the case for things like struct or function definitions.
     pub(crate) fn resolve(&self, module: &mut ModulePath, local: bool) -> Result<()> {
         match module {

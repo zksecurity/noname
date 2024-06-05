@@ -46,6 +46,7 @@ pub static BUILTIN_FN_NAMES: Lazy<HashSet<String>> = Lazy::new(|| {
         .collect()
 });
 
+#[must_use]
 pub fn get_builtin_fn<B: Backend>(name: &str) -> Option<FnInfo<B>> {
     let ctx = &mut ParserCtx::default();
     let mut tokens = Token::parse(0, name).unwrap();
@@ -64,6 +65,7 @@ pub fn get_builtin_fn<B: Backend>(name: &str) -> Option<FnInfo<B>> {
 }
 
 /// a function returns builtin functions
+#[must_use]
 pub fn builtin_fns<B: Backend>() -> Vec<FnInfo<B>> {
     BUILTIN_SIGS
         .iter()
@@ -121,10 +123,10 @@ fn assert_eq<B: Backend>(
         // a const and a var
         (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
         | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            compiler.backend.assert_eq_const(cvar, *cst, span)
+            compiler.backend.assert_eq_const(cvar, *cst, span);
         }
         (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            compiler.backend.assert_eq_var(lhs, rhs, span)
+            compiler.backend.assert_eq_var(lhs, rhs, span);
         }
     }
 

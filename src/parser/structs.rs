@@ -115,9 +115,10 @@ impl CustomType {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let ty_name = tokens.bump_ident(ctx, ErrorKind::InvalidType)?;
 
-        if !is_type(&ty_name.value) {
-            panic!("type name should start with uppercase letter (TODO: better error");
-        }
+        assert!(
+            is_type(&ty_name.value),
+            "type name should start with uppercase letter (TODO: better error"
+        );
 
         // make sure that this type is allowed
         if !matches!(

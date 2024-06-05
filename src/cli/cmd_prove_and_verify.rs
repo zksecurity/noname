@@ -62,7 +62,7 @@ pub fn cmd_prove(args: CmdProve) -> miette::Result<()> {
             "proof created at path `{proof_path}`. You can use `noname --verify` to verify it. Note that you will need to pass the same JSON-encoded public inputs as you did when creating the proof. (If you didn't use the `--public-inputs` flag, then you don't need to pass any public inputs.)",
         );
     } else {
-        println!("proof created at path `{proof_path}`. Since running the proof produced a  public output `{public:?}`, you will need to also pass the expected public output to the verifier (who can run `noname verify --public-output '{public:?}'`).", public=public_output);
+        println!("proof created at path `{proof_path}`. Since running the proof produced a  public output `{public_output:?}`, you will need to also pass the expected public output to the verifier (who can run `noname verify --public-output '{public_output:?}'`).");
     }
 
     //
@@ -93,13 +93,13 @@ pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let (_sources, _prover_index, verifier_index) = build(&curr_dir, false, false)?;
+    let (_sources, _prover_index, _verifier_index) = build(&curr_dir, false, false)?;
 
     // parse inputs
-    let mut public_inputs = parse_inputs(&args.public_inputs).unwrap();
+    let _public_inputs = parse_inputs(&args.public_inputs).unwrap();
 
     if let Some(public_output) = &args.public_output {
-        let public_output = parse_inputs(public_output).unwrap();
+        let _public_output = parse_inputs(public_output).unwrap();
 
         // TODO: add it to the public input
         todo!();
@@ -114,7 +114,7 @@ pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
         miette::bail!("proof does not exist at path `{proof_path}`. Perhaps pass the correct path via the `--proof-path` flag?");
     }
 
-    let proof = rmp_serde::from_read(std::fs::File::open(&proof_path).unwrap())
+    rmp_serde::from_read(std::fs::File::open(&proof_path).unwrap())
         .into_diagnostic()
         .wrap_err(format!(
             "could not deserialize the given proof at `{proof_path}`"
@@ -129,6 +129,4 @@ pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
             .wrap_err("Failed to verify proof")?;
     */
     //
-
-    Ok(())
 }

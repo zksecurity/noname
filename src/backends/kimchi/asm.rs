@@ -22,7 +22,6 @@
 //!
 
 use std::collections::{HashMap, HashSet};
-use std::fmt::Write;
 use std::hash::Hash;
 
 use crate::helpers::PrettyField;
@@ -38,6 +37,7 @@ pub fn extract_vars_from_coeffs(vars: &mut OrderedHashSet<VestaField>, coeffs: &
     }
 }
 
+#[must_use]
 pub fn parse_coeffs(vars: &OrderedHashSet<VestaField>, coeffs: &[VestaField]) -> Vec<String> {
     let mut coeffs: Vec<_> = coeffs
         .iter()
@@ -90,10 +90,12 @@ where
         self.map[value]
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.ordered.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.ordered.is_empty()
     }

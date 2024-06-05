@@ -1,16 +1,16 @@
 use camino::Utf8PathBuf as PathBuf;
 use miette::{IntoDiagnostic, Result, WrapErr};
 
-const MAIN_CONTENT: &str = r#"fn main(pub xx: Field, yy: Field) {
+const MAIN_CONTENT: &str = r"fn main(pub xx: Field, yy: Field) {
     let zz = yy + 1;
     assert_eq(zz, xx);
 }
-"#;
+";
 
-const LIB_CONTENT: &str = r#"fn add(xx: Field, yy: Field) -> Field {
+const LIB_CONTENT: &str = r"fn add(xx: Field, yy: Field) -> Field {
     return xx + yy;
 }
-"#;
+";
 
 #[derive(clap::Parser)]
 pub struct CmdNew {
@@ -143,13 +143,11 @@ fn get_git_user() -> String {
         .output()
         .expect("failed to execute git command");
 
-    if !output.status.success() {
-        panic!("failed to get git user name");
-    }
+    assert!(output.status.success(), "failed to get git user name");
 
     let output = String::from_utf8(output.stdout).expect("couldn't parse git output as utf8");
 
     let username = output.trim().to_owned();
 
-    username.replace(" ", "_").to_lowercase()
+    username.replace(' ', "_").to_lowercase()
 }

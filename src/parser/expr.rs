@@ -207,7 +207,7 @@ impl Expr {
             }
 
             // true or false
-            TokenKind::Keyword(Keyword::True) | TokenKind::Keyword(Keyword::False) => {
+            TokenKind::Keyword(Keyword::True | Keyword::False) => {
                 let is_true = matches!(token.kind, TokenKind::Keyword(Keyword::True));
 
                 Expr::new(ctx, ExprKind::Bool(is_true), span)
@@ -344,7 +344,7 @@ impl Expr {
         lhs.parse_rhs(ctx, tokens)
     }
 
-    /// an expression is sometimes unfinished when we parse it with [Self::parse],
+    /// an expression is sometimes unfinished when we parse it with [`Self::parse`],
     /// we use this function to see if the expression we just parsed (`self`) is actually part of a bigger expression
     fn parse_rhs(self, ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Expr> {
         // we peek into what's next to see if there's an expression that uses

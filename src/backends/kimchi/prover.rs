@@ -62,6 +62,7 @@ pub struct VerifierIndex {
 // Setup
 //
 
+#[allow(clippy::type_complexity)]
 impl KimchiVesta {
     pub fn compile_to_indexes(
         &self,
@@ -247,12 +248,12 @@ mod tests {
 
     #[test]
     fn test_public_output_constraint() -> miette::Result<()> {
-        let code = r#"fn main(pub public_input: Field, private_input: Field) -> Field {
+        let code = r"fn main(pub public_input: Field, private_input: Field) -> Field {
             let xx = private_input + public_input;
             assert_eq(xx, 2);
             let yy = xx + 6;
             return yy;
-        }"#;
+        }";
 
         let mut sources = Sources::new();
         let mut tast = TypeChecker::new();

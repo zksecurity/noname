@@ -10,6 +10,7 @@ const POSEIDON_FN: &str = "poseidon(input: [Field; 2]) -> [Field; 3]";
 
 pub const CRYPTO_SIGS: &[&str] = &[POSEIDON_FN];
 
+#[must_use]
 pub fn get_crypto_fn<B: Backend>(name: &str) -> Option<FnInfo<B>> {
     let ctx = &mut ParserCtx::default();
     let mut tokens = Token::parse(0, name).unwrap();
@@ -27,6 +28,7 @@ pub fn get_crypto_fn<B: Backend>(name: &str) -> Option<FnInfo<B>> {
 }
 
 /// a function returns crypto functions
+#[must_use]
 pub fn crypto_fns<B: Backend>() -> Vec<FnInfo<B>> {
     CRYPTO_SIGS
         .iter()

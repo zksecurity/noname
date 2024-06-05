@@ -24,6 +24,7 @@ impl From<Span> for miette::SourceSpan {
 }
 
 impl Span {
+    #[must_use]
     pub fn new(filename_id: usize, start: usize, len: usize) -> Self {
         Self {
             filename_id,
@@ -32,14 +33,17 @@ impl Span {
         }
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.start == 0
     }
 
+    #[must_use]
     pub fn end(&self) -> usize {
         self.start + self.len
     }
 
+    #[must_use]
     pub fn merge_with(self, other: Self) -> Self {
         assert_eq!(self.filename_id, other.filename_id);
         let real_len = other.end() - self.start;

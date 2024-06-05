@@ -21,7 +21,7 @@ pub struct UserRepo {
 
 impl UserRepo {
     pub(crate) fn new(arg: &str) -> Self {
-        let mut args = arg.split("/");
+        let mut args = arg.split('/');
         let user = args.next().unwrap().to_string();
         let repo = args.next().unwrap().to_string();
         assert!(args.next().is_none());
@@ -137,6 +137,9 @@ impl DependencyGraph {
         Ok(node)
     }
 
+    // TODO: Fix usage of self in `from_*` fn.
+    // Either this should be renamed, or `self` shouldn't be used.
+    #[allow(clippy::wrong_self_convention)]
     pub(crate) fn from_leaves_to_roots(&self) -> Vec<UserRepo> {
         let mut res = vec![];
 
@@ -200,6 +203,7 @@ pub fn get_dep(dep: &UserRepo) -> Result<Manifest> {
 }
 
 /// Returns the dependencies of a package (given it's manifest).
+#[must_use]
 pub fn get_deps_of_package(manifest: &Manifest) -> Vec<UserRepo> {
     manifest
         .dependencies()
@@ -222,7 +226,7 @@ pub fn get_dep_code(dep: &UserRepo) -> Result<String> {
     let path = path_to_package(dep);
 
     let lib_file = path.join("src").join("lib.no");
-    let lib_content = std::fs::read_to_string(&lib_file)
+    let lib_content = std::fs::read_to_string(lib_file)
         .into_diagnostic()
         .wrap_err_with(|| format!("could not read file `{path}`"))?;
 
@@ -264,6 +268,7 @@ pub fn download_from_github(dep: &UserRepo) -> Result<()> {
     Ok(())
 }
 
+#[must_use]
 pub fn is_lib(path: &PathBuf) -> bool {
     path.join("src").join("lib.no").exists()
 }
@@ -335,7 +340,7 @@ mod tests {
                 childs.push(child.clone());
 
                 // make sure that each child has their own presence in the cache
-                dep_graph.cached_manifests.entry(child).or_insert(vec![]);
+                dep_graph.cached_manifests.entry(child).or_default();
             }
 
             dep_graph.cached_manifests.insert(parent, childs);
@@ -347,10 +352,7 @@ mod tests {
         let mut libs = vec![];
         for dep_str in deps_str {
             let dep = dep(dep_str);
-            dep_graph
-                .cached_manifests
-                .entry(dep.clone())
-                .or_insert(vec![]);
+            dep_graph.cached_manifests.entry(dep.clone()).or_default();
             libs.push(dep);
         }
 

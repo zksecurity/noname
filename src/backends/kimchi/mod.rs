@@ -47,9 +47,9 @@ pub struct Witness(Vec<[VestaField; NUM_REGISTERS]>);
 pub struct GeneratedWitness {
     /// contains all the witness values
     pub all_witness: Witness,
-    /// contains the public inputs, which are also part of the all_witness
+    /// contains the public inputs, which are also part of the `all_witness`
     pub full_public_inputs: Vec<VestaField>,
-    /// contains the public outputs, which are also part of the all_witness
+    /// contains the public outputs, which are also part of the `all_witness`
     pub public_outputs: Vec<VestaField>,
 }
 
@@ -103,8 +103,11 @@ pub struct KimchiVesta {
 
 impl Witness {
     /// kimchi uses a transposed witness
+    #[must_use]
     pub fn to_kimchi_witness(&self) -> [Vec<VestaField>; NUM_REGISTERS] {
-        let transposed = vec![Vec::with_capacity(self.0.len()); NUM_REGISTERS];
+        let transposed = (0..NUM_REGISTERS)
+            .map(|_| Vec::with_capacity(self.0.len()))
+            .collect::<Vec<_>>();
         let mut transposed: [_; NUM_REGISTERS] = transposed.try_into().unwrap();
         for row in &self.0 {
             for (col, field) in row.iter().enumerate() {
@@ -114,23 +117,29 @@ impl Witness {
         transposed
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
     pub fn debug(&self) {
         for (row, values) in self.0.iter().enumerate() {
-            let values = values.iter().map(|v| v.pretty()).join(" | ");
+            let values = values
+                .iter()
+                .map(super::super::helpers::PrettyField::pretty)
+                .join(" | ");
             println!("{row} - {values}");
         }
     }
 }
 
 impl KimchiVesta {
+    #[must_use]
     pub fn new(double_generic_gate_optimization: bool) -> Self {
         Self {
             next_variable: 0,
@@ -191,7 +200,7 @@ impl KimchiVesta {
                     .entry(var.index)
                     .and_modify(|w| match w {
                         Wiring::NotWired(old_cell) => {
-                            *w = Wiring::Wired(vec![old_cell.clone(), annotated_cell.clone()])
+                            *w = Wiring::Wired(vec![old_cell.clone(), annotated_cell.clone()]);
                         }
                         Wiring::Wired(ref mut cells) => {
                             cells.push(annotated_cell.clone());
@@ -292,7 +301,7 @@ impl Backend for KimchiVesta {
 
         let zero = VestaField::zero();
 
-        let _ = &self.add_generic_gate(
+        let () = &self.add_generic_gate(
             label.unwrap_or("hardcode a constant"),
             vec![Some(var)],
             vec![VestaField::one(), zero, zero, zero, value.neg()],
@@ -302,6 +311,7 @@ impl Backend for KimchiVesta {
         var
     }
 
+    #[allow(unused_variables)]
     fn finalize_circuit(
         &mut self,
         public_output: Option<Var<Self::Field, Self::Var>>,
@@ -322,7 +332,7 @@ impl Backend for KimchiVesta {
 
         // for sanity check, we make sure that every cellvar created has ended up in a gate
         let mut written_vars = HashSet::new();
-        for row in self.witness_table.iter() {
+        for row in &self.witness_table {
             row.iter().flatten().for_each(|cvar| {
                 written_vars.insert(cvar.index);
             });
@@ -349,9 +359,10 @@ impl Backend for KimchiVesta {
         }
 
         // kimchi hack
-        if self.gates.len() <= 2 {
-            panic!("the circuit is either too small or does not constrain anything (TODO: better error)");
-        }
+        assert!(
+            self.gates.len() > 2,
+            "the circuit is either too small or does not constrain anything (TODO: better error)"
+        );
 
         // store the return value in the public input that was created for that ^
         if let Some(public_output) = public_output {
@@ -488,7 +499,7 @@ impl Backend for KimchiVesta {
     }
 
     fn generate_asm(&self, sources: &Sources, debug: bool) -> String {
-        let mut res = "".to_string();
+        let mut res = String::new();
 
         // version
         res.push_str(&crate::utils::noname_version());
@@ -496,7 +507,7 @@ impl Backend for KimchiVesta {
         // vars
         let mut vars: OrderedHashSet<VestaField> = OrderedHashSet::default();
 
-        for Gate { coeffs, .. } in self.gates.iter() {
+        for Gate { coeffs, .. } in &self.gates {
             extract_vars_from_coeffs(&mut vars, coeffs);
         }
 
@@ -516,7 +527,7 @@ impl Backend for KimchiVesta {
         for (row, (Gate { typ, coeffs }, debug_info)) in
             self.gates.iter().zip(&self.debug_info).enumerate()
         {
-            println!("gate {:?}", row);
+            println!("gate {row:?}");
             // gate #
             if debug {
                 writeln!(res, "╭{s}", s = "─".repeat(80)).unwrap();

@@ -62,6 +62,7 @@ pub struct ParserCtx {
 }
 
 impl ParserCtx {
+    #[must_use]
     pub fn new(filename_id: usize, node_id: usize) -> Self {
         Self {
             node_id,
@@ -70,6 +71,7 @@ impl ParserCtx {
         }
     }
 
+    #[must_use]
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
         Error::new("parser", kind, span)
     }
@@ -81,12 +83,12 @@ impl ParserCtx {
     }
 
     // TODO: I think I don't need this, I should always be able to use the last token I read if I don't see anything, otherwise maybe just write -1 to say "EOF"
+    #[must_use]
     pub fn last_span(&self) -> Span {
         let span = self
             .last_token
             .as_ref()
-            .map(|token| token.span)
-            .unwrap_or(Span::new(self.filename_id, 0, 0));
+            .map_or(Span::new(self.filename_id, 0, 0), |token| token.span);
         Span::new(self.filename_id, span.end(), 0)
     }
 }
@@ -197,28 +199,28 @@ mod tests {
 
     #[test]
     fn fn_signature() {
-        let code = r#"main(pub public_input: [Fel; 3], private_input: [Fel; 3]) -> [Fel; 3] { return public_input; }"#;
+        let code = r"main(pub public_input: [Fel; 3], private_input: [Fel; 3]) -> [Fel; 3] { return public_input; }";
         let tokens = &mut Token::parse(0, code).unwrap();
         let ctx = &mut ParserCtx::default();
         let parsed = FunctionDef::parse(ctx, tokens).unwrap();
-        println!("{:?}", parsed);
+        println!("{parsed:?}");
     }
 
     #[test]
     fn statement_assign() {
-        let code = r#"let digest = poseidon(private_input);"#;
+        let code = r"let digest = poseidon(private_input);";
         let tokens = &mut Token::parse(0, code).unwrap();
         let ctx = &mut ParserCtx::default();
         let parsed = Stmt::parse(ctx, tokens).unwrap();
-        println!("{:?}", parsed);
+        println!("{parsed:?}");
     }
 
     #[test]
     fn statement_assert() {
-        let code = r#"assert(digest == public_input);"#;
+        let code = r"assert(digest == public_input);";
         let tokens = &mut Token::parse(0, code).unwrap();
         let ctx = &mut ParserCtx::default();
         let parsed = Stmt::parse(ctx, tokens).unwrap();
-        println!("{:?}", parsed);
+        println!("{parsed:?}");
     }
 }

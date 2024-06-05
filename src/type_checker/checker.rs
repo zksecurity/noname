@@ -27,6 +27,7 @@ where
 }
 
 impl<B: Backend> FnInfo<B> {
+    #[must_use]
     pub fn sig(&self) -> &FnSig {
         match &self.kind {
             FnKind::BuiltIn(sig, _) => sig,
@@ -117,7 +118,7 @@ impl<B: Backend> TypeChecker<B> {
                 args,
             } => {
                 // retrieve the function signature
-                let qualified = FullyQualified::new(&module, &fn_name.value);
+                let qualified = FullyQualified::new(module, &fn_name.value);
                 let fn_info = self.fn_info(&qualified).ok_or_else(|| {
                     self.error(
                         ErrorKind::UndefinedFunction(fn_name.value.clone()),
@@ -186,7 +187,7 @@ impl<B: Backend> TypeChecker<B> {
                         // note: the only way to check that atm is to check in the constants hashmap
                         // this is because we don't differentiate const vars from normal variables
                         // (perhaps we should)
-                        let qualified = FullyQualified::new(&module, &name.value);
+                        let qualified = FullyQualified::new(module, &name.value);
                         if let Some(_cst_info) = self.const_info(&qualified) {
                             return Err(self.error(
                                 ErrorKind::UnexpectedError("cannot assign to an external variable"),
@@ -198,7 +199,7 @@ impl<B: Backend> TypeChecker<B> {
                     }
 
                     // `array[idx] = <rhs>`
-                    ExprKind::ArrayAccess { array, idx } => {
+                    ExprKind::ArrayAccess { array, .. } => {
                         // get variable behind array
                         let array_node = self
                             .compute_type(array, typed_fn_env)?
@@ -210,7 +211,7 @@ impl<B: Backend> TypeChecker<B> {
                     }
 
                     // `struct.field = <rhs>`
-                    ExprKind::FieldAccess { lhs, rhs } => {
+                    ExprKind::FieldAccess { lhs, .. } => {
                         // get variable behind lhs
                         let lhs_node = self
                             .compute_type(lhs, typed_fn_env)?
@@ -237,9 +238,10 @@ impl<B: Backend> TypeChecker<B> {
                 // and is of the same type as the rhs
                 let rhs_typ = self.compute_type(rhs, typed_fn_env)?.unwrap();
 
-                if !rhs_typ.typ.match_expected(&lhs_node.typ) {
-                    panic!("lhs type doesn't match rhs type (TODO: replace with error)");
-                }
+                assert!(
+                    rhs_typ.typ.match_expected(&lhs_node.typ),
+                    "lhs type doesn't match rhs type (TODO: replace with error)"
+                );
 
                 None
             }
@@ -442,9 +444,10 @@ impl<B: Backend> TypeChecker<B> {
                     .expect("can't compute type of first branch of `if/else`");
 
                 // make sure that the type of then_ and else_ match
-                if then_node.typ != else_node.typ {
-                    panic!("`if` branch and `else` branch must have matching types");
-                }
+                assert!(
+                    !(then_node.typ != else_node.typ),
+                    "`if` branch and `else` branch must have matching types"
+                );
 
                 //
                 Some(ExprTyInfo::new_anon(then_node.typ))
@@ -521,9 +524,10 @@ impl<B: Backend> TypeChecker<B> {
         let mut return_typ = None;
 
         for stmt in stmts {
-            if return_typ.is_some() {
-                panic!("early return detected: we don't allow that for now (TODO: return error");
-            }
+            assert!(
+                return_typ.is_none(),
+                "early return detected: we don't allow that for now (TODO: return error"
+            );
 
             return_typ = self.check_stmt(typed_fn_env, stmt)?;
         }
@@ -583,9 +587,10 @@ impl<B: Backend> TypeChecker<B> {
                     .store_type(var.value.clone(), TypeInfo::new(TyKind::BigInt, var.span))?;
 
                 // ensure start..end makes sense
-                if range.end < range.start {
-                    panic!("end can't be smaller than start (TODO: better error)");
-                }
+                assert!(
+                    range.end >= range.start,
+                    "end can't be smaller than start (TODO: better error)"
+                );
 
                 // check block
                 self.check_block(typed_fn_env, body, None)?;

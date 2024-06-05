@@ -8,11 +8,11 @@ use crate::{
 #[test]
 fn test_return() {
     // no return expected
-    let code = r#"
+    let code = r"
     fn thing(xx: Field) {
         return xx;
     }
-    "#;
+    ";
 
     let mut tast = TypeChecker::<KimchiVesta>::new();
     let res = typecheck_next_file_inner(
@@ -30,11 +30,11 @@ fn test_return() {
 #[test]
 fn test_return_expected() {
     // return expected
-    let code = r#"
+    let code = r"
     fn thing(xx: Field) -> Field {
         let yy = xx + 1;
     }
-    "#;
+    ";
 
     let mut tast = TypeChecker::<KimchiVesta>::new();
     let res = typecheck_next_file_inner(
@@ -52,11 +52,11 @@ fn test_return_expected() {
 #[test]
 fn test_return_mismatch() {
     // return type mismatch
-    let code = r#"
+    let code = r"
         fn thing(xx: Field) -> Field {
             return true;
         }
-        "#;
+        ";
 
     let mut tast = TypeChecker::<KimchiVesta>::new();
     let res = typecheck_next_file_inner(

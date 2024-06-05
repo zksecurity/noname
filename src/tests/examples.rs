@@ -211,7 +211,7 @@ fn test_lc_return(#[case] backend: BackendKind) -> miette::Result<()> {
 fn test_poseidon(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"private_input": ["1", "1"]}"#;
     let private_input = [1.into(), 1.into()];
-    let digest = crate::helpers::poseidon(private_input.clone());
+    let digest = crate::helpers::poseidon(private_input);
     let digest_dec = digest.to_dec_string();
     assert_eq!(
         "3654913405619483358804575553468071097765421484960111776885779739261304758583",
@@ -242,7 +242,7 @@ fn test_bool(#[case] backend: BackendKind) -> miette::Result<()> {
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_mutable(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"xx": "2", "yy": "3"}"#;
-    let public_inputs = r#"{}"#;
+    let public_inputs = r"{}";
 
     test_file("mutable", public_inputs, private_inputs, vec![], backend)?;
 
@@ -265,7 +265,7 @@ fn test_for_loop(#[case] backend: BackendKind) -> miette::Result<()> {
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_array(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{}"#;
+    let private_inputs = r"{}";
     let public_inputs = r#"{"public_input": ["1", "2"]}"#;
 
     test_file("array", public_inputs, private_inputs, vec![], backend)?;
@@ -277,7 +277,7 @@ fn test_array(#[case] backend: BackendKind) -> miette::Result<()> {
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_equals(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{}"#;
+    let private_inputs = r"{}";
     let public_inputs = r#"{"xx": ["3", "3"]}"#;
 
     test_file("equals", public_inputs, private_inputs, vec![], backend)?;
@@ -289,7 +289,7 @@ fn test_equals(#[case] backend: BackendKind) -> miette::Result<()> {
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_types(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{}"#;
+    let private_inputs = r"{}";
     let public_inputs = r#"{"xx": "1", "yy": "2"}"#;
 
     test_file("types", public_inputs, private_inputs, vec![], backend)?;
@@ -301,7 +301,7 @@ fn test_types(#[case] backend: BackendKind) -> miette::Result<()> {
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_const(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{}"#;
+    let private_inputs = r"{}";
     let public_inputs = r#"{"player": "1"}"#;
     let expected_public_output = vec!["2"];
 
@@ -320,7 +320,7 @@ fn test_const(#[case] backend: BackendKind) -> miette::Result<()> {
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_functions(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{}"#;
+    let private_inputs = r"{}";
     let public_inputs = r#"{"one": "1"}"#;
 
     test_file("functions", public_inputs, private_inputs, vec![], backend)?;
@@ -332,7 +332,7 @@ fn test_functions(#[case] backend: BackendKind) -> miette::Result<()> {
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_methods(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{}"#;
+    let private_inputs = r"{}";
     let public_inputs = r#"{"xx": "1"}"#;
 
     test_file("methods", public_inputs, private_inputs, vec![], backend)?;
@@ -344,7 +344,7 @@ fn test_methods(#[case] backend: BackendKind) -> miette::Result<()> {
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_types_array(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{}"#;
+    let private_inputs = r"{}";
     let public_inputs = r#"{"xx": "1", "yy": "4"}"#;
 
     test_file(
@@ -362,7 +362,7 @@ fn test_types_array(#[case] backend: BackendKind) -> miette::Result<()> {
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_iterate(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{}"#;
+    let private_inputs = r"{}";
     let public_inputs = r#"{"bedroom_holes": "2"}"#;
     let expected_public_output = vec!["4"];
 
@@ -381,7 +381,7 @@ fn test_iterate(#[case] backend: BackendKind) -> miette::Result<()> {
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_assignment(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{}"#;
+    let private_inputs = r"{}";
     let public_inputs = r#"{"xx": "2"}"#;
 
     test_file("assignment", public_inputs, private_inputs, vec![], backend)?;
@@ -393,7 +393,7 @@ fn test_assignment(#[case] backend: BackendKind) -> miette::Result<()> {
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_if_else(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{}"#;
+    let private_inputs = r"{}";
     let public_inputs = r#"{"xx": "1"}"#;
 
     test_file("if_else", public_inputs, private_inputs, vec![], backend)?;

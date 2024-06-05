@@ -73,7 +73,7 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let (sources, prover_index, verifier_index) = build(&curr_dir, args.asm, args.debug)?;
+    let (_sources, _prover_index, verifier_index) = build(&curr_dir, args.asm, args.debug)?;
 
     // create COMPILED_DIR
     let compiled_path = curr_dir.join(COMPILED_DIR);
@@ -103,14 +103,11 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
     let verifier_params = args
         .verifier_params
         .unwrap_or(compiled_path.join("verifier.nope"));
-    std::fs::write(
-        &verifier_params,
-        rmp_serde::to_vec(&verifier_index).unwrap(),
-    )
-    .into_diagnostic()
-    .wrap_err(format!(
-        "could not write prover params to `{prover_params}`"
-    ))?;
+    std::fs::write(verifier_params, rmp_serde::to_vec(&verifier_index).unwrap())
+        .into_diagnostic()
+        .wrap_err(format!(
+            "could not write prover params to `{prover_params}`"
+        ))?;
 
     println!("successfully built");
 
@@ -139,13 +136,14 @@ pub fn cmd_check(args: CmdCheck) -> miette::Result<()> {
 
 fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, TypeChecker<B>)> {
     // find manifest
-    let manifest = validate_package_and_get_manifest(&path, false)?;
+    let manifest = validate_package_and_get_manifest(path, false)?;
 
     // get all dependencies
-    get_deps_of_package(&manifest);
+    // TODO: Handle error properly
+    let _ = get_deps_of_package(&manifest);
 
     // produce dependency graph
-    let is_lib = is_lib(&path);
+    let is_lib = is_lib(path);
 
     let this = if is_lib {
         Some(UserRepo::new(&manifest.package.name))
@@ -354,10 +352,10 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
             unimplemented!("kimchi-vesta backend is not yet supported for this command")
         }
         BackendKind::R1csBls12_381(r1cs) => {
-            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
+            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?;
         }
         BackendKind::R1csBn254(r1cs) => {
-            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
+            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?;
         }
     }
 
@@ -391,13 +389,13 @@ where
     snarkjs_exporter.gen_wtns_file(&wtns_output_path.clone().into_string(), generated_witness)?;
 
     // display the info for the generated files
-    println!("Snarkjs R1CS file generated at: {}", r1cs_output_path);
-    println!("Snarkjs Witness file generated at: {}", wtns_output_path);
+    println!("Snarkjs R1CS file generated at: {r1cs_output_path}");
+    println!("Snarkjs Witness file generated at: {wtns_output_path}");
 
     Ok(())
 }
 
-fn test_r1cs_backend<F: BackendField>(
+fn test_r1cs_backend<F>(
     r1cs: R1CS<F>,
     path: &PathBuf,
     public_inputs: JsonInputs,
@@ -415,7 +413,7 @@ where
 
     let asm = compiled_circuit.asm(&sources, debug);
 
-    println!("{}", asm);
+    println!("{asm}");
 
     Ok(())
 }
@@ -423,7 +421,7 @@ where
 fn typecheck_file<B: Backend>(path: &PathBuf) -> miette::Result<(TypeChecker<B>, Sources)> {
     let code = std::fs::read_to_string(path)
         .into_diagnostic()
-        .wrap_err_with(|| format!("could not read file: `{}` (are you sure it exists?)", path))?;
+        .wrap_err_with(|| format!("could not read file: `{path}` (are you sure it exists?)"))?;
 
     let mut sources = Sources::new();
     let mut tast = TypeChecker::<B>::new();

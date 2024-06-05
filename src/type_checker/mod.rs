@@ -45,11 +45,15 @@ pub struct FullyQualified {
 }
 
 impl FullyQualified {
+    #[must_use]
     pub fn local(name: String) -> Self {
         Self { module: None, name }
     }
 
-    pub fn new(module: &ModulePath, name: &String) -> Self {
+    #[must_use]
+    // TODO: Pass in `String`, instead of `&str`, so we don't hide an
+    // allocation within.
+    pub fn new(module: &ModulePath, name: &str) -> Self {
         let module = match module {
             ModulePath::Local => None,
             ModulePath::Alias(_) => unreachable!(),
@@ -57,7 +61,7 @@ impl FullyQualified {
         };
         Self {
             module,
-            name: name.clone(),
+            name: name.to_string(),
         }
     }
 }
@@ -69,7 +73,7 @@ where
     B: Backend,
 {
     /// the functions present in the scope
-    /// contains at least the set of builtin functions (like assert_eq)
+    /// contains at least the set of builtin functions (like `assert_eq`)
     functions: HashMap<FullyQualified, FnInfo<B>>,
 
     /// Custom structs type information and ASTs for methods.
@@ -78,7 +82,7 @@ where
     /// Constants declared in this module.
     constants: HashMap<FullyQualified, ConstInfo<B::Field>>,
 
-    /// Mapping from node id to TyKind.
+    /// Mapping from node id to `TyKind`.
     /// This can be used by the circuit-writer when it needs type information.
     // TODO: I think we should get rid of this if we can
     node_types: HashMap<usize, TyKind>,
@@ -103,7 +107,7 @@ impl<B: Backend> TypeChecker<B> {
     }
 
     pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
-        self.constants.get(&qualified)
+        self.constants.get(qualified)
     }
 
     /// Returns the number of field elements contained in the given type.
@@ -112,7 +116,7 @@ impl<B: Backend> TypeChecker<B> {
         match typ {
             TyKind::Field => 1,
             TyKind::Custom { module, name } => {
-                let qualified = FullyQualified::new(&module, &name);
+                let qualified = FullyQualified::new(module, name);
                 let struct_info = self
                     .struct_info(&qualified)
                     .expect("bug in the type checker: cannot find struct info");
@@ -132,8 +136,15 @@ impl<B: Backend> TypeChecker<B> {
     }
 }
 
+impl<B: Backend> Default for TypeChecker<B> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<B: Backend> TypeChecker<B> {
     // TODO: we can probably lazy const this
+    #[must_use]
     pub fn new() -> Self {
         let mut type_checker = Self {
             functions: HashMap::new(),
@@ -172,6 +183,7 @@ impl<B: Backend> TypeChecker<B> {
         type_checker
     }
 
+    #[must_use]
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
         Error::new("type-checker", kind, span)
     }
@@ -301,7 +313,7 @@ impl<B: Backend> TypeChecker<B> {
                     }
 
                     // save the function in the typed global env
-                    let fn_kind = FnKind::Native(function.clone());
+                    let fn_kind = FnKind::<B>::Native(function.clone());
                     let fn_info = FnInfo {
                         kind: fn_kind,
                         span: function.span,
