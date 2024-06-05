@@ -14,7 +14,6 @@ macro_rules! create_test_with_error {
             let actual_error = res.unwrap_err().kind;
 
             assert!(matches!(actual_error, $expected_error));
-
         }
     };
 }
