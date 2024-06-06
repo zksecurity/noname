@@ -94,25 +94,6 @@ where
         }
     }
 
-    /// Create a linear combination to represent constant zero.
-    fn zero(span: Span) -> Self {
-        LinearCombination {
-            terms: HashMap::new(),
-            constant: F::zero(),
-            span,
-        }
-    }
-
-    /// Create a linear combination from a list of vars
-    fn from_vars(vars: Vec<CellVar>, span: Span) -> Self {
-        let terms = vars.into_iter().map(|var| (var, F::one())).collect();
-        LinearCombination {
-            terms,
-            constant: F::zero(),
-            span,
-        }
-    }
-
     /// Create a linear combination from a constant.
     fn from_const(cst: F, span: Span) -> Self {
         LinearCombination {
