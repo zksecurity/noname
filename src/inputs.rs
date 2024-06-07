@@ -1,17 +1,14 @@
 //! Used to parse public and private inputs to a program.
 
-use std::{collections::HashMap, str::FromStr};
-
+use std::{collections::HashMap, fs, str::FromStr};
+use camino::Utf8PathBuf as PathBuf;
 use ark_ff::{One, PrimeField, Zero};
 use miette::Diagnostic;
 use num_bigint::BigUint;
 use thiserror::Error;
 
 use crate::{
-    backends::{kimchi::VestaField, Backend},
-    parser::types::TyKind,
-    type_checker::FullyQualified,
-    witness::CompiledCircuit,
+    backends::{kimchi::VestaField, Backend}, error::Error, parser::types::TyKind, type_checker::FullyQualified, witness::CompiledCircuit
 };
 
 //
@@ -22,6 +19,9 @@ use crate::{
 pub enum ParsingError {
     #[error(transparent)]
     IoError(#[from] serde_json::Error),
+
+    #[error("error parsing JSON data `{0}`")]
+    JsonParsingError(#[from] std::io::Error),
 
     #[error("error parsing input {0}")]
     Inputs(String),
@@ -42,11 +42,22 @@ pub enum ParsingError {
 #[derive(Default, serde::Deserialize, Clone)]
 pub struct JsonInputs(pub HashMap<String, serde_json::Value>);
 
+// pub struct 
+
 pub fn parse_inputs(s: &str) -> Result<JsonInputs, ParsingError> {
     let json_inputs: JsonInputs = serde_json::from_str(s)?;
     Ok(json_inputs)
 }
 
+pub fn parse_json_file_inputs(path: PathBuf) -> Result<JsonInputs, ParsingError> {
+
+   let json_file_content = fs::read_to_string(&path)
+   .map_err(ParsingError::JsonParsingError)?;
+
+   let json_inputs = parse_inputs(&json_file_content)?;
+   
+   Ok(json_inputs)
+}
 //
 // JSON deserialization of a single input
 //
