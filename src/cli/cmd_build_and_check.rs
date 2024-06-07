@@ -269,13 +269,20 @@ pub struct CmdTest {
     )]
     backend: String,
 
+    // this is the line that is responsible for reading input as a string ,
+    // both  public_inputs_str and private_inputs_str: take in Option<String> we need to change the ype of the Option so they take in a file instead 
+    // now we need to be able to read input as json - change it to Option<Pathbuf>
+
     /// public inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
     #[clap(long)]
-    public_inputs: Option<String>,
+    public_inputs_str: Option<String>,
 
     /// private inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
     #[clap(long)]
-    private_inputs: Option<String>,
+    private_inputs_str: Option<String>,
+
+
+ 
 
     /// prints debug information (defaults to false)
     #[clap(short, long)]
@@ -290,13 +297,13 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
     let backend = args.backend;
 
     // parse inputs
-    let public_inputs = if let Some(s) = args.public_inputs {
+    let public_inputs_str = if let Some(s) = args.public_inputs_str {
         parse_inputs(&s)?
     } else {
         JsonInputs::default()
     };
 
-    let private_inputs = if let Some(s) = args.private_inputs {
+    let private_inputs_str = if let Some(s) = args.private_inputs_str {
         parse_inputs(&s)?
     } else {
         JsonInputs::default()
@@ -322,19 +329,19 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
             println!("{asm}");
 
             // create proof
-            let (proof, full_public_inputs, _public_output) =
-                prover_index.prove(&sources, public_inputs, private_inputs, args.debug)?;
+            let (proof, full_public_inputs_str, _public_output) =
+                prover_index.prove(&sources, public_inputs_str, private_inputs_str, args.debug)?;
             println!("proof created");
 
             // verify proof
-            verifier_index.verify(full_public_inputs, proof)?;
+            verifier_index.verify(full_public_inputs_str, proof)?;
             println!("proof verified");
         }
         BackendKind::R1csBls12_381(r1cs) => {
-            test_r1cs_backend(r1cs, &args.path, public_inputs, private_inputs, args.debug)?;
+            test_r1cs_backend(r1cs, &args.path, public_inputs_str, private_inputs_str, args.debug)?;
         }
         BackendKind::R1csBn254(r1cs) => {
-            test_r1cs_backend(r1cs, &args.path, public_inputs, private_inputs, args.debug)?;
+            test_r1cs_backend(r1cs, &args.path, public_inputs_str, private_inputs_str, args.debug)?;
         }
     }
 
@@ -355,14 +362,16 @@ pub struct CmdRun {
         help = SUPPORTED_BACKENDS.as_str()
     )]
     backend: Option<String>,
-
+    
+    //TODO
     /// JSON encoding of the public inputs. For example: `--public-inputs {"a": "1", "b": ["2", "3"]}`.
     #[clap(long, value_parser, default_value = "{}")]
-    public_inputs: Option<String>,
+    // we'll change the option path string to Option<PathBuf>
+    public_inputs_str: Option<String>,
 
     /// JSON encoding of the private inputs. Similar to `--public-inputs` but for private inputs.
     #[clap(long, value_parser, default_value = "{}")]
-    private_inputs: Option<String>,
+    private_inputs_str: Option<String>,
 }
 
 pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
@@ -373,13 +382,13 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
     let backend = args.backend.unwrap();
 
     // parse inputs
-    let public_inputs = if let Some(s) = args.public_inputs {
+    let public_inputs_str = if let Some(s) = args.public_inputs_str {
         parse_inputs(&s)?
     } else {
         JsonInputs::default()
     };
 
-    let private_inputs = if let Some(s) = args.private_inputs {
+    let private_inputs_str = if let Some(s) = args.private_inputs_str {
         parse_inputs(&s)?
     } else {
         JsonInputs::default()
@@ -396,10 +405,10 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
             unimplemented!("kimchi-vesta backend is not yet supported for this command")
         }
         BackendKind::R1csBls12_381(r1cs) => {
-            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
+            run_r1cs_backend(r1cs, &curr_dir, public_inputs_str, private_inputs_str)?
         }
         BackendKind::R1csBn254(r1cs) => {
-            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
+            run_r1cs_backend(r1cs, &curr_dir, public_inputs_str, private_inputs_str)?
         }
     }
 
@@ -409,19 +418,19 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
 fn run_r1cs_backend<F>(
     r1cs: R1CS<F>,
     curr_dir: &PathBuf,
-    public_inputs: JsonInputs,
-    private_inputs: JsonInputs,
+    public_inputs_str: JsonInputs,
+    private_inputs_str: JsonInputs,
 ) -> miette::Result<()>
 where
     F: BackendField,
 {
-    // Assuming `curr_dir`, `public_inputs`, and `private_inputs` are available in the scope
+    // Assuming `curr_dir`, `public_inputs_str`, and `private_inputs_str` are available in the scope
     let (sources, tast) = produce_all_asts(curr_dir)?;
 
     let compiled_circuit = compile(&sources, tast, r1cs)?;
 
     let generated_witness =
-        generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
+        generate_witness(&compiled_circuit, &sources, public_inputs_str, private_inputs_str)?;
 
     let snarkjs_exporter = SnarkjsExporter::new(compiled_circuit.circuit.backend);
 
@@ -442,8 +451,8 @@ where
 fn test_r1cs_backend<F: BackendField>(
     r1cs: R1CS<F>,
     path: &PathBuf,
-    public_inputs: JsonInputs,
-    private_inputs: JsonInputs,
+    public_inputs_str: JsonInputs,
+    private_inputs_str: JsonInputs,
     debug: bool,
 ) -> miette::Result<()>
 where
@@ -453,7 +462,7 @@ where
 
     let compiled_circuit = compile(&sources, tast, r1cs)?;
 
-    generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
+    generate_witness(&compiled_circuit, &sources, public_inputs_str, private_inputs_str)?;
 
     let asm = compiled_circuit.asm(&sources, debug);
 
