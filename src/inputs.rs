@@ -1,6 +1,6 @@
 //! Used to parse public and private inputs to a program.
 
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, fs::File, io::Read, str::FromStr};
 
 use ark_ff::{One, PrimeField, Zero};
 use miette::Diagnostic;
@@ -20,8 +20,11 @@ use crate::{
 
 #[derive(Error, Diagnostic, Debug)]
 pub enum ParsingError {
-    #[error(transparent)]
-    IoError(#[from] serde_json::Error),
+    #[error("JSON parsing error in file {file}: {source}")]
+    JsonFileError {
+        source: serde_json::Error,
+        file: String,
+    },
 
     #[error("error parsing input {0}")]
     Inputs(String),
@@ -43,7 +46,20 @@ pub enum ParsingError {
 pub struct JsonInputs(pub HashMap<String, serde_json::Value>);
 
 pub fn parse_inputs(s: &str) -> Result<JsonInputs, ParsingError> {
-    let json_inputs: JsonInputs = serde_json::from_str(s)?;
+    if let Ok(json_inputs) = serde_json::from_str(s) {
+        return Ok(json_inputs);
+    }
+
+    let mut file = File::open(s).map_err(|_| ParsingError::Inputs(s.to_string()))?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .map_err(|_| ParsingError::Inputs(s.to_string()))?;
+
+    let json_inputs = serde_json::from_str(&contents).map_err(|e| ParsingError::JsonFileError {
+        source: e,
+        file: s.to_string(),
+    })?;
+
     Ok(json_inputs)
 }
 
