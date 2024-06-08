@@ -15,7 +15,7 @@ use crate::{
     },
     cli::packages::path_to_package,
     compiler::{compile, generate_witness, typecheck_next_file, Sources},
-    inputs::{parse_inputs, JsonInputs},
+    inputs::{parse_inputs,parse_json_file_inputs,JsonInputs},
     type_checker::TypeChecker,
 };
 
@@ -269,10 +269,6 @@ pub struct CmdTest {
     )]
     backend: String,
 
-    // this is the line that is responsible for reading input as a string ,
-    // both  public_inputs_str and private_inputs_str: take in Option<String> we need to change the ype of the Option so they take in a file instead 
-    // now we need to be able to read input as json - change it to Option<Pathbuf>
-
     /// public inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
     #[clap(long)]
     public_inputs_str: Option<String>,
@@ -280,9 +276,6 @@ pub struct CmdTest {
     /// private inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
     #[clap(long)]
     private_inputs_str: Option<String>,
-
-
- 
 
     /// prints debug information (defaults to false)
     #[clap(short, long)]
@@ -297,14 +290,20 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
     let backend = args.backend;
 
     // parse inputs
+    
+    // try to parse inputs is to try to parse json , if it does not work , then we would use filepath
     let public_inputs_str = if let Some(s) = args.public_inputs_str {
-        parse_inputs(&s)?
+        parse_inputs(&s)
+            .or_else(|_| parse_json_file_inputs(&s))
+            .unwrap_or_else(|_| JsonInputs::default())
     } else {
         JsonInputs::default()
     };
 
     let private_inputs_str = if let Some(s) = args.private_inputs_str {
-        parse_inputs(&s)?
+        parse_inputs(&s)
+            .or_else(|_| parse_json_file_inputs(&s))
+            .unwrap_or_else(|_| JsonInputs::default())
     } else {
         JsonInputs::default()
     };
@@ -363,15 +362,14 @@ pub struct CmdRun {
     )]
     backend: Option<String>,
     
-    //TODO
-    /// JSON encoding of the public inputs. For example: `--public-inputs {"a": "1", "b": ["2", "3"]}`.
+    /// JSON encoding of the public inputs. For example: `--public-inputs-str {"a": "1", "b": ["2", "3"]}`.
     #[clap(long, value_parser, default_value = "{}")]
-    // we'll change the option path string to Option<PathBuf>
     public_inputs_str: Option<String>,
 
-    /// JSON encoding of the private inputs. Similar to `--public-inputs` but for private inputs.
+    /// JSON encoding of the private inputs. Similar to `--public-inputs-str` but for private inputs.
     #[clap(long, value_parser, default_value = "{}")]
     private_inputs_str: Option<String>,
+
 }
 
 pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
@@ -383,13 +381,17 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
 
     // parse inputs
     let public_inputs_str = if let Some(s) = args.public_inputs_str {
-        parse_inputs(&s)?
+         parse_inputs(&s)
+            .or_else(|_| parse_json_file_inputs(&s))
+            .unwrap_or_else(|_| JsonInputs::default())
     } else {
         JsonInputs::default()
     };
 
     let private_inputs_str = if let Some(s) = args.private_inputs_str {
-        parse_inputs(&s)?
+         parse_inputs(&s)
+            .or_else(|_| parse_json_file_inputs(&s))
+            .unwrap_or_else(|_| JsonInputs::default())
     } else {
         JsonInputs::default()
     };
@@ -482,3 +484,18 @@ fn typecheck_file<B: Backend>(path: &PathBuf) -> miette::Result<(TypeChecker<B>,
 
     Ok((tast, sources))
 }
+
+
+//Cmd test struct
+
+// cmd_test
+
+//CmdRun struct
+
+//cmd_run
+
+// run_r1cs_backend
+
+//test_r1cs_backend
+
+
