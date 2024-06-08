@@ -10,7 +10,7 @@ use crate::{
             prover::{ProverIndex, VerifierIndex},
             KimchiVesta,
         },
-        r1cs::{snarkjs, snarkjs::SnarkjsExporter, R1CS},
+        r1cs::{snarkjs::SnarkjsExporter, R1CS},
         Backend, BackendField, BackendKind,
     },
     cli::packages::path_to_package,
