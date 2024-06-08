@@ -156,7 +156,6 @@ pub struct Ty {
 }
 
 /// The module preceding structs, functions, or variables.
-// TODO: Hash should probably be implemented manually, right now two alias might have different span and so this will give different hashes
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum ModulePath {
     #[default]
@@ -393,7 +392,7 @@ impl FnSig {
 }
 
 /// Any kind of text that can represent a type, a variable, a function name, etc.
-#[derive(Debug, Default, Clone, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct Ident {
     pub value: String,
     pub span: Span,
@@ -402,13 +401,6 @@ pub struct Ident {
 impl PartialEq for Ident {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
-    }
-}
-
-impl Hash for Ident {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.value.hash(state);
-        self.span.hash(state);
     }
 }
 
