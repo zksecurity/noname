@@ -31,6 +31,12 @@ pub enum ParsingError {
 
     #[error("mismatch between expected argument format ({0}), and given argument in JSON (`{1}`)")]
     MismatchJsonArgument(TyKind, serde_json::Value),
+
+    #[error("path does not exist: {0}")]
+    PathDoesNotExist(String),
+
+    #[error("path is a directory, not a file: {0}")]
+    PathIsDirectory(String),
 }
 
 //
@@ -49,13 +55,23 @@ pub fn parse_inputs(s: &str) -> Result<JsonInputs, ParsingError> {
     Ok(json_inputs)
 }
 
-pub fn parse_json_file_inputs(path: PathBuf) -> Result<JsonInputs, ParsingError> {
+pub fn parse_json_file_inputs(s: &str) -> Result<JsonInputs, ParsingError> {
+   let path = PathBuf::from(s); 
+   
+   if !path.exists() {
+     return Err(ParsingError::PathDoesNotExist(path.into_string()));
+   };
+
+   if path.is_dir() {
+     return Err(ParsingError::PathIsDirectory(path.into_string()));
+   };
 
    let json_file_content = fs::read_to_string(&path)
+   
    .map_err(ParsingError::JsonParsingError)?;
 
    let json_inputs = parse_inputs(&json_file_content)?;
-   
+
    Ok(json_inputs)
 }
 //
