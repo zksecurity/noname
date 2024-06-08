@@ -553,8 +553,7 @@ impl<B: Backend> CircuitWriter<B> {
 
             ExprKind::Negated(b) => {
                 let var = self.compute_expr(fn_env, b)?.unwrap();
-
-                let var = var.value(self, fn_env);
+                let _var = var.value(self, fn_env);
 
                 todo!()
             }

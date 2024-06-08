@@ -147,7 +147,6 @@ impl<B: Backend> CircuitWriter<B> {
         let mut circuit_writer = CircuitWriter::new(typed, backend);
 
         // get main function
-        let qualified = FullyQualified::local("main".to_string());
         let main_fn_info = circuit_writer.main_info()?;
 
         let function = match &main_fn_info.kind {
