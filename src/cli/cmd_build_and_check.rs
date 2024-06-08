@@ -10,7 +10,7 @@ use crate::{
             prover::{ProverIndex, VerifierIndex},
             KimchiVesta,
         },
-        r1cs::{snarkjs::SnarkjsExporter, R1CS},
+        r1cs::{snarkjs, snarkjs::SnarkjsExporter, R1CS},
         Backend, BackendField, BackendKind,
     },
     cli::packages::path_to_package,
@@ -428,9 +428,9 @@ where
     let r1cs_output_path = curr_dir.join("output.r1cs");
     let wtns_output_path = curr_dir.join("output.wtns");
 
-    snarkjs_exporter.gen_r1cs_file(&r1cs_output_path.clone().into_string());
+    snarkjs_exporter.gen_r1cs_file(&r1cs_output_path.clone().into_string())?;
 
-    snarkjs_exporter.gen_wtns_file(&wtns_output_path.clone().into_string(), generated_witness);
+    snarkjs_exporter.gen_wtns_file(&wtns_output_path.clone().into_string(), generated_witness)?;
 
     // display the info for the generated files
     println!("Snarkjs R1CS file generated at: {}", r1cs_output_path);
