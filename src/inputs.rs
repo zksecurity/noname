@@ -8,7 +8,8 @@ use num_bigint::BigUint;
 use thiserror::Error;
 
 use crate::{
-    backends::{kimchi::VestaField, Backend}, error::Error, parser::types::TyKind, type_checker::FullyQualified, witness::CompiledCircuit
+     error::{Error, ErrorKind},
+    backends::{kimchi::VestaField, Backend}, parser::types::TyKind, type_checker::FullyQualified, witness::CompiledCircuit
 };
 
 //
@@ -57,7 +58,7 @@ pub fn parse_inputs(s: &str) -> Result<JsonInputs, ParsingError> {
 
 pub fn parse_json_file_inputs(s: &str) -> Result<JsonInputs, ParsingError> {
    let path = PathBuf::from(s); 
-   
+
    if !path.exists() {
      return Err(ParsingError::PathDoesNotExist(path.into_string()));
    };
