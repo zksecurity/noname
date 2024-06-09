@@ -271,12 +271,12 @@ pub struct CmdTest {
     backend: String,
 
     /// public inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"}) or
-    /// we can also pass the input as a path to the json file examples/input1/public_inputs.json
+    /// we can also pass the input as a path to the json file (e.g examples/input1/public_inputs.json )
     #[clap(long,value_parser)]
     public_inputs_str: Option<String>,
 
     /// private inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
-    /// we can also pass the input as a path to the json file examples/input1/private_inputs.json
+    /// we can also pass the input as a path to the json file (e.g examples/input1/private_inputs.json)
     #[clap(long,value_parser)]
     private_inputs_str: Option<String>,
 
@@ -297,10 +297,9 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
     // try to parse inputs as json string arguments, if it does not work, then we would use filepath 
 
     let public_inputs_str = if let Some(s) = args.public_inputs_str {
-   
         parse_inputs(&s)
             .or_else(|_| parse_json_file_inputs(&s))
-            .unwrap_or_else(|e| panic!("Failed to parse inputs, {}", e))
+            .unwrap_or_else(|e| panic!("Failed to parse input, {}", e))
     } else {
         JsonInputs::default()
     };
@@ -308,7 +307,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
     let private_inputs_str = if let Some(s) = args.private_inputs_str {
         parse_inputs(&s)
             .or_else(|_| parse_json_file_inputs(&s))
-            .unwrap_or_else(|e| panic!("Failed to parse inputs, {}", e))
+            .unwrap_or_else(|e| panic!("Failed to parse input, {}", e))
     } else {
         JsonInputs::default()
     };
@@ -368,12 +367,12 @@ pub struct CmdRun {
     backend: Option<String>,
     
     /// JSON encoding of the public inputs. For example: `--public-inputs-str {"a": "1", "b": ["2", "3"]}`.
-    /// we can also pass the input as a path to the json file examples/input1/public_inputs.json
+    /// we can also pass the input as a path to the json file (e.g examples/input1/public_inputs.json)
     #[clap(long, value_parser, default_value = "{}")]
     public_inputs_str: Option<String>,
 
     /// JSON encoding of the private inputs. Similar to `--public-inputs-str` but for private inputs.
-    /// we can also pass the input as a path to the json file examples/input1/public_inputs.json
+    /// we can also pass the input as a path to the json file (e.g examples/input1/public_inputs.json)
     #[clap(long, value_parser, default_value = "{}")]
     private_inputs_str: Option<String>,
 
@@ -390,18 +389,16 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
     let public_inputs_str = if let Some(s) = args.public_inputs_str {
          parse_inputs(&s)
             .or_else(|_| parse_json_file_inputs(&s))
-            .unwrap_or_else(|e| panic!("Failed to parse inputs, {}", e))
+            .unwrap_or_else(|e| panic!("Failed to parse input, {}", e))
     } else {
-        print!("json default input block reached");
         JsonInputs::default()
     };
 
     let private_inputs_str = if let Some(s) = args.private_inputs_str {
          parse_inputs(&s)
             .or_else(|_| parse_json_file_inputs(&s))
-            .unwrap_or_else(|e| panic!("Failed to parse inputs, {}", e))
+            .unwrap_or_else(|e| panic!("Failed to parse input, {}", e))
     } else {
-        print!("json default input block reached");
         JsonInputs::default()
     };
 
