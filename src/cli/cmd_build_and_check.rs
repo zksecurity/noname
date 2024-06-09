@@ -271,14 +271,14 @@ pub struct CmdTest {
     backend: String,
 
     /// public inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"}) or
-    /// we can also pass the input as a path to the json file (e.g examples/input1/public_inputs.json )
+    /// public inputs in a JSON file (e.g examples/input1/public_inputs.json )
     #[clap(long,value_parser)]
-    public_inputs_str: Option<String>,
+    public_inputs: Option<String>,
 
     /// private inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
-    /// we can also pass the input as a path to the json file (e.g examples/input1/private_inputs.json)
+    /// private inputs in a JSON file (e.g examples/input1/private_inputs.json)
     #[clap(long,value_parser)]
-    private_inputs_str: Option<String>,
+    private_inputs: Option<String>,
 
     /// prints debug information (defaults to false)
     #[clap(short, long)]
@@ -296,7 +296,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
     
     // try to parse inputs as json string arguments, if it does not work, then we would use filepath 
 
-    let public_inputs_str = if let Some(s) = args.public_inputs_str {
+    let public_inputs = if let Some(s) = args.public_inputs {
         parse_inputs(&s)
             .or_else(|_| parse_json_file_inputs(&s))
             .unwrap_or_else(|e| panic!("Failed to parse input, {}", e))
@@ -304,7 +304,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         JsonInputs::default()
     };
 
-    let private_inputs_str = if let Some(s) = args.private_inputs_str {
+    let private_inputs = if let Some(s) = args.private_inputs {
         parse_inputs(&s)
             .or_else(|_| parse_json_file_inputs(&s))
             .unwrap_or_else(|e| panic!("Failed to parse input, {}", e))
@@ -332,19 +332,19 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
             println!("{asm}");
 
             // create proof
-            let (proof, full_public_inputs_str, _public_output) =
-                prover_index.prove(&sources, public_inputs_str, private_inputs_str, args.debug)?;
+            let (proof, full_public_inputs, _public_output) =
+                prover_index.prove(&sources, public_inputs, private_inputs, args.debug)?;
             println!("proof created");
 
             // verify proof
-            verifier_index.verify(full_public_inputs_str, proof)?;
+            verifier_index.verify(full_public_inputs, proof)?;
             println!("proof verified");
         }
         BackendKind::R1csBls12_381(r1cs) => {
-            test_r1cs_backend(r1cs, &args.path, public_inputs_str, private_inputs_str, args.debug)?;
+            test_r1cs_backend(r1cs, &args.path, public_inputs, private_inputs, args.debug)?;
         }
         BackendKind::R1csBn254(r1cs) => {
-            test_r1cs_backend(r1cs, &args.path, public_inputs_str, private_inputs_str, args.debug)?;
+            test_r1cs_backend(r1cs, &args.path, public_inputs, private_inputs, args.debug)?;
         }
     }
 
@@ -367,14 +367,14 @@ pub struct CmdRun {
     backend: Option<String>,
     
     /// JSON encoding of the public inputs. For example: `--public-inputs-str {"a": "1", "b": ["2", "3"]}`.
-    /// we can also pass the input as a path to the json file (e.g examples/input1/public_inputs.json)
+    /// We can also pass the input as a path to the json file (e.g examples/input1/public_inputs.json)
     #[clap(long, value_parser, default_value = "{}")]
-    public_inputs_str: Option<String>,
+    public_inputs: Option<String>,
 
     /// JSON encoding of the private inputs. Similar to `--public-inputs-str` but for private inputs.
-    /// we can also pass the input as a path to the json file (e.g examples/input1/public_inputs.json)
+    /// We can also pass the input as a path to the json file (e.g examples/input1/public_inputs.json)
     #[clap(long, value_parser, default_value = "{}")]
-    private_inputs_str: Option<String>,
+    private_inputs: Option<String>,
 
 }
 
@@ -386,7 +386,7 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
     let backend = args.backend.unwrap();
 
     // parse inputs
-    let public_inputs_str = if let Some(s) = args.public_inputs_str {
+    let public_inputs = if let Some(s) = args.public_inputs {
          parse_inputs(&s)
             .or_else(|_| parse_json_file_inputs(&s))
             .unwrap_or_else(|e| panic!("Failed to parse input, {}", e))
@@ -394,7 +394,7 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
         JsonInputs::default()
     };
 
-    let private_inputs_str = if let Some(s) = args.private_inputs_str {
+    let private_inputs = if let Some(s) = args.private_inputs {
          parse_inputs(&s)
             .or_else(|_| parse_json_file_inputs(&s))
             .unwrap_or_else(|e| panic!("Failed to parse input, {}", e))
@@ -413,10 +413,10 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
             unimplemented!("kimchi-vesta backend is not yet supported for this command")
         }
         BackendKind::R1csBls12_381(r1cs) => {
-            run_r1cs_backend(r1cs, &curr_dir, public_inputs_str, private_inputs_str)?
+            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
         }
         BackendKind::R1csBn254(r1cs) => {
-            run_r1cs_backend(r1cs, &curr_dir, public_inputs_str, private_inputs_str)?
+            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
         }
     }
 
@@ -426,19 +426,19 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
 fn run_r1cs_backend<F>(
     r1cs: R1CS<F>,
     curr_dir: &PathBuf,
-    public_inputs_str: JsonInputs,
-    private_inputs_str: JsonInputs,
+    public_inputs: JsonInputs,
+    private_inputs: JsonInputs,
 ) -> miette::Result<()>
 where
     F: BackendField,
 {
-    // Assuming `curr_dir`, `public_inputs_str`, and `private_inputs_str` are available in the scope
+    // Assuming `curr_dir`, `public_inputs`, and `private_inputs` are available in the scope
     let (sources, tast) = produce_all_asts(curr_dir)?;
 
     let compiled_circuit = compile(&sources, tast, r1cs)?;
 
     let generated_witness =
-        generate_witness(&compiled_circuit, &sources, public_inputs_str, private_inputs_str)?;
+        generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
 
     let snarkjs_exporter = SnarkjsExporter::new(compiled_circuit.circuit.backend);
 
@@ -459,8 +459,8 @@ where
 fn test_r1cs_backend<F: BackendField>(
     r1cs: R1CS<F>,
     path: &PathBuf,
-    public_inputs_str: JsonInputs,
-    private_inputs_str: JsonInputs,
+    public_inputs: JsonInputs,
+    private_inputs: JsonInputs,
     debug: bool,
 ) -> miette::Result<()>
 where
@@ -470,7 +470,7 @@ where
 
     let compiled_circuit = compile(&sources, tast, r1cs)?;
 
-    generate_witness(&compiled_circuit, &sources, public_inputs_str, private_inputs_str)?;
+    generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
 
     let asm = compiled_circuit.asm(&sources, debug);
 
