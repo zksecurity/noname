@@ -1,5 +1,6 @@
 //! Used to parse public and private inputs to a program.
 
+use core::panic;
 use std::{collections::HashMap, fs, str::FromStr};
 use camino::Utf8PathBuf as PathBuf;
 use ark_ff::{One, PrimeField, Zero};
@@ -68,12 +69,11 @@ pub fn parse_json_file_inputs(s: &str) -> Result<JsonInputs, ParsingError> {
    };
 
    let json_file_content = fs::read_to_string(&path)
+   .unwrap_or_else(|e| panic!("Failed to read file from path: {}", e));
    
-   .map_err(ParsingError::JsonParsingError)?;
-
    let json_inputs = parse_inputs(&json_file_content)?;
 
-   Ok(json_inputs)
+   Ok(json_inputs) 
 }
 //
 // JSON deserialization of a single input
