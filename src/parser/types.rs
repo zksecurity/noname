@@ -1,3 +1,4 @@
+use educe::Educe;
 use std::{
     fmt::Display,
     hash::{Hash, Hasher},
@@ -392,9 +393,11 @@ impl FnSig {
 }
 
 /// Any kind of text that can represent a type, a variable, a function name, etc.
-#[derive(Debug, Default, Clone, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Eq, Serialize, Deserialize, Educe)]
+#[educe(Hash)]
 pub struct Ident {
     pub value: String,
+    #[educe(Hash(ignore))]
     pub span: Span,
 }
 

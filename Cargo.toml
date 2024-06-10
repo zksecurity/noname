@@ -12,6 +12,7 @@ ark-ff = "0.3.0"
 ark-bls12-381 = "0.3.0"                                                                                         # bls12-381 curve for r1cs backend
 ark-bn254 = "0.3.0"                                                                                             # bn128 curve for r1cs backend
 ark-serialize = "0.3.0"                                                                                         # serialization of arkworks types
+educe = { version = "0.6", default-features = false, features = ["Hash"] }
 ena = "0.14.0"                                                                                                  # union-find implementation for the wiring
 num-bigint = "0.4.3"                                                                                            # big int library
 camino = "1.1.1"                                                                                                # to replace Path and PathBuf
@@ -20,16 +21,16 @@ dirs = "4.0.0"                                                                  
 itertools = "0.10.3"                                                                                            # useful iter traits
 kimchi = { git = "https://github.com/o1-labs/proof-systems", rev = "a5d8883ddf649c22f38aaac122d368ecb9fa2230" } # ZKP - Dec 5th, 2023 revision
 #kimchi = { git = "https://github.com/o1-labs/proof-systems", rev = "b9589626f834f9dbf9d587e73fd8176171231e90" } # ZKP
-miette = { version = "5.0.0", features = ["fancy"] } # nice errors
-num-traits = "0.2.15"                                # useful traits on big ints
-once_cell = "1.15.0"                                 # for lazy statics
-regex = "1.6.0"                                      # for regexes
-rmp-serde = "1.1.1"                                  # for serialization
-serde_with = "2.0.1"                                 # for serializing arkworks types
-serde_json = "1.0.85"                                # to (de)serialize JSON
-serde = "1.0.144"                                    # to (de)serialize objects
-thiserror = "1.0.31"                                 # helpful error traits
-toml = "0.8.8"                                       # to parse manifest files
-constraint_writers = { git = "https://github.com/iden3/circom.git", tag = "v2.1.8"}                             # to generate r1cs file
-num-bigint-dig = "0.6.0"                             # to adapt for circom lib
-rstest = "0.19.0"                                    # for testing different backend cases
+miette = { version = "5.0.0", features = ["fancy"] }                                 # nice errors
+num-traits = "0.2.15"                                                                # useful traits on big ints
+once_cell = "1.15.0"                                                                 # for lazy statics
+regex = "1.6.0"                                                                      # for regexes
+rmp-serde = "1.1.1"                                                                  # for serialization
+serde_with = "2.0.1"                                                                 # for serializing arkworks types
+serde_json = "1.0.85"                                                                # to (de)serialize JSON
+serde = "1.0.144"                                                                    # to (de)serialize objects
+thiserror = "1.0.31"                                                                 # helpful error traits
+toml = "0.8.8"                                                                       # to parse manifest files
+constraint_writers = { git = "https://github.com/iden3/circom.git", tag = "v2.1.8" } # to generate r1cs file
+num-bigint-dig = "0.6.0"                                                             # to adapt for circom lib
+rstest = "0.19.0"                                                                    # for testing different backend cases
