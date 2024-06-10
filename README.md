@@ -6,7 +6,7 @@ This is **work-in-progress** to implement a high-level (Rust and Golang-inspired
 
 If you don't know what zero-knowledge proofs, zkapps, or kimchi are, check out [that blogpost](https://minaprotocol.com/blog/kimchi-the-latest-update-to-minas-proof-system).
 
-You can read more about the project on the noname book: https://zksecurity.github.io/noname or my [series of blogposts](https://cryptologie.net/#article_573).
+You can read more about the project on the noname book: https://zksecurity.github.io/noname or my [series of blogposts](https://cryptologie.net/article/573).
 
 I invite you to try to [install](#installation) and [play](#usage) with noname. Please provide feedback and suggestions via the [issues](https://github.com/zksecurity/noname/issues).
 
