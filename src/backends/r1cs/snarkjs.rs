@@ -316,6 +316,6 @@ impl WitnessWriter {
 
         let mut buffer = vec![0u8; size];
         buffer[..bytes.len()].copy_from_slice(&bytes);
-        Ok(self.inner.write_all(&buffer)?)
+        self.inner.write_all(&buffer)
     }
 }
