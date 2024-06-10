@@ -265,7 +265,8 @@ pub struct CmdTest {
         short,
         long,
         value_parser,
-        help = SUPPORTED_BACKENDS.as_str()
+        help = SUPPORTED_BACKENDS.as_str(),
+        default_value = "r1cs-bn254"
     )]
     backend: String,
 
