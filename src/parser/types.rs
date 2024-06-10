@@ -394,17 +394,12 @@ impl FnSig {
 
 /// Any kind of text that can represent a type, a variable, a function name, etc.
 #[derive(Debug, Default, Clone, Eq, Serialize, Deserialize, Educe)]
-#[educe(Hash)]
+#[educe(Hash, PartialEq)]
 pub struct Ident {
     pub value: String,
     #[educe(Hash(ignore))]
+    #[educe(PartialEq(ignore))]
     pub span: Span,
-}
-
-impl PartialEq for Ident {
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
-    }
 }
 
 impl Ident {

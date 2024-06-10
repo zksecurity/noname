@@ -12,7 +12,7 @@ ark-ff = "0.3.0"
 ark-bls12-381 = "0.3.0"                                                                                         # bls12-381 curve for r1cs backend
 ark-bn254 = "0.3.0"                                                                                             # bn128 curve for r1cs backend
 ark-serialize = "0.3.0"                                                                                         # serialization of arkworks types
-educe = { version = "0.6", default-features = false, features = ["Hash"] }
+educe = { version = "0.6", default-features = false, features = ["Hash", "PartialEq"] }
 ena = "0.14.0"                                                                                                  # union-find implementation for the wiring
 num-bigint = "0.4.3"                                                                                            # big int library
 camino = "1.1.1"                                                                                                # to replace Path and PathBuf
