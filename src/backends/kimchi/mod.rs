@@ -704,7 +704,6 @@ impl Backend for KimchiVesta {
 
     fn assert_eq_var(&mut self, lhs: &KimchiCellVar, rhs: &KimchiCellVar, span: Span) {
         // TODO: use permutation to check that
-        // use copy constraint here
 
         let vars = vec![Some(*lhs), Some(*rhs)];
         let coeffs = vec![Self::Field::one(), Self::Field::one().neg()];
