@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use camino::Utf8PathBuf as PathBuf;
+use clap::ValueEnum;
 use miette::{Context, IntoDiagnostic};
-use once_cell::sync::Lazy;
 
 use crate::{
     backends::{
@@ -25,40 +23,23 @@ use super::packages::{
 
 const COMPILED_DIR: &str = "compiled";
 
-#[derive(Clone)]
+/// Possible backends to be used in proving.
+#[derive(Clone, ValueEnum)]
 enum BackendOpt {
     KimchiVesta,
     R1csBls12_381,
     R1csBn254,
 }
 
-impl BackendOpt {
-    pub fn from_str(s: &str) -> miette::Result<Self> {
-        BACKEND_OPT_MAP
-            .get(s)
-            .cloned()
-            .ok_or_else(|| miette::miette!("unknown backend: `{}`", s))
+impl From<BackendOpt> for BackendKind {
+    fn from(value: BackendOpt) -> Self {
+        match value {
+            BackendOpt::KimchiVesta => BackendKind::new_kimchi_vesta(false),
+            BackendOpt::R1csBls12_381 => BackendKind::new_r1cs_bls12_381(),
+            BackendOpt::R1csBn254 => BackendKind::new_r1cs_bn254(),
+        }
     }
 }
-
-static BACKEND_OPT_MAP: Lazy<HashMap<&'static str, BackendOpt>> = Lazy::new(|| {
-    let mut m = HashMap::new();
-    m.insert("kimchi-vesta", BackendOpt::KimchiVesta);
-    m.insert("r1cs-bls12-381", BackendOpt::R1csBls12_381);
-    m.insert("r1cs-bn254", BackendOpt::R1csBn254);
-    m
-});
-
-static SUPPORTED_BACKENDS: Lazy<String> = Lazy::new(|| {
-    format!(
-        "Supported backends: `{}`",
-        BACKEND_OPT_MAP
-            .keys()
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>()
-            .join(", ")
-    )
-});
 
 #[derive(clap::Parser)]
 pub struct CmdBuild {
@@ -261,14 +242,10 @@ pub struct CmdTest {
     path: PathBuf,
 
     /// Backend to use for running the noname file.
-    #[clap(
-        short,
-        long,
-        value_parser,
-        help = SUPPORTED_BACKENDS.as_str(),
-        default_value = "r1cs-bn254"
-    )]
-    backend: String,
+
+    #[clap(short, long, default_value = "r1cs-bn254")]
+    #[arg(value_enum)]
+    backend: BackendOpt,
 
     /// public inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
     #[clap(long)]
@@ -288,8 +265,6 @@ pub struct CmdTest {
 }
 
 pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
-    let backend = args.backend;
-
     // parse inputs
     let public_inputs = if let Some(s) = args.public_inputs {
         parse_inputs(&s)?
@@ -303,13 +278,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         JsonInputs::default()
     };
 
-    let backend_kind = match BackendOpt::from_str(backend.as_str())? {
-        BackendOpt::KimchiVesta => BackendKind::new_kimchi_vesta(false),
-        BackendOpt::R1csBls12_381 => BackendKind::new_r1cs_bls12_381(),
-        BackendOpt::R1csBn254 => BackendKind::new_r1cs_bn254(),
-    };
-
-    match backend_kind {
+    match BackendKind::from(args.backend) {
         BackendKind::KimchiVesta(_) => {
             let (tast, sources) = typecheck_file(&args.path)?;
             let kimchi_vesta = KimchiVesta::new(args.double);
@@ -349,13 +318,9 @@ pub struct CmdRun {
     path: Option<PathBuf>,
 
     /// Backend to use for running the noname file.
-    #[clap(
-        short,
-        long,
-        value_parser,
-        help = SUPPORTED_BACKENDS.as_str()
-    )]
-    backend: Option<String>,
+    #[clap(short, long, default_value = "r1cs-bn254")]
+    #[arg(value_enum)]
+    backend: BackendOpt,
 
     /// JSON encoding of the public inputs. For example: `--public-inputs {"a": "1", "b": ["2", "3"]}`.
     #[clap(long, value_parser, default_value = "{}")]
@@ -371,8 +336,6 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let backend = args.backend.unwrap();
-
     // parse inputs
     let public_inputs = if let Some(s) = args.public_inputs {
         parse_inputs(&s)?
@@ -386,13 +349,7 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
         JsonInputs::default()
     };
 
-    let backend_kind = match BackendOpt::from_str(backend.as_str())? {
-        BackendOpt::KimchiVesta => BackendKind::new_kimchi_vesta(false),
-        BackendOpt::R1csBls12_381 => BackendKind::new_r1cs_bls12_381(),
-        BackendOpt::R1csBn254 => BackendKind::new_r1cs_bn254(),
-    };
-
-    match backend_kind {
+    match BackendKind::from(args.backend) {
         BackendKind::KimchiVesta(_) => {
             unimplemented!("kimchi-vesta backend is not yet supported for this command")
         }
