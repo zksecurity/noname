@@ -651,7 +651,6 @@
 <a href="#651" id="651">651</a>
 <a href="#652" id="652">652</a>
 <a href="#653" id="653">653</a>
-<a href="#654" id="654">654</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>builtin;
 <span class="kw">pub mod </span>snarkjs;
 
@@ -679,7 +678,7 @@
 
 <span class="attr">#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>CellVar {
-    <span class="kw">pub </span>index: usize,
+    index: usize,
     <span class="kw">pub </span>span: Span,
 }
 
@@ -855,7 +854,7 @@
     <span class="doccomment">/// Record the public inputs for reordering the witness vector
     </span>public_inputs: Vec&lt;CellVar&gt;,
     <span class="doccomment">/// Record the private inputs for checking
-    </span>private_input_indices: Vec&lt;(usize, Span)&gt;,
+    </span>private_input_cell_vars: Vec&lt;CellVar&gt;,
     <span class="doccomment">/// Record the public outputs for reordering the witness vector
     </span>public_outputs: Vec&lt;CellVar&gt;,
     finalized: bool,
@@ -871,7 +870,7 @@
             witness_vector: Vec::new(),
             debug_info: Vec::new(),
             public_inputs: Vec::new(),
-            private_input_indices: Vec::new(),
+            private_input_cell_vars: Vec::new(),
             public_outputs: Vec::new(),
             finalized: <span class="bool-val">false</span>,
         }
@@ -1023,15 +1022,15 @@
             }
 
             <span class="kw">if </span>!written_vars.contains(<span class="kw-2">&amp;</span>index) {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, private_input_span)) = <span class="self">self
-                    </span>.private_input_indices
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(private_cell_var) = <span class="self">self
+                    </span>.private_input_cell_vars
                     .iter()
-                    .find(|(private_input_id, <span class="kw">_</span>)| private_input_id == <span class="kw-2">&amp;</span>index)
+                    .find(|private_cell_var| private_cell_var.index == index)
                 {
                     <span class="kw">let </span>err = Error::new(
                         <span class="string">"constraint-finalization"</span>,
                         ErrorKind::PrivateInputNotUsed,
-                        <span class="kw-2">*</span>private_input_span,
+                        private_cell_var.span,
                     );
                     <span class="kw">return </span><span class="prelude-val">Err</span>(err);
                 } <span class="kw">else </span>{
@@ -1238,8 +1237,7 @@
     <span class="doccomment">/// Adds the private input cell vars.
     </span><span class="kw">fn </span>add_private_input(<span class="kw-2">&amp;mut </span><span class="self">self</span>, val: Value&lt;<span class="self">Self</span>&gt;, span: Span) -&gt; LinearCombination&lt;F&gt; {
         <span class="kw">let </span>var = <span class="self">self</span>.new_internal_var(val, span);
-        <span class="self">self</span>.private_input_indices
-            .push((var.to_cell_var().index, span));
+        <span class="self">self</span>.private_input_cell_vars.push(<span class="kw-2">*</span>var.to_cell_var());
 
         var
     }

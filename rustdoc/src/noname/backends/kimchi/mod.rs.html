@@ -854,7 +854,7 @@
 
     <span class="doccomment">/// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) private_input_indices: Vec&lt;(usize, Span)&gt;,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) private_input_cell_vars: Vec&lt;KimchiCellVar&gt;,
 }
 
 <span class="kw">impl </span>Witness {
@@ -900,7 +900,7 @@
             debug_info: <span class="macro">vec!</span>[],
             finalized: <span class="bool-val">false</span>,
             public_input_size: <span class="number">0</span>,
-            private_input_indices: <span class="macro">vec!</span>[],
+            private_input_cell_vars: <span class="macro">vec!</span>[],
         }
     }
 
@@ -1001,7 +1001,7 @@
 
 <span class="attr">#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>KimchiCellVar {
-    <span class="kw">pub </span>index: usize,
+    index: usize,
     <span class="kw">pub </span>span: Span,
 }
 
@@ -1086,16 +1086,16 @@
 
         <span class="kw">for </span>var <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.next_variable {
             <span class="kw">if </span>!written_vars.contains(<span class="kw-2">&amp;</span>var) {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, private_input_span)) = <span class="self">self
-                    </span>.private_input_indices
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(private_cell_var) = <span class="self">self
+                    </span>.private_input_cell_vars
                     .iter()
-                    .find(|(private_input_id, <span class="kw">_</span>)| private_input_id == <span class="kw-2">&amp;</span>var)
+                    .find(|private_cell_var| private_cell_var.index == var)
                 {
                     <span class="comment">// TODO: is this error useful?
                     </span><span class="kw">let </span>err = Error::new(
                         <span class="string">"constraint-finalization"</span>,
                         ErrorKind::PrivateInputNotUsed,
-                        <span class="kw-2">*</span>private_input_span,
+                        private_cell_var.span,
                     );
                     <span class="kw">return </span><span class="prelude-val">Err</span>(err);
                 } <span class="kw">else </span>{
@@ -1488,7 +1488,7 @@
 
     <span class="kw">fn </span>add_private_input(<span class="kw-2">&amp;mut </span><span class="self">self</span>, val: Value&lt;<span class="self">Self</span>&gt;, span: Span) -&gt; <span class="self">Self</span>::Var {
         <span class="kw">let </span>cvar = <span class="self">self</span>.new_internal_var(val, span);
-        <span class="self">self</span>.private_input_indices.push((cvar.index, cvar.span));
+        <span class="self">self</span>.private_input_cell_vars.push(cvar);
 
         cvar
     }
