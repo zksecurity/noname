@@ -71,9 +71,6 @@ where
     r1cs_backend: R1CS<F>,
 }
 
-// TODO: The impls in this file return a `noname::error::Result`, but writers return
-// std::io::Error. Remove this allowance once we properly handle errors.
-#[allow(unused_results)]
 impl<F> SnarkjsExporter<F>
 where
     F: BackendField,
@@ -235,7 +232,7 @@ impl WitnessWriter {
             file_type_bytes.len() == 4,
             "File type must be 4 characters long"
         );
-        writer.write_all(file_type_bytes);
+        writer.write_all(file_type_bytes)?;
 
         // Write the version as a 32-bit unsigned integer in little endian
         writer.write_all(&version.to_le_bytes())?;
@@ -308,6 +305,8 @@ impl WitnessWriter {
         // Start writing the second section
         self.start_write_section(2)?;
 
+        // Write the witness values to the file
+        // Each witness value occupies the same number of bytes as the prime field
         for value in witness {
             self.write_big_int(value.clone(), field_n_bytes)?;
         }
