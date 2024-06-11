@@ -704,12 +704,55 @@ impl Backend for KimchiVesta {
 
     fn assert_eq_var(&mut self, lhs: &KimchiCellVar, rhs: &KimchiCellVar, span: Span) {
         // TODO: use permutation to check that
-        self.add_generic_gate(
-            "constrain lhs - rhs = 0 to assert that they are equal",
-            vec![Some(*lhs), Some(*rhs)],
-            vec![Self::Field::one(), Self::Field::one().neg()],
+        // use copy constraint here
+
+        let vars = vec![Some(*lhs), Some(*rhs)];
+        let coeffs = vec![Self::Field::one(), Self::Field::one().neg()];
+
+        // sanitize
+        assert!(coeffs.len() <= NUM_REGISTERS);
+        assert!(vars.len() <= NUM_REGISTERS);
+
+        // construct the execution trace with vars, for the witness generation
+        self.witness_table.push(vars.clone());
+
+        // get current row
+        let row = self.gates.len();
+
+        let debug_info = DebugInfo {
             span,
-        );
+            note: String::from("constrain lhs - rhs = 0 to assert that they are equal")
+        };
+
+        // wiring (based on vars)
+        for (col, var) in vars.iter().enumerate() {
+            if let Some(var) = var {
+                let curr_cell = Cell { row, col };
+                let annotated_cell = AnnotatedCell {
+                    cell: curr_cell,
+                    debug: debug_info.clone(),
+                };
+
+                self.wiring
+                    .entry(var.index)
+                    .and_modify(|w| match w {
+                        Wiring::NotWired(old_cell) => {
+                            *w = Wiring::Wired(vec![old_cell.clone(), annotated_cell.clone()])
+                        }
+                        Wiring::Wired(ref mut cells) => {
+                            cells.push(annotated_cell.clone());
+                        }
+                    })
+                    .or_insert(Wiring::NotWired(annotated_cell));
+            }
+        }
+
+        // self.add_generic_gate(
+        //     "constrain lhs - rhs = 0 to assert that they are equal",
+        //     vec![Some(*lhs), Some(*rhs)],
+        //     vec![Self::Field::one(), Self::Field::one().neg()],
+        //     span,
+        // );
     }
 
     fn add_public_input(&mut self, val: Value<Self>, span: Span) -> KimchiCellVar {
