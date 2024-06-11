@@ -31,7 +31,7 @@ fn main(pub public_input: Field, private_input: [Field; 2]) {
 You can compile it with the following command:
 
 ```console
-$ noname test --path examples/example.no --private-inputs '{"private_input": ["1", "1"]}' --public-inputs '{"public_input": "3654913405619483358804575553468071097765421484960111776885779739261304758583"}' --debug
+$ noname test --path examples/arithmetic.no --private-inputs '{"private_input": "2"}' --public-inputs '{"public_input": "2"}' --debug
 ```
 
 Which will print the assembly, as well as try to create and verify a proof to make sure everything works. The assembly should look like this:
