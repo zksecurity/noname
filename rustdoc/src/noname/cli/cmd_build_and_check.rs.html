@@ -473,6 +473,7 @@
 <a href="#473" id="473">473</a>
 <a href="#474" id="474">474</a>
 <a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
@@ -740,8 +741,9 @@
         short,
         long,
         value_parser,
-        help = SUPPORTED_BACKENDS.as_str()
-    )]
+        help = SUPPORTED_BACKENDS.as_str(),
+        default_value = <span class="string">"r1cs-bn254"
+    </span>)]
     </span>backend: String,
 
     <span class="doccomment">/// public inputs in a JSON format using decimal values (e.g. {"a": "1", "b": "2"})
