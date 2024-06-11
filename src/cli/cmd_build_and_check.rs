@@ -318,7 +318,7 @@ pub struct CmdRun {
     path: Option<PathBuf>,
 
     /// Backend to use for running the noname file.
-    #[clap(short, long)]
+    #[clap(short, long, default_value = "r1cs-bn254")]
     #[arg(value_enum)]
     backend: BackendOpt,
 
