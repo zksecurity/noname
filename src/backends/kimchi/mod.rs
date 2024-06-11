@@ -98,7 +98,7 @@ pub struct KimchiVesta {
 
     /// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
-    pub(crate) private_input_indices: Vec<(usize, Span)>,
+    pub(crate) private_input_cell_vars: Vec<KimchiCellVar>,
 }
 
 impl Witness {
@@ -144,7 +144,7 @@ impl KimchiVesta {
             debug_info: vec![],
             finalized: false,
             public_input_size: 0,
-            private_input_indices: vec![],
+            private_input_cell_vars: vec![],
         }
     }
 
@@ -302,7 +302,7 @@ impl KimchiVesta {
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct KimchiCellVar {
-    pub index: usize,
+    index: usize,
     pub span: Span,
 }
 
@@ -387,16 +387,16 @@ impl Backend for KimchiVesta {
 
         for var in 0..self.next_variable {
             if !written_vars.contains(&var) {
-                if let Some((_, private_input_span)) = self
-                    .private_input_indices
+                if let Some(private_cell_var) = self
+                    .private_input_cell_vars
                     .iter()
-                    .find(|(private_input_id, _)| private_input_id == &var)
+                    .find(|private_cell_var| private_cell_var.index == var)
                 {
                     // TODO: is this error useful?
                     let err = Error::new(
                         "constraint-finalization",
                         ErrorKind::PrivateInputNotUsed,
-                        *private_input_span,
+                        private_cell_var.span,
                     );
                     return Err(err);
                 } else {
@@ -790,7 +790,7 @@ impl Backend for KimchiVesta {
 
     fn add_private_input(&mut self, val: Value<Self>, span: Span) -> Self::Var {
         let cvar = self.new_internal_var(val, span);
-        self.private_input_indices.push((cvar.index, cvar.span));
+        self.private_input_cell_vars.push(cvar);
 
         cvar
     }

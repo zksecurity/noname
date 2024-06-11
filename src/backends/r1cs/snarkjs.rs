@@ -1,14 +1,29 @@
 use crate::backends::BackendField;
-use crate::error::Result;
 use constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
+use miette::{miette, Diagnostic};
+use thiserror::Error;
 
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{BufWriter, Seek, SeekFrom, Write};
+use std::io::{self, BufWriter, Seek, SeekFrom, Write};
 use std::vec;
 
 use super::{GeneratedWitness, LinearCombination, R1CS};
 use num_bigint_dig::BigInt;
+
+#[derive(Diagnostic, Debug, Error)]
+pub enum Error {
+    /// An error type associated with [`R1CSWriter`].
+    ///
+    /// It turns out that even [`R1CSWriter`] fails to write to file,
+    /// the error is ignored and a unit type is returned,
+    /// so we come up with a custom type to represent that.
+    #[error("Something went wrong writing the R1CS file")]
+    R1CSWriterIo,
+    /// An error type associated with [`WitnessWriter`].
+    #[error(transparent)]
+    WitnessWriterIo(#[from] std::io::Error),
+}
 
 #[derive(Debug)]
 struct SnarkjsConstraint {
@@ -107,7 +122,7 @@ where
     /// Generate the r1cs file in snarkjs format.
     /// It uses the circom rust library to generate the r1cs file.
     /// The binary format spec: https://github.com/iden3/r1csfile/blob/master/doc/r1cs_bin_format.md
-    pub fn gen_r1cs_file(&self, file: &str) {
+    pub fn gen_r1cs_file(&self, file: &str) -> Result<(), Error> {
         let prime = self.backend_prime();
         let field_size = field_size(&prime);
 
@@ -122,7 +137,8 @@ where
                 &constraint.a.to_hashmap(),
                 &constraint.b.to_hashmap(),
                 &constraint.c.to_hashmap(),
-            );
+            )
+            .map_err(|_| Error::R1CSWriterIo)?;
         }
 
         let r1cs = constraint_section.end_section().unwrap();
@@ -144,19 +160,21 @@ where
             number_of_labels: 0,
             number_of_constraints: restructure_constraints.len(),
         };
-        header_section.write_section(header_data);
+        header_section
+            .write_section(header_data)
+            .map_err(|_| Error::R1CSWriterIo)?;
 
         let r1cs = header_section.end_section().unwrap();
-        R1CSWriter::finish_writing(r1cs);
+        R1CSWriter::finish_writing(r1cs).map_err(|_| Error::R1CSWriterIo)
     }
 
     /// Generate the wtns file in snarkjs format.
-    pub fn gen_wtns_file(&self, file: &str, witness: GeneratedWitness<F>) {
+    pub fn gen_wtns_file(&self, file: &str, witness: GeneratedWitness<F>) -> Result<(), Error> {
         let restructured_witness = self.restructure_witness(witness);
 
         let mut witness_writer = WitnessWriter::new(file).unwrap();
 
-        witness_writer.write(restructured_witness, &self.backend_prime());
+        Ok(witness_writer.write(restructured_witness, &self.backend_prime())?)
     }
 
     fn backend_prime(&self) -> BigInt {
@@ -190,7 +208,7 @@ struct WritingSection;
 
 impl WitnessWriter {
     // Initialize a FileWriter
-    fn new(path: &str) -> Result<WitnessWriter> {
+    fn new(path: &str) -> Result<WitnessWriter, Error> {
         // file type for the witness file
         let file_type = "wtns";
         // version of the file format
@@ -211,13 +229,13 @@ impl WitnessWriter {
         if file_type_bytes.len() != 4 {
             panic!("File type must be 4 characters long");
         }
-        writer.write_all(file_type_bytes);
+        writer.write_all(file_type_bytes)?;
 
         // Write the version as a 32-bit unsigned integer in little endian
-        writer.write_all(&version.to_le_bytes());
+        writer.write_all(&version.to_le_bytes())?;
 
         // Write the number of sections as a 32-bit unsigned integer in little endian
-        writer.write_all(&n_sections.to_le_bytes());
+        writer.write_all(&n_sections.to_le_bytes())?;
 
         let current_position = writer.stream_position().unwrap();
 
@@ -229,68 +247,75 @@ impl WitnessWriter {
     }
 
     /// Start a new section for writing.
-    fn start_write_section(&mut self, id_section: u32) {
+    fn start_write_section(&mut self, id_section: u32) -> Result<(), io::Error> {
         // Write the section ID as ULE32
-        self.inner.write_all(&id_section.to_le_bytes());
+        self.inner.write_all(&id_section.to_le_bytes())?;
         // Get the current position
         self.section_size_position = self.inner.stream_position().unwrap();
         // Temporarily write 0 as ULE64 for the section size
-        self.inner.write_all(&0u64.to_le_bytes());
+        self.inner.write_all(&0u64.to_le_bytes())?;
         self.writing_section = Some(WritingSection);
+
+        Ok(())
     }
 
     /// End the current section
-    fn end_write_section(&mut self) {
+    fn end_write_section(&mut self) -> Result<(), io::Error> {
         let current_pos = self.inner.stream_position().unwrap();
         // Calculate the size of the section
         let section_size = current_pos - self.section_size_position - 8;
 
         // Move back to where the size needs to be written
-        self.inner.seek(SeekFrom::Start(self.section_size_position));
+        self.inner
+            .seek(SeekFrom::Start(self.section_size_position))?;
         // Write the actual section size
-        self.inner.write_all(&section_size.to_le_bytes());
+        self.inner.write_all(&section_size.to_le_bytes())?;
         // Return to the end of the section
-        self.inner.seek(SeekFrom::Start(current_pos));
+        self.inner.seek(SeekFrom::Start(current_pos))?;
         // Flush the buffer to ensure all data is written to the file
-        self.inner.flush();
+        self.inner.flush()?;
 
         self.writing_section = None;
+
+        Ok(())
     }
 
     /// Write the witness to the file
     /// It stores the two sections:
     /// - Header section: describes the field size, prime field, and the number of witnesses.
     /// - Witness section: contains the witness values.
-    fn write(&mut self, witness: Vec<BigInt>, prime: &BigInt) {
+    fn write(&mut self, witness: Vec<BigInt>, prime: &BigInt) -> Result<(), io::Error> {
         // Start writing the first section
-        self.start_write_section(1);
+        self.start_write_section(1)?;
         // Write field size in number of bytes
         let field_n_bytes = field_size(prime);
-        self.inner.write_all(&(field_n_bytes as u32).to_le_bytes());
+        self.inner
+            .write_all(&(field_n_bytes as u32).to_le_bytes())?;
         // Write the prime field in bytes
-        self.write_big_int(prime.clone(), field_n_bytes);
+        self.write_big_int(prime.clone(), field_n_bytes)?;
         // Write the number of witnesses
-        self.inner.write_all(&(witness.len() as u32).to_le_bytes());
+        self.inner
+            .write_all(&(witness.len() as u32).to_le_bytes())?;
 
-        self.end_write_section();
+        self.end_write_section()?;
 
         // Start writing the second section
-        self.start_write_section(2);
+        self.start_write_section(2)?;
 
         /// Write the witness values to the file
         /// Each witness value occupies the same number of bytes as the prime field
         for value in witness {
-            self.write_big_int(value.clone(), field_n_bytes as usize);
+            self.write_big_int(value.clone(), field_n_bytes)?;
         }
-        self.end_write_section();
+        self.end_write_section()
     }
 
     /// Write a BigInt to the file
-    fn write_big_int(&mut self, value: BigInt, size: usize) {
+    fn write_big_int(&mut self, value: BigInt, size: usize) -> Result<(), io::Error> {
         let bytes = value.to_bytes_le().1;
 
         let mut buffer = vec![0u8; size];
         buffer[..bytes.len()].copy_from_slice(&bytes);
-        self.inner.write_all(&buffer);
+        self.inner.write_all(&buffer)
     }
 }

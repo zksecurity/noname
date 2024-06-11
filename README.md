@@ -6,7 +6,7 @@ This is **work-in-progress** to implement a high-level (Rust and Golang-inspired
 
 If you don't know what zero-knowledge proofs, zkapps, or kimchi are, check out [that blogpost](https://minaprotocol.com/blog/kimchi-the-latest-update-to-minas-proof-system).
 
-You can read more about the project on the noname book: https://zksecurity.github.io/noname or my [series of blogposts](https://cryptologie.net/#article_573).
+You can read more about the project on the noname book: https://zksecurity.github.io/noname or my [series of blogposts](https://cryptologie.net/article/573).
 
 I invite you to try to [install](#installation) and [play](#usage) with noname. Please provide feedback and suggestions via the [issues](https://github.com/zksecurity/noname/issues).
 
@@ -31,7 +31,7 @@ fn main(pub public_input: Field, private_input: [Field; 2]) {
 You can compile it with the following command:
 
 ```console
-$ noname test --path examples/example.no --private-inputs '{"private_input": ["1", "1"]}' --public-inputs '{"public_input": "3654913405619483358804575553468071097765421484960111776885779739261304758583"}' --debug
+$ noname test --path examples/arithmetic.no --private-inputs '{"private_input": "2"}' --public-inputs '{"public_input": "2"}' --debug
 ```
 
 Which will print the assembly, as well as try to create and verify a proof to make sure everything works. The assembly should look like this:
