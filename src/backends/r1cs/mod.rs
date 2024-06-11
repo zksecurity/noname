@@ -25,7 +25,7 @@ impl BackendField for R1csBn254Field {}
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CellVar {
-    pub index: usize,
+    index: usize,
     pub span: Span,
 }
 
@@ -201,7 +201,7 @@ where
     /// Record the public inputs for reordering the witness vector
     public_inputs: Vec<CellVar>,
     /// Record the private inputs for checking
-    private_input_indices: Vec<(usize, Span)>,
+    private_input_cell_vars: Vec<CellVar>,
     /// Record the public outputs for reordering the witness vector
     public_outputs: Vec<CellVar>,
     finalized: bool,
@@ -217,7 +217,7 @@ where
             witness_vector: Vec::new(),
             debug_info: Vec::new(),
             public_inputs: Vec::new(),
-            private_input_indices: Vec::new(),
+            private_input_cell_vars: Vec::new(),
             public_outputs: Vec::new(),
             finalized: false,
         }
@@ -369,15 +369,15 @@ where
             }
 
             if !written_vars.contains(&index) {
-                if let Some((_, private_input_span)) = self
-                    .private_input_indices
+                if let Some(private_cell_var) = self
+                    .private_input_cell_vars
                     .iter()
-                    .find(|(private_input_id, _)| private_input_id == &index)
+                    .find(|private_cell_var| private_cell_var.index == index)
                 {
                     let err = Error::new(
                         "constraint-finalization",
                         ErrorKind::PrivateInputNotUsed,
-                        *private_input_span,
+                        private_cell_var.span,
                     );
                     return Err(err);
                 } else {
@@ -584,8 +584,7 @@ where
     /// Adds the private input cell vars.
     fn add_private_input(&mut self, val: Value<Self>, span: Span) -> LinearCombination<F> {
         let var = self.new_internal_var(val, span);
-        self.private_input_indices
-            .push((var.to_cell_var().index, span));
+        self.private_input_cell_vars.push(*var.to_cell_var());
 
         var
     }
