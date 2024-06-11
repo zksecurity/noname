@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["SnarkjsExporter"]};
+window.SIDEBAR_ITEMS = {"enum":["Error"],"struct":["SnarkjsExporter"]};

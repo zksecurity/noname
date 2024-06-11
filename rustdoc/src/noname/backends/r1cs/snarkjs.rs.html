@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/r1cs/snarkjs.rs`."><title>snarkjs.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (a70b2ae57 2024-06-09)" data-channel="nightly" data-search-js="search-0fe7219eb170c82e.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/r1cs/snarkjs.rs`."><title>snarkjs.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (b5b13568f 2024-06-10)" data-channel="nightly" data-search-js="search-0fe7219eb170c82e.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -294,17 +294,57 @@
 <a href="#294" id="294">294</a>
 <a href="#295" id="295">295</a>
 <a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::backends::BackendField;
-<span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span>constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
+<span class="kw">use </span>miette::{miette, Diagnostic};
+<span class="kw">use </span>thiserror::Error;
 
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::fs::{File, OpenOptions};
-<span class="kw">use </span>std::io::{BufWriter, Seek, SeekFrom, Write};
+<span class="kw">use </span>std::io::{<span class="self">self</span>, BufWriter, Seek, SeekFrom, Write};
 <span class="kw">use </span>std::vec;
 
 <span class="kw">use super</span>::{GeneratedWitness, LinearCombination, R1CS};
 <span class="kw">use </span>num_bigint_dig::BigInt;
+
+<span class="attr">#[derive(Diagnostic, Debug, Error)]
+</span><span class="kw">pub enum </span>Error {
+    <span class="doccomment">/// An error type associated with [`R1CSWriter`].
+    ///
+    /// It turns out that even [`R1CSWriter`] fails to write to file,
+    /// the error is ignored and a unit type is returned,
+    /// so we come up with a custom type to represent that.
+    </span><span class="attr">#[error(<span class="string">"Something went wrong writing the R1CS file"</span>)]
+    </span>R1CSWriterIo,
+    <span class="doccomment">/// An error type associated with [`WitnessWriter`].
+    </span><span class="attr">#[error(transparent)]
+    </span>WitnessWriterIo(<span class="attr">#[from] </span>std::io::Error),
+}
 
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">struct </span>SnarkjsConstraint {
@@ -403,7 +443,7 @@
     <span class="doccomment">/// Generate the r1cs file in snarkjs format.
     /// It uses the circom rust library to generate the r1cs file.
     /// The binary format spec: https://github.com/iden3/r1csfile/blob/master/doc/r1cs_bin_format.md
-    </span><span class="kw">pub fn </span>gen_r1cs_file(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str) {
+    </span><span class="kw">pub fn </span>gen_r1cs_file(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
         <span class="kw">let </span>prime = <span class="self">self</span>.backend_prime();
         <span class="kw">let </span>field_size = field_size(<span class="kw-2">&amp;</span>prime);
 
@@ -418,7 +458,8 @@
                 <span class="kw-2">&amp;</span>constraint.a.to_hashmap(),
                 <span class="kw-2">&amp;</span>constraint.b.to_hashmap(),
                 <span class="kw-2">&amp;</span>constraint.c.to_hashmap(),
-            );
+            )
+            .map_err(|<span class="kw">_</span>| Error::R1CSWriterIo)<span class="question-mark">?</span>;
         }
 
         <span class="kw">let </span>r1cs = constraint_section.end_section().unwrap();
@@ -440,19 +481,21 @@
             </span>number_of_labels: <span class="number">0</span>,
             number_of_constraints: restructure_constraints.len(),
         };
-        header_section.write_section(header_data);
+        header_section
+            .write_section(header_data)
+            .map_err(|<span class="kw">_</span>| Error::R1CSWriterIo)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>r1cs = header_section.end_section().unwrap();
-        R1CSWriter::finish_writing(r1cs);
+        R1CSWriter::finish_writing(r1cs).map_err(|<span class="kw">_</span>| Error::R1CSWriterIo)
     }
 
     <span class="doccomment">/// Generate the wtns file in snarkjs format.
-    </span><span class="kw">pub fn </span>gen_wtns_file(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, witness: GeneratedWitness&lt;F&gt;) {
+    </span><span class="kw">pub fn </span>gen_wtns_file(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, witness: GeneratedWitness&lt;F&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
         <span class="kw">let </span>restructured_witness = <span class="self">self</span>.restructure_witness(witness);
 
         <span class="kw">let </span><span class="kw-2">mut </span>witness_writer = WitnessWriter::new(file).unwrap();
 
-        witness_writer.write(restructured_witness, <span class="kw-2">&amp;</span><span class="self">self</span>.backend_prime());
+        <span class="prelude-val">Ok</span>(witness_writer.write(restructured_witness, <span class="kw-2">&amp;</span><span class="self">self</span>.backend_prime())<span class="question-mark">?</span>)
     }
 
     <span class="kw">fn </span>backend_prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BigInt {
@@ -486,7 +529,7 @@
 
 <span class="kw">impl </span>WitnessWriter {
     <span class="comment">// Initialize a FileWriter
-    </span><span class="kw">fn </span>new(path: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessWriter&gt; {
+    </span><span class="kw">fn </span>new(path: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessWriter, Error&gt; {
         <span class="comment">// file type for the witness file
         </span><span class="kw">let </span>file_type = <span class="string">"wtns"</span>;
         <span class="comment">// version of the file format
@@ -507,13 +550,13 @@
         <span class="kw">if </span>file_type_bytes.len() != <span class="number">4 </span>{
             <span class="macro">panic!</span>(<span class="string">"File type must be 4 characters long"</span>);
         }
-        writer.write_all(file_type_bytes);
+        writer.write_all(file_type_bytes)<span class="question-mark">?</span>;
 
         <span class="comment">// Write the version as a 32-bit unsigned integer in little endian
-        </span>writer.write_all(<span class="kw-2">&amp;</span>version.to_le_bytes());
+        </span>writer.write_all(<span class="kw-2">&amp;</span>version.to_le_bytes())<span class="question-mark">?</span>;
 
         <span class="comment">// Write the number of sections as a 32-bit unsigned integer in little endian
-        </span>writer.write_all(<span class="kw-2">&amp;</span>n_sections.to_le_bytes());
+        </span>writer.write_all(<span class="kw-2">&amp;</span>n_sections.to_le_bytes())<span class="question-mark">?</span>;
 
         <span class="kw">let </span>current_position = writer.stream_position().unwrap();
 
@@ -525,69 +568,76 @@
     }
 
     <span class="doccomment">/// Start a new section for writing.
-    </span><span class="kw">fn </span>start_write_section(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id_section: u32) {
+    </span><span class="kw">fn </span>start_write_section(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id_section: u32) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
         <span class="comment">// Write the section ID as ULE32
-        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>id_section.to_le_bytes());
+        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>id_section.to_le_bytes())<span class="question-mark">?</span>;
         <span class="comment">// Get the current position
         </span><span class="self">self</span>.section_size_position = <span class="self">self</span>.inner.stream_position().unwrap();
         <span class="comment">// Temporarily write 0 as ULE64 for the section size
-        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span><span class="number">0u64</span>.to_le_bytes());
+        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span><span class="number">0u64</span>.to_le_bytes())<span class="question-mark">?</span>;
         <span class="self">self</span>.writing_section = <span class="prelude-val">Some</span>(WritingSection);
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// End the current section
-    </span><span class="kw">fn </span>end_write_section(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    </span><span class="kw">fn </span>end_write_section(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
         <span class="kw">let </span>current_pos = <span class="self">self</span>.inner.stream_position().unwrap();
         <span class="comment">// Calculate the size of the section
         </span><span class="kw">let </span>section_size = current_pos - <span class="self">self</span>.section_size_position - <span class="number">8</span>;
 
         <span class="comment">// Move back to where the size needs to be written
-        </span><span class="self">self</span>.inner.seek(SeekFrom::Start(<span class="self">self</span>.section_size_position));
+        </span><span class="self">self</span>.inner
+            .seek(SeekFrom::Start(<span class="self">self</span>.section_size_position))<span class="question-mark">?</span>;
         <span class="comment">// Write the actual section size
-        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>section_size.to_le_bytes());
+        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>section_size.to_le_bytes())<span class="question-mark">?</span>;
         <span class="comment">// Return to the end of the section
-        </span><span class="self">self</span>.inner.seek(SeekFrom::Start(current_pos));
+        </span><span class="self">self</span>.inner.seek(SeekFrom::Start(current_pos))<span class="question-mark">?</span>;
         <span class="comment">// Flush the buffer to ensure all data is written to the file
-        </span><span class="self">self</span>.inner.flush();
+        </span><span class="self">self</span>.inner.flush()<span class="question-mark">?</span>;
 
         <span class="self">self</span>.writing_section = <span class="prelude-val">None</span>;
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Write the witness to the file
     /// It stores the two sections:
     /// - Header section: describes the field size, prime field, and the number of witnesses.
     /// - Witness section: contains the witness values.
-    </span><span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, witness: Vec&lt;BigInt&gt;, prime: <span class="kw-2">&amp;</span>BigInt) {
+    </span><span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, witness: Vec&lt;BigInt&gt;, prime: <span class="kw-2">&amp;</span>BigInt) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
         <span class="comment">// Start writing the first section
-        </span><span class="self">self</span>.start_write_section(<span class="number">1</span>);
+        </span><span class="self">self</span>.start_write_section(<span class="number">1</span>)<span class="question-mark">?</span>;
         <span class="comment">// Write field size in number of bytes
         </span><span class="kw">let </span>field_n_bytes = field_size(prime);
-        <span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>(field_n_bytes <span class="kw">as </span>u32).to_le_bytes());
+        <span class="self">self</span>.inner
+            .write_all(<span class="kw-2">&amp;</span>(field_n_bytes <span class="kw">as </span>u32).to_le_bytes())<span class="question-mark">?</span>;
         <span class="comment">// Write the prime field in bytes
-        </span><span class="self">self</span>.write_big_int(prime.clone(), field_n_bytes);
+        </span><span class="self">self</span>.write_big_int(prime.clone(), field_n_bytes)<span class="question-mark">?</span>;
         <span class="comment">// Write the number of witnesses
-        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>(witness.len() <span class="kw">as </span>u32).to_le_bytes());
+        </span><span class="self">self</span>.inner
+            .write_all(<span class="kw-2">&amp;</span>(witness.len() <span class="kw">as </span>u32).to_le_bytes())<span class="question-mark">?</span>;
 
-        <span class="self">self</span>.end_write_section();
+        <span class="self">self</span>.end_write_section()<span class="question-mark">?</span>;
 
         <span class="comment">// Start writing the second section
-        </span><span class="self">self</span>.start_write_section(<span class="number">2</span>);
+        </span><span class="self">self</span>.start_write_section(<span class="number">2</span>)<span class="question-mark">?</span>;
 
         <span class="doccomment">/// Write the witness values to the file
         /// Each witness value occupies the same number of bytes as the prime field
         </span><span class="kw">for </span>value <span class="kw">in </span>witness {
-            <span class="self">self</span>.write_big_int(value.clone(), field_n_bytes <span class="kw">as </span>usize);
+            <span class="self">self</span>.write_big_int(value.clone(), field_n_bytes)<span class="question-mark">?</span>;
         }
-        <span class="self">self</span>.end_write_section();
+        <span class="self">self</span>.end_write_section()
     }
 
     <span class="doccomment">/// Write a BigInt to the file
-    </span><span class="kw">fn </span>write_big_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: BigInt, size: usize) {
+    </span><span class="kw">fn </span>write_big_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: BigInt, size: usize) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
         <span class="kw">let </span>bytes = value.to_bytes_le().<span class="number">1</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>buffer = <span class="macro">vec!</span>[<span class="number">0u8</span>; size];
         buffer[..bytes.len()].copy_from_slice(<span class="kw-2">&amp;</span>bytes);
-        <span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>buffer);
+        <span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>buffer)
     }
 }
 </code></pre></div></section></main></body></html>
