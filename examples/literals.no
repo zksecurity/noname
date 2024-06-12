@@ -1,0 +1,8 @@
+const decimal = 42;
+const hex = 0x2a;
+
+fn main(pub public_input: Field) {
+    assert_eq(public_input, decimal);
+    assert_eq(public_input, hex);
+    assert_eq(public_input, 0x2A);
+}
