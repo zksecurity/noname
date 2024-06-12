@@ -3,7 +3,7 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     parser::{
-        types::{AttributeKind, FnArg, TyKind},
+        types::{ArraySize, AttributeKind, FnArg, TyKind},
         Expr,
     },
     type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
@@ -234,11 +234,16 @@ impl<B: Backend> CircuitWriter<B> {
         // get length
         let len = match &typ.kind {
             TyKind::Field => 1,
-            TyKind::Array(typ, len) => {
+            TyKind::Array(typ, size) => {
                 if !matches!(**typ, TyKind::Field) {
                     unimplemented!();
                 }
-                *len as usize
+                // *size as usize
+                match size {
+                    ArraySize::Number(n) => *n as usize,
+                    // todo: this is for the case where the array size is a const variable defined at the beginning of the file
+                    ArraySize::Variable(_) => unimplemented!(),
+                }
             }
             TyKind::Bool => 1,
             typ => self.size_of(typ),

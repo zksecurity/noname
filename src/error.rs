@@ -130,11 +130,17 @@ pub enum ErrorKind {
     #[error("invalid array size, expected [_; x] with x in [0,2^32]")]
     InvalidArraySize,
 
+    #[error("invalid array size, expected [_; var] with var should be a const generic")]
+    InvalidDefaultArraySize,
+
     #[error("the value passed could not be converted to a field element")]
     InvalidField(String),
 
     #[error("invalid range size, expected x..y with x and y integers in [0,2^32]")]
     InvalidRangeSize,
+
+    #[error("invalid range var, expected x..y with x and y being integers or constant variables")]
+    InvalidRangeType,
 
     #[error("invalid statement")]
     InvalidStatement,

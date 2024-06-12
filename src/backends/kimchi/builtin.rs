@@ -9,6 +9,7 @@ use super::{KimchiCellVar, KimchiVesta, VestaField};
 use crate::backends::kimchi::NUM_REGISTERS;
 use crate::backends::Backend;
 
+use crate::parser::types::ArraySize;
 use crate::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
     constants::Span,
@@ -32,7 +33,7 @@ pub fn poseidon(
 
     // an array of length 2
     match &var_info.typ {
-        Some(TyKind::Array(el_typ, 2)) => {
+        Some(TyKind::Array(el_typ, ArraySize::Number(2))) => {
             assert!(matches!(&**el_typ, TyKind::Field | TyKind::BigInt));
         }
         _ => panic!("wrong type for input to poseidon"),
