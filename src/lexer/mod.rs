@@ -6,6 +6,8 @@ use crate::{
     syntax::{is_hexadecimal, is_identifier_or_type, is_numeric},
 };
 
+use num_bigint::BigInt;
+use num_traits::Num as _;
 pub use tokens::Tokens;
 
 pub mod tokens;
@@ -118,7 +120,6 @@ pub enum TokenKind {
     Keyword(Keyword),   // reserved keywords
     Identifier(String), // [a-zA-Z](A-Za-z0-9_)*
     BigInt(String),     // (0-9)*
-    Hex(String),        // 0x[0-9a-fA-F]+
     Dot,                // .
     DoubleDot,          // ..
     Comma,              // ,
@@ -159,7 +160,6 @@ impl Display for TokenKind {
                 "a lowercase alphanumeric (including underscore) string starting with a letter"
             }
             BigInt(_) => "a number",
-            Hex(_) => "a hexadecimal string, starting with 0x",
             Dot => ".",
             DoubleDot => "..",
             Comma => "`,`",
@@ -230,7 +230,12 @@ impl Token {
                     let token_type = if is_numeric(&ident_or_number) {
                         TokenKind::BigInt(ident_or_number)
                     } else if is_hexadecimal(&ident_or_number) {
-                        TokenKind::Hex(ident_or_number)
+                        let hex = ident_or_number.trim_start_matches("0x");
+                        TokenKind::BigInt(
+                            BigInt::from_str_radix(hex, 16)
+                                .expect("invalid hex number")
+                                .to_str_radix(10),
+                        )
                     } else if is_identifier_or_type(&ident_or_number) {
                         if ident_or_number.len() < 2 {
                             return Err(ctx.error(
