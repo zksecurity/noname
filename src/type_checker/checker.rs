@@ -53,17 +53,28 @@ struct ExprTyInfo {
 
     /// The type of the expression node.
     typ: TyKind,
+
+    /// This is needed to pass around the const value (values not represented by variables)
+    /// that is not stored in the global constants hashmap.
+    /// For example:
+    /// let xx = [1; 10]; // where 10 is a const value that should be passed around in the type checker
+    value: Option<String>,
 }
 
 impl ExprTyInfo {
     fn new(var_name: Option<String>, typ: TyKind) -> Self {
-        Self { var_name, typ }
+        Self {
+            var_name,
+            typ,
+            value: None,
+        }
     }
 
     fn new_var(var_name: String, typ: TyKind) -> Self {
         Self {
             var_name: Some(var_name),
             typ,
+            value: None,
         }
     }
 
@@ -71,6 +82,15 @@ impl ExprTyInfo {
         Self {
             var_name: None,
             typ,
+            value: None,
+        }
+    }
+
+    fn new_anon_with_value(typ: TyKind, value: String) -> Self {
+        Self {
+            var_name: None,
+            typ,
+            value: Some(value),
         }
     }
 }
@@ -303,7 +323,10 @@ impl<B: Backend> TypeChecker<B> {
                 Some(ExprTyInfo::new_anon(TyKind::Bool))
             }
 
-            ExprKind::BigInt(_) => Some(ExprTyInfo::new_anon(TyKind::BigInt)),
+            ExprKind::BigInt(v) => Some(ExprTyInfo::new_anon_with_value(
+                TyKind::BigInt,
+                v.to_string(),
+            )),
 
             ExprKind::Bool(_) => Some(ExprTyInfo::new_anon(TyKind::Bool)),
 
@@ -402,7 +425,78 @@ impl<B: Backend> TypeChecker<B> {
 
                 let tykind = tykind.expect("empty array declaration?");
 
-                let res = ExprTyInfo::new_anon(TyKind::Array(Box::new(tykind), len));
+                let res =
+                    ExprTyInfo::new_anon(TyKind::Array(Box::new(tykind), ArraySize::Number(len)));
+                Some(res)
+            }
+
+            ExprKind::DefaultArrayDeclaration { item, size } => {
+                let item_typ = self
+                    .compute_type(item, typed_fn_env)?
+                    .expect("expected a value");
+
+                let size_typ = self.compute_type(size, typed_fn_env)?;
+                let size_typ = size_typ.unwrap();
+                let res = match size_typ.var_name {
+                    // anonymous constant
+                    None => match size_typ.typ {
+                        TyKind::BigInt => {
+                            let value = size_typ.value;
+                            if value.is_none() {
+                                return Err(self.error(ErrorKind::ExpectedConstant, expr.span));
+                            }
+
+                            let size = value.unwrap().parse::<u32>().expect("expected a number");
+
+                            ExprTyInfo::new_anon(TyKind::Array(
+                                Box::new(item_typ.typ),
+                                ArraySize::Number(size),
+                            ))
+                        }
+                        _ => panic!("expected a size num"),
+                    },
+                    // const variable
+                    Some(name) => {
+                        let type_info = typed_fn_env.get_type_info(&name);
+
+                        let qualified = FullyQualified::new(&ModulePath::Local, &name);
+                        let cst = self.constants.get(&qualified);
+
+                        // local var type is not constant
+                        if let Some(type_info) = type_info {
+                            if !type_info.constant {
+                                return Err(
+                                    self.error(ErrorKind::InvalidDefaultArraySize, expr.span)
+                                );
+                            }
+                        } else {
+                            // no local or global constant found for the variable name
+                            if cst.is_none() {
+                                return Err(
+                                    self.error(ErrorKind::InvalidDefaultArraySize, expr.span)
+                                );
+                            }
+                        }
+
+                        // determine the size of array
+                        match cst {
+                            Some(cst) => {
+                                let cst = to_u32(cst.value[0]);
+                                ExprTyInfo::new_anon(TyKind::Array(
+                                    Box::new(item_typ.typ),
+                                    ArraySize::Number(cst),
+                                ))
+                            }
+                            // todo: if not constant found, should it throw? but what if it is const arg?
+                            // can't determine from local scope
+                            _ => ExprTyInfo::new_anon(TyKind::Array(
+                                Box::new(item_typ.typ),
+                                ArraySize::Variable(name),
+                            )),
+                        }
+                    }
+                };
+
                 Some(res)
             }
 
@@ -688,6 +782,7 @@ impl<B: Backend> TypeChecker<B> {
 
         // compare argument types with the function signature
         for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
+            // todo: should check for attribute const: so if the expected arg is const, the observed should be const also?
             if !typ.match_expected(&sig_arg.typ.kind) {
                 return Err(self.error(
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
