@@ -666,3 +666,208 @@ impl<B: Backend> TypeChecker<B> {
         Ok(fn_sig.return_type.as_ref().map(|ty| ty.kind.clone()))
     }
 }
+
+mod test {
+    use crate::{
+        backends::kimchi::KimchiVesta,
+        compiler::{typecheck_next_file_inner, Sources},
+        error::{Error, ErrorKind, Result},
+        type_checker::TypeChecker,
+    };
+
+    fn typecheck_code(code: &str) -> Result<usize> {
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::<KimchiVesta>::new();
+        let this_module = None;
+        typecheck_next_file_inner(
+            &mut tast,
+            this_module,
+            &mut sources,
+            "".to_string(),
+            code.to_string(),
+            0,
+        )
+    }
+
+    #[test]
+    fn test_invalid_size_var() {
+        const CODE: &str = r#"
+        fn const_generic() -> Field {
+            let num = 3;
+            let xx = [0; num];
+            return xx[num - 1];
+        }
+        "#;
+
+        let result = typecheck_code(CODE);
+
+        assert!(result.is_err(), "expected error");
+        match result.unwrap_err() {
+            Error {
+                kind: ErrorKind::InvalidDefaultArraySize,
+                ..
+            } => (),
+            err => panic!("unexpected error: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn test_miss_const_attr() {
+        const CODE: &str = r#"
+        fn const_generic(cst: Field, yy: Field) -> [Field; cst] {
+            let xx = [1; cst];
+            return xx;
+        }
+        "#;
+
+        let result = typecheck_code(CODE);
+
+        assert!(result.is_err(), "expected error");
+        match result.unwrap_err() {
+            Error {
+                kind: ErrorKind::InvalidDefaultArraySize,
+                ..
+            } => (),
+            err => panic!("unexpected error: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn test_invalid_start_range_var() {
+        const CODE: &str = r#"
+        fn const_generic(const cst: Field, yy: Field) -> [Field; cst] {
+            let mut arr = [0; cst];
+            let start = 1;
+            for ii in start..cst {
+                arr[ii] = 2;
+            }
+            return arr;
+        }
+        "#;
+
+        let result = typecheck_code(CODE);
+
+        assert!(result.is_err(), "expected error");
+        match result.unwrap_err() {
+            Error {
+                kind: ErrorKind::InvalidRangeType,
+                ..
+            } => (),
+            err => panic!("unexpected error: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn test_invalid_end_range_var() {
+        const CODE: &str = r#"
+        const start = 1;
+        fn const_generic(const cst: Field, yy: Field) -> [Field; cst] {
+            let mut arr = [0; cst];
+            let end = 3;
+            for ii in start..end {
+                arr[ii] = 2;
+            }
+            return arr;
+        }
+        "#;
+
+        let result = typecheck_code(CODE);
+
+        assert!(result.is_err(), "expected error");
+        match result.unwrap_err() {
+            Error {
+                kind: ErrorKind::InvalidRangeType,
+                ..
+            } => (),
+            err => panic!("unexpected error: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn test_const_attr() {
+        const CODE: &str = r#"
+        fn const_generic(const cst: Field, yy: Field) -> [Field; cst] {
+            let xx = [1; cst];
+            return xx;
+        }
+        "#;
+
+        let result = typecheck_code(CODE);
+        assert!(
+            result.is_ok(),
+            "unexpected error: {:?}",
+            result.unwrap_err()
+        );
+    }
+
+    #[test]
+    fn test_global_const() {
+        const CODE: &str = r#"
+        const cst = 3;
+        fn const_generic(yy: Field) -> [Field; cst] {
+            let xx = [1; cst];
+            return xx;
+        }
+        "#;
+
+        let result = typecheck_code(CODE);
+        assert!(
+            result.is_ok(),
+            "unexpected error: {:?}",
+            result.unwrap_err()
+        );
+    }
+
+    #[test]
+    fn test_const_forloop() {
+        const CODE: &str = r#"
+        fn const_generic(const cst: Field) -> [Field; cst] {
+            let mut xx = [1; cst];
+            for ii in 1..cst {
+                xx[ii] = 2;
+            }
+            return xx;
+        }
+        "#;
+
+        let result = typecheck_code(CODE);
+        assert!(
+            result.is_ok(),
+            "unexpected error: {:?}",
+            result.unwrap_err()
+        );
+    }
+
+    #[test]
+    fn test_struct_array() {
+        const CODE: &str = r#"
+        const rooms = 3;
+        const room_size = 20;
+
+        struct Room {
+            size: Field,
+        }
+
+        struct House {
+            rooms: [Room; rooms],
+        }
+
+        fn build_house(const cst: Field) -> [House; cst] {
+            let houses = [
+                House {
+                    rooms: [Room {size: room_size}; rooms]
+                }; 
+                cst
+            ];
+            return houses;
+        }
+        "#;
+
+        let result = typecheck_code(CODE);
+        assert!(
+            result.is_ok(),
+            "unexpected error: {:?}",
+            result.unwrap_err()
+        );
+    }
+}
