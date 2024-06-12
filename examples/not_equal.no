@@ -1,0 +1,7 @@
+fn main(pub xx: [Field; 2]) {
+    let cond = xx[0] != xx[1];
+    assert(cond);
+
+    let cond2 = xx[0] != 7;
+    assert(cond2);
+}

@@ -267,6 +267,7 @@ impl<B: Backend> TypeChecker<B> {
 
                 let typ = match op {
                     Op2::Equality => TyKind::Bool,
+                    Op2::Inequality => TyKind::Bool,
                     Op2::Addition
                     | Op2::Subtraction
                     | Op2::Multiplication

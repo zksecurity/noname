@@ -543,6 +543,7 @@ impl<B: Backend> CircuitWriter<B> {
                     Op2::Subtraction => field::sub(self, &lhs[0], &rhs[0], expr.span),
                     Op2::Multiplication => field::mul(self, &lhs[0], &rhs[0], expr.span),
                     Op2::Equality => field::equal(self, &lhs, &rhs, expr.span),
+                    Op2::Inequality => field::not_equal(self, &lhs, &rhs, expr.span),
                     Op2::BoolAnd => boolean::and(self, &lhs[0], &rhs[0], expr.span),
                     Op2::BoolOr => boolean::or(self, &lhs[0], &rhs[0], expr.span),
                     Op2::Division => todo!(),
