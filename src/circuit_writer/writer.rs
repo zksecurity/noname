@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use ark_ff::{One, Zero};
+use ark_ff::{BigInteger, One, PrimeField, Zero};
 use kimchi::circuits::wires::Wire;
 use num_bigint::BigUint;
 use num_traits::Num as _;
@@ -14,11 +14,12 @@ use crate::{
     error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FunctionDef, Stmt, StmtKind, TyKind},
+        types::{ArraySize, FunctionDef, NumOrVar, Stmt, StmtKind, TyKind},
         Expr, ExprKind, Op2,
     },
     syntax::is_type,
     type_checker::FullyQualified,
+    utils::to_u32,
     var::{ConstOrCell, Value, Var, VarOrRef},
 };
 
@@ -138,7 +139,31 @@ impl<B: Backend> CircuitWriter<B> {
             }
 
             StmtKind::ForLoop { var, range, body } => {
-                for ii in range.range() {
+                let start: u32 = match &range.start {
+                    NumOrVar::Number(start) => *start,
+                    NumOrVar::Variable(var) => {
+                        let var_info = self.get_local_var(fn_env, var);
+                        let cst = var_info
+                            .var
+                            .constant()
+                            .ok_or_else(|| self.error(ErrorKind::ExpectedConstant, stmt.span))?;
+                        to_u32(cst)
+                    }
+                };
+
+                let end: u32 = match &range.end {
+                    NumOrVar::Number(end) => *end,
+                    NumOrVar::Variable(var) => {
+                        let var_info = self.get_local_var(fn_env, var);
+                        let cst = var_info
+                            .var
+                            .constant()
+                            .ok_or_else(|| self.error(ErrorKind::ExpectedConstant, stmt.span))?;
+                        to_u32(cst)
+                    }
+                };
+
+                for ii in start..end {
                     fn_env.nest();
 
                     let cst_var = Var::new_constant(ii.into(), var.span);
@@ -631,11 +656,22 @@ impl<B: Backend> CircuitWriter<B> {
 
                 let elem_type = match array_typ {
                     TyKind::Array(ty, array_len) => {
-                        if idx >= (*array_len as usize) {
-                            return Err(self.error(
-                                ErrorKind::ArrayIndexOutOfBounds(idx, *array_len as usize - 1),
-                                expr.span,
-                            ));
+                        match array_len {
+                            ArraySize::Number(n) => {
+                                if idx >= *n as usize {
+                                    return Err(self.error(
+                                        ErrorKind::ArrayIndexOutOfBounds(idx, *n as usize - 1),
+                                        expr.span,
+                                    ));
+                                }
+                            }
+                            ArraySize::Variable(var) => {
+                                // todo: we might need to refactor this in order to access the actual value of the variable
+                                // this var is always a constant
+                                // but because the context is lost, we can't access the value of the variable in a function
+                                // currently this is passed from the type checker
+                                // we might need to calculate the value of the variable here during runtime
+                            }
                         }
                         ty
                     }

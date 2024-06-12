@@ -180,6 +180,21 @@ impl PartialEq for ModulePath {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum ArraySize {
+    Number(u32),
+    Variable(String),
+}
+
+impl Display for ArraySize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArraySize::Number(n) => write!(f, "{}", n),
+            ArraySize::Variable(ident) => write!(f, "{}", ident),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum TyKind {
     /// The main primitive type. 'Nuf said.
     // TODO: Field { constant: bool },
@@ -193,7 +208,7 @@ pub enum TyKind {
     BigInt,
 
     /// An array of a fixed size.
-    Array(Box<TyKind>, u32),
+    Array(Box<TyKind>, ArraySize),
 
     /// A boolean (`true` or `false`).
     Bool,
@@ -210,7 +225,15 @@ impl TyKind {
         match (self, expected) {
             (TyKind::BigInt, TyKind::Field) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
-                lhs_size == rhs_size && lhs.match_expected(rhs)
+                let size_matched = match (lhs_size, rhs_size) {
+                    (ArraySize::Number(lhs_size), ArraySize::Number(rhs_size)) => {
+                        lhs_size == rhs_size
+                    }
+                    // (ArraySize::Variable(lhs_size), ArraySize::Variable(rhs_size)) => lhs_size == rhs_size,
+                    // TODO: how to compare if it is a variable and a number?
+                    _ => true,
+                };
+                size_matched && lhs.match_expected(rhs)
             }
             (
                 TyKind::Custom { module, name },
@@ -343,10 +366,14 @@ impl Ty {
                 // [type; size]
                 //         ^
                 let siz = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
-                let siz: u32 = match siz.kind {
-                    TokenKind::BigInt(s) => s
-                        .parse()
-                        .map_err(|_e| ctx.error(ErrorKind::InvalidArraySize, siz.span))?,
+                let siz: ArraySize = match siz.kind {
+                    TokenKind::BigInt(s) => {
+                        let num = s
+                            .parse()
+                            .map_err(|_e| ctx.error(ErrorKind::InvalidArraySize, siz.span))?;
+                        ArraySize::Number(num)
+                    }
+                    TokenKind::Identifier(ident) => ArraySize::Variable(ident),
                     _ => {
                         return Err(ctx.error(
                             ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
@@ -860,16 +887,16 @@ pub fn is_valid_fn_type(name: &str) -> bool {
 //~
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Range {
-    pub start: u32,
-    pub end: u32,
-    pub span: Span,
+pub enum NumOrVar {
+    Number(u32),
+    Variable(String),
 }
 
-impl Range {
-    pub fn range(&self) -> std::ops::Range<u32> {
-        self.start..self.end
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Range {
+    pub start: NumOrVar,
+    pub end: NumOrVar,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -975,6 +1002,14 @@ impl Stmt {
                         let start: u32 = n
                             .parse()
                             .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
+                        let start = NumOrVar::Number(start);
+                        (start, span)
+                    }
+                    Some(Token {
+                        kind: TokenKind::Identifier(ident),
+                        span,
+                    }) => {
+                        let start = NumOrVar::Variable(ident);
                         (start, span)
                     }
                     _ => {
@@ -999,6 +1034,14 @@ impl Stmt {
                         let end: u32 = n
                             .parse()
                             .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
+                        let end = NumOrVar::Number(end);
+                        (end, span)
+                    }
+                    Some(Token {
+                        kind: TokenKind::Identifier(ident),
+                        span,
+                    }) => {
+                        let end = NumOrVar::Variable(ident);
                         (end, span)
                     }
                     _ => {

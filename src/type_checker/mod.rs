@@ -8,10 +8,11 @@ use crate::{
     imports::FnKind,
     name_resolution::NAST,
     parser::{
-        types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
+        types::{ArraySize, FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
         CustomType, Expr, StructDef,
     },
     stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS},
+    utils::to_u32,
 };
 
 use ark_ff::Field;
@@ -126,7 +127,17 @@ impl<B: Backend> TypeChecker<B> {
                 sum
             }
             TyKind::BigInt => 1,
-            TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
+            TyKind::Array(typ, size) => match size {
+                ArraySize::Number(n) => (*n as usize) * self.size_of(typ),
+                ArraySize::Variable(var) => {
+                    let qualified = FullyQualified::local(var.clone());
+                    let cst_info = self
+                        .const_info(&qualified)
+                        .expect("bug in the type checker: cannot find constant info");
+
+                    (to_u32(cst_info.value[0]) as usize) * self.size_of(typ)
+                }
+            },
             TyKind::Bool => 1,
         }
     }

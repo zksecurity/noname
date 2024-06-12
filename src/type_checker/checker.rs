@@ -8,10 +8,11 @@ use crate::{
     error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FnSig, FunctionDef, Stmt, StmtKind, Ty, TyKind},
+        types::{ArraySize, FnSig, FunctionDef, ModulePath, NumOrVar, Stmt, StmtKind, Ty, TyKind},
         CustomType, Expr, ExprKind, Op2,
     },
     syntax::is_type,
+    utils::to_u32,
 };
 
 use super::{FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
@@ -583,8 +584,25 @@ impl<B: Backend> TypeChecker<B> {
                     .store_type(var.value.clone(), TypeInfo::new(TyKind::BigInt, var.span))?;
 
                 // ensure start..end makes sense
-                if range.end < range.start {
-                    panic!("end can't be smaller than start (TODO: better error)");
+                match (&range.start, &range.end) {
+                    (NumOrVar::Number(start), NumOrVar::Number(end)) => {
+                        if end < start {
+                            panic!("end can't be smaller than start (TODO: better error)");
+                        }
+                    }
+                    (NumOrVar::Variable(var), NumOrVar::Number(_))
+                    | (NumOrVar::Number(_), NumOrVar::Variable(var)) => {
+                        if !self.is_constant(var, typed_fn_env) {
+                            return Err(self.error(ErrorKind::InvalidRangeType, range.span));
+                        }
+                    }
+                    (NumOrVar::Variable(start), NumOrVar::Variable(end)) => {
+                        if !self.is_constant(start, typed_fn_env)
+                            || !self.is_constant(end, typed_fn_env)
+                        {
+                            return Err(self.error(ErrorKind::InvalidRangeType, range.span));
+                        }
+                    }
                 }
 
                 // check block
@@ -611,6 +629,22 @@ impl<B: Backend> TypeChecker<B> {
         }
 
         Ok(None)
+    }
+
+    fn is_constant(&mut self, var: &String, typed_fn_env: &mut TypedFnEnv) -> bool {
+        // check if it is a constant from local scope
+        let qualified = FullyQualified::new(&ModulePath::Local, var);
+        if self.constants.get(&qualified).is_some() {
+            return true;
+        }
+
+        // check if it is constant from type info
+        let typ = typed_fn_env.get_type_info(var);
+        if let Some(typ) = typ {
+            return typ.constant;
+        }
+
+        false
     }
 
     /// type checks a function call.

@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use crate::{
     backends::{kimchi::VestaField, Backend},
-    parser::types::TyKind,
+    parser::types::{ArraySize, TyKind},
     type_checker::FullyQualified,
     witness::CompiledCircuit,
 };
@@ -76,8 +76,13 @@ impl<B: Backend> CompiledCircuit<B> {
             }
 
             (TyKind::Array(el_typ, size), Value::Array(values)) => {
-                if values.len() != (*size as usize) {
-                    panic!("wrong size of array");
+                match size {
+                    ArraySize::Number(n) => {
+                        if values.len() != *n as usize {
+                            panic!("wrong size of array");
+                        }
+                    }
+                    ArraySize::Variable(_) => unimplemented!(),
                 }
                 let mut res = vec![];
                 for value in values {
