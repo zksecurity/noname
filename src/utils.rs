@@ -1,5 +1,9 @@
 use std::fmt::Write;
 
+use ark_ff::{BigInteger, PrimeField};
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
+
 pub fn noname_version() -> String {
     format!("@ noname.{}\n\n", env!("CARGO_PKG_VERSION"))
 }
@@ -64,6 +68,16 @@ pub fn title(res: &mut String, s: &str) {
     writeln!(res, "│{s}│", s = s).unwrap();
     writeln!(res, "╰{s}╯", s = "─".repeat(s.len())).unwrap();
     writeln!(res).unwrap();
+}
+
+pub fn to_u32<F: PrimeField>(f: F) -> u32 {
+    let repr = f.into_repr();
+    let bytes = repr.to_bytes_be();
+    let bigint = BigInt::from_bytes_be(num_bigint::Sign::Plus, &bytes);
+    match bigint.to_u32() {
+        Some(x) => x,
+        None => panic!("field element too large"),
+    }
 }
 
 #[cfg(test)]

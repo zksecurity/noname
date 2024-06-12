@@ -713,6 +713,30 @@ impl<B: Backend> CircuitWriter<B> {
                 Ok(Some(var))
             }
 
+            ExprKind::DefaultArrayDeclaration { item, size } => {
+                let mut cvars = vec![];
+
+                let item_var = self.compute_expr(fn_env, item)?.unwrap();
+                let to_extend = item_var.value(self, fn_env).cvars.clone();
+
+                let size_var = self.compute_expr(fn_env, size)?.unwrap();
+                let size = size_var.value(self, fn_env).cvars.clone();
+
+                let cst = size[0].cst();
+                if cst.is_none() {
+                    return Err(self.error(ErrorKind::ExpectedConstant, expr.span));
+                }
+
+                let size = to_u32(cst.unwrap());
+
+                for _ in 0..size {
+                    cvars.extend(to_extend.clone());
+                }
+
+                let var = VarOrRef::Var(Var::new(cvars, expr.span));
+                Ok(Some(var))
+            }
+
             ExprKind::CustomTypeDeclaration { custom: _, fields } => {
                 // create the struct by just concatenating all of its cvars
                 let mut cvars = vec![];

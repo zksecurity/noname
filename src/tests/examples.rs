@@ -361,6 +361,24 @@ fn test_types_array(#[case] backend: BackendKind) -> miette::Result<()> {
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_default_array(#[case] backend: BackendKind) -> miette::Result<()> {
+    let private_inputs = r#"{"total_size": "750"}"#;
+    let public_inputs = r#"{"resize_to": "50"}"#;
+
+    test_file(
+        "default_array",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_iterate(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"bedroom_holes": "2"}"#;
