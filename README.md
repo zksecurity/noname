@@ -4,11 +4,17 @@ This is **work-in-progress** to implement a high-level (Rust and Golang-inspired
  - Kimchi 
  - R1CS
 
-If you don't know what zero-knowledge proofs, zkapps, or kimchi are, check out [that blogpost](https://minaprotocol.com/blog/kimchi-the-latest-update-to-minas-proof-system).
+ I invite you to try to [install](#installation) and [play](#usage) with noname. Please provide feedback and suggestions via the [issues](https://github.com/zksecurity/noname/issues).
 
-You can read more about the project on the noname book: https://zksecurity.github.io/noname or my [series of blogposts](https://cryptologie.net/article/573).
+## Getting Started
 
-I invite you to try to [install](#installation) and [play](#usage) with noname. Please provide feedback and suggestions via the [issues](https://github.com/zksecurity/noname/issues).
+- [Noname Book](https://zksecurity.github.io/noname): A high-level language to write circuits using a zero-knowledge proof system
+- [Kimchi](https://minaprotocol.com/blog/kimchi-the-latest-update-to-minas-proof-system): The latest update to Mina’s proof system
+- Series of [blog posts](https://cryptologie.net/article/573) to read more about the noname
+- [Noname meets Ethereum](https://www.zksecurity.xyz/blog/posts/noname-r1cs/): Integration with SnarkJS
+- [Noname Code Walkthrough](https://www.youtube.com/live/pQer-ua73Vo)
+- Join us on the [Noname Telegram](https://t.me/+VSChAOmJQgQzODcx)
+
 
 ## Examples
 
