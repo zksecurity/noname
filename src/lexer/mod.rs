@@ -3,10 +3,10 @@ use std::fmt::Display;
 use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
-    syntax::{is_hexadecimal, is_identifier_or_type, is_numeric},
+    syntax::is_identifier_or_type,
 };
 
-use num_bigint::BigInt;
+use num_bigint::BigUint;
 use num_traits::Num as _;
 pub use tokens::Tokens;
 
@@ -119,7 +119,7 @@ impl Display for Keyword {
 pub enum TokenKind {
     Keyword(Keyword),   // reserved keywords
     Identifier(String), // [a-zA-Z](A-Za-z0-9_)*
-    BigInt(String),     // (0-9)*
+    BigUInt(BigUint),   // (0-9)*
     Dot,                // .
     DoubleDot,          // ..
     Comma,              // ,
@@ -159,7 +159,7 @@ impl Display for TokenKind {
             Identifier(_) => {
                 "a lowercase alphanumeric (including underscore) string starting with a letter"
             }
-            BigInt(_) => "a number",
+            BigUInt(_) => "a number",
             Dot => ".",
             DoubleDot => "..",
             Comma => "`,`",
@@ -221,40 +221,47 @@ impl Token {
         // keep track of variables
         let mut ident_or_number: Option<String> = None;
 
-        let add_thing =
-            |ctx: &mut LexerCtx, tokens: &mut Vec<_>, ident_or_number: String| -> Result<()> {
-                let len = ident_or_number.len();
-                if let Some(keyword) = Keyword::parse(&ident_or_number) {
-                    tokens.push(TokenKind::Keyword(keyword).new_token(ctx, len));
-                } else {
-                    let token_type = if is_numeric(&ident_or_number) {
-                        TokenKind::BigInt(ident_or_number)
-                    } else if is_hexadecimal(&ident_or_number) {
-                        let hex = ident_or_number.trim_start_matches("0x");
-                        TokenKind::BigInt(
-                            BigInt::from_str_radix(hex, 16)
-                                .expect("invalid hex number")
-                                .to_str_radix(10),
-                        )
-                    } else if is_identifier_or_type(&ident_or_number) {
-                        if ident_or_number.len() < 2 {
+        let add_thing = |ctx: &mut LexerCtx,
+                         tokens: &mut Vec<_>,
+                         ident_or_number: String|
+         -> Result<()> {
+            let len = ident_or_number.len();
+            if let Some(keyword) = Keyword::parse(&ident_or_number) {
+                tokens.push(TokenKind::Keyword(keyword).new_token(ctx, len));
+            } else {
+                let token_type = if let Ok(big_uint) = BigUint::from_str_radix(&ident_or_number, 10)
+                {
+                    TokenKind::BigUInt(big_uint)
+                } else if ident_or_number.starts_with("0x") {
+                    match BigUint::from_str_radix(ident_or_number.trim_start_matches("0x"), 16) {
+                        Ok(big_uint) => TokenKind::BigUInt(big_uint),
+                        Err(_) => {
+                            let len = ident_or_number.len();
                             return Err(ctx.error(
-                                ErrorKind::NoOneLetterVariable,
-                                Span::new(ctx.filename_id, ctx.offset, 1),
+                                ErrorKind::InvalidHexLiteral(ident_or_number),
+                                Span::new(ctx.filename_id, ctx.offset, len),
                             ));
                         }
-
-                        TokenKind::Identifier(ident_or_number)
-                    } else {
+                    }
+                } else if is_identifier_or_type(&ident_or_number) {
+                    if ident_or_number.len() < 2 {
                         return Err(ctx.error(
-                            ErrorKind::InvalidIdentifier(ident_or_number),
+                            ErrorKind::NoOneLetterVariable,
                             Span::new(ctx.filename_id, ctx.offset, 1),
                         ));
-                    };
-                    tokens.push(token_type.new_token(ctx, len));
-                }
-                Ok(())
-            };
+                    }
+
+                    TokenKind::Identifier(ident_or_number)
+                } else {
+                    return Err(ctx.error(
+                        ErrorKind::InvalidIdentifier(ident_or_number),
+                        Span::new(ctx.filename_id, ctx.offset, 1),
+                    ));
+                };
+                tokens.push(token_type.new_token(ctx, len));
+            }
+            Ok(())
+        };
 
         // go through line char by char
         let mut chars = line.chars().peekable();

@@ -65,7 +65,7 @@ impl NameResCtx {
             ExprKind::Not(expr) => {
                 self.resolve_expr(expr)?;
             }
-            ExprKind::BigInt(_) => {}
+            ExprKind::BigUInt(_) => {}
             ExprKind::Variable { module, name: _ } => {
                 self.resolve(module, false)?;
             }

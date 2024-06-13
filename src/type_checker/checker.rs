@@ -302,7 +302,7 @@ impl<B: Backend> TypeChecker<B> {
                 Some(ExprTyInfo::new_anon(TyKind::Bool))
             }
 
-            ExprKind::BigInt(_) => Some(ExprTyInfo::new_anon(TyKind::BigInt)),
+            ExprKind::BigUInt(_) => Some(ExprTyInfo::new_anon(TyKind::BigInt)),
 
             ExprKind::Bool(_) => Some(ExprTyInfo::new_anon(TyKind::Bool)),
 
