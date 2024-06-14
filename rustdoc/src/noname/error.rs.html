@@ -296,6 +296,9 @@
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
 <a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
@@ -593,5 +596,8 @@
 
     <span class="attr">#[error(<span class="string">"cannot compile a module without a main function"</span>)]
     </span>NoMainFunction,
+
+    <span class="attr">#[error(<span class="string">"invalid hexadecimal literal `${0}`"</span>)]
+    </span>InvalidHexLiteral(String),
 }
 </code></pre></div></section></main></body></html>

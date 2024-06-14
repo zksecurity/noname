@@ -601,6 +601,7 @@
 <a href="#601" id="601">601</a>
 <a href="#602" id="602">602</a>
 <a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::syntax::is_type;
 <span class="kw">use crate</span>::{
     constants::Span,
@@ -608,6 +609,7 @@
     lexer::{Keyword, Token, TokenKind, Tokens},
 };
 
+<span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use super</span>::{
@@ -692,7 +694,7 @@
     </span>Not(Box&lt;Expr&gt;),
 
     <span class="doccomment">/// any numbers
-    </span>BigInt(String),
+    </span>BigUInt(BigUint),
 
     <span class="doccomment">/// a variable or a type. For example, `mod::A`, `x`, `y`, etc.
     </span><span class="comment">// TODO: change to `identifier` or `path`?
@@ -741,7 +743,7 @@
 
         <span class="kw">let </span>lhs = <span class="kw">match </span>token.kind {
             <span class="comment">// numeric
-            </span>TokenKind::BigInt(b) =&gt; Expr::new(ctx, ExprKind::BigInt(b), span),
+            </span>TokenKind::BigUInt(b) =&gt; Expr::new(ctx, ExprKind::BigUInt(b), span),
 
             <span class="comment">// identifier
             </span>TokenKind::Identifier(value) =&gt; {
@@ -833,7 +835,7 @@
                     <span class="kw-2">&amp;</span>then_.kind,
                     ExprKind::Variable { .. }
                         | ExprKind::Bool { .. }
-                        | ExprKind::BigInt { .. }
+                        | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {
@@ -860,7 +862,7 @@
                     <span class="kw-2">&amp;</span>else_.kind,
                     ExprKind::Variable { .. }
                         | ExprKind::Bool { .. }
-                        | ExprKind::BigInt { .. }
+                        | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {

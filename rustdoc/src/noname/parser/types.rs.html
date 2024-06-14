@@ -1234,9 +1234,16 @@
 <a href="#1234" id="1234">1234</a>
 <a href="#1235" id="1235">1235</a>
 <a href="#1236" id="1236">1236</a>
+<a href="#1237" id="1237">1237</a>
+<a href="#1238" id="1238">1238</a>
+<a href="#1239" id="1239">1239</a>
+<a href="#1240" id="1240">1240</a>
+<a href="#1241" id="1241">1241</a>
+<a href="#1242" id="1242">1242</a>
+<a href="#1243" id="1243">1243</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{fmt::Display, str::FromStr};
 
-<span class="kw">use </span>ark_ff::Field;
+<span class="kw">use </span>ark_ff::{Field, Zero};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use crate</span>::{
@@ -1580,12 +1587,14 @@
                 //         ^
                 </span><span class="kw">let </span>siz = tokens.bump_err(ctx, ErrorKind::InvalidToken)<span class="question-mark">?</span>;
                 <span class="kw">let </span>siz: u32 = <span class="kw">match </span>siz.kind {
-                    TokenKind::BigInt(s) =&gt; s
-                        .parse()
+                    TokenKind::BigUInt(b) =&gt; b
+                        .try_into()
                         .map_err(|_e| ctx.error(ErrorKind::InvalidArraySize, siz.span))<span class="question-mark">?</span>,
                     <span class="kw">_ </span>=&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigInt(<span class="string">""</span>.to_string())),
+                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
+                                num_bigint::BigUint::zero(),
+                            )),
                             siz.span,
                         ));
                     }
@@ -2205,17 +2214,19 @@
                 //          ^
                 </span><span class="kw">let </span>(start, start_span) = <span class="kw">match </span>tokens.bump(ctx) {
                     <span class="prelude-val">Some</span>(Token {
-                        kind: TokenKind::BigInt(n),
+                        kind: TokenKind::BigUInt(n),
                         span,
                     }) =&gt; {
                         <span class="kw">let </span>start: u32 = n
-                            .parse()
+                            .try_into()
                             .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))<span class="question-mark">?</span>;
                         (start, span)
                     }
                     <span class="kw">_ </span>=&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigInt(<span class="string">""</span>.to_string())),
+                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
+                                num_bigint::BigUint::zero(),
+                            )),
                             ctx.last_span(),
                         ))
                     }
@@ -2229,17 +2240,19 @@
                 //             ^
                 </span><span class="kw">let </span>(end, end_span) = <span class="kw">match </span>tokens.bump(ctx) {
                     <span class="prelude-val">Some</span>(Token {
-                        kind: TokenKind::BigInt(n),
+                        kind: TokenKind::BigUInt(n),
                         span,
                     }) =&gt; {
                         <span class="kw">let </span>end: u32 = n
-                            .parse()
+                            .try_into()
                             .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))<span class="question-mark">?</span>;
                         (end, span)
                     }
                     <span class="kw">_ </span>=&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigInt(<span class="string">""</span>.to_string())),
+                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
+                                num_bigint::BigUint::zero(),
+                            )),
                             ctx.last_span(),
                         ))
                     }
@@ -2448,9 +2461,10 @@
         //             ^^
         </span><span class="kw">let </span>value = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
         <span class="kw">let </span>value = <span class="kw">match </span><span class="kw-2">&amp;</span>value.kind {
-            ExprKind::BigInt(s) =&gt; s
+            ExprKind::BigUInt(n) =&gt; n
+                .to_string()
                 .parse()
-                .map_err(|_e| ctx.error(ErrorKind::InvalidField(s.clone()), value.span))<span class="question-mark">?</span>,
+                .map_err(|_e| ctx.error(ErrorKind::InvalidField(n.to_string()), value.span))<span class="question-mark">?</span>,
             <span class="kw">_ </span>=&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(ErrorKind::InvalidConstType, value.span));
             }

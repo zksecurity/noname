@@ -754,7 +754,6 @@
 <a href="#754" id="754">754</a>
 <a href="#755" id="755">755</a>
 <a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
 
 <span class="kw">use </span>ark_ff::{One, Zero};
@@ -1325,9 +1324,8 @@
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(VarOrRef::Var(res)))
             }
 
-            ExprKind::BigInt(b) =&gt; {
-                <span class="kw">let </span>biguint = BigUint::from_str_radix(b, <span class="number">10</span>).expect(<span class="string">"failed to parse number."</span>);
-                <span class="kw">let </span>ff = B::Field::try_from(biguint).map_err(|<span class="kw">_</span>| {
+            ExprKind::BigUInt(b) =&gt; {
+                <span class="kw">let </span>ff = B::Field::try_from(b.to_owned()).map_err(|<span class="kw">_</span>| {
                     <span class="self">self</span>.error(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
                 })<span class="question-mark">?</span>;
 

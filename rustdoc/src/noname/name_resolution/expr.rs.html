@@ -170,7 +170,7 @@
             ExprKind::Not(expr) =&gt; {
                 <span class="self">self</span>.resolve_expr(expr)<span class="question-mark">?</span>;
             }
-            ExprKind::BigInt(<span class="kw">_</span>) =&gt; {}
+            ExprKind::BigUInt(<span class="kw">_</span>) =&gt; {}
             ExprKind::Variable { module, name: <span class="kw">_ </span>} =&gt; {
                 <span class="self">self</span>.resolve(module, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
             }
