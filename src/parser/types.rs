@@ -1,4 +1,9 @@
-use std::{fmt::Display, str::FromStr};
+use educe::Educe;
+use std::{
+    fmt::Display,
+    hash::{Hash, Hasher},
+    str::FromStr,
+};
 
 use ark_ff::{Field, Zero};
 use serde::{Deserialize, Serialize};
@@ -152,8 +157,7 @@ pub struct Ty {
 }
 
 /// The module preceding structs, functions, or variables.
-// TODO: Hash should probably be implemented manually, right now two alias might have different span and so this will give different hashes
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum ModulePath {
     #[default]
     /// This is a local type, not imported from another module.
@@ -165,18 +169,6 @@ pub enum ModulePath {
     /// This is a type imported from another module,
     /// fully-qualified (as `user::repo`) thanks to the name resolution pass of the compiler.
     Absolute(UserRepo),
-}
-
-// TODO: do we want to implement this on Ident instead?
-impl PartialEq for ModulePath {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (ModulePath::Alias(a), ModulePath::Alias(b)) => a.value == b.value,
-            (ModulePath::Local, ModulePath::Local) => true,
-            (ModulePath::Absolute(a), ModulePath::Absolute(b)) => a == b,
-            _ => false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -403,9 +395,12 @@ impl FnSig {
 }
 
 /// Any kind of text that can represent a type, a variable, a function name, etc.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Eq, Serialize, Deserialize, Educe)]
+#[educe(Hash, PartialEq)]
 pub struct Ident {
     pub value: String,
+    #[educe(Hash(ignore))]
+    #[educe(PartialEq(ignore))]
     pub span: Span,
 }
 
