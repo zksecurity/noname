@@ -157,9 +157,25 @@
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
 <a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Used to parse public and private inputs to a program.
 
-</span><span class="kw">use </span>std::{collections::HashMap, str::FromStr};
+</span><span class="kw">use </span>std::{collections::HashMap, fs::File, io::Read, str::FromStr};
 
 <span class="kw">use </span>ark_ff::{One, PrimeField, Zero};
 <span class="kw">use </span>miette::Diagnostic;
@@ -179,8 +195,11 @@
 
 </span><span class="attr">#[derive(Error, Diagnostic, Debug)]
 </span><span class="kw">pub enum </span>ParsingError {
-    <span class="attr">#[error(transparent)]
-    </span>IoError(<span class="attr">#[from] </span>serde_json::Error),
+    <span class="attr">#[error(<span class="string">"JSON parsing error in file {file}: {source}"</span>)]
+    </span>JsonFileError {
+        source: serde_json::Error,
+        file: String,
+    },
 
     <span class="attr">#[error(<span class="string">"error parsing input {0}"</span>)]
     </span>Inputs(String),
@@ -202,7 +221,20 @@
 </span><span class="kw">pub struct </span>JsonInputs(<span class="kw">pub </span>HashMap&lt;String, serde_json::Value&gt;);
 
 <span class="kw">pub fn </span>parse_inputs(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;JsonInputs, ParsingError&gt; {
-    <span class="kw">let </span>json_inputs: JsonInputs = serde_json::from_str(s)<span class="question-mark">?</span>;
+    <span class="kw">if let </span><span class="prelude-val">Ok</span>(json_inputs) = serde_json::from_str(s) {
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(json_inputs);
+    }
+
+    <span class="kw">let </span><span class="kw-2">mut </span>file = File::open(s).map_err(|<span class="kw">_</span>| ParsingError::Inputs(s.to_string()))<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>contents = String::new();
+    file.read_to_string(<span class="kw-2">&amp;mut </span>contents)
+        .map_err(|<span class="kw">_</span>| ParsingError::Inputs(s.to_string()))<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>json_inputs = serde_json::from_str(<span class="kw-2">&amp;</span>contents).map_err(|e| ParsingError::JsonFileError {
+        source: e,
+        file: s.to_string(),
+    })<span class="question-mark">?</span>;
+
     <span class="prelude-val">Ok</span>(json_inputs)
 }
 
