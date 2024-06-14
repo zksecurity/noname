@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use ark_ff::Field;
+use ark_ff::{Field, Zero};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -344,12 +344,14 @@ impl Ty {
                 //         ^
                 let siz = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
                 let siz: u32 = match siz.kind {
-                    TokenKind::BigInt(s) => s
-                        .parse()
+                    TokenKind::BigUInt(b) => b
+                        .try_into()
                         .map_err(|_e| ctx.error(ErrorKind::InvalidArraySize, siz.span))?,
                     _ => {
                         return Err(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
+                                num_bigint::BigUint::zero(),
+                            )),
                             siz.span,
                         ));
                     }
@@ -969,17 +971,19 @@ impl Stmt {
                 //          ^
                 let (start, start_span) = match tokens.bump(ctx) {
                     Some(Token {
-                        kind: TokenKind::BigInt(n),
+                        kind: TokenKind::BigUInt(n),
                         span,
                     }) => {
                         let start: u32 = n
-                            .parse()
+                            .try_into()
                             .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
                         (start, span)
                     }
                     _ => {
                         return Err(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
+                                num_bigint::BigUint::zero(),
+                            )),
                             ctx.last_span(),
                         ))
                     }
@@ -993,17 +997,19 @@ impl Stmt {
                 //             ^
                 let (end, end_span) = match tokens.bump(ctx) {
                     Some(Token {
-                        kind: TokenKind::BigInt(n),
+                        kind: TokenKind::BigUInt(n),
                         span,
                     }) => {
                         let end: u32 = n
-                            .parse()
+                            .try_into()
                             .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
                         (end, span)
                     }
                     _ => {
                         return Err(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
+                                num_bigint::BigUint::zero(),
+                            )),
                             ctx.last_span(),
                         ))
                     }
@@ -1212,9 +1218,10 @@ impl<F: Field + FromStr> ConstDef<F> {
         //             ^^
         let value = Expr::parse(ctx, tokens)?;
         let value = match &value.kind {
-            ExprKind::BigInt(s) => s
+            ExprKind::BigUInt(n) => n
+                .to_string()
                 .parse()
-                .map_err(|_e| ctx.error(ErrorKind::InvalidField(s.clone()), value.span))?,
+                .map_err(|_e| ctx.error(ErrorKind::InvalidField(n.to_string()), value.span))?,
             _ => {
                 return Err(ctx.error(ErrorKind::InvalidConstType, value.span));
             }
