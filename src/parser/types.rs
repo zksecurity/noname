@@ -1,6 +1,11 @@
-use std::{fmt::Display, str::FromStr};
+use educe::Educe;
+use std::{
+    fmt::Display,
+    hash::{Hash, Hasher},
+    str::FromStr,
+};
 
-use ark_ff::Field;
+use ark_ff::{Field, Zero};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -152,8 +157,7 @@ pub struct Ty {
 }
 
 /// The module preceding structs, functions, or variables.
-// TODO: Hash should probably be implemented manually, right now two alias might have different span and so this will give different hashes
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Hash, Eq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum ModulePath {
     #[default]
     /// This is a local type, not imported from another module.
@@ -165,18 +169,6 @@ pub enum ModulePath {
     /// This is a type imported from another module,
     /// fully-qualified (as `user::repo`) thanks to the name resolution pass of the compiler.
     Absolute(UserRepo),
-}
-
-// TODO: do we want to implement this on Ident instead?
-impl PartialEq for ModulePath {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (ModulePath::Alias(a), ModulePath::Alias(b)) => a.value == b.value,
-            (ModulePath::Local, ModulePath::Local) => true,
-            (ModulePath::Absolute(a), ModulePath::Absolute(b)) => a == b,
-            _ => false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -344,12 +336,14 @@ impl Ty {
                 //         ^
                 let siz = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
                 let siz: u32 = match siz.kind {
-                    TokenKind::BigInt(s) => s
-                        .parse()
+                    TokenKind::BigUInt(b) => b
+                        .try_into()
                         .map_err(|_e| ctx.error(ErrorKind::InvalidArraySize, siz.span))?,
                     _ => {
                         return Err(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
+                                num_bigint::BigUint::zero(),
+                            )),
                             siz.span,
                         ));
                     }
@@ -401,9 +395,12 @@ impl FnSig {
 }
 
 /// Any kind of text that can represent a type, a variable, a function name, etc.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Eq, Serialize, Deserialize, Educe)]
+#[educe(Hash, PartialEq)]
 pub struct Ident {
     pub value: String,
+    #[educe(Hash(ignore))]
+    #[educe(PartialEq(ignore))]
     pub span: Span,
 }
 
@@ -969,17 +966,19 @@ impl Stmt {
                 //          ^
                 let (start, start_span) = match tokens.bump(ctx) {
                     Some(Token {
-                        kind: TokenKind::BigInt(n),
+                        kind: TokenKind::BigUInt(n),
                         span,
                     }) => {
                         let start: u32 = n
-                            .parse()
+                            .try_into()
                             .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
                         (start, span)
                     }
                     _ => {
                         return Err(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
+                                num_bigint::BigUint::zero(),
+                            )),
                             ctx.last_span(),
                         ))
                     }
@@ -993,17 +992,19 @@ impl Stmt {
                 //             ^
                 let (end, end_span) = match tokens.bump(ctx) {
                     Some(Token {
-                        kind: TokenKind::BigInt(n),
+                        kind: TokenKind::BigUInt(n),
                         span,
                     }) => {
                         let end: u32 = n
-                            .parse()
+                            .try_into()
                             .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
                         (end, span)
                     }
                     _ => {
                         return Err(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
+                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
+                                num_bigint::BigUint::zero(),
+                            )),
                             ctx.last_span(),
                         ))
                     }
@@ -1212,9 +1213,10 @@ impl<F: Field + FromStr> ConstDef<F> {
         //             ^^
         let value = Expr::parse(ctx, tokens)?;
         let value = match &value.kind {
-            ExprKind::BigInt(s) => s
+            ExprKind::BigUInt(n) => n
+                .to_string()
                 .parse()
-                .map_err(|_e| ctx.error(ErrorKind::InvalidField(s.clone()), value.span))?,
+                .map_err(|_e| ctx.error(ErrorKind::InvalidField(n.to_string()), value.span))?,
             _ => {
                 return Err(ctx.error(ErrorKind::InvalidConstType, value.span));
             }

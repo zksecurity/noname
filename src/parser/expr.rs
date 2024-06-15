@@ -5,6 +5,7 @@ use crate::{
     lexer::{Keyword, Token, TokenKind, Tokens},
 };
 
+use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -89,7 +90,7 @@ pub enum ExprKind {
     Not(Box<Expr>),
 
     /// any numbers
-    BigInt(String),
+    BigUInt(BigUint),
 
     /// a variable or a type. For example, `mod::A`, `x`, `y`, etc.
     // TODO: change to `identifier` or `path`?
@@ -138,7 +139,7 @@ impl Expr {
 
         let lhs = match token.kind {
             // numeric
-            TokenKind::BigInt(b) => Expr::new(ctx, ExprKind::BigInt(b), span),
+            TokenKind::BigUInt(b) => Expr::new(ctx, ExprKind::BigUInt(b), span),
 
             // identifier
             TokenKind::Identifier(value) => {
@@ -230,7 +231,7 @@ impl Expr {
                     &then_.kind,
                     ExprKind::Variable { .. }
                         | ExprKind::Bool { .. }
-                        | ExprKind::BigInt { .. }
+                        | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {
@@ -257,7 +258,7 @@ impl Expr {
                     &else_.kind,
                     ExprKind::Variable { .. }
                         | ExprKind::Bool { .. }
-                        | ExprKind::BigInt { .. }
+                        | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {

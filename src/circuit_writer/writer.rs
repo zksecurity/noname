@@ -568,9 +568,8 @@ impl<B: Backend> CircuitWriter<B> {
                 Ok(Some(VarOrRef::Var(res)))
             }
 
-            ExprKind::BigInt(b) => {
-                let biguint = BigUint::from_str_radix(b, 10).expect("failed to parse number.");
-                let ff = B::Field::try_from(biguint).map_err(|_| {
+            ExprKind::BigUInt(b) => {
+                let ff = B::Field::try_from(b.to_owned()).map_err(|_| {
                     self.error(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
                 })?;
 

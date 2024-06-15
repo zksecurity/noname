@@ -412,3 +412,15 @@ fn test_sudoku(#[case] backend: BackendKind) -> miette::Result<()> {
 
     Ok(())
 }
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_literals(#[case] backend: BackendKind) -> miette::Result<()> {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"public_input": "42"}"#;
+
+    test_file("literals", public_inputs, private_inputs, vec![], backend)?;
+
+    Ok(())
+}
