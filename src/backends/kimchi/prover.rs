@@ -76,6 +76,11 @@ impl KimchiVesta {
             .enumerate()
             .map(|(row, gate)| gate.to_kimchi_gate(row))
             .collect();
+        
+        // println!("Length of gates : {}", gates.len());
+        // // for gate in gates.iter_mut() {
+        // //     println!("Length of wires in gate : {}", gate.wires.len());
+        // // }
 
         // wiring
         for wiring in self.wiring.values() {
@@ -90,6 +95,7 @@ impl KimchiVesta {
                 let mut prev_cell = first_cell;
 
                 for cell in chain![wired_cells, once(first_cell)] {
+                    // println!("Current row : {}, col : {}", cell.row, cell.col);
                     gates[cell.row].wires[cell.col] = kimchi::circuits::wires::Wire {
                         row: prev_cell.row,
                         col: prev_cell.col,

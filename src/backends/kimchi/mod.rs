@@ -241,63 +241,6 @@ impl KimchiVesta {
             });
         }
     }
-
-    // Adds a wire to put a copy constraint on two vars
-    fn add_copy_constraint(
-        &mut self,
-        note: &'static str,
-        mut vars: Vec<Option<KimchiCellVar>>,
-        mut coeffs: Vec<VestaField>,
-        span: Span,
-    ) {
-        // padding
-        let coeffs_padding = GENERIC_COEFFS.checked_sub(coeffs.len()).unwrap();
-        coeffs.extend(std::iter::repeat(VestaField::zero()).take(coeffs_padding));
-
-        let vars_padding = GENERIC_REGISTERS.checked_sub(vars.len()).unwrap();
-        vars.extend(std::iter::repeat(None).take(vars_padding));
-
-        // sanitize
-        assert!(coeffs.len() <= NUM_REGISTERS);
-        assert!(vars.len() <= NUM_REGISTERS);
-
-        // construct the execution trace with vars, for the witness generation
-        self.witness_table.push(vars.clone());
-
-        // get current row
-        // important: do that before adding the gate below
-        let row = self.gates.len();
-
-        // add debug info related to the wire
-        let debug_info = DebugInfo {
-            span,
-            note: note.to_string(),
-        };
-        self.debug_info.push(debug_info.clone());
-
-        // wiring (based on vars)
-        for (col, var) in vars.iter().enumerate() {
-            if let Some(var) = var {
-                let curr_cell = Cell { row, col };
-                let annotated_cell = AnnotatedCell {
-                    cell: curr_cell,
-                    debug: debug_info.clone(),
-                };
-
-                self.wiring
-                    .entry(var.index)
-                    .and_modify(|w| match w {
-                        Wiring::NotWired(old_cell) => {
-                            *w = Wiring::Wired(vec![old_cell.clone(), annotated_cell.clone()])
-                        }
-                        Wiring::Wired(ref mut cells) => {
-                            cells.push(annotated_cell.clone());
-                        }
-                    })
-                    .or_insert(Wiring::NotWired(annotated_cell));
-            }
-        }        
-    }
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -746,28 +689,104 @@ impl Backend for KimchiVesta {
 
     fn assert_eq_const(&mut self, cvar: &KimchiCellVar, cst: Self::Field, span: Span) {
         // use permutation to check
-        self.add_copy_constraint(
-            "constrain var - cst = 0 to check equality",
-            vec![Some(*cvar)],
-            vec![
-                Self::Field::one(),
-                Self::Field::zero(),
-                Self::Field::zero(),
-                Self::Field::zero(),
-                cst.neg(),
-            ],
+        let vars = vec![Some(*cvar)];
+        let coeffs = vec![
+            Self::Field::one(),
+            Self::Field::zero(),
+            Self::Field::zero(),
+            Self::Field::zero(),
+            cst.neg(),
+        ];
+        let note = "constrain var - cst = 0 to check equality";
+
+        // sanitize
+        assert!(coeffs.len() <= NUM_REGISTERS);
+        assert!(vars.len() <= NUM_REGISTERS);
+
+        // construct the execution trace with vars, for the witness generation
+        self.witness_table.push(vars.clone());
+
+        // get current row
+        // important: do that before adding the gate below
+        let row = self.gates.len();
+
+        // add debug info related to that gate
+        let debug_info = DebugInfo {
             span,
-        );
+            note: note.to_string(),
+        };
+        self.debug_info.push(debug_info.clone());
+
+        // wiring (based on vars)
+        for (col, var) in vars.iter().enumerate() {
+            if let Some(var) = var {
+                let curr_cell = Cell { row, col };
+                let annotated_cell = AnnotatedCell {
+                    cell: curr_cell,
+                    debug: debug_info.clone(),
+                };
+
+                self.wiring
+                    .entry(var.index)
+                    .and_modify(|w| match w {
+                        Wiring::NotWired(old_cell) => {
+                            *w = Wiring::Wired(vec![old_cell.clone(), annotated_cell.clone()])
+                        }
+                        Wiring::Wired(ref mut cells) => {
+                            cells.push(annotated_cell.clone());
+                        }
+                    })
+                    .or_insert(Wiring::NotWired(annotated_cell));
+            }
+        }
     }
 
     fn assert_eq_var(&mut self, lhs: &KimchiCellVar, rhs: &KimchiCellVar, span: Span) {
         // TODO: use permutation to check that
-        self.add_copy_constraint(
-            "constrain lhs - rhs = 0 to assert that they are equal",
-            vec![Some(*lhs), Some(*rhs)],
-            vec![Self::Field::one(), Self::Field::one().neg()],
+        let vars = vec![Some(*lhs), Some(*rhs)];
+        let coeffs = vec![Self::Field::one(), Self::Field::one().neg()];
+        let note = "constrain lhs - rhs = 0 to assert that they are equal";
+
+        // sanitize
+        assert!(coeffs.len() <= NUM_REGISTERS);
+        assert!(vars.len() <= NUM_REGISTERS);
+
+        // construct the execution trace with vars, for the witness generation
+        self.witness_table.push(vars.clone());
+
+        // get current row
+        // important: do that before adding the gate below
+        let row = self.gates.len();
+
+        // add debug info related to that gate
+        let debug_info = DebugInfo {
             span,
-        );
+            note: note.to_string(),
+        };
+        self.debug_info.push(debug_info.clone());
+
+        // wiring (based on vars)
+        for (col, var) in vars.iter().enumerate() {
+            if let Some(var) = var {
+                let curr_cell = Cell { row, col };
+                let annotated_cell = AnnotatedCell {
+                    cell: curr_cell,
+                    debug: debug_info.clone(),
+                };
+
+                self.wiring
+                    .entry(var.index)
+                    .and_modify(|w| match w {
+                        Wiring::NotWired(old_cell) => {
+                            *w = Wiring::Wired(vec![old_cell.clone(), annotated_cell.clone()])
+                        }
+                        Wiring::Wired(ref mut cells) => {
+                            cells.push(annotated_cell.clone());
+                        }
+                    })
+                    .or_insert(Wiring::NotWired(annotated_cell));
+            }
+        }
     }
 
     fn add_public_input(&mut self, val: Value<Self>, span: Span) -> KimchiCellVar {
