@@ -596,7 +596,7 @@ impl<B: Backend> TypeChecker<B> {
             StmtKind::Expr(expr) => {
                 // make sure the expression does not return any type
                 // (it's a statement expression, it should only work via side effect)
-                
+
                 let typ = self.compute_type(expr, typed_fn_env)?;
                 if typ.is_some() {
                     return Err(self.error(ErrorKind::UnusedReturnValue, expr.span));
@@ -624,11 +624,16 @@ impl<B: Backend> TypeChecker<B> {
         span: Span,
     ) -> Result<Option<TyKind>> {
         // check if a function names is in use already by another variable
-        match typed_fn_env.get_type_info(&fn_sig.name.value){
-            Some(_) => return Err(self.error(ErrorKind::FunctionNameInUsebyVariable(fn_sig.name.value), fn_sig.name.span)),
-            None => (), 
+        match typed_fn_env.get_type_info(&fn_sig.name.value) {
+            Some(_) => {
+                return Err(self.error(
+                    ErrorKind::FunctionNameInUsebyVariable(fn_sig.name.value),
+                    fn_sig.name.span,
+                ))
+            }
+            None => (),
         };
-        
+
         // canonicalize the arguments depending on method call or not
         let expected: Vec<_> = if method_call {
             fn_sig
