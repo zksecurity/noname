@@ -213,6 +213,9 @@ pub enum ErrorKind {
     #[error("function `{0}` not present in scope (did you misspell it?)")]
     UndefinedFunction(String),
 
+    #[error("function name `{0}` is already in use by a variable present in the scope")]
+    FunctionNameInUsebyVariable(String),
+
     #[error("module `{0}` not present in scope (are you sure you imported it?)")]
     UndefinedModule(String),
 
