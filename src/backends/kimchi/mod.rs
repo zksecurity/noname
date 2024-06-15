@@ -689,8 +689,8 @@ impl Backend for KimchiVesta {
 
     fn assert_eq_const(&mut self, cvar: &KimchiCellVar, cst: Self::Field, span: Span) {
         // use permutation to check
-        let vars = vec![Some(*cvar)];
-        let coeffs = vec![
+        let mut vars = vec![Some(*cvar)];
+        let mut coeffs = vec![
             Self::Field::one(),
             Self::Field::zero(),
             Self::Field::zero(),
@@ -699,12 +699,16 @@ impl Backend for KimchiVesta {
         ];
         let note = "constrain var - cst = 0 to check equality";
 
+        // padding
+        let coeffs_padding = GENERIC_COEFFS.checked_sub(coeffs.len()).unwrap();
+        coeffs.extend(std::iter::repeat(VestaField::zero()).take(coeffs_padding));
+
+        let vars_padding = GENERIC_REGISTERS.checked_sub(vars.len()).unwrap();
+        vars.extend(std::iter::repeat(None).take(vars_padding));
+
         // sanitize
         assert!(coeffs.len() <= NUM_REGISTERS);
         assert!(vars.len() <= NUM_REGISTERS);
-
-        // construct the execution trace with vars, for the witness generation
-        self.witness_table.push(vars.clone());
 
         // get current row
         // important: do that before adding the gate below
@@ -743,16 +747,20 @@ impl Backend for KimchiVesta {
 
     fn assert_eq_var(&mut self, lhs: &KimchiCellVar, rhs: &KimchiCellVar, span: Span) {
         // TODO: use permutation to check that
-        let vars = vec![Some(*lhs), Some(*rhs)];
-        let coeffs = vec![Self::Field::one(), Self::Field::one().neg()];
+        let mut vars = vec![Some(*lhs), Some(*rhs)];
+        let mut coeffs = vec![Self::Field::one(), Self::Field::one().neg()];
         let note = "constrain lhs - rhs = 0 to assert that they are equal";
+
+        // padding
+        let coeffs_padding = GENERIC_COEFFS.checked_sub(coeffs.len()).unwrap();
+        coeffs.extend(std::iter::repeat(VestaField::zero()).take(coeffs_padding));
+
+        let vars_padding = GENERIC_REGISTERS.checked_sub(vars.len()).unwrap();
+        vars.extend(std::iter::repeat(None).take(vars_padding));
 
         // sanitize
         assert!(coeffs.len() <= NUM_REGISTERS);
         assert!(vars.len() <= NUM_REGISTERS);
-
-        // construct the execution trace with vars, for the witness generation
-        self.witness_table.push(vars.clone());
 
         // get current row
         // important: do that before adding the gate below
