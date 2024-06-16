@@ -623,6 +623,17 @@ impl<B: Backend> TypeChecker<B> {
         args: &[Expr],
         span: Span,
     ) -> Result<Option<TyKind>> {
+        // check if a function names is in use already by another variable
+        match typed_fn_env.get_type_info(&fn_sig.name.value) {
+            Some(_) => {
+                return Err(self.error(
+                    ErrorKind::FunctionNameInUsebyVariable(fn_sig.name.value),
+                    fn_sig.name.span,
+                ))
+            }
+            None => (),
+        };
+
         // canonicalize the arguments depending on method call or not
         let expected: Vec<_> = if method_call {
             fn_sig
