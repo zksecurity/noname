@@ -3,7 +3,6 @@ use std::fmt::{self, Display, Formatter};
 use ark_ff::{One, Zero};
 use kimchi::circuits::wires::Wire;
 use num_bigint::BigUint;
-use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -568,9 +567,7 @@ impl<B: Backend> CircuitWriter<B> {
             }
 
             ExprKind::BigUInt(b) => {
-                let ff = B::Field::try_from(b.to_owned()).map_err(|_| {
-                    self.error(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
-                })?;
+                let ff = B::Field::from(b.to_owned());
 
                 let res = VarOrRef::Var(Var::new_constant(ff, expr.span));
                 Ok(Some(res))

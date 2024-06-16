@@ -1,9 +1,5 @@
 use educe::Educe;
-use std::{
-    fmt::Display,
-    hash::{Hash, Hasher},
-    str::FromStr,
-};
+use std::{fmt::Display, hash::Hash, str::FromStr};
 
 use ark_ff::{Field, Zero};
 use serde::{Deserialize, Serialize};

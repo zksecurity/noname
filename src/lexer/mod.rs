@@ -158,8 +158,8 @@ pub enum TokenKind {
 impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use TokenKind::{
-            Ampersand, BigInt, Colon, Comma, Comment, Dot, DoubleAmpersand, DoubleColon, DoubleDot,
-            DoubleEqual, DoublePipe, Equal, Exclamation, Greater, Hex, Identifier, Keyword,
+            Ampersand, BigUInt, Colon, Comma, Comment, Dot, DoubleAmpersand, DoubleColon,
+            DoubleDot, DoubleEqual, DoublePipe, Equal, Exclamation, Greater, Identifier, Keyword,
             LeftBracket, LeftCurlyBracket, LeftParen, Less, Minus, Pipe, Plus, Question,
             RightArrow, RightBracket, RightCurlyBracket, RightParen, SemiColon, Slash, Star,
         };
