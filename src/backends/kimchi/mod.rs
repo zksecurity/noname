@@ -126,7 +126,7 @@ impl Witness {
 
     pub fn debug(&self) {
         for (row, values) in self.0.iter().enumerate() {
-            let values = values.iter().map(PrettyField::pretty).join(" | ");
+            let values = values.iter().map(PrettyField).join(" | ");
             println!("{row} - {values}");
         }
     }

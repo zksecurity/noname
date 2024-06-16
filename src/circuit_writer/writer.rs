@@ -339,7 +339,6 @@ impl<B: Backend> CircuitWriter<B> {
                     vars.push(var_info);
                 }
 
-                //
                 match &fn_info.kind {
                     // assert() <-- for example
                     FnKind::BuiltIn(_sig, handle) => {
