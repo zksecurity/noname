@@ -194,7 +194,6 @@ pub enum TyKind {
 }
 
 impl TyKind {
-    #[must_use]
     pub fn match_expected(&self, expected: &TyKind) -> bool {
         match (self, expected) {
             (TyKind::BigInt, TyKind::Field) => true,
@@ -213,7 +212,6 @@ impl TyKind {
         }
     }
 
-    #[must_use]
     pub fn same_as(&self, other: &TyKind) -> bool {
         match (self, other) {
             (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => true,
@@ -261,7 +259,6 @@ impl Display for TyKind {
 }
 
 impl Ty {
-    #[must_use]
     pub fn reserved_types(module: ModulePath, name: Ident) -> TyKind {
         match name.value.as_ref() {
             "Field" | "Bool" if !matches!(module, ModulePath::Local) => {
@@ -404,7 +401,6 @@ pub struct Ident {
 }
 
 impl Ident {
-    #[must_use]
     pub fn new(value: String, span: Span) -> Self {
         Self { value, span }
     }
@@ -432,12 +428,10 @@ pub enum AttributeKind {
 }
 
 impl AttributeKind {
-    #[must_use]
     pub fn is_public(&self) -> bool {
         matches!(self, Self::Pub)
     }
 
-    #[must_use]
     pub fn is_constant(&self) -> bool {
         matches!(self, Self::Const)
     }
@@ -450,12 +444,10 @@ pub struct Attribute {
 }
 
 impl Attribute {
-    #[must_use]
     pub fn is_public(&self) -> bool {
         self.kind.is_public()
     }
 
-    #[must_use]
     pub fn is_constant(&self) -> bool {
         self.kind.is_constant()
     }
@@ -518,12 +510,10 @@ pub struct FnArg {
 }
 
 impl FnArg {
-    #[must_use]
     pub fn is_public(&self) -> bool {
         self.attribute.as_ref().is_some_and(Attribute::is_public)
     }
 
-    #[must_use]
     pub fn is_constant(&self) -> bool {
         self.attribute.as_ref().is_some_and(Attribute::is_constant)
     }
@@ -574,7 +564,6 @@ impl FuncOrMethod {
 }
 
 impl FunctionDef {
-    #[must_use]
     pub fn is_main(&self) -> bool {
         self.sig.name.value == "main"
     }
@@ -810,7 +799,6 @@ impl FunctionDef {
 }
 
 // TODO: enforce snake_case?
-#[must_use]
 pub fn is_valid_fn_name(name: &str) -> bool {
     if let Some(first_char) = name.chars().next() {
         // first character is not a number
@@ -825,7 +813,6 @@ pub fn is_valid_fn_name(name: &str) -> bool {
 }
 
 // TODO: enforce CamelCase?
-#[must_use]
 pub fn is_valid_fn_type(name: &str) -> bool {
     if let Some(first_char) = name.chars().next() {
         // first character is not a number or alpha
@@ -865,7 +852,6 @@ pub struct Range {
 }
 
 impl Range {
-    #[must_use]
     pub fn range(&self) -> std::ops::Range<u32> {
         self.start..self.end
     }

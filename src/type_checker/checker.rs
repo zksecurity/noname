@@ -27,7 +27,6 @@ where
 }
 
 impl<B: Backend> FnInfo<B> {
-    #[must_use]
     pub fn sig(&self) -> &FnSig {
         match &self.kind {
             FnKind::BuiltIn(sig, _) => sig,

@@ -62,7 +62,6 @@ pub struct ParserCtx {
 }
 
 impl ParserCtx {
-    #[must_use]
     pub fn new(filename_id: usize, node_id: usize) -> Self {
         Self {
             node_id,
@@ -71,7 +70,6 @@ impl ParserCtx {
         }
     }
 
-    #[must_use]
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
         Error::new("parser", kind, span)
     }
@@ -83,7 +81,6 @@ impl ParserCtx {
     }
 
     // TODO: I think I don't need this, I should always be able to use the last token I read if I don't see anything, otherwise maybe just write -1 to say "EOF"
-    #[must_use]
     pub fn last_span(&self) -> Span {
         let span = self
             .last_token

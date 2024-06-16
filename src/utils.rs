@@ -1,6 +1,5 @@
 use std::fmt::Write;
 
-#[must_use]
 pub fn noname_version() -> String {
     format!("@ noname.{}\n\n", env!("CARGO_PKG_VERSION"))
 }

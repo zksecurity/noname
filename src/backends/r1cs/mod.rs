@@ -222,7 +222,6 @@ impl<F> R1CS<F>
 where
     F: BackendField,
 {
-    #[must_use]
     pub fn new() -> Self {
         Self {
             constraints: Vec::new(),
@@ -236,7 +235,6 @@ where
     }
 
     /// Returns the number of constraints.
-    #[must_use]
     pub fn num_constraints(&self) -> usize {
         self.constraints.len()
     }

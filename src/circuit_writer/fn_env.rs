@@ -26,12 +26,10 @@ where
 }
 
 impl<F: BackendField, C: BackendVar> VarInfo<F, C> {
-    #[must_use]
     pub fn new(var: Var<F, C>, mutable: bool, typ: Option<TyKind>) -> Self {
         Self { var, mutable, typ }
     }
 
-    #[must_use]
     pub fn reassign(&self, var: Var<F, C>) -> Self {
         Self {
             var,
@@ -40,7 +38,6 @@ impl<F: BackendField, C: BackendVar> VarInfo<F, C> {
         }
     }
 
-    #[must_use]
     pub fn reassign_range(&self, var: Var<F, C>, start: usize, len: usize) -> Self {
         // sanity check
         assert_eq!(var.len(), len);
@@ -82,7 +79,6 @@ where
 
 impl<F: BackendField, C: BackendVar> FnEnv<F, C> {
     /// Creates a new `FnEnv`
-    #[must_use]
     pub fn new() -> Self {
         Self {
             current_scope: 0,
@@ -135,7 +131,6 @@ impl<F: BackendField, C: BackendVar> FnEnv<F, C> {
     /// Retrieves type information on a variable, given a name.
     /// If the variable is not in scope, return false.
     // TODO: return an error no?
-    #[must_use]
     pub fn get_local_var(&self, var_name: &str) -> VarInfo<F, C> {
         let (scope, var_info) = self
             .vars

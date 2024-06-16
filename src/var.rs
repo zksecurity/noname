@@ -121,7 +121,6 @@ where
 }
 
 impl<F: Field, C: BackendVar> Var<F, C> {
-    #[must_use]
     pub fn new(cvars: Vec<ConstOrCell<F, C>>, span: Span) -> Self {
         Self { cvars, span }
     }
@@ -154,17 +153,14 @@ impl<F: Field, C: BackendVar> Var<F, C> {
         Self { cvars, span }
     }
 
-    #[must_use]
     pub fn len(&self) -> usize {
         self.cvars.len()
     }
 
-    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.cvars.is_empty()
     }
 
-    #[must_use]
     pub fn get(&self, idx: usize) -> Option<&ConstOrCell<F, C>> {
         if idx < self.cvars.len() {
             Some(&self.cvars[idx])
@@ -173,7 +169,6 @@ impl<F: Field, C: BackendVar> Var<F, C> {
         }
     }
 
-    #[must_use]
     pub fn constant(&self) -> Option<F> {
         if self.cvars.len() == 1 {
             self.cvars[0].cst()
@@ -182,7 +177,6 @@ impl<F: Field, C: BackendVar> Var<F, C> {
         }
     }
 
-    #[must_use]
     pub fn range(&self, start: usize, len: usize) -> &[ConstOrCell<F, C>] {
         &self.cvars[start..(start + len)]
     }

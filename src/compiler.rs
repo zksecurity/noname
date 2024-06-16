@@ -31,7 +31,6 @@ impl Default for Sources {
 }
 
 impl Sources {
-    #[must_use]
     pub fn new() -> Self {
         let mut map = HashMap::new();
         map.insert(
@@ -47,7 +46,6 @@ impl Sources {
         self.id
     }
 
-    #[must_use]
     pub fn get(&self, id: &usize) -> Option<&(String, String)> {
         self.map.get(id)
     }

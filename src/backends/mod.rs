@@ -40,17 +40,14 @@ pub enum BackendKind {
 }
 
 impl BackendKind {
-    #[must_use]
     pub fn new_kimchi_vesta(use_double_generic: bool) -> Self {
         Self::KimchiVesta(KimchiVesta::new(use_double_generic))
     }
 
-    #[must_use]
     pub fn new_r1cs_bls12_381() -> Self {
         Self::R1csBls12_381(R1CS::new())
     }
 
-    #[must_use]
     pub fn new_r1cs_bn254() -> Self {
         Self::R1csBn254(R1CS::new())
     }

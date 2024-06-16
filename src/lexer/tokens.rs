@@ -18,7 +18,6 @@ pub struct Tokens {
 }
 
 impl Tokens {
-    #[must_use]
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             peeked: None,

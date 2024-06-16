@@ -103,7 +103,6 @@ pub struct KimchiVesta {
 
 impl Witness {
     /// kimchi uses a transposed witness
-    #[must_use]
     pub fn to_kimchi_witness(&self) -> [Vec<VestaField>; NUM_REGISTERS] {
         let transposed = (0..NUM_REGISTERS)
             .map(|_| Vec::with_capacity(self.0.len()))
@@ -117,12 +116,10 @@ impl Witness {
         transposed
     }
 
-    #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -139,7 +136,6 @@ impl Witness {
 }
 
 impl KimchiVesta {
-    #[must_use]
     pub fn new(double_generic_gate_optimization: bool) -> Self {
         Self {
             next_variable: 0,

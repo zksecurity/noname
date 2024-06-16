@@ -28,7 +28,6 @@ impl<F: Field> WitnessEnv<F> {
         assert!(self.var_values.insert(name, val).is_none());
     }
 
-    #[must_use]
     pub fn get_external(&self, name: &str) -> Vec<F> {
         // TODO: return an error instead of crashing
         self.var_values.get(name).unwrap().clone()

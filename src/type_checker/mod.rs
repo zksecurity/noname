@@ -45,12 +45,10 @@ pub struct FullyQualified {
 }
 
 impl FullyQualified {
-    #[must_use]
     pub fn local(name: String) -> Self {
         Self { module: None, name }
     }
 
-    #[must_use]
     // TODO: Pass in `String`, instead of `&str`, so we don't hide an
     // allocation within.
     pub fn new(module: &ModulePath, name: &str) -> Self {
@@ -144,7 +142,6 @@ impl<B: Backend> Default for TypeChecker<B> {
 
 impl<B: Backend> TypeChecker<B> {
     // TODO: we can probably lazy const this
-    #[must_use]
     pub fn new() -> Self {
         let mut type_checker = Self {
             functions: HashMap::new(),
@@ -183,7 +180,6 @@ impl<B: Backend> TypeChecker<B> {
         type_checker
     }
 
-    #[must_use]
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
         Error::new("type-checker", kind, span)
     }

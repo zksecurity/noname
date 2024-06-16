@@ -22,7 +22,6 @@ pub struct LexerCtx {
 }
 
 impl LexerCtx {
-    #[must_use]
     pub fn new(filename_id: usize) -> Self {
         Self {
             offset: 0,
@@ -30,12 +29,10 @@ impl LexerCtx {
         }
     }
 
-    #[must_use]
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
         Error::new("lexer", kind, span)
     }
 
-    #[must_use]
     pub fn span(&self, start: usize, len: usize) -> Span {
         Span::new(self.filename_id, start, len)
     }
@@ -74,7 +71,6 @@ pub enum Keyword {
 }
 
 impl Keyword {
-    #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "use" => Some(Self::Use),

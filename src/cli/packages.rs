@@ -203,7 +203,6 @@ pub fn get_dep(dep: &UserRepo) -> Result<Manifest> {
 }
 
 /// Returns the dependencies of a package (given it's manifest).
-#[must_use]
 pub fn get_deps_of_package(manifest: &Manifest) -> Vec<UserRepo> {
     manifest
         .dependencies()
@@ -268,7 +267,6 @@ pub fn download_from_github(dep: &UserRepo) -> Result<()> {
     Ok(())
 }
 
-#[must_use]
 pub fn is_lib(path: &PathBuf) -> bool {
     path.join("src").join("lib.no").exists()
 }

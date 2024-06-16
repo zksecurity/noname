@@ -29,7 +29,6 @@ pub struct TypeInfo {
 }
 
 impl TypeInfo {
-    #[must_use]
     pub fn new(typ: TyKind, span: Span) -> Self {
         Self {
             mutable: false,
@@ -40,7 +39,6 @@ impl TypeInfo {
         }
     }
 
-    #[must_use]
     pub fn new_mut(typ: TyKind, span: Span) -> Self {
         Self {
             mutable: true,
@@ -48,7 +46,6 @@ impl TypeInfo {
         }
     }
 
-    #[must_use]
     pub fn new_cst(typ: TyKind, span: Span) -> Self {
         Self {
             constant: true,
@@ -72,7 +69,6 @@ pub struct TypedFnEnv {
 
 impl TypedFnEnv {
     /// Creates a new `TypeEnv`
-    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -95,7 +91,6 @@ impl TypedFnEnv {
     }
 
     /// Returns true if a scope is a prefix of our scope.
-    #[must_use]
     pub fn is_in_scope(&self, prefix_scope: usize) -> bool {
         self.current_scope >= prefix_scope
     }
@@ -116,12 +111,10 @@ impl TypedFnEnv {
         }
     }
 
-    #[must_use]
     pub fn get_type(&self, ident: &str) -> Option<&TyKind> {
         self.get_type_info(ident).map(|type_info| &type_info.typ)
     }
 
-    #[must_use]
     pub fn mutable(&self, ident: &str) -> Option<bool> {
         self.get_type_info(ident).map(|type_info| type_info.mutable)
     }
@@ -129,7 +122,6 @@ impl TypedFnEnv {
     /// Retrieves type information on a variable, given a name.
     /// If the variable is not in scope, return false.
     // TODO: return an error no?
-    #[must_use]
     pub fn get_type_info(&self, ident: &str) -> Option<&TypeInfo> {
         if let Some((scope, type_info)) = self.vars.get(ident) {
             if self.is_in_scope(*scope) && !type_info.disabled {

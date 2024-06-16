@@ -75,7 +75,6 @@ impl<F> SnarkjsExporter<F>
 where
     F: BackendField,
 {
-    #[must_use]
     pub fn new(r1cs_backend: R1CS<F>) -> SnarkjsExporter<F> {
         SnarkjsExporter { r1cs_backend }
     }

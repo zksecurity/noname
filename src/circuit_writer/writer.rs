@@ -55,7 +55,6 @@ pub struct Gate {
 }
 
 impl Gate {
-    #[must_use]
     pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<VestaField> {
         kimchi::circuits::gate::CircuitGate {
             typ: self.typ.into(),
