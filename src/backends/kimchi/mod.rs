@@ -294,7 +294,7 @@ impl Backend for KimchiVesta {
 
         let zero = VestaField::zero();
 
-        let () = &self.add_generic_gate(
+        self.add_generic_gate(
             label.unwrap_or("hardcode a constant"),
             vec![Some(var)],
             vec![VestaField::one(), zero, zero, zero, value.neg()],
