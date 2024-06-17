@@ -62,7 +62,6 @@ pub struct VerifierIndex {
 // Setup
 //
 
-#[allow(clippy::type_complexity)]
 impl KimchiVesta {
     pub fn compile_to_indexes(
         &self,
