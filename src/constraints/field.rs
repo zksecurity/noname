@@ -269,28 +269,8 @@ fn is_zero_cell<B: Backend>(
             Var::new_constant(res, span)
         }
         ConstOrCell::Cell(a) => {
-            // x = 1 / a -- inverse of input
-            let x = compiler
-                .backend
-                .new_internal_var(Value::Inverse(a.clone()), span);
-
-            // m = -a*x + 1 -- constrain m to be 1 if a == 0
-            let ax = compiler.backend.mul(&a, &x, span);
-            let neg_ax = compiler.backend.neg(&ax, span);
-            let m = compiler.backend.new_internal_var(
-                Value::LinearCombination(vec![(one, neg_ax.clone())], one),
-                span,
-            );
-            let m_sub_one = compiler.backend.add_const(&m, &one.neg(), span);
-
-            compiler.backend.assert_eq_var(&neg_ax, &m_sub_one, span);
-
-            // a * m = 0 -- constrain m to be 0 if a != 0
-            let a_mul_m = compiler.backend.mul(&a, &m, span);
-
-            compiler.backend.assert_eq_const(&a_mul_m, zero, span);
-
-            Var::new_var(m, span)
+            let zero_cell = ConstOrCell::Const(zero);
+            equal_cells(compiler, var, &zero_cell, span)
         }
     }
 }
