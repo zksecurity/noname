@@ -106,7 +106,7 @@ impl Witness {
     pub fn to_kimchi_witness(&self) -> [Vec<VestaField>; NUM_REGISTERS] {
         let transposed = (0..NUM_REGISTERS)
             .map(|_| Vec::with_capacity(self.0.len()))
-            .collect::<Vec<_>>();
+            .collect_vec();
         let mut transposed: [_; NUM_REGISTERS] = transposed.try_into().unwrap();
         for row in &self.0 {
             for (col, field) in row.iter().enumerate() {
@@ -126,7 +126,7 @@ impl Witness {
 
     pub fn debug(&self) {
         for (row, values) in self.0.iter().enumerate() {
-            let values = values.iter().map(PrettyField).join(" | ");
+            let values = values.iter().map(PrettyField::pretty).join(" | ");
             println!("{row} - {values}");
         }
     }
