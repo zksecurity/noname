@@ -31,8 +31,6 @@ pub trait BackendField:
 /// It is intended to make it opaque to the frondend.
 pub trait BackendVar: Clone + Debug + PartialEq + Eq {}
 
-// TODO: Fix this by `Box`ing `KimchiVesta`.
-#[allow(clippy::large_enum_variant)]
 pub enum BackendKind {
     KimchiVesta(KimchiVesta),
     R1csBls12_381(R1CS<R1csBls12381Field>),

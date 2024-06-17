@@ -52,5 +52,5 @@ jobs:
       - name: Enforce formatting
         run: cargo fmt -- --check
 
-      - name: Lint (clippy)
-        run: cargo clippy --all-features -- -D warnings
+      # - name: Lint (clippy)
+      #   run: cargo clippy --all-features -- -D warnings

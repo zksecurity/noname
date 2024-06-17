@@ -304,7 +304,6 @@ impl Backend for KimchiVesta {
         var
     }
 
-    #[allow(unused_variables)]
     fn finalize_circuit(
         &mut self,
         public_output: Option<Var<Self::Field, Self::Var>>,
