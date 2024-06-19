@@ -424,3 +424,21 @@ fn test_literals(#[case] backend: BackendKind) -> miette::Result<()> {
 
     Ok(())
 }
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_public_output_array(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"public_input": "1"}"#;
+    let private_inputs = r#"{"private_input": "1"}"#;
+
+    test_file(
+        "public_output_array",
+        public_inputs,
+        private_inputs,
+        vec!["8", "2"],
+        backend,
+    )?;
+
+    Ok(())
+}

@@ -379,14 +379,30 @@ impl<B: Backend> TypeChecker<B> {
                     // the output value returned by the main function is also a main_args with a special name (public_output)
                     if let Some(typ) = &function.sig.return_type {
                         if is_main {
-                            if !matches!(typ.kind, TyKind::Field) {
-                                unimplemented!();
+                            match typ.kind.clone() {
+                                TyKind::Field => {
+                                    typed_fn_env.store_type(
+                                        "public_output".to_string(),
+                                        TypeInfo::new_mut(typ.kind.clone(), typ.span),
+                                    )?;
+                                }
+                                TyKind::Array(_, len) => {
+                                    println!("ARRAY TYPE OF LENGTH: {}", len);
+                                    typed_fn_env.store_type(
+                                        "public_output".to_string(),
+                                        TypeInfo::new_mut(typ.kind.clone(), typ.span),
+                                    )?;
+                                }
+                                _ => unimplemented!(),
                             }
-
-                            typed_fn_env.store_type(
-                                "public_output".to_string(),
-                                TypeInfo::new_mut(typ.kind.clone(), typ.span),
-                            )?;
+                            // if typ.kind == TyKind::Field {
+                            //     typed_fn_env.store_type(
+                            //         "public_output".to_string(),
+                            //         TypeInfo::new_mut(typ.kind.clone(), typ.span),
+                            //     )?;
+                            // } else if typ.kind == TyKind::Array(items, len) {
+                            //     unimplemented!();
+                            // }
                         }
                     }
 

@@ -163,12 +163,15 @@ impl<B: Backend> CircuitWriter<B> {
 
         // create public output
         if let Some(typ) = &function.sig.return_type {
-            if typ.kind != TyKind::Field {
-                unimplemented!();
+            match typ.kind.clone() {
+                TyKind::Field => {
+                    circuit_writer.add_public_outputs(1, typ.span);
+                }
+                TyKind::Array(_, len) => {
+                    circuit_writer.add_public_outputs(len as usize, typ.span);
+                }
+                _ => unimplemented!(),
             }
-
-            // create it
-            circuit_writer.add_public_outputs(1, typ.span);
         }
 
         // public inputs should be handled first
