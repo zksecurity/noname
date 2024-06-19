@@ -163,7 +163,7 @@ impl<B: Backend> CircuitWriter<B> {
 
         // create public output
         if let Some(typ) = &function.sig.return_type {
-            match typ.kind.clone() {
+            match typ.kind {
                 TyKind::Field => {
                     circuit_writer.add_public_outputs(1, typ.span);
                 }
