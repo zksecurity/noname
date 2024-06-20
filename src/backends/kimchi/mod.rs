@@ -2,6 +2,7 @@ pub mod asm;
 pub mod builtin;
 pub mod prover;
 
+use educe::Educe;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Write,
@@ -243,16 +244,12 @@ impl KimchiVesta {
     }
 }
 
-#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Ord)]
+#[derive(Default, Clone, Copy, Debug, Eq, Hash, Serialize, Deserialize, PartialEq, Ord, Educe)]
+#[educe(PartialOrd)]
 pub struct KimchiCellVar {
     index: usize,
+    #[educe(PartialOrd(ignore))]
     pub span: Span,
-}
-
-impl PartialOrd for KimchiCellVar {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.index.cmp(&other.index))
-    }
 }
 
 impl BackendVar for KimchiCellVar {}
