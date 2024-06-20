@@ -138,6 +138,7 @@ pub enum TokenKind {
     Less,               // <
     Equal,              // =
     DoubleEqual,        // ==
+    NotEqual,           // !=
     Plus,               // +
     Minus,              // -
     RightArrow,         // ->
@@ -178,6 +179,7 @@ impl Display for TokenKind {
             Less => "`<`",
             Equal => "`=`",
             DoubleEqual => "`==`",
+            NotEqual => "`!=`",
             Plus => "`+`",
             Minus => "`-`",
             RightArrow => "`->`",
@@ -407,7 +409,13 @@ impl Token {
                     }
                 }
                 '!' => {
-                    tokens.push(TokenKind::Exclamation.new_token(ctx, 1));
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'=')) {
+                        tokens.push(TokenKind::NotEqual.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenKind::Exclamation.new_token(ctx, 1));
+                    }
                 }
 
                 '?' => {

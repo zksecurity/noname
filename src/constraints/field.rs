@@ -220,6 +220,81 @@ fn equal_cells<B: Backend>(
     }
 }
 
+/// Returns 1 if lhs != rhs, 0 otherwise
+pub fn not_equal<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    lhs: &Var<B::Field, B::Var>,
+    rhs: &Var<B::Field, B::Var>,
+    span: Span,
+) -> Var<B::Field, B::Var> {
+    assert_eq!(lhs.len(), rhs.len());
+
+    let one = B::Field::one();
+
+    if lhs.len() == 1 {
+        let diff = sub(compiler, &lhs[0], &rhs[0], span);
+        let is_zero = is_zero_cell(compiler, &diff[0], span);
+        return boolean::not(compiler, &is_zero[0], span);
+    }
+
+    let acc = compiler.backend.add_constant(
+        Some("start accumulator at 1 for the inequality check"),
+        one,
+        span,
+    );
+    let mut acc = Var::new_var(acc, span);
+
+    for (l, r) in lhs.cvars.iter().zip(&rhs.cvars) {
+        let diff = sub(compiler, l, r, span);
+        let res = is_zero_cell(compiler, &diff[0], span);
+        let not_res = boolean::not(compiler, &res[0], span);
+        acc = boolean::and(compiler, &not_res[0], &acc[0], span);
+    }
+
+    acc
+}
+
+/// Returns 1 if var is zero, 0 otherwise
+fn is_zero_cell<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    var: &ConstOrCell<B::Field, B::Var>,
+    span: Span,
+) -> Var<B::Field, B::Var> {
+    let zero = B::Field::zero();
+    let one = B::Field::one();
+
+    match var {
+        ConstOrCell::Const(a) => {
+            let res = if *a == zero { one } else { zero };
+            Var::new_constant(res, span)
+        }
+        ConstOrCell::Cell(a) => {
+            // x = 1 / a -- inverse of input
+            let x = compiler
+                .backend
+                .new_internal_var(Value::Inverse(a.clone()), span);
+
+            // m = -a*x + 1 -- constrain m to be 1 if a == 0
+            let ax = compiler.backend.mul(&a, &x, span);
+            let neg_ax = compiler.backend.neg(&ax, span);
+            let m = compiler.backend.new_internal_var(
+                Value::LinearCombination(vec![(one, neg_ax.clone())], one),
+                span,
+            );
+            let m_sub_one = compiler.backend.add_const(&m, &one.neg(), span);
+
+            compiler.backend.assert_eq_var(&neg_ax, &m_sub_one, span);
+
+            // a * m = 0 -- constrain m to be 0 if a != 0
+            let a_mul_m = compiler.backend.mul(&a, &m, span);
+
+            compiler.backend.assert_eq_const(&a_mul_m, zero, span);
+
+            Var::new_var(m, span)
+        }
+    }
+}
+
 pub fn if_else<B: Backend>(
     compiler: &mut CircuitWriter<B>,
     cond: &Var<B::Field, B::Var>,
