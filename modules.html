@@ -181,10 +181,12 @@
 <p>In noname, the concept of a module is basically a file. A project either is a binary (<code>main.no</code>) or a library (<code>lib.no</code>). That’s it.</p>
 <p>A binary or a library can use other libraries by importing them. To do that, a binary or library’s manifest file <code>Noname.toml</code> must contain a <code>dependencies</code> key listing all the other libraries as Github handles like <code>user/repo</code> (e.g. <code>mimoo/sudoku</code>).
 Libraries will then be retrieved from Github.</p>
-<div id="admonition-note" class="admonition admonish-note">
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
 <div class="admonition-title">
+<div id="admonition-note-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-note"></a>
 </div>
 <div>
 <p>Currently there is no versioning. Not because it’s not important, but because I haven’t had the time to implement it.</p>
@@ -206,10 +208,12 @@ fn main(pub digest: [Field; 2]) {
 use b::some_lib;
 </code></pre>
 <p>There is currently no solution to this problem.</p>
-<div id="admonition-note-1" class="admonition admonish-note">
+<div id="admonition-note-1" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-1-title">
 <div class="admonition-title">
+<div id="admonition-note-1-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="#admonition-note-1"></a></p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-note-1"></a>
 </div>
 <div>
 <p>This is a problem that does not exist in Rust, as there’s a single namespace that everyone shares, but that exists in Golang.

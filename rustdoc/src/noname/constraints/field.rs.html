@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/constraints/field.rs`."><title>field.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (3cf924b93 2024-06-15)" data-channel="nightly" data-search-js="search-0fe7219eb170c82e.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/constraints/field.rs`."><title>field.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (d8a38b000 2024-06-19)" data-channel="nightly" data-search-js="search-0fe7219eb170c82e.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -270,6 +270,81 @@
 <a href="#270" id="270">270</a>
 <a href="#271" id="271">271</a>
 <a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
 </pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     backends::Backend,
     circuit_writer::CircuitWriter,
@@ -488,6 +563,81 @@
             compiler.backend.assert_eq_const(<span class="kw-2">&amp;</span>res_mul_diff, zero, span);
 
             Var::new_var(res, span)
+        }
+    }
+}
+
+<span class="doccomment">/// Returns 1 if lhs != rhs, 0 otherwise
+</span><span class="kw">pub fn </span>not_equal&lt;B: Backend&gt;(
+    compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
+    lhs: <span class="kw-2">&amp;</span>Var&lt;B::Field, B::Var&gt;,
+    rhs: <span class="kw-2">&amp;</span>Var&lt;B::Field, B::Var&gt;,
+    span: Span,
+) -&gt; Var&lt;B::Field, B::Var&gt; {
+    <span class="macro">assert_eq!</span>(lhs.len(), rhs.len());
+
+    <span class="kw">let </span>one = B::Field::one();
+
+    <span class="kw">if </span>lhs.len() == <span class="number">1 </span>{
+        <span class="kw">let </span>diff = sub(compiler, <span class="kw-2">&amp;</span>lhs[<span class="number">0</span>], <span class="kw-2">&amp;</span>rhs[<span class="number">0</span>], span);
+        <span class="kw">let </span>is_zero = is_zero_cell(compiler, <span class="kw-2">&amp;</span>diff[<span class="number">0</span>], span);
+        <span class="kw">return </span>boolean::not(compiler, <span class="kw-2">&amp;</span>is_zero[<span class="number">0</span>], span);
+    }
+
+    <span class="kw">let </span>acc = compiler.backend.add_constant(
+        <span class="prelude-val">Some</span>(<span class="string">"start accumulator at 1 for the inequality check"</span>),
+        one,
+        span,
+    );
+    <span class="kw">let </span><span class="kw-2">mut </span>acc = Var::new_var(acc, span);
+
+    <span class="kw">for </span>(l, r) <span class="kw">in </span>lhs.cvars.iter().zip(<span class="kw-2">&amp;</span>rhs.cvars) {
+        <span class="kw">let </span>diff = sub(compiler, l, r, span);
+        <span class="kw">let </span>res = is_zero_cell(compiler, <span class="kw-2">&amp;</span>diff[<span class="number">0</span>], span);
+        <span class="kw">let </span>not_res = boolean::not(compiler, <span class="kw-2">&amp;</span>res[<span class="number">0</span>], span);
+        acc = boolean::and(compiler, <span class="kw-2">&amp;</span>not_res[<span class="number">0</span>], <span class="kw-2">&amp;</span>acc[<span class="number">0</span>], span);
+    }
+
+    acc
+}
+
+<span class="doccomment">/// Returns 1 if var is zero, 0 otherwise
+</span><span class="kw">fn </span>is_zero_cell&lt;B: Backend&gt;(
+    compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
+    var: <span class="kw-2">&amp;</span>ConstOrCell&lt;B::Field, B::Var&gt;,
+    span: Span,
+) -&gt; Var&lt;B::Field, B::Var&gt; {
+    <span class="kw">let </span>zero = B::Field::zero();
+    <span class="kw">let </span>one = B::Field::one();
+
+    <span class="kw">match </span>var {
+        ConstOrCell::Const(a) =&gt; {
+            <span class="kw">let </span>res = <span class="kw">if </span><span class="kw-2">*</span>a == zero { one } <span class="kw">else </span>{ zero };
+            Var::new_constant(res, span)
+        }
+        ConstOrCell::Cell(a) =&gt; {
+            <span class="comment">// x = 1 / a -- inverse of input
+            </span><span class="kw">let </span>x = compiler
+                .backend
+                .new_internal_var(Value::Inverse(a.clone()), span);
+
+            <span class="comment">// m = -a*x + 1 -- constrain m to be 1 if a == 0
+            </span><span class="kw">let </span>ax = compiler.backend.mul(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>x, span);
+            <span class="kw">let </span>neg_ax = compiler.backend.neg(<span class="kw-2">&amp;</span>ax, span);
+            <span class="kw">let </span>m = compiler.backend.new_internal_var(
+                Value::LinearCombination(<span class="macro">vec!</span>[(one, neg_ax.clone())], one),
+                span,
+            );
+            <span class="kw">let </span>m_sub_one = compiler.backend.add_const(<span class="kw-2">&amp;</span>m, <span class="kw-2">&amp;</span>one.neg(), span);
+
+            compiler.backend.assert_eq_var(<span class="kw-2">&amp;</span>neg_ax, <span class="kw-2">&amp;</span>m_sub_one, span);
+
+            <span class="comment">// a * m = 0 -- constrain m to be 0 if a != 0
+            </span><span class="kw">let </span>a_mul_m = compiler.backend.mul(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>m, span);
+
+            compiler.backend.assert_eq_const(<span class="kw-2">&amp;</span>a_mul_m, zero, span);
+
+            Var::new_var(m, span)
         }
     }
 }

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["add","equal","if_else","if_else_inner","mul","neg","sub"]};
+window.SIDEBAR_ITEMS = {"fn":["add","equal","if_else","if_else_inner","mul","neg","not_equal","sub"]};

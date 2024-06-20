@@ -248,10 +248,12 @@ And as such, the type checker will be happy with that variable being used to ind
 <p>What about other types being <code>const</code>?
 I don’t think it makes sense for now, as I can only think of array access requiring this.
 So we don’t implement it.</p>
-<div id="admonition-note" class="admonition admonish-note">
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
 <div class="admonition-title">
+<div id="admonition-note-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-note"></a>
 </div>
 <div>
 <p>If we do want to support that one day, we will have to track more than <code>TyKind</code> in the typechecker…

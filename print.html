@@ -347,10 +347,12 @@ fn main(pub x: Field) {
 </span><span class="boring">fn main() {
 </span>let y = thing.new(3, 4);
 <span class="boring">}</span></code></pre></pre>
-<div id="admonition-note" class="admonition admonish-note">
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
 <div class="admonition-title">
+<div id="admonition-note-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="basics.html#admonition-note"></a></p>
+</div>
+<a class="admonition-anchor-link" href="basics.html#admonition-note"></a>
 </div>
 <div>
 <p>It’s not necessarily pleasant to read, and we could prevent it by storing some meta information (<code>static_method: bool</code>) in the type checker, but it’s not a big deal.</p>
@@ -740,10 +742,12 @@ And as such, the type checker will be happy with that variable being used to ind
 <p>What about other types being <code>const</code>?
 I don’t think it makes sense for now, as I can only think of array access requiring this.
 So we don’t implement it.</p>
-<div id="admonition-note" class="admonition admonish-note">
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
 <div class="admonition-title">
+<div id="admonition-note-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="literals.html#admonition-note"></a></p>
+</div>
+<a class="admonition-anchor-link" href="literals.html#admonition-note"></a>
 </div>
 <div>
 <p>If we do want to support that one day, we will have to track more than <code>TyKind</code> in the typechecker…
@@ -853,10 +857,12 @@ pub enum VarOrRef {
 }
 <span class="boring">}</span></code></pre></pre>
 <p>and we modify the <a href="">circuit-writer</a> to always return a <a href=""><code>VarOrRef</code></a> when processing an expression node in the AST.</p>
-<div id="admonition-note" class="admonition admonish-note">
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
 <div class="admonition-title">
+<div id="admonition-note-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="expressions.html#admonition-note"></a></p>
+</div>
+<a class="admonition-anchor-link" href="expressions.html#admonition-note"></a>
 </div>
 <div>
 <p>While the type checker already checks if the <code>lhs</code> variable is mutable when it encounters an assignment expression,
@@ -923,10 +929,12 @@ This way, if there is a bug in the type checker, this will turn unsafe code into
 <p>In noname, the concept of a module is basically a file. A project either is a binary (<code>main.no</code>) or a library (<code>lib.no</code>). That’s it.</p>
 <p>A binary or a library can use other libraries by importing them. To do that, a binary or library’s manifest file <code>Noname.toml</code> must contain a <code>dependencies</code> key listing all the other libraries as Github handles like <code>user/repo</code> (e.g. <code>mimoo/sudoku</code>).
 Libraries will then be retrieved from Github.</p>
-<div id="admonition-note" class="admonition admonish-note">
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
 <div class="admonition-title">
+<div id="admonition-note-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="modules.html#admonition-note"></a></p>
+</div>
+<a class="admonition-anchor-link" href="modules.html#admonition-note"></a>
 </div>
 <div>
 <p>Currently there is no versioning. Not because it’s not important, but because I haven’t had the time to implement it.</p>
@@ -948,10 +956,12 @@ fn main(pub digest: [Field; 2]) {
 use b::some_lib;
 </code></pre>
 <p>There is currently no solution to this problem.</p>
-<div id="admonition-note-1" class="admonition admonish-note">
+<div id="admonition-note-1" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-1-title">
 <div class="admonition-title">
+<div id="admonition-note-1-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="modules.html#admonition-note-1"></a></p>
+</div>
+<a class="admonition-anchor-link" href="modules.html#admonition-note-1"></a>
 </div>
 <div>
 <p>This is a problem that does not exist in Rust, as there’s a single namespace that everyone shares, but that exists in Golang.
@@ -1324,10 +1334,12 @@ pub struct Var {
     pub span: Span,
 }
 <span class="boring">}</span></code></pre></pre>
-<div id="admonition-note" class="admonition admonish-note">
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
 <div class="admonition-title">
+<div id="admonition-note-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="var.html#admonition-note"></a></p>
+</div>
+<a class="admonition-anchor-link" href="var.html#admonition-note"></a>
 </div>
 <div>
 <p>Note: see the <a href="./constants.html">Constant chapter</a> to see why constants are treated differently.</p>
@@ -1344,10 +1356,12 @@ pub struct Var {
 <p>the <code>z + y</code> is parsed as an expression (a binary operation involving <code>z</code> and <code>y</code>) and stored under a var <code>var1</code>.
 Then <code>t + ...</code> is also parsed as another binary operation expression and stored under another var <code>var2</code>.
 Finally the <code>let x = ...</code> is parsed as an assignment statement, and <code>x</code> is stored as a local variable associated to the right handside var <code>var2</code>.</p>
-<div id="admonition-note-1" class="admonition admonish-note">
+<div id="admonition-note-1" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-1-title">
 <div class="admonition-title">
+<div id="admonition-note-1-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="var.html#admonition-note-1"></a></p>
+</div>
+<a class="admonition-anchor-link" href="var.html#admonition-note-1"></a>
 </div>
 <div>
 <p>See the <a href="./scope.html">Scope chapter</a> for more information on local variables.</p>
@@ -1494,10 +1508,12 @@ pub enum FuncInScope {
     Library(Vec&lt;String&gt;, FnSig),
 }
 <span class="boring">}</span></code></pre></pre>
-<div id="admonition-note" class="admonition admonish-note">
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
 <div class="admonition-title">
+<div id="admonition-note-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="functions.html#admonition-note"></a></p>
+</div>
+<a class="admonition-anchor-link" href="functions.html#admonition-note"></a>
 </div>
 <div>
 <p>Not all modules are third-party libraries, some are also built-ins (e.g. <code>std::crypto</code>).</p>

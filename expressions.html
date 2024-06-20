@@ -280,10 +280,12 @@ pub enum VarOrRef {
 }
 <span class="boring">}</span></code></pre></pre>
 <p>and we modify the <a href="">circuit-writer</a> to always return a <a href=""><code>VarOrRef</code></a> when processing an expression node in the AST.</p>
-<div id="admonition-note" class="admonition admonish-note">
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
 <div class="admonition-title">
+<div id="admonition-note-title">
 <p>Note</p>
-<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-note"></a>
 </div>
 <div>
 <p>While the type checker already checks if the <code>lhs</code> variable is mutable when it encounters an assignment expression,
