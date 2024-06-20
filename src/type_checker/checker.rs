@@ -491,7 +491,7 @@ impl<B: Backend> TypeChecker<B> {
                             // can't determine from local scope
                             _ => ExprTyInfo::new_anon(TyKind::Array(
                                 Box::new(item_typ.typ),
-                                ArraySize::Variable(name),
+                                ArraySize::ConstVar(name),
                             )),
                         }
                     }
@@ -989,6 +989,34 @@ mod test {
                 cst
             ];
             return houses;
+        }
+        "#;
+
+        let result = typecheck_code(CODE);
+        assert!(
+            result.is_ok(),
+            "unexpected error: {:?}",
+            result.unwrap_err()
+        );
+    }
+
+    #[test]
+    fn test_tracing_array_declaration() {
+        const CODE: &str = r#"
+        const room_num = 3;
+        const house_num = 2;
+        const room_size = 20;
+        const slots = 10;
+
+        fn build_houses() -> [[Field; room_num]; house_num] {
+            let houses = [[1; room_num]; house_num];
+            return houses;
+        }
+
+        fn test() -> Field {
+            let hs = build_houses();
+            let hh = hs[1];
+            return hh[1];
         }
         "#;
 

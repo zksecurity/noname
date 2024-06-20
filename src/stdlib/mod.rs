@@ -98,11 +98,11 @@ fn assert_eq<B: Backend>(
     }
 
     // retrieve the values
-    let lhs_var = &lhs_info.var;
+    let lhs_var = lhs_info.expr.clone().value();
     assert_eq!(lhs_var.len(), 1);
     let lhs_cvar = &lhs_var[0];
 
-    let rhs_var = &rhs_info.var;
+    let rhs_var = &rhs_info.expr.clone().value();
     assert_eq!(rhs_var.len(), 1);
     let rhs_cvar = &rhs_var[0];
 
@@ -145,7 +145,7 @@ fn assert<B: Backend>(
     assert!(matches!(var_info.typ, Some(TyKind::Bool)));
 
     // of only one field element
-    let var = &var_info.var;
+    let var = &var_info.expr.clone().value();
     assert_eq!(var.len(), 1);
     let cond = &var[0];
 

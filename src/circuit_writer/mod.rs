@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     backends::Backend,
     constants::Span,
@@ -13,6 +15,7 @@ use crate::{
 
 pub use fn_env::{FnEnv, VarInfo};
 use serde::{Deserialize, Serialize};
+use writer::ComputedExpr;
 //use serde::{Deserialize, Serialize};
 pub use writer::{Gate, GateKind, Wiring};
 
@@ -110,7 +113,9 @@ impl<B: Backend> CircuitWriter<B> {
         let qualified = FullyQualified::local(var_name.to_string());
         if let Some(cst_info) = self.typed.const_info(&qualified) {
             let var = Var::new_constant_typ(cst_info, cst_info.typ.span);
-            return VarInfo::new(var, false, Some(TyKind::Field));
+            let span = var.span;
+            let ce = ComputedExpr::new(writer::ComputedExprKind::Field(var), span);
+            return VarInfo::new(ce, false, Some(TyKind::Field));
         }
 
         // then check for local variables
@@ -159,6 +164,7 @@ impl<B: Backend> CircuitWriter<B> {
         circuit_writer.backend.init_circuit();
 
         // create the main env
+        // todo: might need to add all the consts to the main env before anything else
         let fn_env = &mut FnEnv::new();
 
         // create public output
@@ -234,6 +240,7 @@ impl<B: Backend> CircuitWriter<B> {
         // get length
         let len = match &typ.kind {
             TyKind::Field => 1,
+            // todo: the size will get from const var
             TyKind::Array(typ, size) => {
                 if !matches!(**typ, TyKind::Field) {
                     unimplemented!();
@@ -241,8 +248,9 @@ impl<B: Backend> CircuitWriter<B> {
                 // *size as usize
                 match size {
                     ArraySize::Number(n) => *n as usize,
-                    // todo: this is for the case where the array size is a const variable defined at the beginning of the file
-                    ArraySize::Variable(_) => unimplemented!(),
+                    ArraySize::ConstVar(_) => panic!(
+                        "array argument with size in const var is not supported for main function"
+                    ),
                 }
             }
             TyKind::Bool => 1,
@@ -251,6 +259,9 @@ impl<B: Backend> CircuitWriter<B> {
 
         // create the variable
         let var = handle_input(self, name.value.clone(), len, name.span);
+        // let span = var.span;
+        // todo: restructure var to be a ComputedExpr
+        let ce = self.compute_expr_arg(&typ.kind, var);
 
         // constrain what needs to be constrained
         // (for example, booleans need to be constrained to be 0 or 1)
@@ -259,13 +270,101 @@ impl<B: Backend> CircuitWriter<B> {
         // but we are being extra cautious due to attacks
         // where the prover gives the verifier malformed inputs that look legit.
         // (See short address attacks in Ethereum.)
-        self.constrain_inputs_to_main(&var.cvars, &typ.kind, typ.span)?;
+        let cvars = &ce.clone().value().cvars;
+        self.constrain_inputs_to_main(cvars, &typ.kind, typ.span)?;
 
         // add argument variable to the ast env
         let mutable = false; // TODO: should we add a mut keyword in arguments as well?
-        let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
+                             // let ce = ComputedExpr::new(writer::ComputedExprKind::FnCall(var), span);
+        let var_info = VarInfo::new(ce, mutable, Some(typ.kind.clone()));
         self.add_local_var(fn_env, name.value.clone(), var_info);
 
         Ok(())
+    }
+
+    /// Maps the arguments to ComputedExpr.
+    /// These are arguments are in a form of var array.
+    /// With the type info, we can restructure the cvars as ComputexExpr,
+    /// which can retain the structure of the type.
+    fn compute_expr_arg(
+        &self,
+        typ: &TyKind,
+        var: Var<B::Field, B::Var>,
+    ) -> ComputedExpr<B::Field, B::Var> {
+        let span = var.span;
+        match typ {
+            TyKind::Field => ComputedExpr::new(writer::ComputedExprKind::Field(var), span),
+            TyKind::BigInt => ComputedExpr::new(writer::ComputedExprKind::Field(var), span),
+            TyKind::Bool => ComputedExpr::new(writer::ComputedExprKind::Bool(var), span),
+            TyKind::Custom { module, name } => {
+                let qualified = FullyQualified::new(module, name);
+                let struct_info = self
+                    .struct_info(&qualified)
+                    .expect("bug in the type checker: cannot find struct info");
+
+                let mut custom = HashMap::new();
+
+                let mut cvars = var.cvars;
+
+                for (field, t) in &struct_info.fields {
+                    // slice a range of the size from the beginning of var.cvars, and construct a new var with the rest of the cvars
+                    let size = self.size_of(t);
+                    let rest = cvars.split_off(size);
+                    let new_var = Var::new(cvars, span);
+
+                    let v = self.compute_expr_arg(t, new_var);
+                    custom.insert(field.to_string(), v);
+
+                    cvars = rest;
+                }
+
+                ComputedExpr::new(writer::ComputedExprKind::Struct(custom), span)
+            }
+            TyKind::Array(typ, size) => match size {
+                ArraySize::Number(n) => {
+                    let mut array = vec![];
+                    let mut cvars = var.cvars;
+
+                    let size = self.size_of(typ);
+
+                    for _ in 0..*n {
+                        let rest = cvars.split_off(size);
+                        let new_var = Var::new(cvars, span);
+                        let v = self.compute_expr_arg(typ, new_var);
+                        array.push(v);
+                        cvars = rest;
+                    }
+
+                    ComputedExpr::new(writer::ComputedExprKind::Array(array), span)
+                }
+                // todo: this enum case might be just useful for the main function arg
+                // because it might only gauranttee the main function access to the const var,
+                // which isn't changed and can be found in the type checker
+                ArraySize::ConstVar(v) => {
+                    // todo: what if it is not from a local module?
+                    let qualified = FullyQualified::local(v.clone());
+                    let cst_info = self
+                        .const_info(&qualified)
+                        .expect("bug in the type checker: cannot find constant info");
+
+                    let n = crate::utils::to_u32(cst_info.value[0]) as usize;
+
+                    let mut array = vec![];
+                    let mut cvars = var.cvars;
+
+                    let size = self.size_of(typ);
+
+                    for _ in 0..n {
+                        let rest = cvars.split_off(size);
+                        let new_var = Var::new(cvars, span);
+                        let v = self.compute_expr_arg(typ, new_var);
+                        array.push(v);
+                        cvars = rest;
+                    }
+
+                    ComputedExpr::new(writer::ComputedExprKind::Array(array), span)
+                }
+            },
+        }
     }
 }

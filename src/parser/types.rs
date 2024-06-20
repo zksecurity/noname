@@ -182,14 +182,15 @@ impl PartialEq for ModulePath {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ArraySize {
     Number(u32),
-    Variable(String),
+    // todo: should this better to be Expr::Variable? so it can access to constants in other modules?
+    ConstVar(String),
 }
 
 impl Display for ArraySize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ArraySize::Number(n) => write!(f, "{}", n),
-            ArraySize::Variable(ident) => write!(f, "{}", ident),
+            ArraySize::ConstVar(ident) => write!(f, "{}", ident),
         }
     }
 }
@@ -373,7 +374,7 @@ impl Ty {
                             .map_err(|_e| ctx.error(ErrorKind::InvalidArraySize, siz.span))?;
                         ArraySize::Number(num)
                     }
-                    TokenKind::Identifier(ident) => ArraySize::Variable(ident),
+                    TokenKind::Identifier(ident) => ArraySize::ConstVar(ident),
                     _ => {
                         return Err(ctx.error(
                             ErrorKind::ExpectedToken(TokenKind::BigInt("".to_string())),
@@ -894,6 +895,7 @@ pub enum NumOrVar {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Range {
+    // todo: perhaps replace start/end with Expr, as they need to be computed during runtime
     pub start: NumOrVar,
     pub end: NumOrVar,
     pub span: Span,

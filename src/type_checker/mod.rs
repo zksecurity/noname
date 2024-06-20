@@ -129,7 +129,7 @@ impl<B: Backend> TypeChecker<B> {
             TyKind::BigInt => 1,
             TyKind::Array(typ, size) => match size {
                 ArraySize::Number(n) => (*n as usize) * self.size_of(typ),
-                ArraySize::Variable(var) => {
+                ArraySize::ConstVar(var) => {
                     let qualified = FullyQualified::local(var.clone());
                     let cst_info = self
                         .const_info(&qualified)

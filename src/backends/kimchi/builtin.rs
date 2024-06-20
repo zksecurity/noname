@@ -40,7 +40,7 @@ pub fn poseidon(
     };
 
     // extract the values
-    let input = &var_info.var;
+    let input = &var_info.expr.clone().value();
     assert_eq!(input.len(), 2);
 
     // hashing a full-constant input is not a good idea

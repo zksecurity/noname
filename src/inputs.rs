@@ -82,7 +82,7 @@ impl<B: Backend> CompiledCircuit<B> {
                             panic!("wrong size of array");
                         }
                     }
-                    ArraySize::Variable(_) => unimplemented!(),
+                    ArraySize::ConstVar(_) => panic!("array argument with size in const var is not supported for main function"),
                 }
                 let mut res = vec![];
                 for value in values {

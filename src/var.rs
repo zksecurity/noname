@@ -223,39 +223,39 @@ impl<B: Backend> VarOrRef<B> {
         }
     }
 
-    /// Returns the value within the variable or pointer.
-    /// If it is a pointer, we lose information about the original variable,
-    /// thus calling this function is aking to passing the variable by value.
-    pub(crate) fn value(
-        self,
-        circuit_writer: &CircuitWriter<B>,
-        fn_env: &FnEnv<B::Field, B::Var>,
-    ) -> Var<B::Field, B::Var> {
-        match self {
-            VarOrRef::Var(var) => var,
-            VarOrRef::Ref {
-                var_name,
-                start,
-                len,
-            } => {
-                let var_info = circuit_writer.get_local_var(fn_env, &var_name);
-                let cvars = var_info.var.range(start, len).to_vec();
-                Var::new(cvars, var_info.var.span)
-            }
-        }
-    }
+    // /// Returns the value within the variable or pointer.
+    // /// If it is a pointer, we lose information about the original variable,
+    // /// thus calling this function is aking to passing the variable by value.
+    // pub(crate) fn value(
+    //     self,
+    //     circuit_writer: &CircuitWriter<B>,
+    //     fn_env: &FnEnv<B::Field, B::Var>,
+    // ) -> Var<B::Field, B::Var> {
+    //     match self {
+    //         VarOrRef::Var(var) => var,
+    //         VarOrRef::Ref {
+    //             var_name,
+    //             start,
+    //             len,
+    //         } => {
+    //             let var_info = circuit_writer.get_local_var(fn_env, &var_name);
+    //             let cvars = var_info.var.range(start, len).to_vec();
+    //             Var::new(cvars, var_info.var.span)
+    //         }
+    //     }
+    // }
 
-    pub(crate) fn from_var_info(var_name: String, var_info: VarInfo<B::Field, B::Var>) -> Self {
-        if var_info.mutable {
-            Self::Ref {
-                var_name,
-                start: 0,
-                len: var_info.var.len(),
-            }
-        } else {
-            Self::Var(var_info.var)
-        }
-    }
+    // pub(crate) fn from_var_info(var_name: String, var_info: VarInfo<B::Field, B::Var>) -> Self {
+    //     if var_info.mutable {
+    //         Self::Ref {
+    //             var_name,
+    //             start: 0,
+    //             len: var_info.var.len(),
+    //         }
+    //     } else {
+    //         Self::Var(var_info.var)
+    //     }
+    // }
 
     pub(crate) fn narrow(&self, start: usize, len: usize) -> Self {
         match self {

@@ -6,6 +6,9 @@ use crate::{
     var::Var,
 };
 
+use super::writer::ComputedExpr;
+
+
 /// Information about a variable.
 #[derive(Debug, Clone)]
 pub struct VarInfo<F, C>
@@ -13,8 +16,10 @@ where
     F: BackendField,
     C: BackendVar,
 {
+    // todo: should this holds a name, since it is always var stored?
+
     /// The variable.
-    pub var: Var<F, C>,
+    pub expr: ComputedExpr<F, C>,
 
     // TODO: we could also store this on the expression node... but I think this is lighter
     pub mutable: bool,
@@ -26,35 +31,35 @@ where
 }
 
 impl<F: BackendField, C: BackendVar> VarInfo<F, C> {
-    pub fn new(var: Var<F, C>, mutable: bool, typ: Option<TyKind>) -> Self {
-        Self { var, mutable, typ }
+    pub fn new(expr: ComputedExpr<F, C>, mutable: bool, typ: Option<TyKind>) -> Self {
+        Self { expr, mutable, typ }
     }
 
-    pub fn reassign(&self, var: Var<F, C>) -> Self {
+    pub fn reassign(&self, expr: ComputedExpr<F, C>) -> Self {
         Self {
-            var,
+            expr,
             mutable: self.mutable,
             typ: self.typ.clone(),
         }
     }
 
-    pub fn reassign_range(&self, var: Var<F, C>, start: usize, len: usize) -> Self {
-        // sanity check
-        assert_eq!(var.len(), len);
+    // pub fn reassign_range(&self, var: Var<F, C>, start: usize, len: usize) -> Self {
+    //     // sanity check
+    //     assert_eq!(var.len(), len);
 
-        // create new cvars by modifying a specific range
-        let mut cvars = self.var.cvars.clone();
-        let cvars_range = &mut cvars[start..start + len];
-        cvars_range.clone_from_slice(&var.cvars);
+    //     // create new cvars by modifying a specific range
+    //     let mut cvars = self.var.cvars.clone();
+    //     let cvars_range = &mut cvars[start..start + len];
+    //     cvars_range.clone_from_slice(&var.cvars);
 
-        let var = Var::new(cvars, self.var.span);
+    //     let var = Var::new(cvars, self.var.span);
 
-        Self {
-            var,
-            mutable: self.mutable,
-            typ: self.typ.clone(),
-        }
-    }
+    //     Self {
+    //         var,
+    //         mutable: self.mutable,
+    //         typ: self.typ.clone(),
+    //     }
+    // }
 }
 
 /// Is used to store functions' scoped variables.
@@ -143,7 +148,7 @@ impl<F: BackendField, C: BackendVar> FnEnv<F, C> {
         var_info.clone()
     }
 
-    pub fn reassign_local_var(&mut self, var_name: &str, var: Var<F, C>) {
+    pub fn reassign_local_var(&mut self, var_name: &str, expr: ComputedExpr<F, C>) {
         // get the scope first, we don't want to modify that
         let (scope, var_info) = self
             .vars
@@ -158,27 +163,27 @@ impl<F: BackendField, C: BackendVar> FnEnv<F, C> {
             panic!("type checking bug: local variable for reassigning is not mutable");
         }
 
-        let var_info = var_info.reassign(var);
+        let var_info = var_info.reassign(expr);
         self.vars.insert(var_name.to_string(), (*scope, var_info));
     }
 
-    /// Same as [Self::reassign_var], but only reassigns a specific range of the variable.
-    pub fn reassign_var_range(&mut self, var_name: &str, var: Var<F, C>, start: usize, len: usize) {
-        // get the scope first, we don't want to modify that
-        let (scope, var_info) = self
-            .vars
-            .get(var_name)
-            .expect("type checking bug: local variable for reassigning not found");
+    // Same as [Self::reassign_var], but only reassigns a specific range of the variable.
+    // pub fn reassign_var_range(&mut self, var_name: &str, var: ComputedExpr<F, C>, start: usize, len: usize) {
+    //     // get the scope first, we don't want to modify that
+    //     let (scope, var_info) = self
+    //         .vars
+    //         .get(var_name)
+    //         .expect("type checking bug: local variable for reassigning not found");
 
-        if !self.is_in_scope(*scope) {
-            panic!("type checking bug: local variable for reassigning not in scope");
-        }
+    //     if !self.is_in_scope(*scope) {
+    //         panic!("type checking bug: local variable for reassigning not in scope");
+    //     }
 
-        if !var_info.mutable {
-            panic!("type checking bug: local variable for reassigning is not mutable");
-        }
+    //     if !var_info.mutable {
+    //         panic!("type checking bug: local variable for reassigning is not mutable");
+    //     }
 
-        let var_info = var_info.reassign_range(var, start, len);
-        self.vars.insert(var_name.to_string(), (*scope, var_info));
-    }
+    //     let var_info = var_info.reassign_range(var, start, len);
+    //     self.vars.insert(var_name.to_string(), (*scope, var_info));
+    // }
 }
