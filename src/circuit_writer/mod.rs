@@ -163,19 +163,9 @@ impl<B: Backend> CircuitWriter<B> {
 
         // create public output
         if let Some(typ) = &function.sig.return_type {
-            match typ.kind.clone() {
-                TyKind::Field => {
-                    circuit_writer.add_public_outputs(1, typ.span);
-                }
-                TyKind::Array(item_ty, len) => {
-                    if item_ty.same_as(&TyKind::Field) || item_ty.same_as(&TyKind::Bool) {
-                        circuit_writer.add_public_outputs(len as usize, typ.span);
-                    } else {
-                        unimplemented!("only array of fields are allowed for now");
-                    }
-                }
-                _ => unimplemented!(),
-            }
+            // whatever is the size of return type, we need to add that many public outputs
+            let size_of = circuit_writer.size_of(&typ.kind);
+            circuit_writer.add_public_outputs(size_of, typ.span);
         }
 
         // public inputs should be handled first

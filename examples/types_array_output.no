@@ -1,0 +1,21 @@
+struct Thing {
+    xx: Field,
+    yy: Field,
+}
+
+fn main(pub xx: Field, pub yy: Field) -> [Thing; 2] {
+    let thing1 = Thing {
+        xx: xx * 2,
+        yy: yy,
+    };
+    let thing2 = Thing {
+        xx: xx,
+        yy: yy * 2,
+    };
+    let things = [thing1, thing2];
+
+    assert_eq(things[1].xx * 2, things[0].xx);
+    assert_eq(things[0].yy * 2, things[1].yy);
+    
+    return things;
+}
