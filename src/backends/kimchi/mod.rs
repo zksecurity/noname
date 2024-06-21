@@ -2,8 +2,9 @@ pub mod asm;
 pub mod builtin;
 pub mod prover;
 
+use educe::Educe;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fmt::Write,
     ops::Neg as _,
 };
@@ -243,9 +244,11 @@ impl KimchiVesta {
     }
 }
 
-#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, Debug, Eq, Hash, Serialize, Deserialize, PartialEq, Ord, Educe)]
+#[educe(PartialOrd)]
 pub struct KimchiCellVar {
     index: usize,
+    #[educe(PartialOrd(ignore))]
     pub span: Span,
 }
 
@@ -391,7 +394,7 @@ impl Backend for KimchiVesta {
 
         let mut witness = vec![];
         // compute each rows' vars, except for the deferred ones (public output)
-        let mut public_outputs_vars: HashMap<KimchiCellVar, Vec<(usize, usize)>> = HashMap::new();
+        let mut public_outputs_vars: BTreeMap<KimchiCellVar, Vec<(usize, usize)>> = BTreeMap::new();
 
         // calculate witness except for public outputs
         for (row, row_of_vars) in self.witness_table.iter().enumerate() {
