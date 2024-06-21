@@ -3,7 +3,6 @@ use std::fmt::{self, Display, Formatter};
 use ark_ff::{One, Zero};
 use kimchi::circuits::wires::Wire;
 use num_bigint::BigUint;
-use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -35,7 +34,7 @@ pub enum GateKind {
 
 impl From<GateKind> for kimchi::circuits::gate::GateType {
     fn from(gate_kind: GateKind) -> Self {
-        use kimchi::circuits::gate::GateType::*;
+        use kimchi::circuits::gate::GateType::{Generic, Poseidon, Zero};
         match gate_kind {
             GateKind::Zero => Zero,
             GateKind::DoubleGeneric => Generic,
@@ -99,7 +98,7 @@ impl PartialEq for AnnotatedCell {
 
 impl PartialOrd for AnnotatedCell {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.cell.partial_cmp(&other.cell)
+        Some(self.cmp(other))
     }
 }
 
@@ -235,7 +234,7 @@ impl<B: Backend> CircuitWriter<B> {
                 module,
                 name: struct_name,
             } => {
-                let qualified = FullyQualified::new(module, &struct_name);
+                let qualified = FullyQualified::new(module, struct_name);
                 let struct_info = self
                     .struct_info(&qualified)
                     .ok_or(self.error(ErrorKind::UnexpectedError("struct not found"), span))?
@@ -340,7 +339,7 @@ impl<B: Backend> CircuitWriter<B> {
                     vars.push(var_info);
                 }
 
-                let res = match &fn_info.kind {
+                match &fn_info.kind {
                     // assert() <-- for example
                     FnKind::BuiltIn(_sig, handle) => {
                         let res = handle(self, &vars, expr.span);
@@ -352,13 +351,10 @@ impl<B: Backend> CircuitWriter<B> {
                     FnKind::Native(func) => {
                         // module::fn_name(args)
                         // ^^^^^^
-                        self.compile_native_function_call(&func, vars)
+                        self.compile_native_function_call(func, vars)
                             .map(|r| r.map(VarOrRef::Var))
                     }
-                };
-
-                //
-                res
+                }
             }
 
             ExprKind::FieldAccess { lhs, rhs } => {
@@ -570,9 +566,7 @@ impl<B: Backend> CircuitWriter<B> {
             }
 
             ExprKind::BigUInt(b) => {
-                let ff = B::Field::try_from(b.to_owned()).map_err(|_| {
-                    self.error(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
-                })?;
+                let ff = B::Field::from(b.to_owned());
 
                 let res = VarOrRef::Var(Var::new_constant(ff, expr.span));
                 Ok(Some(res))

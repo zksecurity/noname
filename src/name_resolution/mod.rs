@@ -86,7 +86,7 @@ mod tests {
 
     use super::*;
 
-    const CODE: &str = r#"
+    const CODE: &str = r"
     use user::repo;
 
     const some_cst = 0;
@@ -99,7 +99,7 @@ mod tests {
         let aa = Thing { bb: yy };
         return repo::thing(xx, aa);
     }
-"#;
+";
 
     #[test]
     fn test_name_res() {

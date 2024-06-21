@@ -10,7 +10,7 @@ pub fn is_hexadecimal(s: &str) -> bool {
     let mut s = s.chars();
     let s0 = s.next();
     let s1 = s.next();
-    if matches!((s0, s1), (Some('0'), Some('x') | Some('X'))) {
+    if matches!((s0, s1), (Some('0'), Some('x' | 'X'))) {
         s.all(|c| c.is_ascii_hexdigit())
     } else {
         false
@@ -47,7 +47,7 @@ pub fn is_type(s: &str) -> bool {
     let first_char = chars.next().unwrap();
     // first char is an uppercase letter
     // rest are lowercase alphanumeric
-    first_char.is_alphabetic() && first_char.is_uppercase() && chars.all(|c| (c.is_alphanumeric()))
+    first_char.is_alphabetic() && first_char.is_uppercase() && chars.all(char::is_alphanumeric)
     // TODO: check camel case?
 }
 

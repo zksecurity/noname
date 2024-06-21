@@ -1,9 +1,5 @@
 use educe::Educe;
-use std::{
-    fmt::Display,
-    hash::{Hash, Hasher},
-    str::FromStr,
-};
+use std::{fmt::Display, hash::Hash, str::FromStr};
 
 use ark_ff::{Field, Zero};
 use serde::{Deserialize, Serialize};
@@ -252,11 +248,11 @@ impl Display for TyKind {
                     name = name,
                     module = module.value
                 ),
-                ModulePath::Local => write!(f, "a `{}` struct", name),
+                ModulePath::Local => write!(f, "a `{name}` struct"),
             },
             TyKind::Field => write!(f, "Field"),
             TyKind::BigInt => write!(f, "BigInt"),
-            TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
+            TyKind::Array(ty, size) => write!(f, "[{ty}; {size}]"),
             TyKind::Bool => write!(f, "Bool"),
         }
     }
@@ -418,7 +414,7 @@ impl Ident {
             }),
 
             _ => Err(ctx.error(
-                ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),
+                ErrorKind::ExpectedToken(TokenKind::Identifier(String::new())),
                 token.span,
             )),
         }
@@ -515,17 +511,11 @@ pub struct FnArg {
 
 impl FnArg {
     pub fn is_public(&self) -> bool {
-        self.attribute
-            .as_ref()
-            .map(|attr| attr.is_public())
-            .unwrap_or(false)
+        self.attribute.as_ref().is_some_and(Attribute::is_public)
     }
 
     pub fn is_constant(&self) -> bool {
-        self.attribute
-            .as_ref()
-            .map(|attr| attr.is_constant())
-            .unwrap_or(false)
+        self.attribute.as_ref().is_some_and(Attribute::is_constant)
     }
 }
 
@@ -687,12 +677,10 @@ impl FunctionDef {
                 } else {
                     attr.span.merge_with(arg_typ.span)
                 }
+            } else if &arg_name.value == "self" {
+                arg_name.span
             } else {
-                if &arg_name.value == "self" {
-                    arg_name.span
-                } else {
-                    arg_name.span.merge_with(arg_typ.span)
-                }
+                arg_name.span.merge_with(arg_typ.span)
             };
 
             let arg = FnArg {

@@ -51,7 +51,7 @@ pub mod helpers {
             let bigint: num_bigint::BigUint = (*self).into();
             let inv: num_bigint::BigUint = self.neg().into(); // gettho way of splitting the field into positive and negative elements
             if inv < bigint {
-                format!("-{}", inv)
+                format!("-{inv}")
             } else {
                 bigint.to_string()
             }

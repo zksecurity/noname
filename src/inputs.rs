@@ -92,9 +92,7 @@ impl<B: Backend> CompiledCircuit<B> {
             }
 
             (TyKind::Array(el_typ, size), Value::Array(values)) => {
-                if values.len() != (*size as usize) {
-                    panic!("wrong size of array");
-                }
+                assert!(values.len() == (*size as usize), "wrong size of array");
                 let mut res = vec![];
                 for value in values {
                     let el = self.parse_single_input(value, el_typ)?;
@@ -119,9 +117,10 @@ impl<B: Backend> CompiledCircuit<B> {
                 let fields = &struct_info.fields;
 
                 // make sure that they're the same length
-                if fields.len() != map.len() {
-                    panic!("wrong number of fields in struct (TODO: better error)");
-                }
+                assert!(
+                    fields.len() == map.len(),
+                    "wrong number of fields in struct (TODO: better error)"
+                );
 
                 // parse each field
                 let mut res = vec![];
@@ -138,12 +137,10 @@ impl<B: Backend> CompiledCircuit<B> {
 
                 Ok(res)
             }
-            (expected, observed) => {
-                return Err(ParsingError::MismatchJsonArgument(
-                    expected.clone(),
-                    observed,
-                ));
-            }
+            (expected, observed) => Err(ParsingError::MismatchJsonArgument(
+                expected.clone(),
+                observed,
+            )),
         }
     }
 }

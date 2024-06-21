@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::Hash, str::FromStr};
+use std::{fmt::Debug, str::FromStr};
 
 use ark_ff::{Field, Zero};
 use num_bigint::BigUint;
@@ -9,7 +9,6 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
-    parser::FunctionDef,
     var::{Value, Var},
     witness::WitnessEnv,
 };
@@ -57,8 +56,8 @@ pub trait Backend: Clone {
     /// The circuit field / scalar field that the circuit is written on.
     type Field: BackendField;
 
-    /// The CellVar type for the backend.
-    /// Different backend is allowed to have different CellVar types.
+    /// The `CellVar` type for the backend.
+    /// Different backend is allowed to have different `CellVar` types.
     type Var: BackendVar;
 
     /// The generated witness type for the backend. Each backend may define its own witness format to be generated.
@@ -122,7 +121,7 @@ pub trait Backend: Clone {
         span: Span,
     ) -> Self::Var;
 
-    /// Backends should implement this function to load and compute the value of a CellVar.
+    /// Backends should implement this function to load and compute the value of a `CellVar`.
     fn compute_var(
         &self,
         env: &mut WitnessEnv<Self::Field>,

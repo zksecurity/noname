@@ -1,8 +1,8 @@
 //! This module is a wrapper API around noname.
 //! It is important that user-facing features use the functions here,
 //! as they attach the correct filename and source code to errors.
-//! It does that by transforming our [Error] type into a [miette::Error] type for all functions here.
-//! (via the [IntoMiette] trait that we define here.)
+//! It does that by transforming our [Error] type into a [`miette::Error`] type for all functions here.
+//! (via the [`IntoMiette`] trait that we define here.)
 
 use std::collections::HashMap;
 
@@ -22,6 +22,12 @@ pub struct Sources {
 
     /// Maps a filename id to its filename and source code.
     pub map: HashMap<usize, (String, String)>,
+}
+
+impl Default for Sources {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Sources {
@@ -66,7 +72,7 @@ impl<T> IntoMiette<T> for Result<T> {
                     .expect("couldn't find source")
                     .clone();
                 let report: miette::Report = err.into();
-                return Err(report.with_source_code(NamedSource::new(filename, source)));
+                Err(report.with_source_code(NamedSource::new(filename, source)))
             }
         }
     }
@@ -84,7 +90,7 @@ pub fn typecheck_next_file<B: Backend>(
         .into_miette(sources)
 }
 
-/// This should not be used directly. Check [get_tast] instead.
+/// This should not be used directly. Check [`get_tast`] instead.
 pub fn typecheck_next_file_inner<B: Backend>(
     typechecker: &mut TypeChecker<B>,
     this_module: Option<UserRepo>,
@@ -116,7 +122,7 @@ pub fn get_nast<B: Backend>(
     let code = &sources.map[&filename_id].1;
 
     // lexer
-    let tokens = Token::parse(filename_id, &code)?;
+    let tokens = Token::parse(filename_id, code)?;
     if std::env::var("NONAME_VERBOSE").is_ok() {
         println!("lexer succeeded");
     }

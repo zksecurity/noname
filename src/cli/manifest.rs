@@ -19,7 +19,7 @@ pub struct Package {
 
 impl Manifest {
     pub(crate) fn dependencies(&self) -> Vec<String> {
-        self.package.dependencies.clone().unwrap_or(vec![])
+        self.package.dependencies.clone().unwrap_or_default()
     }
 }
 

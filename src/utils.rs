@@ -19,7 +19,7 @@ pub fn display_source(
         res.push('\n');
 
         // display filename
-        writeln!(res, "│ FILE: {}", file).unwrap();
+        writeln!(res, "│ FILE: {file}").unwrap();
         writeln!(res, "│{s}", s = "─".repeat(80)).unwrap();
 
         // source
@@ -61,7 +61,7 @@ fn find_exact_line(source: &str, span: crate::constants::Span) -> (usize, usize,
 
 pub fn title(res: &mut String, s: &str) {
     writeln!(res, "╭{s}╮", s = "─".repeat(s.len())).unwrap();
-    writeln!(res, "│{s}│", s = s).unwrap();
+    writeln!(res, "│{s}│").unwrap();
     writeln!(res, "╰{s}╯", s = "─".repeat(s.len())).unwrap();
     writeln!(res).unwrap();
 }

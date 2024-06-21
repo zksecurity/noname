@@ -13,7 +13,8 @@ use crate::{
 };
 
 /// The signature of a hint function
-pub type HintFn<B: Backend> = dyn Fn(&B, &mut WitnessEnv<B::Field>) -> Result<B::Field>;
+pub type HintFn<B> =
+    dyn Fn(&B, &mut WitnessEnv<<B as Backend>::Field>) -> Result<<B as Backend>::Field>;
 
 /// A variable's actual value in the witness can be computed in different ways.
 #[derive(Clone, Serialize, Deserialize)]
@@ -147,7 +148,7 @@ impl<F: Field, C: BackendVar> Var<F, C> {
 
     pub fn new_constant_typ(cst_info: &ConstInfo<F>, span: Span) -> Self {
         let ConstInfo { value, typ: _ } = cst_info;
-        let cvars = value.into_iter().cloned().map(ConstOrCell::Const).collect();
+        let cvars = value.iter().copied().map(ConstOrCell::Const).collect();
 
         Self { cvars, span }
     }

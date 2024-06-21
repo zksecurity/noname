@@ -8,7 +8,7 @@ use crate::{
     parser::types::TyKind,
 };
 
-/// Some type information on local variables that we want to track in the [TypedFnEnv] environment.
+/// Some type information on local variables that we want to track in the [`TypedFnEnv`] environment.
 #[derive(Debug, Clone)]
 pub struct TypeInfo {
     /// If the variable can be mutated or not.
@@ -68,7 +68,7 @@ pub struct TypedFnEnv {
 }
 
 impl TypedFnEnv {
-    /// Creates a new TypeEnv
+    /// Creates a new `TypeEnv`
     pub fn new() -> Self {
         Self::default()
     }
@@ -83,7 +83,7 @@ impl TypedFnEnv {
         self.current_scope.checked_sub(1).expect("scope bug");
 
         // disable variables as we exit the scope
-        for (_name, (scope, type_info)) in self.vars.iter_mut() {
+        for (scope, type_info) in self.vars.values_mut() {
             if *scope > self.current_scope {
                 type_info.disabled = true;
             }

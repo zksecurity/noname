@@ -13,5 +13,5 @@ pub use cmd_prove_and_verify::{cmd_prove, cmd_verify, CmdProve, CmdVerify};
 /// The directory under the user home directory containing all noname-related files.
 pub const NONAME_DIRECTORY: &str = ".noname";
 
-/// The directory under [NONAME_DIRECTORY] containing all package-related files.
+/// The directory under [`NONAME_DIRECTORY`] containing all package-related files.
 pub const PACKAGE_DIRECTORY: &str = "packages";

@@ -78,7 +78,7 @@ where
 }
 
 impl<F: BackendField, C: BackendVar> FnEnv<F, C> {
-    /// Creates a new FnEnv
+    /// Creates a new `FnEnv`
     pub fn new() -> Self {
         Self {
             current_scope: 0,
@@ -99,7 +99,7 @@ impl<F: BackendField, C: BackendVar> FnEnv<F, C> {
         // (we don't need to keep them around to detect shadowing,
         // as we already did that in type checker)
         let mut to_delete = vec![];
-        for (name, (scope, _)) in self.vars.iter() {
+        for (name, (scope, _)) in &self.vars {
             if *scope > self.current_scope {
                 to_delete.push(name.clone());
             }
@@ -136,9 +136,10 @@ impl<F: BackendField, C: BackendVar> FnEnv<F, C> {
             .vars
             .get(var_name)
             .unwrap_or_else(|| panic!("type checking bug: local variable `{var_name}` not found"));
-        if !self.is_in_scope(*scope) {
-            panic!("type checking bug: local variable `{var_name}` not in scope");
-        }
+        assert!(
+            self.is_in_scope(*scope),
+            "type checking bug: local variable `{var_name}` not in scope"
+        );
 
         var_info.clone()
     }
@@ -150,19 +151,21 @@ impl<F: BackendField, C: BackendVar> FnEnv<F, C> {
             .get(var_name)
             .expect("type checking bug: local variable for reassigning not found");
 
-        if !self.is_in_scope(*scope) {
-            panic!("type checking bug: local variable for reassigning not in scope");
-        }
+        assert!(
+            self.is_in_scope(*scope),
+            "type checking bug: local variable for reassigning not in scope"
+        );
 
-        if !var_info.mutable {
-            panic!("type checking bug: local variable for reassigning is not mutable");
-        }
+        assert!(
+            var_info.mutable,
+            "type checking bug: local variable for reassigning is not mutable"
+        );
 
         let var_info = var_info.reassign(var);
         self.vars.insert(var_name.to_string(), (*scope, var_info));
     }
 
-    /// Same as [Self::reassign_var], but only reassigns a specific range of the variable.
+    /// Same as [`Self::reassign_var`], but only reassigns a specific range of the variable.
     pub fn reassign_var_range(&mut self, var_name: &str, var: Var<F, C>, start: usize, len: usize) {
         // get the scope first, we don't want to modify that
         let (scope, var_info) = self
@@ -170,13 +173,15 @@ impl<F: BackendField, C: BackendVar> FnEnv<F, C> {
             .get(var_name)
             .expect("type checking bug: local variable for reassigning not found");
 
-        if !self.is_in_scope(*scope) {
-            panic!("type checking bug: local variable for reassigning not in scope");
-        }
+        assert!(
+            self.is_in_scope(*scope),
+            "type checking bug: local variable for reassigning not in scope"
+        );
 
-        if !var_info.mutable {
-            panic!("type checking bug: local variable for reassigning is not mutable");
-        }
+        assert!(
+            var_info.mutable,
+            "type checking bug: local variable for reassigning is not mutable"
+        );
 
         let var_info = var_info.reassign_range(var, start, len);
         self.vars.insert(var_name.to_string(), (*scope, var_info));

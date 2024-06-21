@@ -1,6 +1,6 @@
 use crate::backends::BackendField;
 use constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
-use miette::{miette, Diagnostic};
+use miette::Diagnostic;
 use thiserror::Error;
 
 use std::collections::HashMap;
@@ -43,10 +43,11 @@ impl SnarkjsLinearCombination {
         let mut terms = self.terms.clone();
 
         // add the constant term with var indexed at 0
-        if terms.insert(0, self.constant.clone()).is_some() {
-            // sanity check
-            panic!("The first var should be preserved for constant term");
-        }
+        // sanity check
+        assert!(
+            terms.insert(0, self.constant.clone()).is_none(),
+            "The first var should be preserved for constant term"
+        );
 
         terms
     }
@@ -79,7 +80,7 @@ where
     }
 
     /// Restructure the linear combination to align with the snarkjs format.
-    /// - convert the factors to BigInt.
+    /// - convert the factors to `BigInt`.
     fn restructure_lc(&self, lc: &LinearCombination<F>) -> SnarkjsLinearCombination {
         let terms = lc
             .terms
@@ -226,9 +227,10 @@ impl WitnessWriter {
 
         // Write the file type (magic string) as bytes
         let file_type_bytes = file_type.as_bytes();
-        if file_type_bytes.len() != 4 {
-            panic!("File type must be 4 characters long");
-        }
+        assert!(
+            file_type_bytes.len() == 4,
+            "File type must be 4 characters long"
+        );
         writer.write_all(file_type_bytes)?;
 
         // Write the version as a 32-bit unsigned integer in little endian
@@ -302,15 +304,15 @@ impl WitnessWriter {
         // Start writing the second section
         self.start_write_section(2)?;
 
-        /// Write the witness values to the file
-        /// Each witness value occupies the same number of bytes as the prime field
+        // Write the witness values to the file
+        // Each witness value occupies the same number of bytes as the prime field
         for value in witness {
             self.write_big_int(value.clone(), field_n_bytes)?;
         }
         self.end_write_section()
     }
 
-    /// Write a BigInt to the file
+    /// Write a `BigInt` to the file
     fn write_big_int(&mut self, value: BigInt, size: usize) -> Result<(), io::Error> {
         let bytes = value.to_bytes_le().1;
 

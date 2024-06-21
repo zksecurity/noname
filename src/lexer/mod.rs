@@ -111,7 +111,7 @@ impl Display for Keyword {
             Self::Const => "const",
         };
 
-        write!(f, "{}", desc)
+        write!(f, "{desc}")
     }
 }
 
@@ -154,7 +154,12 @@ pub enum TokenKind {
 
 impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use TokenKind::*;
+        use TokenKind::{
+            Ampersand, BigUInt, Colon, Comma, Comment, Dot, DoubleAmpersand, DoubleColon,
+            DoubleDot, DoubleEqual, DoublePipe, Equal, Exclamation, Greater, Identifier, Keyword,
+            LeftBracket, LeftCurlyBracket, LeftParen, Less, Minus, Pipe, Plus, Question,
+            RightArrow, RightBracket, RightCurlyBracket, RightParen, SemiColon, Slash, Star,
+        };
         let desc = match self {
             Keyword(_) => "keyword (use, let, etc.)",
             Identifier(_) => {
@@ -193,7 +198,7 @@ impl Display for TokenKind {
             //            TokenType::Literal => "`\"something\"",
         };
 
-        write!(f, "{}", desc)
+        write!(f, "{desc}")
     }
 }
 
@@ -452,22 +457,22 @@ impl Token {
 mod tests {
     use super::*;
 
-    const CODE: &str = r#"use crypto::poseidon;
+    const CODE: &str = r"use crypto::poseidon;
 
 fn main(public_input: [fel; 3], private_input: [fel; 3]) -> [fel; 8] {
     let digest = poseidon(private_input);
     assert(digest == public_input);
 }
-"#;
+";
 
     #[test]
     fn test_lexer() {
         match Token::parse(0, CODE) {
             Ok(root) => {
-                println!("{:#?}", root);
+                println!("{root:#?}");
             }
             Err(e) => {
-                println!("{:?}", e);
+                println!("{e:?}");
             }
         }
     }

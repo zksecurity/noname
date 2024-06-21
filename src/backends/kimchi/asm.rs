@@ -22,7 +22,6 @@
 //!
 
 use std::collections::{HashMap, HashSet};
-use std::fmt::Write;
 use std::hash::Hash;
 
 use crate::helpers::PrettyField;
