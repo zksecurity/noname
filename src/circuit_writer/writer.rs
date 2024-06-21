@@ -158,6 +158,20 @@ impl<F: BackendField, V: BackendVar> Access<F, V> {
     }
 }
 
+impl<F: BackendField, V: BackendVar> Display for Access<F, V> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut s = self.var_name.clone();
+        for step in &self.steps {
+            match step {
+                AccessKind::Field(field) => s.push_str(&format!(".{}", field)),
+                AccessKind::Array(index) => s.push_str(&format!("[{}]", index)),
+            }
+        }
+        
+        write!(f, "{}", s)
+    }
+}
+
 /// This represents which kind of access for a step.
 #[derive(Debug, Clone)]
 pub enum AccessKind {
@@ -916,7 +930,7 @@ impl<B: Backend> CircuitWriter<B> {
                 let array = access.expr.array_expr();
                 if array.len() <= idx {
                     return Err(
-                        self.error(ErrorKind::ArrayIndexOutOfBounds(idx, array.len()), span)
+                        self.error(ErrorKind::ArrayIndexOutOfBounds(access.to_string(), idx, array.len() - 1), span)
                     );
                 }
                 let elm_ce = &array[idx];
