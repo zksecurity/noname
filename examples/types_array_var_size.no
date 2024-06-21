@@ -1,0 +1,23 @@
+const size = 2;
+
+struct Thing {
+    xx: Field,
+    yy: Field,
+}
+
+fn main(pub xx: Field, pub yy: Field) {
+    let thing1 = Thing {
+        xx: 1,
+        yy: 2,
+    };
+    let thing2 = Thing {
+        xx: 3,
+        yy: 4,
+    };
+
+    let mut things = [thing1; size];
+    things[1] = thing2;
+    
+    assert_eq(things[0].xx, xx);
+    assert_eq(things[1].yy, yy);
+}

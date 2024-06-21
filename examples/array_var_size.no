@@ -1,0 +1,14 @@
+const size = 3;
+
+fn main(pub public_input: [Field; 2]) {
+    let mut xx = [1; size];
+
+    for ii in 1..size {
+        xx[ii] = ii + 1;
+    }
+
+    assert_eq(public_input[0], xx[0]);
+    assert_eq(public_input[1], xx[1]);
+
+    assert_eq(1, 1);
+}

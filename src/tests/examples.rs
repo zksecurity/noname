@@ -264,11 +264,35 @@ fn test_for_loop(#[case] backend: BackendKind) -> miette::Result<()> {
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_for_loop_var_range(#[case] backend: BackendKind) -> miette::Result<()> {
+    let private_inputs = r#"{"private_input": ["2", "3", "4"]}"#;
+    let public_inputs = r#"{"public_input": "9"}"#;
+
+    test_file("for_loop_var_range", public_inputs, private_inputs, vec![], backend)?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_array(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"public_input": ["1", "2"]}"#;
 
     test_file("array", public_inputs, private_inputs, vec![], backend)?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_array_var_size(#[case] backend: BackendKind) -> miette::Result<()> {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"public_input": ["1", "2"]}"#;
+
+    test_file("array_var_size", public_inputs, private_inputs, vec![], backend)?;
 
     Ok(())
 }
@@ -361,12 +385,12 @@ fn test_types_array(#[case] backend: BackendKind) -> miette::Result<()> {
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
-fn test_default_array(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{"total_size": "750"}"#;
-    let public_inputs = r#"{"resize_to": "50"}"#;
+fn test_types_array_var_size(#[case] backend: BackendKind) -> miette::Result<()> {
+    let private_inputs = r#"{}"#;
+    let public_inputs = r#"{"xx": "1", "yy": "4"}"#;
 
     test_file(
-        "default_array",
+        "types_array_var_size",
         public_inputs,
         private_inputs,
         vec![],
