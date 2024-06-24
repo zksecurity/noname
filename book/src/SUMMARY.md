@@ -32,3 +32,6 @@
 
 - [Public Outputs](./public-outputs.md)
 - [Witness Generation](./witness-generation.md)
+
+# RFCs
+- [Const Generic](./rfc/const_generic.md)
