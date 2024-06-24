@@ -456,16 +456,13 @@ impl<B: Backend> CircuitWriter<B> {
         &mut self,
         fn_env: &mut FnEnv<B::Field, B::Var>,
         stmt: &Stmt,
-    ) -> Result<Option<VarOrRef<B>>> {
+    ) -> Result<Option<ComputedExpr<B::Field, B::Var>>> {
         match &stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } => {
                 // compute the rhs
                 let rhs_var = self
                     .compute_expr(fn_env, rhs)?
                     .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, stmt.span))?;
-
-                // obtain the actual values
-                let rhs_var = rhs_var.value(self, fn_env);
 
                 let typ = self.expr_type(rhs).cloned();
                 let var_info = VarInfo::new(rhs_var, *mutable, typ);
@@ -480,7 +477,8 @@ impl<B: Backend> CircuitWriter<B> {
                     fn_env.nest();
 
                     let cst_var = Var::new_constant(ii.into(), var.span);
-                    let var_info = VarInfo::new(cst_var, false, Some(TyKind::Field));
+                    let ce = ComputedExpr::new_field(cst_var, var.span);
+                    let var_info = VarInfo::new(ce, false, Some(TyKind::Field));
                     self.add_local_var(fn_env, var.value.clone(), var_info);
 
                     self.compile_block(fn_env, body)?;
@@ -514,14 +512,12 @@ impl<B: Backend> CircuitWriter<B> {
         &mut self,
         fn_env: &mut FnEnv<B::Field, B::Var>,
         stmts: &[Stmt],
-    ) -> Result<Option<Var<B::Field, B::Var>>> {
+    ) -> Result<Option<ComputedExpr<B::Field, B::Var>>> {
         fn_env.nest();
         for stmt in stmts {
             let res = self.compile_stmt(fn_env, stmt)?;
             if let Some(var) = res {
                 // a block doesn't return a pointer, only values
-                let var = var.value(self, fn_env);
-
                 // we already checked for early returns in type checking
                 return Ok(Some(var));
             }
@@ -534,7 +530,7 @@ impl<B: Backend> CircuitWriter<B> {
         &mut self,
         function: &FunctionDef,
         args: Vec<VarInfo<B::Field, B::Var>>,
-    ) -> Result<Option<Var<B::Field, B::Var>>> {
+    ) -> Result<Option<ComputedExpr<B::Field, B::Var>>> {
         assert!(!function.is_main());
 
         // create new fn_env
@@ -544,6 +540,7 @@ impl<B: Backend> CircuitWriter<B> {
         assert_eq!(function.sig.arguments.len(), args.len());
 
         for (name, var_info) in function.sig.arguments.iter().zip(args) {
+            let var_info = VarInfo::new(var_info.expr, var_info.mutable, var_info.typ);
             self.add_local_var(fn_env, name.name.value.clone(), var_info);
         }
 
@@ -611,6 +608,7 @@ impl<B: Backend> CircuitWriter<B> {
             (Some(_expected), Some(returned)) => {
                 // make sure there are no constants in the returned value
                 let mut returned_cells = vec![];
+                let returned = returned.value();
                 for r in &returned.cvars {
                     match r {
                         ConstOrCell::Cell(c) => returned_cells.push(c.clone()),
@@ -633,7 +631,7 @@ impl<B: Backend> CircuitWriter<B> {
         &mut self,
         fn_env: &mut FnEnv<B::Field, B::Var>,
         expr: &Expr,
-    ) -> Result<Option<VarOrRef<B>>> {
+    ) -> Result<Option<ComputedExpr<B::Field, B::Var>>> {
         match &expr.kind {
             // `module::fn_name(args)`
             ExprKind::FnCall {
@@ -668,9 +666,6 @@ impl<B: Backend> CircuitWriter<B> {
                         .compute_expr(fn_env, arg)?
                         .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, arg.span))?;
 
-                    // we pass variables by values always
-                    let var = var.value(self, fn_env);
-
                     let typ = self.expr_type(arg).cloned();
                     let mutable = false; // TODO: mut keyword in arguments?
                     let var_info = VarInfo::new(var, mutable, typ);
@@ -681,8 +676,8 @@ impl<B: Backend> CircuitWriter<B> {
                 let res = match &fn_info.kind {
                     // assert() <-- for example
                     FnKind::BuiltIn(_sig, handle) => {
-                        let res = handle(self, &vars, expr.span);
-                        res.map(|r| r.map(VarOrRef::Var))
+                        let returned = handle(self, &vars, expr.span)?;
+                        returned.map(|r| ComputedExpr::new_fn_call_result(r, expr.span))
                     }
 
                     // fn_name(args)
@@ -690,13 +685,12 @@ impl<B: Backend> CircuitWriter<B> {
                     FnKind::Native(func) => {
                         // module::fn_name(args)
                         // ^^^^^^
-                        self.compile_native_function_call(&func, vars)
-                            .map(|r| r.map(VarOrRef::Var))
+                        self.compile_native_function_call(func, vars)?
                     }
                 };
 
                 //
-                res
+                Ok(res)
             }
 
             ExprKind::FieldAccess { lhs, rhs } => {
@@ -760,7 +754,7 @@ impl<B: Backend> CircuitWriter<B> {
 
                 // get var of `self`
                 // (might be `None` if it's a static method call)
-                let self_var = self.compute_expr(fn_env, lhs)?;
+                let self_ce = self.compute_expr(fn_env, lhs)?;
 
                 // find method info
                 let qualified = FullyQualified::new(module, struct_name);
@@ -780,59 +774,48 @@ impl<B: Backend> CircuitWriter<B> {
                 let mut vars = vec![];
                 if let Some(first_arg) = func.sig.arguments.first() {
                     if first_arg.name.value == "self" {
-                        let self_var = self_var.ok_or_else(|| {
+                        let self_var = self_ce.ok_or_else(|| {
                             self.error(ErrorKind::NotAStaticMethod, method_name.span)
                         })?;
 
                         // TODO: for now we pass `self` by value as well
                         let mutable = false;
-                        let self_var = self_var.value(self, fn_env);
 
                         let self_var_info = VarInfo::new(self_var, mutable, Some(lhs_typ.clone()));
                         vars.insert(0, self_var_info);
                     }
                 } else {
-                    assert!(self_var.is_none());
+                    assert!(self_ce.is_none());
                 }
 
                 // compute the arguments
                 for arg in args {
-                    let var = self
+                    let ce = self
                         .compute_expr(fn_env, arg)?
                         .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, arg.span))?;
 
                     // TODO: for now we pass `self` by value as well
                     let mutable = false;
-                    let var = var.value(self, fn_env);
 
                     let typ = self.expr_type(arg).cloned();
-                    let var_info = VarInfo::new(var, mutable, typ);
+                    let var_info = VarInfo::new(ce, mutable, typ);
 
                     vars.push(var_info);
                 }
 
                 // execute method
                 self.compile_native_function_call(func, vars)
-                    .map(|r| r.map(VarOrRef::Var))
             }
 
             ExprKind::IfElse { cond, then_, else_ } => {
-                let cond = self
-                    .compute_expr(fn_env, cond)?
-                    .unwrap()
-                    .value(self, fn_env);
-                let then_ = self
-                    .compute_expr(fn_env, then_)?
-                    .unwrap()
-                    .value(self, fn_env);
-                let else_ = self
-                    .compute_expr(fn_env, else_)?
-                    .unwrap()
-                    .value(self, fn_env);
+                let cond = self.compute_expr(fn_env, cond)?.unwrap().value();
+                let then_ = self.compute_expr(fn_env, then_)?.unwrap().value();
+                let else_ = self.compute_expr(fn_env, else_)?.unwrap().value();
 
                 let res = field::if_else(self, &cond, &then_, &else_, expr.span);
+                let ce = ComputedExpr::new_fn_call_result(res, expr.span);
 
-                Ok(Some(VarOrRef::Var(res)))
+                Ok(Some(ce))
             }
 
             ExprKind::Assignment { lhs, rhs } => {
@@ -873,8 +856,8 @@ impl<B: Backend> CircuitWriter<B> {
                 let lhs = self.compute_expr(fn_env, lhs)?.unwrap();
                 let rhs = self.compute_expr(fn_env, rhs)?.unwrap();
 
-                let lhs = lhs.value(self, fn_env);
-                let rhs = rhs.value(self, fn_env);
+                let lhs = lhs.value();
+                let rhs = rhs.value();
 
                 let res = match op {
                     Op2::Addition => field::add(self, &lhs[0], &rhs[0], expr.span),
@@ -887,13 +870,15 @@ impl<B: Backend> CircuitWriter<B> {
                     Op2::Division => todo!(),
                 };
 
-                Ok(Some(VarOrRef::Var(res)))
+                let res = ComputedExpr::new_fn_call_result(res, expr.span);
+
+                Ok(Some(res))
             }
 
             ExprKind::Negated(b) => {
                 let var = self.compute_expr(fn_env, b)?.unwrap();
 
-                let var = var.value(self, fn_env);
+                let var = var.value();
 
                 todo!()
             }
@@ -901,10 +886,12 @@ impl<B: Backend> CircuitWriter<B> {
             ExprKind::Not(b) => {
                 let var = self.compute_expr(fn_env, b)?.unwrap();
 
-                let var = var.value(self, fn_env);
+                let var = var.value();
 
                 let res = boolean::not(self, &var[0], expr.span.merge_with(b.span));
-                Ok(Some(VarOrRef::Var(res)))
+
+                let res = ComputedExpr::new_fn_call_result(res, expr.span);
+                Ok(Some(res))
             }
 
             ExprKind::BigUInt(b) => {
@@ -912,7 +899,9 @@ impl<B: Backend> CircuitWriter<B> {
                     self.error(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
                 })?;
 
-                let res = VarOrRef::Var(Var::new_constant(ff, expr.span));
+                let cst = Var::new_constant(ff, expr.span);
+
+                let res = ComputedExpr::new_field(cst, expr.span);
                 Ok(Some(res))
             }
 
@@ -922,7 +911,10 @@ impl<B: Backend> CircuitWriter<B> {
                 } else {
                     B::Field::zero()
                 };
-                let res = VarOrRef::Var(Var::new_constant(value, expr.span));
+
+                let cst = Var::new_constant(value, expr.span);
+                let res = ComputedExpr::new_field(cst, expr.span);
+
                 Ok(Some(res))
             }
 
@@ -1002,31 +994,27 @@ impl<B: Backend> CircuitWriter<B> {
             }
 
             ExprKind::ArrayDeclaration(items) => {
-                let mut cvars = vec![];
+                let mut expr_arr = vec![];
 
                 for item in items {
                     let var = self.compute_expr(fn_env, item)?.unwrap();
-                    let to_extend = var.value(self, fn_env).cvars.clone();
-                    cvars.extend(to_extend);
+                    expr_arr.push(var);
                 }
 
-                let var = VarOrRef::Var(Var::new(cvars, expr.span));
+                let ce = ComputedExpr::new_array(expr_arr, expr.span);
 
-                Ok(Some(var))
+                Ok(Some(ce))
             }
 
             ExprKind::CustomTypeDeclaration { custom: _, fields } => {
-                // create the struct by just concatenating all of its cvars
-                let mut cvars = vec![];
-                for (_field, rhs) in fields {
-                    let var = self.compute_expr(fn_env, rhs)?.unwrap();
-                    let to_extend = var.value(self, fn_env).cvars.clone();
-                    cvars.extend(to_extend);
+                let mut custom = BTreeMap::new();
+                for (field, rhs) in fields {
+                    let ce = self.compute_expr(fn_env, rhs)?.unwrap();
+                    custom.insert(field.value.clone(), ce);
                 }
-                let var = VarOrRef::Var(Var::new(cvars, expr.span));
+                let ce = ComputedExpr::new_struct(custom, expr.span);
 
-                //
-                Ok(Some(var))
+                Ok(Some(ce))
             }
         }
     }
