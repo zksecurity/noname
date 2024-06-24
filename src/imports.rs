@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     backends::Backend,
-    circuit_writer::{CircuitWriter, VarInfo},
+    circuit_writer::{writer::ComputedExpr, CircuitWriter, VarInfo},
     constants::Span,
     error::Result,
     parser::types::{FnSig, FunctionDef},
@@ -66,7 +66,7 @@ pub type FnHandle<B: Backend> = fn(
     &mut CircuitWriter<B>,
     &[VarInfo<B::Field, B::Var>],
     Span,
-) -> Result<Option<Var<B::Field, B::Var>>>;
+) -> Result<Option<ComputedExpr<B::Field, B::Var>>>;
 
 /// The different types of a noname function.
 #[derive(Clone, Serialize, Deserialize)]
