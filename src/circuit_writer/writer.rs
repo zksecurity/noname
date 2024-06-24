@@ -109,6 +109,344 @@ impl Ord for AnnotatedCell {
     }
 }
 
+/// This records the steps to access a child element of a struct or an array variable.
+/// These steps are used to navigate through a variable in the scope in order to update its value.
+/// The access pattern can narrow down to either a single field, struct or array. For example:
+/// `houses[1].rooms[2].room_size`
+///
+/// The access to the field called "room_size" at the end can be represented as:
+/// Access {
+///   var_name: "houses", // the name of the variable in the current scope
+///   steps: [ Array(1), Field("rooms"), Array(2), Field("room_size") ],
+///   expr: ...           // represent the expression that leads to the value of "room_size"
+/// }
+///
+/// where the "Array" / "Field" enum represents the `AccessKind` of a step.
+///
+/// This Access type is currently constructed from `compute_expr` cases:
+/// - Expr::Variable
+/// - Expr::FieldAccess
+/// - Expr::ArrayAccess
+///
+/// where `Expr::Variable` case initializes the Access with an empty steps.
+/// `Expr::FieldAccess` or `Expr::ArrayAccess` constructs the steps.
+///
+/// Then the `Expr::Assignment` uses the Access to trace and update the value of the targeted variable in the scope.
+#[derive(Debug, Clone)]
+pub struct Access<F, V>
+where
+    F: BackendField,
+    V: BackendVar,
+{
+    pub var_name: String,
+    pub steps: Vec<AccessKind>,
+    // the current access node
+    pub expr: Box<ComputedExpr<F, V>>,
+}
+
+impl<F: BackendField, V: BackendVar> Access<F, V> {
+    pub fn new(var_name: &str, steps: &[AccessKind], expr: Box<ComputedExpr<F, V>>) -> Self {
+        Self {
+            var_name: var_name.to_string(),
+            steps: steps.to_vec(),
+            expr,
+        }
+    }
+}
+
+impl<F: BackendField, V: BackendVar> Display for Access<F, V> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut s = self.var_name.clone();
+        s.push_str(
+            &self
+                .steps
+                .iter()
+                .map(ToString::to_string)
+                .collect_vec()
+                .join(""),
+        );
+
+        write!(f, "{}", s)
+    }
+}
+
+/// This represents which kind of access for a step.
+#[derive(Debug, Clone)]
+pub enum AccessKind {
+    /// Access to a field of a struct
+    Field(String),
+    /// Access to an array element at a specific index
+    Array(usize),
+}
+
+impl Display for AccessKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            AccessKind::Field(field) => write!(f, ".{}", field),
+            AccessKind::Array(index) => write!(f, "[{}]", index),
+        }
+    }
+}
+
+/// Represents a computed expression from a `Expr`.
+/// This is useful to propagate the computed values from the call to `compute_expr`,
+/// while retaining the structural information of a computed expression.
+#[derive(Debug, Clone)]
+pub struct ComputedExpr<F, V>
+where
+    F: BackendField,
+    V: BackendVar,
+{
+    kind: ComputedExprKind<F, V>,
+    span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum ComputedExprKind<F, V>
+where
+    F: BackendField,
+    V: BackendVar,
+{
+    /// Structures behind a custom struct can be recursive, so it embeds the ComputExpr.
+    Struct(BTreeMap<String, ComputedExpr<F, V>>),
+    /// Structures behind an array can be recursive, so it embeds the ComputExpr.
+    Array(Vec<ComputedExpr<F, V>>),
+    Bool(Var<F, V>),
+    Field(Var<F, V>),
+    /// Access to a variable in the scope.
+    Access(Access<F, V>),
+    /// Represents the results of a builtin function call.
+    /// Because we don't know the exact type of the result, we store it as a Var.
+    /// We may deprecate this once it is able to type check the builtin functions,
+    /// so that the result can be inferred.
+    FnCallResult(Var<F, V>),
+}
+
+impl<F: BackendField, V: BackendVar> ComputedExpr<F, V> {
+    pub fn new(kind: ComputedExprKind<F, V>, span: Span) -> Self {
+        Self { kind, span }
+    }
+
+    /// Create a new `ComputedExpr` from a struct
+    pub fn new_struct(fields: BTreeMap<String, ComputedExpr<F, V>>, span: Span) -> Self {
+        Self::new(ComputedExprKind::Struct(fields), span)
+    }
+
+    /// Create a new `ComputedExpr` from an array
+    pub fn new_array(array: Vec<ComputedExpr<F, V>>, span: Span) -> Self {
+        Self::new(ComputedExprKind::Array(array), span)
+    }
+
+    /// Create a new `ComputedExpr` from a boolean variable
+    pub fn new_bool(var: Var<F, V>, span: Span) -> Self {
+        Self::new(ComputedExprKind::Bool(var), span)
+    }
+
+    /// Create a new `ComputedExpr` from a field variable
+    pub fn new_field(var: Var<F, V>, span: Span) -> Self {
+        Self::new(ComputedExprKind::Field(var), span)
+    }
+
+    /// Create a new `ComputedExpr` from a function call result
+    pub fn new_fn_call_result(var: Var<F, V>, span: Span) -> Self {
+        Self::new(ComputedExprKind::FnCallResult(var), span)
+    }
+
+    /// Create a new `ComputedExpr` from an access
+    pub fn new_access(access: Access<F, V>, span: Span) -> Self {
+        Self::new(ComputedExprKind::Access(access), span)
+    }
+
+    /// Get the underlying value as `Var` of the computed expression.
+    pub fn value(self) -> Var<F, V> {
+        match self.kind {
+            ComputedExprKind::Array(array) => {
+                let mut cvars = vec![];
+                for elm in array {
+                    // unfold an element of the array
+                    let var = elm.value();
+                    cvars.extend(var.cvars);
+                }
+                Var::new(cvars, self.span)
+            }
+            ComputedExprKind::Struct(fields) => {
+                let mut cvars = vec![];
+                for (_, el) in fields {
+                    // unfold a field of the struct
+                    let var = el.value();
+                    cvars.extend(var.cvars);
+                }
+                Var::new(cvars, self.span)
+            }
+            ComputedExprKind::Bool(var) => var,
+            ComputedExprKind::Field(var) => var,
+            ComputedExprKind::FnCallResult(var) => var,
+            ComputedExprKind::Access(access) => access.expr.value(),
+        }
+    }
+
+    /// Get the underlying value as a constant
+    pub fn constant(&self) -> Option<F> {
+        match &self.access_inner().kind {
+            ComputedExprKind::Field(var) => var.constant(),
+            ComputedExprKind::FnCallResult(var) => var.constant(),
+            _ => None,
+        }
+    }
+
+    /// Get the underlying value as a struct
+    pub fn struct_expr(&self) -> Option<BTreeMap<String, ComputedExpr<F, V>>> {
+        match &self.access_inner().kind {
+            ComputedExprKind::Struct(fields) => Some(fields.clone()),
+            _ => None,
+        }
+    }
+
+    /// Get the underlying value as an array
+    pub fn array_expr(&self) -> Option<Vec<ComputedExpr<F, V>>> {
+        match &self.access_inner().kind {
+            ComputedExprKind::Array(array) => Some(array.clone()),
+            ComputedExprKind::FnCallResult(var) => {
+                // convert cvars to a vector of ComputExpr
+                let mut array = vec![];
+                for cvar in &var.cvars {
+                    let var = Var::new_cvar(cvar.clone(), self.span);
+                    let ce = ComputedExpr::new_field(var, self.span);
+                    array.push(ce);
+                }
+
+                Some(array)
+            }
+            _ => None,
+        }
+    }
+
+    /// Expects the current expression to be an access type of `ComputedExpr`
+    pub fn access_expr(&self) -> Option<Access<F, V>> {
+        match &self.kind {
+            ComputedExprKind::Access(access) => Some(access.clone()),
+            _ => None,
+        }
+    }
+
+    /// Recursively unwrap the access type of `ComputedExpr` until it is not an access type.
+    /// An access type can represents a variable that is made up by multiple different variables.
+    /// Each variable can be represented by an access type.
+    /// For example:
+    /// ...
+    /// let house2 = House { rooms: [] };
+    /// let town1 = [house2];
+    /// let town2 = [house1, town1[0], house3];
+    ///
+    /// Then when it tries to have access to town2[1],
+    /// the value will be:
+    /// Access {
+    ///  var_name: "town1",
+    ///  steps: [...],
+    ///  expr: Access {
+    ///   var_name: "house2",
+    ///   steps: [],
+    ///  }
+    /// }
+    ///
+    /// This is because the town2[1] is initiated from the variable town[1], which eventually points to a variable `Access` to house2.
+    /// In general, we only care about the value behind the `Access` type.
+    /// Currently the info behind `Access` type is useful for updating the value of the variable in the scope,
+    /// such as `ExprKind::Assignment`.
+    pub fn access_inner(&self) -> &ComputedExpr<F, V> {
+        match &self.kind {
+            ComputedExprKind::Access(access) => {
+                let e = &access.expr;
+                match &e.kind {
+                    ComputedExprKind::Access(next_access) => next_access.expr.access_inner(),
+                    _ => e,
+                }
+            }
+            // otherwise, return the current expr
+            _ => self,
+        }
+    }
+
+    // todo: refactor expr to be &mut self
+    /// Uses the access steps to trace the target element and update its value.
+    pub fn update_computed_expr(
+        expr: &mut ComputedExpr<F, V>,
+        steps: &[AccessKind],
+        new_expr: ComputedExpr<F, V>,
+    ) -> Result<()> {
+        // if there are no more accesses, replace the current expression
+        if steps.is_empty() {
+            *expr = new_expr;
+            return Ok(());
+        }
+
+        // skip the access kind expr
+        // this is similar to the access_inner method
+        if let ComputedExprKind::Access(access) = &mut expr.kind {
+            return Self::update_computed_expr(&mut access.expr, steps, new_expr);
+        }
+
+        let next_access = &steps[0];
+        let remaining_accesses = &steps[1..];
+
+        match &mut expr.kind {
+            ComputedExprKind::Struct(fields) => {
+                match next_access {
+                    AccessKind::Field(field_name) => {
+                        match fields.get_mut(field_name) {
+                            Some(field_expr) => {
+                                // stepping into the struct field
+                                Self::update_computed_expr(field_expr, remaining_accesses, new_expr)
+                            }
+                            None => Err(Error::new(
+                                "constraint-generation",
+                                ErrorKind::UnexpectedError("invalid field in struct"),
+                                expr.span,
+                            )),
+                        }
+                    }
+                    _ => Err(Error::new(
+                        "constraint-generation",
+                        ErrorKind::UnexpectedError("expected a field access"),
+                        expr.span,
+                    )),
+                }
+            }
+            ComputedExprKind::Array(elements) => {
+                match next_access {
+                    AccessKind::Array(index) => {
+                        match elements.get_mut(*index) {
+                            Some(element_expr) => {
+                                // stepping into the array element
+                                Self::update_computed_expr(
+                                    element_expr,
+                                    remaining_accesses,
+                                    new_expr,
+                                )
+                            }
+                            None => Err(Error::new(
+                                "constraint-generation",
+                                ErrorKind::UnexpectedError("access index is out of bounds"),
+                                expr.span,
+                            )),
+                        }
+                    }
+                    _ => Err(Error::new(
+                        "constraint-generation",
+                        ErrorKind::UnexpectedError("expected an array access"),
+                        expr.span,
+                    )),
+                }
+            }
+            _ => Err(Error::new(
+                "constraint-generation",
+                ErrorKind::UnexpectedError("only field or array access is allowed"),
+                expr.span,
+            )),
+        }
+    }
+}
+
 //
 // Circuit Writer (also used by witness generation)
 //
