@@ -679,10 +679,7 @@ impl<B: Backend> CircuitWriter<B> {
 
                 let res = match &fn_info.kind {
                     // assert() <-- for example
-                    FnKind::BuiltIn(_sig, handle) => {
-                        let returned = handle(self, &vars, expr.span)?;
-                        returned.map(|r| ComputedExpr::new_fn_call_result(r, expr.span))
-                    }
+                    FnKind::BuiltIn(_sig, handle) => handle(self, &vars, expr.span)?,
 
                     // fn_name(args)
                     // ^^^^^^^
