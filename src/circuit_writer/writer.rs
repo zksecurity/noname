@@ -1,17 +1,21 @@
-use std::fmt::{self, Display, Formatter};
+use std::{
+    collections::BTreeMap,
+    fmt::{self, Display, Formatter},
+};
 
 use ark_ff::{One, Zero};
+use itertools::Itertools;
 use kimchi::circuits::wires::Wire;
 use num_bigint::BigUint;
 use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backends::{kimchi::VestaField, Backend},
+    backends::{kimchi::VestaField, Backend, BackendField, BackendVar},
     circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
     constants::Span,
     constraints::{boolean, field},
-    error::{ErrorKind, Result},
+    error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
         types::{FunctionDef, Stmt, StmtKind, TyKind},
@@ -19,7 +23,7 @@ use crate::{
     },
     syntax::is_type,
     type_checker::FullyQualified,
-    var::{ConstOrCell, Value, Var, VarOrRef},
+    var::{ConstOrCell, Value, Var},
 };
 
 //
@@ -699,38 +703,23 @@ impl<B: Backend> CircuitWriter<B> {
                     .compute_expr(fn_env, lhs)?
                     .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, lhs.span))?;
 
-                // get struct info behind lhs
-                let lhs_struct = self
-                    .expr_type(lhs)
-                    .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, lhs.span))?;
+                let access = lhs_var.access_expr().ok_or_else(|| {
+                    self.error(ErrorKind::UnexpectedError("expected access"), lhs.span)
+                })?;
+                // retrieve field
+                let fields = access.expr.struct_expr().ok_or_else(|| {
+                    self.error(ErrorKind::UnexpectedError("expected struct"), lhs.span)
+                })?;
+                let field_expr = fields.get(&rhs.value).expect("field not found");
 
-                let (module, self_struct) = match lhs_struct {
-                    TyKind::Custom { module, name } => (module, name),
-                    _ => {
-                        panic!("could not figure out struct implementing that method call")
-                    }
-                };
+                // add field access step
+                let mut accesses = access.steps;
+                accesses.push(AccessKind::Field(rhs.value.clone()));
 
-                let qualified = FullyQualified::new(module, self_struct);
-                let struct_info = self
-                    .struct_info(&qualified)
-                    .expect("struct info not found for custom struct");
-
-                // find range of field
-                let mut start = 0;
-                let mut len = 0;
-                for (field, field_typ) in &struct_info.fields {
-                    if field == &rhs.value {
-                        len = self.size_of(field_typ);
-                        break;
-                    }
-
-                    start += self.size_of(field_typ);
-                }
-
-                // narrow the variable to the given range
-                let var = lhs_var.narrow(start, len);
-                Ok(Some(var))
+                let new_access =
+                    Access::new(&access.var_name, &accesses, Box::new(field_expr.to_owned()));
+                let ce = ComputedExpr::new_access(new_access, expr.span);
+                Ok(Some(ce))
             }
 
             // `Thing.method(args)` or `thing.method(args)`
@@ -824,30 +813,15 @@ impl<B: Backend> CircuitWriter<B> {
 
                 // figure out the var of what's on the right
                 let rhs = self.compute_expr(fn_env, rhs)?.unwrap();
-                let rhs_var = match rhs {
-                    VarOrRef::Var(var) => var,
-                    VarOrRef::Ref {
-                        var_name,
-                        start,
-                        len,
-                    } => {
-                        let var_info = self.get_local_var(fn_env, &var_name);
-                        let cvars = var_info.var.range(start, len).to_vec();
-                        Var::new(cvars, var_info.var.span)
-                    }
-                };
 
-                // replace the left with the right
-                match lhs {
-                    VarOrRef::Var(_) => panic!("can't reassign this non-mutable variable"),
-                    VarOrRef::Ref {
-                        var_name,
-                        start,
-                        len,
-                    } => {
-                        fn_env.reassign_var_range(&var_name, rhs_var, start, len);
-                    }
-                }
+                let access = lhs.access_expr().ok_or_else(|| {
+                    self.error(ErrorKind::UnexpectedError("expected access"), lhs.span)
+                })?;
+                let mut lhs_var = self.get_local_var(fn_env, &access.var_name);
+                ComputedExpr::update_computed_expr(&mut lhs_var.expr, &access.steps, rhs)?;
+
+                // reassign and update the var info at local scope
+                fn_env.reassign_local_var(&access.var_name, lhs_var.expr);
 
                 Ok(None)
             }
@@ -929,15 +903,17 @@ impl<B: Backend> CircuitWriter<B> {
                 let qualified = FullyQualified::new(module, &name.value);
                 let var_info = if let Some(cst_info) = self.const_info(&qualified) {
                     let var = Var::new_constant_typ(cst_info, name.span);
-                    VarInfo::new(var, false, Some(cst_info.typ.kind.clone()))
+                    let ce = ComputedExpr::new_field(var, name.span);
+                    VarInfo::new(ce, false, Some(cst_info.typ.kind.clone()))
                 } else {
                     // if no constant found, look in the function's scope
                     // remember: we can do this because the type checker already checked that we didn't shadow constant vars
                     self.get_local_var(fn_env, &name.value)
                 };
 
-                let res = VarOrRef::from_var_info(name.value.clone(), var_info);
-                Ok(Some(res))
+                let access = Access::new(&name.value, &[], Box::new(var_info.expr));
+                let ce = ComputedExpr::new_access(access, name.span);
+                Ok(Some(ce))
             }
 
             ExprKind::ArrayAccess { array, idx } => {
@@ -956,41 +932,27 @@ impl<B: Backend> CircuitWriter<B> {
                 let idx: BigUint = idx.into();
                 let idx: usize = idx.try_into().unwrap();
 
-                // retrieve the type of the elements in the array
-                let array_typ = self.expr_type(array).expect("cannot find type of array");
-
-                let elem_type = match array_typ {
-                    TyKind::Array(ty, array_len) => {
-                        if idx >= (*array_len as usize) {
-                            return Err(self.error(
-                                ErrorKind::ArrayIndexOutOfBounds(idx, *array_len as usize - 1),
-                                expr.span,
-                            ));
-                        }
-                        ty
-                    }
-                    _ => panic!("expected array"),
-                };
-
-                // compute the size of each element in the array
-                let len = self.size_of(elem_type);
-
-                // compute the real index
-                let start = idx * len;
-
-                // out-of-bound checks
-                if start >= var.len() || start + len > var.len() {
+                let access = var.access_expr().ok_or_else(|| {
+                    self.error(ErrorKind::UnexpectedError("expected access"), expr.span)
+                })?;
+                let array = access.expr.array_expr().ok_or_else(|| {
+                    self.error(ErrorKind::UnexpectedError("expected array"), expr.span)
+                })?;
+                if array.len() <= idx {
                     return Err(self.error(
-                        ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
+                        ErrorKind::ArrayIndexOutOfBounds(access.to_string(), idx, array.len() - 1),
                         expr.span,
                     ));
                 }
+                let elm_ce = &array[idx];
 
-                // index into the var
-                let var = var.narrow(start, len);
+                let mut accesses = access.steps;
+                accesses.push(AccessKind::Array(idx));
 
-                //
-                Ok(Some(var))
+                let access = Access::new(&access.var_name, &accesses, Box::new(elm_ce.to_owned()));
+
+                let ce = ComputedExpr::new_access(access, expr.span);
+                Ok(Some(ce))
             }
 
             ExprKind::ArrayDeclaration(items) => {
