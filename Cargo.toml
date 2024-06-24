@@ -10,6 +10,7 @@ description = "a programming language for writing zkapps"
 ark-ec = "0.3.0"                                                                                                # elliptic curve library
 ark-ff = "0.3.0"
 ark-bls12-381 = "0.3.0"                                                                                         # bls12-381 curve for r1cs backend
+ark-relations = "0.3.0" 
 ark-bn254 = "0.3.0"                                                                                             # bn128 curve for r1cs backend
 ark-serialize = "0.3.0"                                                                                         # serialization of arkworks types
 educe = { version = "0.6", default-features = false, features = ["Hash", "PartialEq", "PartialOrd"] }
