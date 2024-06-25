@@ -1,3 +1,4 @@
+pub mod arkworks;
 pub mod builtin;
 pub mod snarkjs;
 
