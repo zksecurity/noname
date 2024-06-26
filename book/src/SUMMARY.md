@@ -34,4 +34,4 @@
 - [Witness Generation](./witness-generation.md)
 
 # RFCs
-- [Const Generic](./rfc/const_generic.md)
+- [Supporting variable-length arguments and returned values in functions](./rfc/const_generic_fn.md)
