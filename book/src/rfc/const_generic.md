@@ -1,5 +1,5 @@
 ## Summary
-Enable const generic to improve modularization and reusability of the code.
+The scope of this RFC is to allow const generic on functions. The const generic on types is out of the scope.
 
 ## Motivation
 In the current implementation, array initialization requires explicitly stating all element values, which becomes impractical for large arrays. Furthermore, the lack of support for constant variables as array sizes limits the ability to write functions that generically handle arrays of varying sizes. This also necessitates hardcoding loop ranges, reducing flexibility.
@@ -7,129 +7,34 @@ In the current implementation, array initialization requires explicitly stating 
 Enabling const generic will allow define array sizes with constant variables. This would enhance function reusability and significantly improve modularization.
 
 ## Detailed design
+One of the key features of const generic is to allow the declaration of default array with const variable as size, and to allow return array type with const variable as size. Before making it possible to unlock these features, we need a way to propagate the actual values for the const variables. Being able to resolve the actual values of the const variables is crucial for doing sanity checks during circuit generation, such as checking the bounds of array access.
 
-### Declare a const argument
-Enable functions to define a constant argument, which can be used to define arrays with a default element or as an array size of the return type:
+To propagate the constant values, it needs to retain the structures for the variables from the bottom up. These retained structures would be also useful for builtin functions to do sanity checks on the inputs and outputs.
+
+### Glossary
+- const: a keyword that can be used in different places. For example, when used in front of an argument name, in a function signature, it dictates that the function must be called with a value decided at compile time (for example, with a literal, or a global constant)"
+
+### Resolving const variables
+When the array declaration is not with a const variable, the size can be resolved by calling the `size_of` on the type of the array, the `ExprKind::ArrayAccess` can check the bounds of the access.
+
+With a const variable as array size, we can't rely on the `size_of` to determine the size of the array directly through the type anymore, as the type checker can't resolve these values under its current design. For example, the type checker can't determine wether the length of the array matches with the return type:
 
 ```rust
-fn const_generic(const cst: Field) -> [Field; cst] {
-    let mut xx = [1; cst];
-    for ii in 1..cst {
-        xx[ii] = 2;
-    }
-    return xx;
+fn thing(const len: Field) -> [Field; len] {
+  return [0; 3];
 }
 ```
 
-### Applying a const as a argument
-Use an existing constant to set array size directly in function parameters:
+That is because the type checker doesn't know the actual value of `len`, which needs to be propasgated from somewhere else.
 
-```rust
-const cst = 300;
-fn const_generic(yy: Field) -> [Field; cst] {
-    let xx = [1; cst];
-    return xx;
-}
-```
+This RFC proposal is to defer the resolution of the actual values for const variables to the circuit generation phase. The resolution can be done via propagating the const values from the bottom up.
 
-### Builtin functions
+By propagating the const value, it means to store these values in a structured way, so they can be accessible in the computations of `compute_expr`, which is to compute the structured expressions. This construction is done from the bottom up. For example `houses[1].rooms[2]`, the actual structure of `rooms` is determined by the `ExprKind::ArrayDeclaration` first, and then is embedded in the `houses` as a field.
 
-Allow builtin functions to be defined with const arguments:
+Thus, instead of resolving the size through the `size_of` of a type, it needs to know the inner structure behind a `VarOrRef` to resolve the actual size. The problem is `VarOrRef` doesn't retain the inner structure that was determined from the bottom up constructions. When it comes to the computation of the `Expr::ArrayAccess`, neither `VarOrRef` itself or the use of `size_of` of the type can provide the actual size of the array for checking the bounds.
 
-```rust
-use std::to_bits;
-use std::from_bits;
 
-const num_bits = 8;
-
-fn main() {
-    let val1 = 101;
-    let bits = to_bits(num_bits, val); // bits is array ComputedExpr with len
-    let val2 = from_bits(bits); // from_bits builtin impl knows the size of the array
-    assert_eq!(val1, val2);
-}
-```
-
-The `to_bits` builtin function accepts a const variable to determine the size of the return array.
-
-```rust
-fn to_bits(const num_bits: Field, val: Field) -> [Field; num_bits]
-```
-
-The from_bits builtin function can determine the number of bits to convert based on the information that the `ComputedExprKind::Array` embeds in the `bits` variable. We will explain on `ComputedExpr` at the end to show how to improve the structure of the inputs and outputs of these builtin functions.
-
-## Type checking const variable
-
-The existing type checker is designed to do local type checks. For the cases of const variable as array size, the type checker has to trace the values globally. This is out of the scope for the design of the current type checker.
-
-Instead of checking the const variable in the type checker, we can check it in the circuit generation phase. 
-
-### Review how VarOrRef works
- 
-`VarOrRef` is responsible for containing the underlying variables to pass around during circuit generation.
-
-For example:
-```rust
-houses[1].rooms[2].size
-```
-
-The variable `houses` holds all the `cvars` to represent the underlying low level variables. If `houses` is a mutable variable, it will be a reference, which records the following instead of holding the actual `cvars` array:
- - the variable name `houses` in local scope
- - start index of the `cvars` to represent the current access path
- - the length of the `cvars` to represent size of the element targeted by the current access path
-
-So when it wants to update the elements inside the `houses`, it will need to reference the start index and the length of the `cvars` of the elements, so that it can narrow down the scope of the `cvars` to be updated.
-
-The following code is how it narrows down the scope for a field access or array access:
-
-```rust
-pub(crate) fn narrow(&self, start: usize, len: usize) -> Self {
-    match self {
-        VarOrRef::Var(var) => {
-            let cvars = var.range(start, len).to_vec();
-            VarOrRef::Var(Var::new(cvars, var.span))
-        }
-
-        //      old_start
-        //      |
-        //      v
-        // |----[-----------]-----| <-- var.cvars
-        //       <--------->
-        //         old_len
-        //
-        //
-        //          start
-        //          |
-        //          v
-        //      |---[-----]-|
-        //           <--->
-        //            len
-        //
-        VarOrRef::Ref {
-            var_name,
-            start: old_start,
-            len: old_len,
-        } => {
-            // ensure that the new range is contained in the older range
-            assert!(start < *old_len); // lower bound
-            assert!(start + len <= *old_len); // upper bound
-            assert!(len > 0); // empty range not allowed
-
-            Self::Ref {
-                var_name: var_name.clone(),
-                start: old_start + start,
-                len,
-            }
-        }
-    }
-}
-```
-
-This allows to find the range of the `cvars` belonging to the element targeted by the current access path under the local variable behind the `var_name`, which in this case is the `houses`. 
-
-But it doesn't keep track of the structure of the data. For example, when we are accessing `houses[1].rooms[2]`, it should be able to check if the access is within the array bounds. Although the current design can check if it is out of bound by checking access index against the total number of `cvars` for `houses`, it can't label which element access is out of bound as it could be either out of bound of `houses[1]` or the nested access `rooms[2]`.
-
-### Introduce ComputedExpr
+### Introduce `ComputedExpr`
 
 With the const variable as array size, we need to propagate its value during circuit generation to check if the access is within the bounds of the array. So we need a way to retain structure information of a variable that is currently represented by `VarOrRef`.
 
@@ -139,7 +44,19 @@ We can add a new layer to the `VarOrRef` to keep track of the structure of the d
 
 In a sense, `ComputedExpr` can be seen as an resolved `Expr` with const variables replaced with actual values. 
 
-### Types of ComputedExpr
+### Defintion of `ComputedExpr`
+Here are the definitions of `ComputedExpr` and `ComputedExprKind`. The `ComputedExprKind` holds structural information built from underlying variables `cvars`.
+
+```rust
+pub struct ComputedExpr<F, V>
+where
+    F: BackendField,
+    V: BackendVar,
+{
+    kind: ComputedExprKind<F, V>,
+    span: Span,
+}
+```
 
 ```rust
 pub enum ComputedExprKind<F, V>
@@ -163,13 +80,66 @@ where
 }
 ```
 
-### Assignment using ComputedExpr
+### Assignment using `ComputedExpr`
 
 Instead of using `VarOrRef` to narrow down and do the updating of `cvars`, we  use the `ComputedExpr` to represent the access path, which is iteratively determined when stepping through the computations of `Expr::FieldAccess` and `Expr::ArrayAccess`.
 
-When it comes to the computation for `Expr::Assignment`, it can use the access path embeded in a `ComputedExprKind::Access` to locate a nested `ComputedExpr` to swap with a new one. Then it saves the `VarInfo` with same name `houses` as local variable but holding the updated tree of `ComputedExpr` that represents a new set of `cvars`.
+When it comes to the computation for `Expr::Assignment`, it can use the access path embedded in a `ComputedExprKind::Access` to locate a nested `ComputedExpr` to swap with a new one. Then it saves the `VarInfo` with same name `houses` as local variable but holding the updated tree of `ComputedExpr` that represents a new set of `cvars`.
 
-### Use ComputedExpr in builtin functions
+### Examples
+The following are examples of how const generic can be used in functions, once this RFC is implemented.
+
+#### Declare a const argument
+Enable functions to define a constant argument, which can be used to define arrays with a default element or as an array size of the return type:
+
+```rust
+fn const_generic(const cst: Field) -> [Field; cst] {
+    let mut xx = [1; cst];
+    for ii in 1..cst {
+        xx[ii] = 2;
+    }
+    return xx;
+}
+```
+
+#### Applying a const as a argument
+Use an existing constant to set array size directly in function parameters:
+
+```rust
+const cst = 300;
+fn const_generic(yy: Field) -> [Field; cst] {
+    let xx = [1; cst];
+    return xx;
+}
+```
+
+#### Builtin functions
+
+Allow builtin functions to be defined with const arguments:
+
+```rust
+use std::to_bits;
+use std::from_bits;
+
+const num_bits = 8;
+
+fn main() {
+    let val1 = 101;
+    let bits = to_bits(num_bits, val); // `bits` is an array of length `num_bits`
+    let val2 = from_bits(bits); // `from_bits` builtin impl knows the length of the array
+    assert_eq(val1, val2);
+}
+```
+
+The `to_bits` builtin function accepts a const variable to determine the size of the return array.
+
+```rust
+fn to_bits(const num_bits: Field, val: Field) -> [Field; num_bits]
+```
+
+The `from_bits` builtin function can determine the number of bits to convert based on the information that the `ComputedExprKind::Array` embeds in the `bits` variable. 
+
+#### Use ComputedExpr in builtin functions
 
 Psuedo code to show how the bit builtin functions could be implemented with the `ComputedExpr`:
 
@@ -223,7 +193,7 @@ fn to_bits<B: Backend>(
         e2 = e2 + e2;
     }
 
-    compiler.backend.assert_var!(value, lc, span);
+    compiler.backend.assert_var(value, lc, span);
 
     // return the bits as an array type ComputedExpr.
     // this might improve checking the return type during circuit generation for the builtin functions, since this allows explicitly customizing the return type rather than always returning an array of cvars.
