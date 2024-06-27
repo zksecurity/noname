@@ -198,7 +198,7 @@ impl<B: Backend> TypeChecker<B> {
                     }
 
                     // `array[idx] = <rhs>`
-                    ExprKind::ArrayAccess { array, idx } => {
+                    ExprKind::ArrayAccess { array, .. } => {
                         // get variable behind array
                         let array_node = self
                             .compute_type(array, typed_fn_env)?
@@ -210,7 +210,7 @@ impl<B: Backend> TypeChecker<B> {
                     }
 
                     // `struct.field = <rhs>`
-                    ExprKind::FieldAccess { lhs, rhs } => {
+                    ExprKind::FieldAccess { lhs, .. } => {
                         // get variable behind lhs
                         let lhs_node = self
                             .compute_type(lhs, typed_fn_env)?
