@@ -9,6 +9,7 @@ use super::{KimchiCellVar, KimchiVesta, VestaField};
 use crate::backends::kimchi::NUM_REGISTERS;
 use crate::backends::Backend;
 
+use crate::circuit_writer::writer::ComputedExpr;
 use crate::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
     constants::Span,
@@ -21,7 +22,7 @@ pub fn poseidon(
     compiler: &mut CircuitWriter<KimchiVesta>,
     vars: &[VarInfo<VestaField, KimchiCellVar>],
     span: Span,
-) -> Result<Option<Var<VestaField, KimchiCellVar>>> {
+) -> Result<Option<ComputedExpr<VestaField, KimchiCellVar>>> {
     //
     // sanity checks
     //
@@ -39,7 +40,7 @@ pub fn poseidon(
     };
 
     // extract the values
-    let input = &var_info.var;
+    let input = &var_info.expr.clone().value();
     assert_eq!(input.len(), 2);
 
     // hashing a full-constant input is not a good idea
@@ -169,12 +170,15 @@ pub fn poseidon(
         span,
     );
 
-    let vars = final_row
+    let vars: Vec<ComputedExpr<_, KimchiCellVar>> = final_row
         .iter()
         .flatten()
         .cloned()
         .map(ConstOrCell::Cell)
+        .map(|v| ComputedExpr::new_field(Var::new_cvar(v, span), span))
         .collect();
 
-    Ok(Some(Var::new(vars, span)))
+    let ce = ComputedExpr::new_array(vars, span);
+
+    Ok(Some(ce))
 }

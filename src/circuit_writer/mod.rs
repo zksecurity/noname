@@ -1,5 +1,8 @@
+use std::collections::BTreeMap;
+
 use crate::{
     backends::Backend,
+    circuit_writer::writer::ComputedExpr,
     constants::Span,
     error::{Error, ErrorKind, Result},
     parser::{
@@ -13,7 +16,6 @@ use crate::{
 
 pub use fn_env::{FnEnv, VarInfo};
 use serde::{Deserialize, Serialize};
-//use serde::{Deserialize, Serialize};
 pub use writer::{Gate, GateKind, Wiring};
 
 pub mod fn_env;
@@ -110,7 +112,9 @@ impl<B: Backend> CircuitWriter<B> {
         let qualified = FullyQualified::local(var_name.to_string());
         if let Some(cst_info) = self.typed.const_info(&qualified) {
             let var = Var::new_constant_typ(cst_info, cst_info.typ.span);
-            return VarInfo::new(var, false, Some(TyKind::Field));
+            let span = var.span;
+            let ce = ComputedExpr::new_field(var, span);
+            return VarInfo::new(ce, false, Some(TyKind::Field));
         }
 
         // then check for local variables
@@ -243,6 +247,7 @@ impl<B: Backend> CircuitWriter<B> {
 
         // create the variable
         let var = handle_input(self, name.value.clone(), len, name.span);
+        let ce = self.compute_expr_arg(&typ.kind, var);
 
         // constrain what needs to be constrained
         // (for example, booleans need to be constrained to be 0 or 1)
@@ -251,13 +256,233 @@ impl<B: Backend> CircuitWriter<B> {
         // but we are being extra cautious due to attacks
         // where the prover gives the verifier malformed inputs that look legit.
         // (See short address attacks in Ethereum.)
-        self.constrain_inputs_to_main(&var.cvars, &typ.kind, typ.span)?;
+        let cvars = &ce.clone().value().cvars;
+        self.constrain_inputs_to_main(cvars, &typ.kind, typ.span)?;
 
         // add argument variable to the ast env
         let mutable = false; // TODO: should we add a mut keyword in arguments as well?
-        let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
+        let var_info = VarInfo::new(ce, mutable, Some(typ.kind.clone()));
         self.add_local_var(fn_env, name.value.clone(), var_info);
 
         Ok(())
+    }
+
+    /// Maps the arguments to ComputedExpr.
+    /// These are arguments are in a form of var array.
+    /// With the type info, we can restructure the cvars as ComputexExpr,
+    /// which can retain the structure of the type.
+    fn compute_expr_arg(
+        &self,
+        typ: &TyKind,
+        var: Var<B::Field, B::Var>,
+    ) -> ComputedExpr<B::Field, B::Var> {
+        let span = var.span;
+        match typ {
+            TyKind::Field => ComputedExpr::new_field(var, span),
+            TyKind::BigInt => ComputedExpr::new_field(var, span),
+            TyKind::Bool => ComputedExpr::new_bool(var, span),
+            TyKind::Custom { module, name } => {
+                let qualified = FullyQualified::new(module, name);
+                let struct_info = self
+                    .struct_info(&qualified)
+                    .expect("bug in the type checker: cannot find struct info");
+
+                let mut custom = BTreeMap::new();
+
+                let mut cvars = var.cvars;
+
+                for (field, t) in &struct_info.fields {
+                    // slice a range of the size from the beginning of var.cvars, and construct a new var with the rest of the cvars
+                    let size = self.size_of(t);
+                    let rest = cvars.split_off(size);
+                    let new_var = Var::new(cvars, span);
+
+                    let v = self.compute_expr_arg(t, new_var);
+                    custom.insert(field.to_string(), v);
+
+                    cvars = rest;
+                }
+
+                ComputedExpr::new_struct(custom, span)
+            }
+            TyKind::Array(typ, n) => {
+                let mut array = vec![];
+                let mut cvars = var.cvars;
+
+                let size = self.size_of(typ);
+
+                for _ in 0..*n {
+                    let rest = cvars.split_off(size);
+                    let new_var = Var::new(cvars, span);
+                    let ce = self.compute_expr_arg(typ, new_var);
+                    array.push(ce);
+                    cvars = rest;
+                }
+
+                ComputedExpr::new_array(array, span)
+            }
+        }
+    }
+}
+
+mod test {
+    use std::{path::Path, str::FromStr};
+
+    use crate::{
+        backends::r1cs::{self, R1csBls12381Field},
+        compiler::{typecheck_next_file, Sources},
+        error::{Error, ErrorKind, Result},
+        inputs::parse_inputs,
+        type_checker::TypeChecker,
+    };
+
+    use super::CircuitWriter;
+
+    fn test_file(
+        code: &str,
+        public_inputs: &str,
+        private_inputs: &str,
+        expected_public_output: Vec<&str>,
+    ) -> Result<()> {
+        // parse inputs
+        let public_inputs = parse_inputs(public_inputs).unwrap();
+        let private_inputs = parse_inputs(private_inputs).unwrap();
+        // compile
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let this_module = None;
+        let _node_id = typecheck_next_file(
+            &mut tast,
+            this_module,
+            &mut sources,
+            "".to_string(),
+            code.to_string(),
+            0,
+        )
+        .unwrap();
+
+        let backend = r1cs::R1CS::<R1csBls12381Field>::new();
+        let compiled_circuit = CircuitWriter::generate_circuit(tast, backend)?;
+
+        // this should check the constraints
+        let generated_witness = compiled_circuit
+            .generate_witness(public_inputs.clone(), private_inputs.clone())
+            .unwrap();
+
+        let expected_public_output = expected_public_output
+            .iter()
+            .map(|x| crate::backends::r1cs::R1csBls12381Field::from_str(x).unwrap())
+            .collect::<Vec<_>>();
+
+        if generated_witness.outputs != expected_public_output {
+            eprintln!("obtained by executing the circuit:");
+            generated_witness
+                .outputs
+                .iter()
+                .for_each(|x| eprintln!("- {x}"));
+            eprintln!("passed as output by the verifier:");
+            expected_public_output
+                .iter()
+                .for_each(|x| eprintln!("- {x}"));
+            panic!("Obtained output does not match expected output");
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_invalid_direct_array_access() {
+        const CODE: &str = r#"
+            fn main(pub xx: Field) {
+                let mut yy = [xx, xx, xx];
+                yy[3] = 1;
+            }
+            "#;
+
+        let public_inputs = r#"{"xx": "1"}"#;
+        let private_inputs = r#"{}"#;
+
+        let result = test_file(CODE, public_inputs, private_inputs, vec![]);
+
+        assert!(result.is_err(), "expected error");
+        match result.unwrap_err() {
+            Error {
+                kind: ErrorKind::ArrayIndexOutOfBounds(path, 3, 2),
+                ..
+            } => {
+                assert_eq!(path, "yy");
+            }
+            err => panic!("unexpected error: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn test_invalid_nested_array_access_final_path() {
+        const CODE: &str = r#"
+            struct Thing {
+                stuffs: [Field; 3],
+            }
+
+            fn main(pub xx: Field) {
+                let mut yy = [
+                    Thing {stuffs: [xx, xx, xx]},
+                    Thing {stuffs: [xx, xx, xx]},
+                    Thing {stuffs: [xx, xx, xx]},
+                ];
+                yy[1].stuffs[3] = 1;
+            }
+            "#;
+
+        let public_inputs = r#"{"xx": "1"}"#;
+        let private_inputs = r#"{}"#;
+
+        let result = test_file(CODE, public_inputs, private_inputs, vec![]);
+
+        assert!(result.is_err(), "expected error");
+        match result.unwrap_err() {
+            Error {
+                kind: ErrorKind::ArrayIndexOutOfBounds(path, 3, 2),
+                ..
+            } => {
+                assert_eq!(path, "yy[1].stuffs");
+            }
+            err => panic!("unexpected error: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn test_invalid_nested_array_access_early_path() {
+        const CODE: &str = r#"
+            const size = 3;
+
+            struct Thing {
+                stuffs: [Field; 3],
+            }
+
+            fn main(pub xx: Field) {
+                let mut yy = [
+                    Thing {stuffs: [xx, xx, xx]},
+                    Thing {stuffs: [xx, xx, xx]},
+                    Thing {stuffs: [xx, xx, xx]},
+                ];
+                yy[3].stuffs[1] = 1;
+            }
+            "#;
+
+        let public_inputs = r#"{"xx": "1"}"#;
+        let private_inputs = r#"{}"#;
+
+        let result = test_file(CODE, public_inputs, private_inputs, vec![]);
+
+        assert!(result.is_err(), "expected error");
+        match result.unwrap_err() {
+            Error {
+                kind: ErrorKind::ArrayIndexOutOfBounds(path, 3, 2),
+                ..
+            } => {
+                assert_eq!(path, "yy");
+            }
+            err => panic!("unexpected error: {:?}", err),
+        }
     }
 }

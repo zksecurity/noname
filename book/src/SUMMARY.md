@@ -32,3 +32,6 @@
 
 - [Public Outputs](./public-outputs.md)
 - [Witness Generation](./witness-generation.md)
+
+# RFCs
+- [Supporting variable-length arguments and returned values in functions](./rfc/const_generic_fn.md)

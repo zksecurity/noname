@@ -225,8 +225,8 @@ pub enum ErrorKind {
     #[error("A return value is not used")]
     UnusedReturnValue,
 
-    #[error("array accessed at index {0} is out of bounds (max allowed index is {1})")]
-    ArrayIndexOutOfBounds(usize, usize),
+    #[error("array accessed at {0}[{1}] is out of bounds (max allowed index is {2})")]
+    ArrayIndexOutOfBounds(String, usize, usize),
 
     #[error(
         "one-letter variables or types are not allowed. Best practice is to use descriptive names"
