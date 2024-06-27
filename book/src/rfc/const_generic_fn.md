@@ -9,7 +9,7 @@ Allowing to define array sizes with constant variables would enhance function re
 ## Detailed design
 One of the useful features of const generic is to allow the declaration of default array or return array with const variable as size. Before making it possible to unlock these features, we need a way to propagate the actual values for the constant variables. This is crucial for doing sanity checks during circuit generation, such as checking the bounds of array access.
 
-To propagate the constant values, it needs to retain the structures for the variables from the bottom up. These retained structures would be also useful for builtin functions to do sanity checks on the inputs and outputs.
+To propagate the constant values, it needs to retain the structures for the variables from the bottom up. These retained structures would be also useful for builtin functions to do sanity checks on the inputs and outputs. For the support of const generic on types in the future, it would probably need to propagate the actual values in the same way.
 
 ### Glossary
 - const: a keyword that can be used in different places. For example, when used in front of an argument name, in a function signature, it dictates that the function must be called with a value decided at compile time (for example, with a literal, or a global constant)"
