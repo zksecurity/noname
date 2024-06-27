@@ -1,13 +1,13 @@
 ## Summary
-The scope of this RFC is to allow const generic on functions. The const generic on types is out of the scope.
+This RFC is to support variable-length arguments and returned arrays in functions.
 
 ## Motivation
 In the current implementation, array initialization requires explicitly stating all element values, which becomes impractical for large arrays. Furthermore, the lack of support for constant variables as array sizes limits the ability to write functions that generically handle arrays of varying sizes. This also necessitates hardcoding loop ranges, reducing flexibility.
 
-Enabling const generic will allow define array sizes with constant variables. This would enhance function reusability and significantly improve modularization.
+Allowing to define array sizes with constant variables would enhance function reusability and improve modularization.
 
 ## Detailed design
-One of the key features of const generic is to allow the declaration of default array with const variable as size, and to allow return array type with const variable as size. Before making it possible to unlock these features, we need a way to propagate the actual values for the const variables. Being able to resolve the actual values of the const variables is crucial for doing sanity checks during circuit generation, such as checking the bounds of array access.
+One of the useful features of const generic is to allow the declaration of default array or return array with const variable as size. Before making it possible to unlock these features, we need a way to propagate the actual values for the constant variables. This is crucial for doing sanity checks during circuit generation, such as checking the bounds of array access.
 
 To propagate the constant values, it needs to retain the structures for the variables from the bottom up. These retained structures would be also useful for builtin functions to do sanity checks on the inputs and outputs.
 
@@ -15,9 +15,9 @@ To propagate the constant values, it needs to retain the structures for the vari
 - const: a keyword that can be used in different places. For example, when used in front of an argument name, in a function signature, it dictates that the function must be called with a value decided at compile time (for example, with a literal, or a global constant)"
 
 ### Resolving const variables
-When the array declaration is not with a const variable, the size can be resolved by calling the `size_of` on the type of the array, the `ExprKind::ArrayAccess` can check the bounds of the access.
+When the size of an array declaration is a literal number, the size can be resolved by calling the `size_of` on the array type. Then the `ExprKind::ArrayAccess` can check the bounds of the access by referencing the number returned from `size_of` call on an array type.
 
-With a const variable as array size, we can't rely on the `size_of` to determine the size of the array directly through the type anymore, as the type checker can't resolve these values under its current design. For example, the type checker can't determine wether the length of the array matches with the return type:
+When it is a constant variable as array size, we can't rely on the `size_of` to determine the size of the array directly through the type anymore, as the type checker can't resolve these values under its current design. For example, the type checker can't determine wether the length of the array matches with the return type:
 
 ```rust
 fn thing(const len: Field) -> [Field; len] {
@@ -25,24 +25,24 @@ fn thing(const len: Field) -> [Field; len] {
 }
 ```
 
-That is because the type checker doesn't know the actual value of `len`, which needs to be propasgated from somewhere else.
+That is because the type checker doesn't know the actual value of `len`, which needs to be propagated when computing the `Expr` during circuit generation.
 
-This RFC proposal is to defer the resolution of the actual values for const variables to the circuit generation phase. The resolution can be done via propagating the const values from the bottom up.
+This RFC proposal is to defer the resolution of the actual values for the variable sizes of arrays to the circuit generation phase. The resolution can be done via propagating the actual sizes from the bottom up. This means to store the resolved values in a structured way, so they can be accessible in the computations of `compute_expr`, which is to compute the structured expressions. 
 
-By propagating the const value, it means to store these values in a structured way, so they can be accessible in the computations of `compute_expr`, which is to compute the structured expressions. This construction is done from the bottom up. For example `houses[1].rooms[2]`, the actual structure of `rooms` is determined by the `ExprKind::ArrayDeclaration` first, and then is embedded in the `houses` as a field.
+The constructions are done from the bottom up. For example `houses[1].rooms[2]`, the actual structure of `rooms` is determined by the `ExprKind::ArrayDeclaration` first, and then is embedded in the `houses` as a field.
 
-Thus, instead of resolving the size through the `size_of` of a type, it needs to know the inner structure behind a `VarOrRef` to resolve the actual size. The problem is `VarOrRef` doesn't retain the inner structure that was determined from the bottom up constructions. When it comes to the computation of the `Expr::ArrayAccess`, neither `VarOrRef` itself or the use of `size_of` of the type can provide the actual size of the array for checking the bounds.
+Thus, instead of resolving the size through the `size_of` of a type, it needs to know the inner structure behind a `VarOrRef` to resolve the actual size. The problem is `VarOrRef` doesn't retain the inner structure when it is constructed from the bottom up. When it comes to the computation of the `Expr::ArrayAccess`, neither `VarOrRef` itself or the use of `size_of` of the type can provide the actual size of the array for checking the bounds.
 
 
 ### Introduce `ComputedExpr`
 
-With the const variable as array size, we need to propagate its value during circuit generation to check if the access is within the bounds of the array. So we need a way to retain structure information of a variable that is currently represented by `VarOrRef`.
+With a constant variable as array size, we need to propagate its value during circuit generation to check if the access is within the bounds of the array. 
 
-We can add a new layer to the `VarOrRef` to keep track of the structure of the data. It is called `ComputedExpr`, as it is computed from `compute_expr` function, which resolves and passing around the values (`cvars`) via the `Expr`. The key difference from `VarOrRef` is `ComputedExpr` retains the structure of the underlying variables.
+We can replace the `VarOrRef` with a new struct that can keep track of the structure after it is constructed by `computed_expr`. It is called `ComputedExpr`, as it is a result of `compute_expr` function, which resolves and passes around the underlying values (`cvars`) via the `Expr`. The key difference from `VarOrRef` is that `ComputedExpr` retains the structure of the underlying variables, while they both represent a list of underlying `cvars`.
 
 `ComputedExpr` enables the field / array access to determine the structure of the value with actual size of the targeted access. For example, when we are accessing `houses[1].rooms[2]`, it can check if the access is within the bounds of `houses` and `rooms`, by checking the structure and size of a targeted `ComputedExpr`.
 
-In a sense, `ComputedExpr` can be seen as an resolved `Expr` with const variables replaced with actual values. 
+In a sense, `ComputedExpr` can be seen as an resolved `Expr` with constant variables replaced with actual values. 
 
 ### Defintion of `ComputedExpr`
 Here are the definitions of `ComputedExpr` and `ComputedExprKind`. The `ComputedExprKind` holds structural information built from underlying variables `cvars`.
@@ -98,17 +98,6 @@ fn const_generic(const cst: Field) -> [Field; cst] {
     for ii in 1..cst {
         xx[ii] = 2;
     }
-    return xx;
-}
-```
-
-#### Applying a const as a argument
-Use an existing constant to set array size directly in function parameters:
-
-```rust
-const cst = 300;
-fn const_generic(yy: Field) -> [Field; cst] {
-    let xx = [1; cst];
     return xx;
 }
 ```
