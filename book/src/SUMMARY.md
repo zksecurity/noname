@@ -32,3 +32,6 @@
 
 - [Public Outputs](./public-outputs.md)
 - [Witness Generation](./witness-generation.md)
+
+# RFCs
+- [RFC-0 Generic Parameters](./rfc/rfc-0-generic-parameters.md)
