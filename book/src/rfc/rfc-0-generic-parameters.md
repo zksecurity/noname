@@ -226,10 +226,6 @@ So we will need to shift the the current `check_block` to MAST phase for type ch
 
 
 ### MAST
-- Run a pass on TAST to infer the generic variables
-- Typecheck the inferred Array type (or anything can't be checked in TAST should be checked in MAST)
-- Return MAST for circuit synthesizer
-
 With the type information collected from the TAST phase, the MAST phase can infer the generic values from the observed arguments by running through the `check_block` function, which is used to be done in TAST phase. The `check_block` is context aware, and will recursively walk through the main function body. We can devise an algorithm to incorporate with `check_block` to infer the generic values and store in a certain way for later use.
 
 
