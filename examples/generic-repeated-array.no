@@ -1,0 +1,11 @@
+fn init_arr<NN, MM>(n: NN, m: MM) -> [Field; NN * 2 + MM] {
+    // should use propagated values for n m to evaluate actual size
+    let arr = [0; n * 2 + m];
+    return arr;
+}
+
+
+fn main() -> [Field; 3 * 2 + 1] {
+    let arr = init_arr(3, 1);
+    return arr;
+}
