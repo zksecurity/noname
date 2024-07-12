@@ -15,7 +15,7 @@ use crate::{
     error::{ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind, Tokens},
     stdlib::BUILTIN_FN_NAMES,
-    syntax::is_type,
+    syntax::{is_generic_parameter, is_type},
 };
 
 use super::{CustomType, Expr, ExprKind, ParserCtx, StructDef};
@@ -207,11 +207,6 @@ pub enum TyKind {
     /// An array of a fixed size.
     Array(Box<TyKind>, u32),
 
-    /// An array with symbolic size.
-    /// This is an intermediate type.
-    /// After monomonorphized, it will be converted to `Array`.
-    GenericArray(Box<TyKind>, Symbolic),
-
     /// A boolean (`true` or `false`).
     Bool,
     // Tuple(Vec<TyKind>),
@@ -220,6 +215,15 @@ pub enum TyKind {
     // U16,
     // U32,
     // U64,
+
+    // GenericConst(Ident),
+
+    /// An array with symbolic size.
+    /// This is an intermediate type.
+    /// After monomonorphized, it will be converted to `Array`.
+    GenericArray(Box<TyKind>, Symbolic),
+
+    Constant(u32),
 }
 
 impl TyKind {
@@ -228,6 +232,11 @@ impl TyKind {
             (TyKind::BigInt, TyKind::Field) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
+            }
+            (TyKind::GenericArray(lhs, _), TyKind::GenericArray(rhs, _))
+            | (TyKind::Array(lhs, _), TyKind::GenericArray(rhs, _)) 
+            | (TyKind::GenericArray(lhs, _), TyKind::Array(rhs, _)) => {
+                lhs.match_expected(rhs)
             }
             (
                 TyKind::Custom { module, name },
@@ -282,8 +291,9 @@ impl Display for TyKind {
             TyKind::Field => write!(f, "Field"),
             TyKind::BigInt => write!(f, "BigInt"),
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
-            TyKind::GenericArray(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
+            TyKind::Constant(v) => write!(f, "{}", v),
+            TyKind::GenericArray(ty, size) => write!(f, "[{}; {}]", ty, size),
         }
     }
 }
@@ -307,6 +317,12 @@ impl Ty {
         let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
 
         match token.kind {
+            TokenKind::Generic(_) => {
+                Ok(Self {
+                    kind: TyKind::BigInt,
+                    span: token.span,
+                })
+            }
             // module::Type or Type
             // ^^^^^^^^^^^^    ^^^^
             TokenKind::Identifier(ty_name) => {
@@ -384,7 +400,7 @@ impl Ty {
                 let siz_second = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
 
                 // return Array(ty, siz) if size is a number and right_paren is ]
-                match (siz_first.kind, siz_second.kind) {
+                match (&siz_first.kind, &siz_second.kind) {
                     (TokenKind::BigUInt(b), TokenKind::RightBracket) => {
                         let siz: u32 = b
                             .try_into()
@@ -399,8 +415,8 @@ impl Ty {
                     // otherwise assume it is a GenericArray
                     // [Field; NN]
                     //         ^^^
-                    (TokenKind::Identifier(ident), TokenKind::RightBracket) => {
-                        let siz = Ident::new(ident, siz_first.span);
+                    (TokenKind::Generic(name), TokenKind::RightBracket) => {
+                        let siz = Ident::new(name.to_string(), siz_first.span);
                         let span = span.merge_with(siz_second.span);
 
                         Ok(Ty {
@@ -419,15 +435,18 @@ impl Ty {
                                     ctx.error(ErrorKind::InvalidArraySize, siz_first.span)
                                 })?)
                             }
-                            TokenKind::Identifier(ident) => {
-                                Symbolic::Generic(Ident::new(ident, siz_first.span))
+                            TokenKind::Generic(name) => {
+                                Symbolic::Generic(Ident::new(name, siz_first.span))
                             }
                             _ => return Err(ctx.error(ErrorKind::InvalidArraySize, siz_first.span)),
                         };
 
                         let mut sym_op = siz_second.kind;
 
-                        let mut sym_acc: Symbolic;
+                        // 
+                        // todo: enforce the use of parentheses when there are multiple operations, 
+                        // otherwise [NN + MM * 2] will be interpreted as [(NN + MM) * 2], which is wrong
+
                         // [Field; NN * 2 + MM]
                         //              ^^^^^^^
                         loop {
@@ -438,10 +457,10 @@ impl Ty {
                             sym_lhs = match sym_op {
                                 TokenKind::Plus => {
                                     match sym_rhs.kind {
-                                        TokenKind::Identifier(ident) => Symbolic::Add(
+                                        TokenKind::Generic(name) => Symbolic::Add(
                                             Box::new(sym_lhs),
                                             Box::new(Symbolic::Generic(Ident::new(
-                                                ident,
+                                                name,
                                                 sym_rhs.span,
                                             ))),
                                         ),
@@ -457,13 +476,12 @@ impl Ty {
                                         }
                                     }
                                 }
-                                // what about [NN + MM * 2]?
                                 TokenKind::Star => {
                                     match sym_rhs.kind {
-                                        TokenKind::Identifier(ident) => Symbolic::Mul(
+                                        TokenKind::Generic(name) => Symbolic::Mul(
                                             Box::new(sym_lhs),
                                             Box::new(Symbolic::Generic(Ident::new(
-                                                ident,
+                                                name,
                                                 sym_rhs.span,
                                             ))),
                                         ),
@@ -484,6 +502,20 @@ impl Ty {
                                         ctx.error(ErrorKind::InvalidArraySize, siz_second.span)
                                     );
                                 }
+                            };
+
+                            // [Field; NN * 2 + MM]
+                            //                ^   ^
+
+                            sym_op = tokens.bump_err(ctx, ErrorKind::InvalidToken)?.kind;
+                            match sym_op {
+                                TokenKind::RightBracket => {
+                                    return Ok(Ty {
+                                        kind: TyKind::GenericArray(Box::new(ty.kind), sym_lhs),
+                                        span: span.merge_with(sym_rhs.span),
+                                    });
+                                },
+                                _ => (),
                             }
                         }
                     }
@@ -633,6 +665,15 @@ pub struct FnSig {
     pub return_type: Option<Ty>,
 }
 
+impl FnSig {
+    pub fn is_generic(&self, arg: FnArg) -> bool {
+        match arg.typ.kind {
+            TyKind::Custom { name, .. } => self.generics.contains(&name),
+            _ => false,
+        }
+    }
+}
+
 pub struct Method {
     pub sig: MethodSig,
     pub body: Vec<Stmt>,
@@ -737,12 +778,12 @@ impl FunctionDef {
             loop {
                 // <A, B>
                 //  ^
-                let token = tokens.bump_ident(
+                let name = tokens.bump_generic(
                     ctx,
                     ErrorKind::InvalidFunctionSignature("expected generic parameter"),
                 )?;
 
-                generics.insert(token.value);
+                generics.insert(name);
 
                 match tokens.bump_err(
                     ctx,

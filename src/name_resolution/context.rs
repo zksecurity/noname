@@ -75,6 +75,7 @@ impl NameResCtx {
         let FnSig {
             kind,
             name: _,
+            generics: _,
             arguments,
             return_type,
         } = sig;
@@ -131,6 +132,8 @@ impl NameResCtx {
             }
             TyKind::BigInt => (),
             TyKind::Array(typ_kind, _) => self.resolve_typ_kind(typ_kind)?,
+            TyKind::GenericArray(typ_kind, _) => self.resolve_typ_kind(typ_kind)?,
+            TyKind::Constant(_) => (),
             TyKind::Bool => (),
         };
 

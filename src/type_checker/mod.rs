@@ -127,6 +127,8 @@ impl<B: Backend> TypeChecker<B> {
             }
             TyKind::BigInt => 1,
             TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
+            TyKind::GenericArray(_, _) => unreachable!("generic arrays should have been resolved"),
+            TyKind::Constant(_) => 1,
             TyKind::Bool => 1,
         }
     }
@@ -368,6 +370,12 @@ impl<B: Backend> TypeChecker<B> {
                                 arg.name.value.clone(),
                                 TypeInfo::new_cst(arg_typ, arg.span),
                             )?;
+                        } else if function.sig.is_generic(arg.clone()) {
+                            // then assume it is a const generic
+                            typed_fn_env.store_type(
+                                arg.name.value.clone(),
+                                TypeInfo::new(TyKind::BigInt, arg.span),
+                            )?;
                         } else {
                             typed_fn_env.store_type(
                                 arg.name.value.clone(),
@@ -379,6 +387,7 @@ impl<B: Backend> TypeChecker<B> {
                     // the output value returned by the main function is also a main_args with a special name (public_output)
                     if let Some(typ) = &function.sig.return_type {
                         if is_main {
+                            println!("return type: {:?}", typ.kind);
                             match typ.kind {
                                 TyKind::Field => {
                                     typed_fn_env.store_type(

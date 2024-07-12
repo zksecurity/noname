@@ -8,7 +8,7 @@ use crate::{
     error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FnSig, FunctionDef, Stmt, StmtKind, Ty, TyKind},
+        types::{FnSig, FunctionDef, Ident, Stmt, StmtKind, Symbolic, Ty, TyKind},
         CustomType, Expr, ExprKind, Op2,
     },
     syntax::is_type,
@@ -128,7 +128,9 @@ impl<B: Backend> TypeChecker<B> {
 
                 // type check the function call
                 let method_call = false;
+                // todo: may need to call fn_env.nest()
                 let res = self.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)?;
+                // todo: may need to call fn_env.pop()
 
                 res.map(ExprTyInfo::new_anon)
             }
@@ -499,6 +501,30 @@ impl<B: Backend> TypeChecker<B> {
                 });
                 Some(res)
             }
+            ExprKind::RepeatedArrayDeclaration { item, size } => {
+                let item_node = self
+                    .compute_type(item, typed_fn_env)?
+                    .expect("expected a value (TODO: better error)");
+
+                // expect the size node to be a u32
+                let size_node = self
+                    .compute_type(size, typed_fn_env)?
+                    .expect("expected a value (TODO: better error)");
+
+                // if !matches!(size_node.typ, TyKind::BigInt) {
+                //     return Err(self.error(ErrorKind::InvalidArraySize, expr.span));
+                // }
+                println!("size_node.typ: {:#?}", size_node.typ);
+                if let TyKind::BigInt = size_node.typ {
+                    let res = ExprTyInfo::new_anon(TyKind::GenericArray(
+                        Box::new(item_node.typ),
+                        Symbolic::Generic(Ident::new("x".to_string(), size.span)),
+                    ));
+                    Some(res)
+                } else {
+                    return Err(self.error(ErrorKind::InvalidArraySize, expr.span));
+                }
+            }
         };
 
         // save the type of that expression in our typed global env
@@ -666,6 +692,19 @@ impl<B: Backend> TypeChecker<B> {
 
         // compare argument types with the function signature
         for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
+            // todo: infer generic values from the observed arg
+            // generic array
+            // generic const
+            // match sig_arg.typ.kind {
+            //     TyKind::GenericArray(, )
+            //     TyKind::GenericConst(())
+            // }
+
+            // store the inferred value in fn_env
+
+            // should it just type check inferred expected type?
+            println!("sig_arg: {:#?}", sig_arg);
+            println!("observed typ: {:#?}", typ);
             if !typ.match_expected(&sig_arg.typ.kind) {
                 return Err(self.error(
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),

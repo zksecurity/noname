@@ -111,6 +111,12 @@ impl TypedFnEnv {
         }
     }
 
+    /// Stores generic type information in a local function scope.
+    // pub fn store_generic(&mut self, ident: String, type_info: TypeInfo) -> Result<()> {
+    //     self.vars.insert(ident, (self.current_scope, type_info));
+    //     Ok(())
+    // }
+
     pub fn get_type(&self, ident: &str) -> Option<&TyKind> {
         self.get_type_info(ident).map(|type_info| &type_info.typ)
     }
