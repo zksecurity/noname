@@ -472,3 +472,21 @@ fn test_types_array_output(#[case] backend: BackendKind) -> miette::Result<()> {
 
     Ok(())
 }
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_public_output_bool(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"public_input": "1"}"#;
+    let private_inputs = r#"{"private_input": "1"}"#;
+
+    test_file(
+        "public_output_bool",
+        public_inputs,
+        private_inputs,
+        vec!["1"],
+        backend,
+    )?;
+
+    Ok(())
+}
