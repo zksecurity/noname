@@ -133,7 +133,7 @@ impl NameResCtx {
             TyKind::BigInt => (),
             TyKind::Array(typ_kind, _) => self.resolve_typ_kind(typ_kind)?,
             TyKind::GenericArray(typ_kind, _) => self.resolve_typ_kind(typ_kind)?,
-            TyKind::Constant(_) => (),
+            TyKind::Generic(_) => (),
             TyKind::Bool => (),
         };
 

@@ -2,9 +2,41 @@ use std::collections::HashMap;
 
 use crate::{
     backends::Backend, constants::Span, error::{Error, ErrorKind, Result}, imports::FnKind, name_resolution::NAST, parser::{
-        types::{FnSig, FuncOrMethod, Stmt, StmtKind, Ty, TyKind}, CustomType, Expr, ExprKind, Op2, RootKind
-    }, syntax::is_type, type_checker::{checker::ExprTyInfo, FnInfo, FullyQualified, TypeChecker, TypeInfo, TypedFnEnv}
+        types::{FnSig, FuncOrMethod, Ident, Stmt, StmtKind, Symbolic, Ty, TyKind}, CustomType, Expr, ExprKind, Op2, RootKind
+    }, syntax::is_type, type_checker::{FnInfo, FullyQualified, TypeChecker, TypeInfo, TypedFnEnv}
 };
+
+#[derive(Debug)]
+pub struct ExprTyMInfo {
+    /// This is needed to obtain information on variables.
+    /// For example, parsing of an assignment expression needs to know if the lhs variable is mutable.
+    pub var_name: Option<String>,
+
+    /// The type of the expression node.
+    pub typ: TyKind,
+
+    /// numeric value of the expression
+    /// applicable to BigInt type
+    pub value: Option<u32>,
+}
+
+impl ExprTyMInfo {
+    pub fn new(var_name: Option<String>, typ: TyKind, value: Option<u32>) -> Self {
+        if value.is_some() && !matches!(typ, TyKind::BigInt) {
+            panic!("value can only be set for BigInt type");
+        }
+
+        Self { var_name, typ, value}
+    }
+
+    pub fn new_var(var_name: String, typ: TyKind, value: Option<u32>) -> Self {
+        Self::new(Some(var_name), typ, value)
+    }
+
+    pub fn new_anon(typ: TyKind, value: Option<u32>) -> Self {
+        Self::new(None, typ, value)
+    }
+}
 
 /// Monomorphized AST
 pub struct Mast<B>
@@ -54,12 +86,12 @@ impl<B: Backend> Mast<B> {
                                 arg.name.value.clone(),
                                 TypeInfo::new_cst(arg_typ, arg.span),
                             )?;
-                        } else if function.sig.is_generic(arg.clone()) {
-                            // then assume it is a const generic
-                            typed_fn_env.store_type(
-                                arg.name.value.clone(),
-                                TypeInfo::new(TyKind::BigInt, arg.span),
-                            )?;
+                        // } else if function.sig.is_generic(arg.clone()) {
+                        //     // then assume it is a const generic
+                        //     typed_fn_env.store_type(
+                        //         arg.name.value.clone(),
+                        //         TypeInfo::new(TyKind::BigInt, arg.span),
+                        //     )?;
                         } else {
                             typed_fn_env.store_type(
                                 arg.name.value.clone(),
@@ -106,8 +138,8 @@ impl<B: Backend> Mast<B> {
         &mut self,
         expr: &Expr,
         typed_fn_env: &mut TypedFnEnv,
-    ) -> Result<Option<ExprTyInfo>> {
-        let typ: Option<ExprTyInfo> = match &expr.kind {
+    ) -> Result<Option<ExprTyMInfo>> {
+        let typ: Option<ExprTyMInfo> = match &expr.kind {
             ExprKind::FieldAccess { lhs, rhs } => {
                 // compute type of left-hand side
                 let lhs_node = self
@@ -135,7 +167,7 @@ impl<B: Backend> Mast<B> {
                     .map(|(_, typ)| typ.clone())
                     .expect("could not find field");
 
-                Some(ExprTyInfo::new(lhs_node.var_name, res))
+                Some(ExprTyMInfo::new(lhs_node.var_name, res))
             }
 
             // `module::fn_name(args)`
@@ -155,7 +187,7 @@ impl<B: Backend> Mast<B> {
                 let res = self.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)?;
                 // todo: may need to call fn_env.pop()
 
-                res.map(ExprTyInfo::new_anon)
+                res.map(ExprTyMInfo::new_anon)
             }
 
             // `lhs.method_name(args)`
@@ -194,7 +226,7 @@ impl<B: Backend> Mast<B> {
                     expr.span,
                 )?;
 
-                res.map(|ty| ExprTyInfo::new(None, ty))
+                res.map(|ty| ExprTyMInfo::new(None, ty))
             }
 
             ExprKind::Assignment { lhs, rhs } => {
@@ -305,7 +337,7 @@ impl<B: Backend> Mast<B> {
                     | Op2::BoolOr => lhs_node.typ,
                 };
 
-                Some(ExprTyInfo::new_anon(typ))
+                Some(ExprTyMInfo::new_anon(typ))
             }
 
             ExprKind::Negated(inner) => {
@@ -318,7 +350,7 @@ impl<B: Backend> Mast<B> {
                     ));
                 }
 
-                Some(ExprTyInfo::new_anon(TyKind::Field))
+                Some(ExprTyMInfo::new_anon(TyKind::Field))
             }
 
             ExprKind::Not(inner) => {
@@ -331,12 +363,12 @@ impl<B: Backend> Mast<B> {
                     ));
                 }
 
-                Some(ExprTyInfo::new_anon(TyKind::Bool))
+                Some(ExprTyMInfo::new_anon(TyKind::Bool))
             }
 
-            ExprKind::BigUInt(_) => Some(ExprTyInfo::new_anon(TyKind::BigInt)),
+            ExprKind::BigUInt(_) => Some(ExprTyMInfo::new_anon(TyKind::BigInt)),
 
-            ExprKind::Bool(_) => Some(ExprTyInfo::new_anon(TyKind::Bool)),
+            ExprKind::Bool(_) => Some(ExprTyMInfo::new_anon(TyKind::Bool)),
 
             // mod::path.of.var
             ExprKind::Variable { module, name } => {
@@ -352,7 +384,7 @@ impl<B: Backend> Mast<B> {
                         .expect("custom type does not exist (TODO: better error)");
 
                     // and return its type
-                    let res = ExprTyInfo::new_anon(TyKind::Custom {
+                    let res = ExprTyMInfo::new_anon(TyKind::Custom {
                         module: module.clone(),
                         name: name.value.clone(),
                     });
@@ -381,7 +413,7 @@ impl<B: Backend> Mast<B> {
                         }
                     };
 
-                    let res = ExprTyInfo::new_var(name.value.clone(), typ);
+                    let res = ExprTyMInfo::new_var(name.value.clone(), typ);
                     Some(res)
                 }
             }
@@ -410,7 +442,7 @@ impl<B: Backend> Mast<B> {
                     _ => panic!("not an array"),
                 };
 
-                let res = ExprTyInfo::new(typ.var_name, el_typ);
+                let res = ExprTyMInfo::new(typ.var_name, el_typ);
                 Some(res)
             }
 
@@ -438,7 +470,7 @@ impl<B: Backend> Mast<B> {
 
                 let tykind = tykind.expect("empty array declaration?");
 
-                let res = ExprTyInfo::new_anon(TyKind::Array(Box::new(tykind), len));
+                let res = ExprTyMInfo::new_anon(TyKind::Array(Box::new(tykind), len));
                 Some(res)
             }
 
@@ -484,7 +516,7 @@ impl<B: Backend> Mast<B> {
                 }
 
                 //
-                Some(ExprTyInfo::new_anon(then_node.typ))
+                Some(ExprTyMInfo::new_anon(then_node.typ))
             }
 
             ExprKind::CustomTypeDeclaration { custom, fields } => {
@@ -531,7 +563,7 @@ impl<B: Backend> Mast<B> {
                     }
                 }
 
-                let res = ExprTyInfo::new_anon(TyKind::Custom {
+                let res = ExprTyMInfo::new_anon(TyKind::Custom {
                     module: module.clone(),
                     name: name.clone(),
                 });
@@ -552,7 +584,7 @@ impl<B: Backend> Mast<B> {
                 // }
                 println!("size_node.typ: {:#?}", size_node.typ);
                 // todo: infer for generic type
-                let res = ExprTyInfo::new_anon(TyKind::GenericArray(
+                let res = ExprTyMInfo::new_anon(TyKind::GenericArray(
                     Box::new(item_node.typ),
                     Symbolic::Generic(Ident::new("x".to_string(), size.span)),
                 ));
@@ -727,6 +759,13 @@ impl<B: Backend> Mast<B> {
         // compare argument types with the function signature
         for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
             // todo: infer generic values from the observed arg
+            match sig_arg.typ.kind {
+                TyKind::Generic(gen_name) => {
+                    // typed_fn_env.store_type(gen_name, type_info)
+                    // infer the generic value from the observed type
+                    // store value by node_id
+                }
+            }
             // generic array
             // generic const
             // match sig_arg.typ.kind {
@@ -746,6 +785,8 @@ impl<B: Backend> Mast<B> {
                 ));
             }
         }
+
+        // todo: evaluate return type; convert GenericArray to Array using inferred values
 
         // return the return type of the function
         Ok(fn_sig.return_type.as_ref().map(|ty| ty.kind.clone()))

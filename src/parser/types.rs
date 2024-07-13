@@ -223,7 +223,7 @@ pub enum TyKind {
     /// After monomonorphized, it will be converted to `Array`.
     GenericArray(Box<TyKind>, Symbolic),
 
-    Constant(u32),
+    Generic(String),
 }
 
 impl TyKind {
@@ -292,7 +292,7 @@ impl Display for TyKind {
             TyKind::BigInt => write!(f, "BigInt"),
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
-            TyKind::Constant(v) => write!(f, "{}", v),
+            TyKind::Generic(v) => write!(f, "Generic({})", v),
             TyKind::GenericArray(ty, size) => write!(f, "[{}; {}]", ty, size),
         }
     }
@@ -319,6 +319,7 @@ impl Ty {
         match token.kind {
             TokenKind::Generic(_) => {
                 Ok(Self {
+                    // todo: replace with Generic
                     kind: TyKind::BigInt,
                     span: token.span,
                 })
@@ -666,10 +667,14 @@ pub struct FnSig {
 }
 
 impl FnSig {
-    pub fn is_generic(&self, arg: FnArg) -> bool {
+    pub fn generic_name(&self, arg: FnArg) -> Option<String> {
         match arg.typ.kind {
-            TyKind::Custom { name, .. } => self.generics.contains(&name),
-            _ => false,
+            TyKind::Custom { name, .. } => if self.generics.contains(&name) {
+                Some(name)
+            } else {
+                None
+            },
+            _ => None,
         }
     }
 }

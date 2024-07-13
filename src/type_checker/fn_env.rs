@@ -17,6 +17,8 @@ pub struct TypeInfo {
     /// If the variable is a constant or not.
     pub constant: bool,
 
+    // todo: add a flag for generics?
+
     /// A variable becomes disabled once we exit its scope.
     /// We do this instead of deleting a variable to detect shadowing.
     pub disabled: bool,

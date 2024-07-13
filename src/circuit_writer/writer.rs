@@ -251,7 +251,7 @@ impl<B: Backend> CircuitWriter<B> {
             }
             TyKind::BigInt => unreachable!(),
             TyKind::GenericArray(_, _) => unreachable!("generic array should have been resolved"),
-            TyKind::Constant(_) =>  unreachable!("generic const should have been resolved"),
+            TyKind::Generic(_) =>  unreachable!("generic const should have been resolved"),
         };
         Ok(())
     }
