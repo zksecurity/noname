@@ -45,28 +45,28 @@ pub struct StructInfo {
 
 /// Information that we need to pass around between expression nodes when type checking.
 #[derive(Debug)]
-struct ExprTyInfo {
+pub struct ExprTyInfo {
     /// This is needed to obtain information on variables.
     /// For example, parsing of an assignment expression needs to know if the lhs variable is mutable.
-    var_name: Option<String>,
+    pub var_name: Option<String>,
 
     /// The type of the expression node.
-    typ: TyKind,
+    pub typ: TyKind,
 }
 
 impl ExprTyInfo {
-    fn new(var_name: Option<String>, typ: TyKind) -> Self {
+    pub fn new(var_name: Option<String>, typ: TyKind) -> Self {
         Self { var_name, typ }
     }
 
-    fn new_var(var_name: String, typ: TyKind) -> Self {
+    pub fn new_var(var_name: String, typ: TyKind) -> Self {
         Self {
             var_name: Some(var_name),
             typ,
         }
     }
 
-    fn new_anon(typ: TyKind) -> Self {
+    pub fn new_anon(typ: TyKind) -> Self {
         Self {
             var_name: None,
             typ,
@@ -385,6 +385,9 @@ impl<B: Backend> TypeChecker<B> {
 
                 let mut tykind: Option<TyKind> = None;
 
+                // todo: add test case: 
+                // works: [[0; N], [1; N]]
+                // should fail: [[0; N], [1; N + 1]]
                 for item in items {
                     let item_typ = self
                         .compute_type(item, typed_fn_env)?

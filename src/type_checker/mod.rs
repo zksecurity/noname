@@ -70,18 +70,18 @@ where
 {
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
-    functions: HashMap<FullyQualified, FnInfo<B>>,
+    pub functions: HashMap<FullyQualified, FnInfo<B>>,
 
     /// Custom structs type information and ASTs for methods.
-    structs: HashMap<FullyQualified, StructInfo>,
+    pub structs: HashMap<FullyQualified, StructInfo>,
 
     /// Constants declared in this module.
-    constants: HashMap<FullyQualified, ConstInfo<B::Field>>,
+    pub constants: HashMap<FullyQualified, ConstInfo<B::Field>>,
 
     /// Mapping from node id to TyKind.
     /// This can be used by the circuit-writer when it needs type information.
     // TODO: I think we should get rid of this if we can
-    node_types: HashMap<usize, TyKind>,
+    pub node_types: HashMap<usize, TyKind>,
 }
 
 impl<B: Backend> TypeChecker<B> {
@@ -185,6 +185,8 @@ impl<B: Backend> TypeChecker<B> {
         //
         // Process constants
         //
+
+        println!("nast: {:?}", nast.ast.0);
 
         // we detect struct or function definition
         let mut abort = None;
