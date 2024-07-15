@@ -359,7 +359,7 @@ impl<B: Backend> TypeChecker<B> {
                 let typ = self.compute_type(array, typed_fn_env)?.unwrap();
 
                 // check that it is an array
-                if !matches!(typ.typ, TyKind::Array(..)) {
+                if !matches!(typ.typ, TyKind::Array(..) | TyKind::GenericArray(..)) {
                     return Err(self.error(ErrorKind::ArrayAccessOnNonArray, expr.span));
                 }
 
@@ -373,6 +373,7 @@ impl<B: Backend> TypeChecker<B> {
                 // get type of element
                 let el_typ = match typ.typ {
                     TyKind::Array(typkind, _) => *typkind,
+                    TyKind::GenericArray(typkind, _) => *typkind,
                     _ => panic!("not an array"),
                 };
 
@@ -385,7 +386,7 @@ impl<B: Backend> TypeChecker<B> {
 
                 let mut tykind: Option<TyKind> = None;
 
-                // todo: add test case: 
+                // todo: add test case:
                 // works: [[0; N], [1; N]]
                 // should fail: [[0; N], [1; N + 1]]
                 for item in items {
@@ -514,10 +515,6 @@ impl<B: Backend> TypeChecker<B> {
                     .compute_type(size, typed_fn_env)?
                     .expect("expected a value (TODO: better error)");
 
-                // if !matches!(size_node.typ, TyKind::BigInt) {
-                //     return Err(self.error(ErrorKind::InvalidArraySize, expr.span));
-                // }
-                println!("size_node.typ: {:#?}", size_node.typ);
                 if let TyKind::BigInt = size_node.typ {
                     let res = ExprTyInfo::new_anon(TyKind::GenericArray(
                         Box::new(item_node.typ),

@@ -186,8 +186,6 @@ impl<B: Backend> TypeChecker<B> {
         // Process constants
         //
 
-        println!("nast: {:?}", nast.ast.0);
-
         // we detect struct or function definition
         let mut abort = None;
 
@@ -389,7 +387,6 @@ impl<B: Backend> TypeChecker<B> {
                     // the output value returned by the main function is also a main_args with a special name (public_output)
                     if let Some(typ) = &function.sig.return_type {
                         if is_main {
-                            println!("return type: {:?}", typ.kind);
                             match typ.kind {
                                 TyKind::Field => {
                                     typed_fn_env.store_type(

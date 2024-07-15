@@ -152,12 +152,13 @@ impl MonomorphizedFnEnv {
     }
 }
 
+#[derive(Debug)]
 /// Monomorphized AST
 pub struct Mast<B>
 where
     B: Backend,
 {
-    tast: TypeChecker<B>,
+    pub tast: TypeChecker<B>,
 
     /// Mapping from node id to monomorphized type
     node_types: HashMap<usize, TyKind>,
@@ -168,6 +169,17 @@ where
 // records types including inferred types
 
 impl<B: Backend> Mast<B> {
+    pub fn new(tast: TypeChecker<B>) -> Self {
+        Self {
+            tast,
+            node_types: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
+        self.node_types.get(&expr.node_id)
+    }
+
     pub fn monomorphize(&mut self, nast: NAST<B>) -> Result<()> {
         // process the main function
         // process fn calls

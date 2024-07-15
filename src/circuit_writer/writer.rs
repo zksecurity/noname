@@ -692,7 +692,26 @@ impl<B: Backend> CircuitWriter<B> {
                 //
                 Ok(Some(var))
             }
-            ExprKind::RepeatedArrayDeclaration { item, size } => todo!(),
+            ExprKind::RepeatedArrayDeclaration { item, size } => {
+                let size = self
+                    .compute_expr(fn_env, size)?
+                    .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, expr.span))?;
+                let size = size
+                    .constant()
+                    .ok_or_else(|| self.error(ErrorKind::ExpectedConstant, expr.span))?;
+                let size: BigUint = size.into();
+                let size: usize = size.try_into().unwrap();
+
+                let mut cvars = vec![];
+                for _ in 0..size {
+                    let var = self.compute_expr(fn_env, item)?.unwrap();
+                    let to_extend = var.value(self, fn_env).cvars.clone();
+                    cvars.extend(to_extend);
+                }
+
+                let var = VarOrRef::Var(Var::new(cvars, expr.span));
+                Ok(Some(var))
+            }
         }
     }
 
