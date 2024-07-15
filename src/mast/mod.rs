@@ -1,9 +1,21 @@
 use std::collections::HashMap;
 
+use ark_ff::PrimeField;
+use num_bigint::BigUint;
+
 use crate::{
-    backends::Backend, constants::Span, error::{Error, ErrorKind, Result}, imports::FnKind, name_resolution::NAST, parser::{
-        types::{FnSig, FuncOrMethod, Ident, Stmt, StmtKind, Symbolic, Ty, TyKind}, CustomType, Expr, ExprKind, Op2, RootKind
-    }, syntax::is_type, type_checker::{FnInfo, FullyQualified, TypeChecker, TypeInfo, TypedFnEnv}
+    backends::Backend,
+    circuit_writer::fn_env,
+    constants::Span,
+    error::{Error, ErrorKind, Result},
+    imports::FnKind,
+    name_resolution::NAST,
+    parser::{
+        types::{FnSig, FuncOrMethod, Ident, Stmt, StmtKind, Symbolic, Ty, TyKind},
+        CustomType, Expr, ExprKind, Op2, RootKind,
+    },
+    syntax::is_type,
+    type_checker::{FnInfo, FullyQualified, TypeChecker, TypedFnEnv},
 };
 
 #[derive(Debug)]
@@ -17,7 +29,7 @@ pub struct ExprTyMInfo {
 
     /// numeric value of the expression
     /// applicable to BigInt type
-    pub value: Option<u32>,
+    pub constant: Option<u32>,
 }
 
 impl ExprTyMInfo {
@@ -26,7 +38,11 @@ impl ExprTyMInfo {
             panic!("value can only be set for BigInt type");
         }
 
-        Self { var_name, typ, value}
+        Self {
+            var_name,
+            typ,
+            constant: value,
+        }
     }
 
     pub fn new_var(var_name: String, typ: TyKind, value: Option<u32>) -> Self {
@@ -35,6 +51,104 @@ impl ExprTyMInfo {
 
     pub fn new_anon(typ: TyKind, value: Option<u32>) -> Self {
         Self::new(None, typ, value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MTypeInfo {
+    /// Some type information.
+    pub typ: TyKind,
+
+    /// Store constant value
+    pub value: Option<u32>,
+
+    /// The span of the variable declaration.
+    pub span: Span,
+}
+
+impl MTypeInfo {
+    pub fn new(typ: TyKind, span: Span, value: Option<u32>) -> Self {
+        Self {
+            typ,
+            span,
+            value,
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct MonomorphizedFnEnv {
+    current_scope: usize,
+
+    vars: HashMap<String, (usize, MTypeInfo)>,
+}
+
+impl MonomorphizedFnEnv {
+    /// Creates a new TypeEnv
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Enters a scoped block.
+    pub fn nest(&mut self) {
+        self.current_scope += 1;
+    }
+
+    /// Exits a scoped block.
+    pub fn pop(&mut self) {
+        self.current_scope = self.current_scope.checked_sub(1).expect("scope bug");
+
+        // remove variables as we exit the scope
+        // (we don't need to keep them around to detect shadowing,
+        // as we already did that in type checker)
+        let mut to_delete = vec![];
+        for (name, (scope, _)) in self.vars.iter() {
+            if *scope > self.current_scope {
+                to_delete.push(name.clone());
+            }
+        }
+        for d in to_delete {
+            self.vars.remove(&d);
+        }
+    }
+
+    /// Returns true if a scope is a prefix of our scope.
+    pub fn is_in_scope(&self, prefix_scope: usize) -> bool {
+        self.current_scope >= prefix_scope
+    }
+
+    /// Stores type information about a local variable.
+    /// Note that we forbid shadowing at all scopes.
+    pub fn store_type(&mut self, ident: String, type_info: MTypeInfo) -> Result<()> {
+        match self
+            .vars
+            .insert(ident.clone(), (self.current_scope, type_info.clone()))
+        {
+            Some(_) => Err(Error::new(
+                "type-checker",
+                ErrorKind::DuplicateDefinition(ident),
+                type_info.span,
+            )),
+            None => Ok(()),
+        }
+    }
+
+    pub fn get_type(&self, ident: &str) -> Option<&TyKind> {
+        self.get_type_info(ident).map(|type_info| &type_info.typ)
+    }
+
+    /// Retrieves type information on a variable, given a name.
+    /// If the variable is not in scope, return false.
+    pub fn get_type_info(&self, ident: &str) -> Option<&MTypeInfo> {
+        if let Some((scope, type_info)) = self.vars.get(ident) {
+            if self.is_in_scope(*scope) {
+                Some(type_info)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -68,7 +182,7 @@ impl<B: Backend> Mast<B> {
                 // `fn main() { ... }`
                 RootKind::FunctionDef(function) => {
                     // create a new typed fn environment to type check the function
-                    let mut typed_fn_env = TypedFnEnv::default();
+                    let mut typed_fn_env = MonomorphizedFnEnv::default();
 
                     // if we're expecting a library, this should not be the main function
                     let is_main = function.is_main();
@@ -81,23 +195,10 @@ impl<B: Backend> Mast<B> {
                         // store the args' type in the fn environment
                         let arg_typ = arg.typ.kind.clone();
 
-                        if arg.is_constant() {
-                            typed_fn_env.store_type(
-                                arg.name.value.clone(),
-                                TypeInfo::new_cst(arg_typ, arg.span),
-                            )?;
-                        // } else if function.sig.is_generic(arg.clone()) {
-                        //     // then assume it is a const generic
-                        //     typed_fn_env.store_type(
-                        //         arg.name.value.clone(),
-                        //         TypeInfo::new(TyKind::BigInt, arg.span),
-                        //     )?;
-                        } else {
-                            typed_fn_env.store_type(
-                                arg.name.value.clone(),
-                                TypeInfo::new(arg_typ, arg.span),
-                            )?;
-                        }
+                        typed_fn_env.store_type(
+                            arg.name.value.clone(),
+                            MTypeInfo::new(arg_typ, arg.span, None),
+                        )?;
                     }
 
                     // the output value returned by the main function is also a main_args with a special name (public_output)
@@ -106,25 +207,27 @@ impl<B: Backend> Mast<B> {
                             TyKind::Field => {
                                 typed_fn_env.store_type(
                                     "public_output".to_string(),
-                                    TypeInfo::new_mut(typ.kind.clone(), typ.span),
+                                    MTypeInfo::new(typ.kind.clone(), typ.span, None),
                                 )?;
                             }
                             TyKind::Array(_, _) => {
                                 typed_fn_env.store_type(
                                     "public_output".to_string(),
-                                    TypeInfo::new_mut(typ.kind.clone(), typ.span),
+                                    MTypeInfo::new(typ.kind.clone(), typ.span, None),
                                 )?;
                             }
                             _ => unimplemented!(),
                         }
                     }
 
+                    typed_fn_env.nest();
                     // type system pass on the function body
                     self.check_block(
                         &mut typed_fn_env,
                         &function.body,
                         function.sig.return_type.as_ref(),
                     )?;
+                    typed_fn_env.pop();
                 }
 
                 _ => (),
@@ -137,7 +240,7 @@ impl<B: Backend> Mast<B> {
     fn compute_type(
         &mut self,
         expr: &Expr,
-        typed_fn_env: &mut TypedFnEnv,
+        typed_fn_env: &mut MonomorphizedFnEnv,
     ) -> Result<Option<ExprTyMInfo>> {
         let typ: Option<ExprTyMInfo> = match &expr.kind {
             ExprKind::FieldAccess { lhs, rhs } => {
@@ -167,7 +270,9 @@ impl<B: Backend> Mast<B> {
                     .map(|(_, typ)| typ.clone())
                     .expect("could not find field");
 
-                Some(ExprTyMInfo::new(lhs_node.var_name, res))
+                // struct field doesn't support constant
+                let cst = None;
+                Some(ExprTyMInfo::new(lhs_node.var_name, res, cst))
             }
 
             // `module::fn_name(args)`
@@ -179,15 +284,13 @@ impl<B: Backend> Mast<B> {
                 // retrieve the function signature
                 let qualified = FullyQualified::new(&module, &fn_name.value);
                 let fn_info = self.tast.fn_info(&qualified).unwrap();
-                let fn_sig = fn_info.sig().clone();
 
                 // type check the function call
                 let method_call = false;
-                // todo: may need to call fn_env.nest()
-                let res = self.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)?;
-                // todo: may need to call fn_env.pop()
+                let res = self.check_fn_call(typed_fn_env, method_call, fn_info.clone(), args, expr.span)?;
 
-                res.map(ExprTyMInfo::new_anon)
+                // assume the function call won't return constant value
+                res.map(|ty| ExprTyMInfo::new_anon(ty, None))
             }
 
             // `lhs.method_name(args)`
@@ -205,7 +308,8 @@ impl<B: Backend> Mast<B> {
 
                 // get struct info
                 let qualified = FullyQualified::new(&module, &struct_name);
-                let struct_info = self.tast
+                let struct_info = self
+                    .tast
                     .struct_info(&qualified)
                     .ok_or(self.error(ErrorKind::UndefinedStruct(struct_name.clone()), lhs.span))?
                     .clone();
@@ -216,17 +320,26 @@ impl<B: Backend> Mast<B> {
                     .get(&method_name.value)
                     .expect("method not found on custom struct (TODO: better error)");
 
+                let fn_kind = FnKind::Native(method_type.clone());
+                let fn_info = FnInfo {
+                    kind: fn_kind,
+                    span: method_type.span,
+                };
+
                 // type check the method call
                 let method_call = true;
+                typed_fn_env.nest();
                 let res = self.check_fn_call(
                     typed_fn_env,
                     method_call,
-                    method_type.sig.clone(),
+                    fn_info,
                     args,
                     expr.span,
                 )?;
+                typed_fn_env.pop();
 
-                res.map(|ty| ExprTyMInfo::new(None, ty))
+                // assume the function call won't return constant value
+                res.map(|ty| ExprTyMInfo::new_anon(ty, None))
             }
 
             ExprKind::Assignment { lhs, rhs } => {
@@ -235,70 +348,12 @@ impl<B: Backend> Mast<B> {
                     .compute_type(lhs, typed_fn_env)?
                     .expect("type-checker bug: lhs access on an empty var");
 
-                // lhs can be a local variable or a path to an array
-                let lhs_name = match &lhs.kind {
-                    // `name = <rhs>`
-                    ExprKind::Variable { module, name } => {
-                        // todo: remove this check, as it is already done in the TAST
-                        // we first check if it's a constant
-                        // note: the only way to check that atm is to check in the constants hashmap
-                        // this is because we don't differentiate const vars from normal variables
-                        // (perhaps we should)
-                        let qualified = FullyQualified::new(&module, &name.value);
-                        if let Some(_cst_info) = self.tast.const_info(&qualified) {
-                            return Err(self.error(
-                                ErrorKind::UnexpectedError("cannot assign to an external variable"),
-                                lhs.span,
-                            ));
-                        }
-
-                        name.value.clone()
-                    }
-
-                    // `array[idx] = <rhs>`
-                    ExprKind::ArrayAccess { array, idx } => {
-                        // get variable behind array
-                        let array_node = self
-                            .compute_type(array, typed_fn_env)?
-                            .expect("type-checker bug: array access on an empty var");
-
-                        array_node
-                            .var_name
-                            .expect("anonymous array access cannot be mutated")
-                    }
-
-                    // `struct.field = <rhs>`
-                    ExprKind::FieldAccess { lhs, rhs } => {
-                        // get variable behind lhs
-                        let lhs_node = self
-                            .compute_type(lhs, typed_fn_env)?
-                            .expect("type-checker bug: lhs access on an empty var");
-
-                        lhs_node
-                            .var_name
-                            .expect("anonymous lhs access cannot be mutated")
-                    }
-                    _ => panic!("bad expression assignment (TODO: replace with error)"),
-                };
-
-                // check that the var exists locally
-                let lhs_info = typed_fn_env
-                    .get_type_info(&lhs_name)
-                    .expect("variable not found (TODO: replace with error")
-                    .clone();
-
-                // todo: remove this check
-                // and is mutable
-                if !lhs_info.mutable {
-                    return Err(self.error(ErrorKind::AssignmentToImmutableVariable, expr.span));
-                }
-
                 // and is of the same type as the rhs
                 let rhs_typ = self.compute_type(rhs, typed_fn_env)?.unwrap();
 
                 // todo: use exact match
-                if !rhs_typ.typ.match_expected(&lhs_node.typ) {
-                    panic!("lhs type doesn't match rhs type (TODO: replace with error)");
+                if !rhs_typ.typ.same_as(&lhs_node.typ) {
+                    panic!("lhs type doesn't match rhs type");
                 }
 
                 None
@@ -312,20 +367,6 @@ impl<B: Backend> Mast<B> {
                     .compute_type(rhs, typed_fn_env)?
                     .expect("type-checker bug");
 
-                // todo: remove this check
-                if lhs_node.typ != rhs_node.typ {
-                    // only allow bigint mixed with field
-                    match (&lhs_node.typ, &rhs_node.typ) {
-                        (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => (),
-                        _ => {
-                            return Err(self.error(
-                                ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
-                                expr.span,
-                            ))
-                        }
-                    }
-                }
-
                 let typ = match op {
                     Op2::Equality => TyKind::Bool,
                     Op2::Inequality => TyKind::Bool,
@@ -337,38 +378,39 @@ impl<B: Backend> Mast<B> {
                     | Op2::BoolOr => lhs_node.typ,
                 };
 
-                Some(ExprTyMInfo::new_anon(typ))
+                let cst = match (lhs_node.constant, rhs_node.constant) {
+                    (Some(lhs), Some(rhs)) => {
+                        let res = match op {
+                            Op2::Addition => Some(lhs + rhs),
+                            Op2::Subtraction => Some(lhs - rhs),
+                            Op2::Multiplication => Some(lhs * rhs),
+                            Op2::Division => Some(lhs / rhs),
+                            _ => None,
+                        };
+                        res
+                    }
+                    _ => None,
+                };
+
+                Some(ExprTyMInfo::new_anon(typ, cst))
             }
 
             ExprKind::Negated(inner) => {
-                let inner_typ = self.compute_type(inner, typed_fn_env)?.unwrap();
-                // todo: remove this check
-                if !matches!(inner_typ.typ, TyKind::Field | TyKind::BigInt) {
-                    return Err(self.error(
-                        ErrorKind::MismatchType(TyKind::Field, inner_typ.typ),
-                        expr.span,
-                    ));
-                }
+                // todo: can constant be negative?
+                // let inner_typ = self.compute_type(inner, typed_fn_env)?.unwrap();
+                // let cst = inner_typ.constant.map(|c| -c);
 
-                Some(ExprTyMInfo::new_anon(TyKind::Field))
+                Some(ExprTyMInfo::new_anon(TyKind::Field, None))
             }
 
-            ExprKind::Not(inner) => {
-                let inner_typ = self.compute_type(inner, typed_fn_env)?.unwrap();
-                // todo: remove this check
-                if !matches!(inner_typ.typ, TyKind::Bool) {
-                    return Err(self.error(
-                        ErrorKind::MismatchType(TyKind::Bool, inner_typ.typ),
-                        expr.span,
-                    ));
-                }
+            ExprKind::Not(_) => Some(ExprTyMInfo::new_anon(TyKind::Bool, None)),
 
-                Some(ExprTyMInfo::new_anon(TyKind::Bool))
+            ExprKind::BigUInt(inner) => {
+                let cst: u32 = inner.try_into().expect("biguint too large");
+                Some(ExprTyMInfo::new_anon(TyKind::BigInt, Some(cst)))
             }
 
-            ExprKind::BigUInt(_) => Some(ExprTyMInfo::new_anon(TyKind::BigInt)),
-
-            ExprKind::Bool(_) => Some(ExprTyMInfo::new_anon(TyKind::Bool)),
+            ExprKind::Bool(_) => Some(ExprTyMInfo::new_anon(TyKind::Bool, None)),
 
             // mod::path.of.var
             ExprKind::Variable { module, name } => {
@@ -377,43 +419,28 @@ impl<B: Backend> Mast<B> {
                 // todo: what is the case a Type can ba variable?
                 // todo: if it is not a local variable, can we just load the type from the tast.node_types?
                 if is_type(&name.value) {
-                    // if it's a type, make sure it exists
-                    let _struct_info = self
-                        .tast
-                        .struct_info(&qualified)
-                        .expect("custom type does not exist (TODO: better error)");
-
                     // and return its type
-                    let res = ExprTyMInfo::new_anon(TyKind::Custom {
-                        module: module.clone(),
-                        name: name.value.clone(),
-                    });
+                    let res = ExprTyMInfo::new_anon(
+                        TyKind::Custom {
+                            module: module.clone(),
+                            name: name.value.clone(),
+                        },
+                        None,
+                    );
                     Some(res)
                 } else {
                     // if it's a variable,
                     // check if it's a constant first
-                    let typ = if let Some(cst) = self.tast.constants.get(&qualified) {
-                        // if it's a field, we need to convert it to a bigint
-                        if matches!(cst.typ.kind, TyKind::Field) {
-                            TyKind::BigInt
-                        } else {
-                            cst.typ.kind.clone()
-                        }
+                    let res = if let Some(cst) = self.tast.constants.get(&qualified) {
+                        let bigint: BigUint = cst.value[0].into();
+                        let cst: u32 = bigint.try_into().expect("biguint too large");
+                        ExprTyMInfo::new_var(name.value.clone(), TyKind::BigInt, Some(cst))
                     } else {
                         // otherwise it's a local variable
-                        let typ = typed_fn_env
-                            .get_type(&name.value)
-                            .ok_or_else(|| self.error(ErrorKind::UndefinedVariable, name.span))?
-                            .clone();
-                        // if it's a field, we need to convert it to a bigint
-                        if matches!(typ, TyKind::Field) {
-                            TyKind::BigInt
-                        } else {
-                            typ
-                        }
+                        let mtype = typed_fn_env.get_type_info(&name.value).unwrap().clone();
+                        ExprTyMInfo::new_var(name.value.clone(), mtype.typ, mtype.value)
                     };
 
-                    let res = ExprTyMInfo::new_var(name.value.clone(), typ);
                     Some(res)
                 }
             }
@@ -422,27 +449,13 @@ impl<B: Backend> Mast<B> {
                 // get type of lhs
                 let typ = self.compute_type(array, typed_fn_env)?.unwrap();
 
-                // check that it is an array
-                // todo: remove this check
-                if !matches!(typ.typ, TyKind::Array(..)) {
-                    return Err(self.error(ErrorKind::ArrayAccessOnNonArray, expr.span));
-                }
-
-                // check that expression is a bigint
-                let idx_typ = self.compute_type(idx, typed_fn_env)?;
-                // todo: remove this check
-                match idx_typ.map(|t| t.typ) {
-                    Some(TyKind::BigInt) => (),
-                    _ => return Err(self.error(ErrorKind::ExpectedConstant, expr.span)),
-                };
-
                 // get type of element
                 let el_typ = match typ.typ {
                     TyKind::Array(typkind, _) => *typkind,
                     _ => panic!("not an array"),
                 };
 
-                let res = ExprTyMInfo::new(typ.var_name, el_typ);
+                let res = ExprTyMInfo::new(typ.var_name, el_typ, None);
                 Some(res)
             }
 
@@ -468,40 +481,14 @@ impl<B: Backend> Mast<B> {
                     }
                 }
 
-                let tykind = tykind.expect("empty array declaration?");
+                let res = self
+                    .compute_type(&items[0], typed_fn_env)?
+                    .expect("expected a value");
 
-                let res = ExprTyMInfo::new_anon(TyKind::Array(Box::new(tykind), len));
                 Some(res)
             }
 
             ExprKind::IfElse { cond, then_, else_ } => {
-                // cond can only be a boolean
-                let cond_node = self
-                    .compute_type(cond, typed_fn_env)?
-                    .expect("can't compute type of condition");
-                if !matches!(cond_node.typ, TyKind::Bool) {
-                    panic!("`if` must be followed by a boolean");
-                }
-
-                // then_ and else_ can only be variables, field accesses, or array accesses
-                if !matches!(
-                    &then_.kind,
-                    ExprKind::Variable { .. }
-                        | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
-                ) {
-                    panic!("`if` branch must be a variable, a field access, or an array access. It can't be logic that creates constraints.");
-                }
-
-                if !matches!(
-                    &else_.kind,
-                    ExprKind::Variable { .. }
-                        | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
-                ) {
-                    panic!("`else` branch must be a variable, a field access, or an array access. It can't be logic that creates constraints.");
-                }
-
                 // compute type of if/else branches
                 let then_node = self
                     .compute_type(then_, typed_fn_env)?
@@ -515,8 +502,7 @@ impl<B: Backend> Mast<B> {
                     panic!("`if` branch and `else` branch must have matching types");
                 }
 
-                //
-                Some(ExprTyMInfo::new_anon(then_node.typ))
+                Some(then_node)
             }
 
             ExprKind::CustomTypeDeclaration { custom, fields } => {
@@ -532,14 +518,6 @@ impl<B: Backend> Mast<B> {
 
                 let defined_fields = &struct_info.fields.clone();
 
-                // todo: remove this check
-                if defined_fields.len() != fields.len() {
-                    return Err(
-                        self.error(ErrorKind::MismatchStructFields(name.clone()), expr.span)
-                    );
-                }
-
-                // todo: infer for generic type
                 for (defined, observed) in defined_fields.iter().zip(fields) {
                     if defined.0 != observed.0.value {
                         return Err(self.error(
@@ -553,9 +531,10 @@ impl<B: Backend> Mast<B> {
 
                     let observed_typ = self
                         .compute_type(&observed.1, typed_fn_env)?
-                        .expect("expected a value (TODO: better error)");
+                        .expect("expected a value");
 
-                    if !observed_typ.typ.match_expected(&defined.1) {
+                    // todo: use exact match
+                    if !observed_typ.typ.same_as(&defined.1) {
                         return Err(self.error(
                             ErrorKind::InvalidStructFieldType(defined.1.clone(), observed_typ.typ),
                             expr.span,
@@ -563,10 +542,13 @@ impl<B: Backend> Mast<B> {
                     }
                 }
 
-                let res = ExprTyMInfo::new_anon(TyKind::Custom {
-                    module: module.clone(),
-                    name: name.clone(),
-                });
+                let res = ExprTyMInfo::new_anon(
+                    TyKind::Custom {
+                        module: module.clone(),
+                        name: name.clone(),
+                    },
+                    None,
+                );
                 Some(res)
             }
             ExprKind::RepeatedArrayDeclaration { item, size } => {
@@ -579,16 +561,14 @@ impl<B: Backend> Mast<B> {
                     .compute_type(size, typed_fn_env)?
                     .expect("expected a value (TODO: better error)");
 
-                // if !matches!(size_node.typ, TyKind::BigInt) {
-                //     return Err(self.error(ErrorKind::InvalidArraySize, expr.span));
-                // }
-                println!("size_node.typ: {:#?}", size_node.typ);
-                // todo: infer for generic type
-                let res = ExprTyMInfo::new_anon(TyKind::GenericArray(
-                    Box::new(item_node.typ),
-                    Symbolic::Generic(Ident::new("x".to_string(), size.span)),
-                ));
-                Some(res)
+                if let Some(cst) = size_node.constant {
+                    let res =
+                        ExprTyMInfo::new_anon(TyKind::Array(Box::new(item_node.typ), cst), None);
+                    Some(res)
+                } else {
+                    // todo: better error indicating that the size must be resolved
+                    return Err(self.error(ErrorKind::InvalidArraySize, expr.span));
+                }
             }
         };
 
@@ -603,25 +583,18 @@ impl<B: Backend> Mast<B> {
 
     pub fn check_block(
         &mut self,
-        typed_fn_env: &mut TypedFnEnv,
+        typed_fn_env: &mut MonomorphizedFnEnv,
         stmts: &[Stmt],
         expected_return: Option<&Ty>,
-    ) -> Result<()> {
-        // enter the scope
-        typed_fn_env.nest();
-
+    ) -> Result<Option<TyKind>> {
         let mut return_typ = None;
 
         for stmt in stmts {
-            if return_typ.is_some() {
-                panic!("early return detected: we don't allow that for now (TODO: return error");
-            }
-
             return_typ = self.check_stmt(typed_fn_env, stmt)?;
         }
 
-        // check the return 
-        match (expected_return, return_typ) {
+        // check the return
+        match (expected_return, return_typ.clone()) {
             (None, None) => (),
             (Some(expected), None) => {
                 return Err(self.error(ErrorKind::MissingReturn, expected.span))
@@ -630,7 +603,8 @@ impl<B: Backend> Mast<B> {
                 return Err(self.error(ErrorKind::NoReturnExpected, stmts.last().unwrap().span))
             }
             (Some(expected), Some(observed)) => {
-                if !observed.match_expected(&expected.kind) {
+                // todo: use exact match
+                if !observed.same_as(&expected.kind) {
                     return Err(self.error(
                         ErrorKind::ReturnTypeMismatch(expected.kind.clone(), observed.clone()),
                         expected.span,
@@ -639,61 +613,41 @@ impl<B: Backend> Mast<B> {
             }
         };
 
-        // exit the scope
-        typed_fn_env.pop();
-
-        Ok(())
+        Ok(return_typ)
     }
 
     pub fn check_stmt(
         &mut self,
-        typed_fn_env: &mut TypedFnEnv,
+        typed_fn_env: &mut MonomorphizedFnEnv,
         stmt: &Stmt,
     ) -> Result<Option<TyKind>> {
         match &stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } => {
-                // inferance can be easy: we can do it the Golang way and just use the type that rhs has (in `let` assignments)
-
                 // but first we need to compute the type of the rhs expression
                 let node = self.compute_type(rhs, typed_fn_env)?.unwrap();
-
-                let type_info = if *mutable {
-                    TypeInfo::new_mut(node.typ, lhs.span)
-                } else {
-                    TypeInfo::new(node.typ, lhs.span)
-                };
+                let type_info = MTypeInfo::new(node.typ, lhs.span, None);
 
                 // store the type of lhs in the env
                 typed_fn_env.store_type(lhs.value.clone(), type_info)?;
             }
             StmtKind::ForLoop { var, range, body } => {
-                // enter a new scope
-                typed_fn_env.nest();
+                for i in range.start..=range.end {
+                    // enter a new scope
+                    typed_fn_env.nest();
 
-                // create var (for now it's always a bigint)
-                typed_fn_env
-                    .store_type(var.value.clone(), TypeInfo::new(TyKind::BigInt, var.span))?;
+                    typed_fn_env.store_type(
+                        var.value.clone(),
+                        MTypeInfo::new(TyKind::BigInt, var.span, Some(i)),
+                    )?;
 
-                // ensure start..end makes sense
-                if range.end < range.start {
-                    panic!("end can't be smaller than start (TODO: better error)");
-                }
+                    // check block
+                    self.check_block(typed_fn_env, body, None)?;
 
-                // check block
-                self.check_block(typed_fn_env, body, None)?;
-
-                // exit the scope
-                typed_fn_env.pop();
-            }
-            StmtKind::Expr(expr) => {
-                // make sure the expression does not return any type
-                // (it's a statement expression, it should only work via side effect)
-
-                let typ = self.compute_type(expr, typed_fn_env)?;
-                if typ.is_some() {
-                    return Err(self.error(ErrorKind::UnusedReturnValue, expr.span));
+                    // exit the scope
+                    typed_fn_env.pop();
                 }
             }
+            StmtKind::Expr(expr) => (),
             StmtKind::Return(res) => {
                 let node = self.compute_type(res, typed_fn_env)?.unwrap();
 
@@ -709,22 +663,17 @@ impl<B: Backend> Mast<B> {
     /// Note that this can also be a method call.
     pub fn check_fn_call(
         &mut self,
-        typed_fn_env: &mut TypedFnEnv,
+        typed_fn_env: &mut MonomorphizedFnEnv,
         method_call: bool, // indicates if it's a fn call or a method call
-        fn_sig: FnSig,
+        fn_info: FnInfo<B>,
         args: &[Expr],
         span: Span,
     ) -> Result<Option<TyKind>> {
-        // check if a function names is in use already by another variable
-        // todo: remove this check
-        match typed_fn_env.get_type_info(&fn_sig.name.value) {
-            Some(_) => {
-                return Err(self.error(
-                    ErrorKind::FunctionNameInUsebyVariable(fn_sig.name.value),
-                    fn_sig.name.span,
-                ))
-            }
-            None => (),
+        let (fn_sig, stmts) = match &fn_info.kind {
+            FnKind::BuiltIn(sig, _) => {
+                (sig, Vec::<Stmt>::new())
+            },
+            FnKind::Native(func) => (&func.sig, func.body.clone()),
         };
 
         // canonicalize the arguments depending on method call or not
@@ -742,7 +691,7 @@ impl<B: Backend> Mast<B> {
         let mut observed = Vec::with_capacity(args.len());
         for arg in args {
             if let Some(node) = self.compute_type(arg, typed_fn_env)? {
-                observed.push((node.typ.clone(), arg.span));
+                observed.push((node, arg.span));
             } else {
                 return Err(self.error(ErrorKind::CannotComputeExpression, arg.span));
             }
@@ -756,40 +705,27 @@ impl<B: Backend> Mast<B> {
             ));
         }
 
+        typed_fn_env.nest();
         // compare argument types with the function signature
-        for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
-            // todo: infer generic values from the observed arg
-            match sig_arg.typ.kind {
+        for (sig_arg, (type_info, span)) in expected.iter().zip(observed) {
+            match &sig_arg.typ.kind {
                 TyKind::Generic(gen_name) => {
-                    // typed_fn_env.store_type(gen_name, type_info)
                     // infer the generic value from the observed type
-                    // store value by node_id
+                    typed_fn_env.store_type(
+                        gen_name.clone(),
+                        MTypeInfo::new(type_info.typ, span, type_info.constant),
+                    )?;
                 }
-            }
-            // generic array
-            // generic const
-            // match sig_arg.typ.kind {
-            //     TyKind::GenericArray(, )
-            //     TyKind::GenericConst(())
-            // }
-
-            // store the inferred value in fn_env
-
-            // should it just type check inferred expected type?
-            println!("sig_arg: {:#?}", sig_arg);
-            println!("observed typ: {:#?}", typ);
-            if !typ.match_expected(&sig_arg.typ.kind) {
-                return Err(self.error(
-                    ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
-                    span,
-                ));
+                TyKind::GenericArray(typ, _) => todo!("generic array"),
+                _ => (),
             }
         }
 
-        // todo: evaluate return type; convert GenericArray to Array using inferred values
 
-        // return the return type of the function
-        Ok(fn_sig.return_type.as_ref().map(|ty| ty.kind.clone()))
+        let res = self.check_block(typed_fn_env, &stmts, fn_sig.return_type.as_ref());
+        typed_fn_env.pop();
+
+        res
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
