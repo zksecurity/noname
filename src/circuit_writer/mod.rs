@@ -206,7 +206,7 @@ impl<B: Backend> CircuitWriter<B> {
 
         circuit_writer
             .backend
-            .finalize_circuit(public_output, returned_cells, main_span)?;
+            .finalize_circuit(public_output, returned_cells)?;
 
         //
         Ok(CompiledCircuit::new(circuit_writer))
