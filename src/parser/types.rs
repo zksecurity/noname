@@ -139,6 +139,10 @@ pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<(V
     Ok((args, span))
 }
 
+pub fn is_numeric(typ: &TyKind) -> bool {
+    matches!(typ, TyKind::Field | TyKind::BigInt | TyKind::Generic(_))
+}
+
 //~
 //~ ## Type
 //~
@@ -230,6 +234,7 @@ impl TyKind {
     pub fn match_expected(&self, expected: &TyKind) -> bool {
         match (self, expected) {
             (TyKind::BigInt, TyKind::Field) => true,
+            (TyKind::BigInt, TyKind::Generic(_)) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
@@ -254,7 +259,7 @@ impl TyKind {
         match (self, other) {
             (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
-                lhs_size == rhs_size && lhs.match_expected(rhs)
+                lhs_size == rhs_size && lhs.same_as(rhs)
             }
             (
                 TyKind::Custom { module, name },
@@ -317,10 +322,9 @@ impl Ty {
         let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
 
         match token.kind {
-            TokenKind::Generic(_) => {
+            TokenKind::Generic(name) => {
                 Ok(Self {
-                    // todo: replace with Generic
-                    kind: TyKind::BigInt,
+                    kind: TyKind::Generic(name),
                     span: token.span,
                 })
             }

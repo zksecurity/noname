@@ -6,10 +6,9 @@ fn init_arr<NN, MM>(nn: NN, mm: MM) -> [Field; NN * 2 + MM] {
 
 // current algo see -> [Field; 3 * 2 + 1] as GenericArray
 fn main(pub public_input: Field) -> [Field; 7] {
-    let arr = init_arr(3, 1);
-    //let mut arr = init_arr(3, 1);
-    //for ii in 0..7 {
-    //    arr[ii] = public_input;
-    //}
+    let mut arr = init_arr(3, 1);
+    for ii in 0..7 {
+        arr[ii] = public_input;
+    }
     return arr;
 }

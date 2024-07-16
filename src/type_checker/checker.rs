@@ -254,17 +254,14 @@ impl<B: Backend> TypeChecker<B> {
                     .compute_type(rhs, typed_fn_env)?
                     .expect("type-checker bug");
 
-                if lhs_node.typ != rhs_node.typ {
-                    // only allow bigint mixed with field
-                    match (&lhs_node.typ, &rhs_node.typ) {
-                        (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => (),
-                        _ => {
-                            return Err(self.error(
-                                ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
-                                expr.span,
-                            ))
-                        }
-                    }
+                if lhs_node.typ != rhs_node.typ
+                    && (!crate::parser::types::is_numeric(&lhs_node.typ)
+                        || !crate::parser::types::is_numeric(&rhs_node.typ))
+                {
+                    return Err(self.error(
+                        ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
+                        expr.span,
+                    ));
                 }
 
                 let typ = match op {
@@ -515,7 +512,8 @@ impl<B: Backend> TypeChecker<B> {
                     .compute_type(size, typed_fn_env)?
                     .expect("expected a value (TODO: better error)");
 
-                if let TyKind::BigInt = size_node.typ {
+                if crate::parser::types::is_numeric(&size_node.typ) {
+                    // create a GenericArray type to bypass the type check, as it might involve generic parameters
                     let res = ExprTyInfo::new_anon(TyKind::GenericArray(
                         Box::new(item_node.typ),
                         Symbolic::Generic(Ident::new("x".to_string(), size.span)),
@@ -703,8 +701,6 @@ impl<B: Backend> TypeChecker<B> {
             // store the inferred value in fn_env
 
             // should it just type check inferred expected type?
-            println!("sig_arg: {:#?}", sig_arg);
-            println!("observed typ: {:#?}", typ);
             if !typ.match_expected(&sig_arg.typ.kind) {
                 return Err(self.error(
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),

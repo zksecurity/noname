@@ -133,6 +133,14 @@ impl MonomorphizedFnEnv {
         }
     }
 
+    pub fn reassign_type(&mut self, ident: String, type_info: MTypeInfo) -> Result<()> {
+        self
+            .vars
+            .insert(ident.clone(), (self.current_scope, type_info.clone()));
+
+        Ok(())
+    }
+
     pub fn get_type(&self, ident: &str) -> Option<&TyKind> {
         self.get_type_info(ident).map(|type_info| &type_info.typ)
     }
@@ -180,7 +188,7 @@ impl<B: Backend> Mast<B> {
         self.node_types.get(&expr.node_id)
     }
 
-    pub fn monomorphize(&mut self, nast: NAST<B>) -> Result<()> {
+    pub fn monomorphize(&mut self) -> Result<()> {
         // process the main function
         // process fn calls
         // infer generic values from function args
@@ -188,63 +196,61 @@ impl<B: Backend> Mast<B> {
         // type check the observed return and the inferred expected return
 
         // store mtype in mast
+        let qualified = FullyQualified::local("main".to_string());
+        let main_fn = self.tast
+            .fn_info(&qualified)
+            .ok_or(self.error(ErrorKind::NoMainFunction, Span::default()))?;
 
-        for root in &nast.ast.0 {
-            match &root.kind {
-                // `fn main() { ... }`
-                RootKind::FunctionDef(function) => {
-                    // create a new typed fn environment to type check the function
-                    let mut typed_fn_env = MonomorphizedFnEnv::default();
+        let func_def =match &main_fn.kind {
+            // `fn main() { ... }`
+            FnKind::Native(function) => {
+                function.clone()
+            }
 
-                    // if we're expecting a library, this should not be the main function
-                    let is_main = function.is_main();
-                    if !is_main {
-                        continue;
-                    }
+            _ => panic!("main function must be native"),
+        };
 
-                    // store variables and their types in the fn_env
-                    for arg in &function.sig.arguments {
-                        // store the args' type in the fn environment
-                        let arg_typ = arg.typ.kind.clone();
+        // create a new typed fn environment to type check the function
+        let mut typed_fn_env = MonomorphizedFnEnv::default();
 
-                        typed_fn_env.store_type(
-                            arg.name.value.clone(),
-                            MTypeInfo::new(arg_typ, arg.span, None),
-                        )?;
-                    }
+        // store variables and their types in the fn_env
+        for arg in &func_def.sig.arguments {
+            // store the args' type in the fn environment
+            let arg_typ = arg.typ.kind.clone();
 
-                    // the output value returned by the main function is also a main_args with a special name (public_output)
-                    if let Some(typ) = &function.sig.return_type {
-                        match typ.kind {
-                            TyKind::Field => {
-                                typed_fn_env.store_type(
-                                    "public_output".to_string(),
-                                    MTypeInfo::new(typ.kind.clone(), typ.span, None),
-                                )?;
-                            }
-                            TyKind::Array(_, _) => {
-                                typed_fn_env.store_type(
-                                    "public_output".to_string(),
-                                    MTypeInfo::new(typ.kind.clone(), typ.span, None),
-                                )?;
-                            }
-                            _ => unimplemented!(),
-                        }
-                    }
-
-                    typed_fn_env.nest();
-                    // type system pass on the function body
-                    self.check_block(
-                        &mut typed_fn_env,
-                        &function.body,
-                        function.sig.return_type.as_ref(),
-                    )?;
-                    typed_fn_env.pop();
-                }
-
-                _ => (),
-            };
+            typed_fn_env.store_type(
+                arg.name.value.clone(),
+                MTypeInfo::new(arg_typ, arg.span, None),
+            )?;
         }
+
+        // the output value returned by the main function is also a main_args with a special name (public_output)
+        if let Some(typ) = &func_def.sig.return_type {
+            match typ.kind {
+                TyKind::Field => {
+                    typed_fn_env.store_type(
+                        "public_output".to_string(),
+                        MTypeInfo::new(typ.kind.clone(), typ.span, None),
+                    )?;
+                }
+                TyKind::Array(_, _) => {
+                    typed_fn_env.store_type(
+                        "public_output".to_string(),
+                        MTypeInfo::new(typ.kind.clone(), typ.span, None),
+                    )?;
+                }
+                _ => unimplemented!(),
+            }
+        }
+
+        typed_fn_env.nest();
+        // type system pass on the function body
+        self.check_block(
+            &mut typed_fn_env,
+            &func_def.body,
+            func_def.sig.return_type.as_ref(),
+        )?;
+        typed_fn_env.pop();
 
         Ok(())
     }
@@ -340,7 +346,11 @@ impl<B: Backend> Mast<B> {
 
                 // type check the method call
                 let method_call = true;
-                typed_fn_env.nest();
+
+                // store lhs type as the self arg
+                typed_fn_env.store_type("self".to_string(), lhs_type.unwrap());
+
+                // typed_fn_env.nest();
                 let res = self.check_fn_call(
                     typed_fn_env,
                     method_call,
@@ -348,7 +358,7 @@ impl<B: Backend> Mast<B> {
                     args,
                     expr.span,
                 )?;
-                typed_fn_env.pop();
+                // typed_fn_env.pop();
 
                 // assume the function call won't return constant value
                 res.map(|ty| ExprTyMInfo::new_anon(ty, None))
@@ -467,6 +477,8 @@ impl<B: Backend> Mast<B> {
                     _ => panic!("not an array"),
                 };
 
+                // todo: check the bounds of the array
+
                 let res = ExprTyMInfo::new(typ.var_name, el_typ, None);
                 Some(res)
             }
@@ -497,7 +509,9 @@ impl<B: Backend> Mast<B> {
                     .compute_type(&items[0], typed_fn_env)?
                     .expect("expected a value");
 
-                Some(res)
+                let mty = ExprTyMInfo::new_anon(TyKind::Array(Box::new(res.typ), len), None);
+
+                Some(mty)
             }
 
             ExprKind::IfElse { cond, then_, else_ } => {
@@ -618,7 +632,7 @@ impl<B: Backend> Mast<B> {
                 // todo: use exact match
                 if !observed.same_as(&expected.kind) {
                     return Err(self.error(
-                        ErrorKind::ReturnTypeMismatch(expected.kind.clone(), observed.clone()),
+                        ErrorKind::ReturnTypeMismatch(observed.clone(), expected.kind.clone()),
                         expected.span,
                     ));
                 }
@@ -643,23 +657,20 @@ impl<B: Backend> Mast<B> {
                 typed_fn_env.store_type(lhs.value.clone(), type_info)?;
             }
             StmtKind::ForLoop { var, range, body } => {
+                // todo: should we loop through each iteration of the block?
                 for i in range.start..=range.end {
-                    // enter a new scope
-                    typed_fn_env.nest();
-
-                    typed_fn_env.store_type(
+                    typed_fn_env.reassign_type(
                         var.value.clone(),
                         MTypeInfo::new(TyKind::BigInt, var.span, Some(i)),
                     )?;
 
                     // check block
                     self.check_block(typed_fn_env, body, None)?;
-
-                    // exit the scope
-                    typed_fn_env.pop();
                 }
             }
-            StmtKind::Expr(expr) => (),
+            StmtKind::Expr(expr) => {
+                self.compute_type(expr, typed_fn_env)?;
+            },
             StmtKind::Return(res) => {
                 let node = self.compute_type(res, typed_fn_env)?.unwrap();
 
@@ -717,30 +728,93 @@ impl<B: Backend> Mast<B> {
             ));
         }
 
-        typed_fn_env.nest();
+        // create a context for the function call
+        let typed_fn_env = &mut MonomorphizedFnEnv::new();
+
+        // typed_fn_env.nest();
         // compare argument types with the function signature
         for (sig_arg, (type_info, span)) in expected.iter().zip(observed) {
+            // println!("{:?} {:?}", sig_arg, type_info);
             match &sig_arg.typ.kind {
                 TyKind::Generic(gen_name) => {
                     // infer the generic value from the observed type
+                    let val = type_info.constant;
+                    let mty = MTypeInfo::new(type_info.typ, span, val);
+
+                    // store the inferred value for generic parameter
                     typed_fn_env.store_type(
                         gen_name.clone(),
-                        MTypeInfo::new(type_info.typ, span, type_info.constant),
+                        mty.clone(),
+                    )?;
+
+                    // store local var value
+                    typed_fn_env.store_type(
+                        sig_arg.name.value.clone(),
+                        mty,
                     )?;
                 }
                 TyKind::GenericArray(typ, _) => todo!("generic array"),
-                _ => (),
+                _ => {
+                    // store the type of the argument in the env
+                    typed_fn_env.store_type(
+                        sig_arg.name.value.clone(),
+                        MTypeInfo::new(type_info.typ.clone(), span, type_info.constant),
+                    )?;
+                },
             }
         }
 
+        // evaluate generic return types using inferred values
+        let ret_ty = match &fn_sig.return_type {
+            Some(ret_ty) => {
+                match &ret_ty.kind {
+                    TyKind::Generic(gen_name) => {
+                        // let val = eval_generic_array_size(&ret_ty.size, typed_fn_env);
+                        // let mty = MTypeInfo::new(ret_ty.kind.clone(), ret_ty.span, Some(val));
+                        // typed_fn_env.store_type(gen_name.clone(), mty)?;
+                        todo!()
+                    }
+                    TyKind::GenericArray(typ, size) => {
+                        let val = eval_generic_array_size(size, typed_fn_env);
+                        let tykind = TyKind::Array(typ.clone(), val);
+                        Some(Ty {
+                            kind: tykind,
+                            span: ret_ty.span,
+                        })
+                    },
+                    _ => Some(ret_ty.clone()),
+                }
+            }
+            None => None,
+        };
 
-        let res = self.check_block(typed_fn_env, &stmts, fn_sig.return_type.as_ref());
-        typed_fn_env.pop();
+        let res = self.check_block(typed_fn_env, &stmts, ret_ty.as_ref());
+        // typed_fn_env.pop();
 
         res
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
         Error::new("mast", kind, span)
+    }
+}
+
+pub fn eval_generic_array_size(
+    sym: &Symbolic,
+    typed_fn_env: &MonomorphizedFnEnv,
+) -> u32 {
+    match sym {
+        Symbolic::Concrete(v) => *v,
+        Symbolic::Generic(g) => typed_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
+        Symbolic::Add(a, b) => {
+            let a = eval_generic_array_size(a, typed_fn_env);
+            let b = eval_generic_array_size(b, typed_fn_env);
+            a + b
+        }
+        Symbolic::Mul(a, b) => {
+            let a = eval_generic_array_size(a, typed_fn_env);
+            let b = eval_generic_array_size(b, typed_fn_env);
+            a * b
+        }
     }
 }
