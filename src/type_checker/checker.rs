@@ -8,7 +8,7 @@ use crate::{
     error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FnSig, FunctionDef, Stmt, StmtKind, Ty, TyKind},
+        types::{FnSig, FunctionDef, Ident, Stmt, StmtKind, Symbolic, Ty, TyKind},
         CustomType, Expr, ExprKind, Op2,
     },
     syntax::is_type,
@@ -45,28 +45,28 @@ pub struct StructInfo {
 
 /// Information that we need to pass around between expression nodes when type checking.
 #[derive(Debug)]
-struct ExprTyInfo {
+pub struct ExprTyInfo {
     /// This is needed to obtain information on variables.
     /// For example, parsing of an assignment expression needs to know if the lhs variable is mutable.
-    var_name: Option<String>,
+    pub var_name: Option<String>,
 
     /// The type of the expression node.
-    typ: TyKind,
+    pub typ: TyKind,
 }
 
 impl ExprTyInfo {
-    fn new(var_name: Option<String>, typ: TyKind) -> Self {
+    pub fn new(var_name: Option<String>, typ: TyKind) -> Self {
         Self { var_name, typ }
     }
 
-    fn new_var(var_name: String, typ: TyKind) -> Self {
+    pub fn new_var(var_name: String, typ: TyKind) -> Self {
         Self {
             var_name: Some(var_name),
             typ,
         }
     }
 
-    fn new_anon(typ: TyKind) -> Self {
+    pub fn new_anon(typ: TyKind) -> Self {
         Self {
             var_name: None,
             typ,
@@ -128,7 +128,9 @@ impl<B: Backend> TypeChecker<B> {
 
                 // type check the function call
                 let method_call = false;
+                // todo: may need to call fn_env.nest()
                 let res = self.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)?;
+                // todo: may need to call fn_env.pop()
 
                 res.map(ExprTyInfo::new_anon)
             }
@@ -252,17 +254,14 @@ impl<B: Backend> TypeChecker<B> {
                     .compute_type(rhs, typed_fn_env)?
                     .expect("type-checker bug");
 
-                if lhs_node.typ != rhs_node.typ {
-                    // only allow bigint mixed with field
-                    match (&lhs_node.typ, &rhs_node.typ) {
-                        (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => (),
-                        _ => {
-                            return Err(self.error(
-                                ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
-                                expr.span,
-                            ))
-                        }
-                    }
+                if lhs_node.typ != rhs_node.typ
+                    && (!crate::parser::types::is_numeric(&lhs_node.typ)
+                        || !crate::parser::types::is_numeric(&rhs_node.typ))
+                {
+                    return Err(self.error(
+                        ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
+                        expr.span,
+                    ));
                 }
 
                 let typ = match op {
@@ -357,7 +356,7 @@ impl<B: Backend> TypeChecker<B> {
                 let typ = self.compute_type(array, typed_fn_env)?.unwrap();
 
                 // check that it is an array
-                if !matches!(typ.typ, TyKind::Array(..)) {
+                if !matches!(typ.typ, TyKind::Array(..) | TyKind::GenericArray(..)) {
                     return Err(self.error(ErrorKind::ArrayAccessOnNonArray, expr.span));
                 }
 
@@ -371,6 +370,7 @@ impl<B: Backend> TypeChecker<B> {
                 // get type of element
                 let el_typ = match typ.typ {
                     TyKind::Array(typkind, _) => *typkind,
+                    TyKind::GenericArray(typkind, _) => *typkind,
                     _ => panic!("not an array"),
                 };
 
@@ -383,6 +383,9 @@ impl<B: Backend> TypeChecker<B> {
 
                 let mut tykind: Option<TyKind> = None;
 
+                // todo: add test case:
+                // works: [[0; N], [1; N]]
+                // should fail: [[0; N], [1; N + 1]]
                 for item in items {
                     let item_typ = self
                         .compute_type(item, typed_fn_env)?
@@ -498,6 +501,27 @@ impl<B: Backend> TypeChecker<B> {
                     name: name.clone(),
                 });
                 Some(res)
+            }
+            ExprKind::RepeatedArrayDeclaration { item, size } => {
+                let item_node = self
+                    .compute_type(item, typed_fn_env)?
+                    .expect("expected a value (TODO: better error)");
+
+                // expect the size node to be a u32
+                let size_node = self
+                    .compute_type(size, typed_fn_env)?
+                    .expect("expected a value (TODO: better error)");
+
+                if crate::parser::types::is_numeric(&size_node.typ) {
+                    // create a GenericArray type to bypass the type check, as it might involve generic parameters
+                    let res = ExprTyInfo::new_anon(TyKind::GenericArray(
+                        Box::new(item_node.typ),
+                        Symbolic::Generic(Ident::new("x".to_string(), size.span)),
+                    ));
+                    Some(res)
+                } else {
+                    return Err(self.error(ErrorKind::InvalidArraySize, expr.span));
+                }
             }
         };
 
@@ -666,6 +690,17 @@ impl<B: Backend> TypeChecker<B> {
 
         // compare argument types with the function signature
         for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
+            // todo: infer generic values from the observed arg
+            // generic array
+            // generic const
+            // match sig_arg.typ.kind {
+            //     TyKind::GenericArray(, )
+            //     TyKind::GenericConst(())
+            // }
+
+            // store the inferred value in fn_env
+
+            // should it just type check inferred expected type?
             if !typ.match_expected(&sig_arg.typ.kind) {
                 return Err(self.error(
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),

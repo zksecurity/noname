@@ -472,3 +472,21 @@ fn test_types_array_output(#[case] backend: BackendKind) -> miette::Result<()> {
 
     Ok(())
 }
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_repeated_array(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"public_input":"1"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_repeated_array",
+        public_inputs,
+        private_inputs,
+        vec!["1", "1", "1", "1", "1", "1", "1"],
+        backend,
+    )?;
+
+    Ok(())
+}

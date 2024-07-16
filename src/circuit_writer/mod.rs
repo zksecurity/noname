@@ -1,14 +1,8 @@
 use crate::{
-    backends::Backend,
-    constants::Span,
-    error::{Error, ErrorKind, Result},
-    parser::{
+    backends::Backend, constants::Span, error::{Error, ErrorKind, Result}, mast::Mast, parser::{
         types::{AttributeKind, FnArg, TyKind},
         Expr,
-    },
-    type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
-    var::Var,
-    witness::{CompiledCircuit, WitnessEnv},
+    }, type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker}, var::Var, witness::{CompiledCircuit, WitnessEnv}
 };
 
 pub use fn_env::{FnEnv, VarInfo};
@@ -29,7 +23,7 @@ where
     // Important: this field must not be used directly.
     // This is because, depending on the value of [current_module],
     // the type checker state might be this one, or one of the ones in [dependencies].
-    typed: TypeChecker<B>,
+    mast: Mast<B>,
 
     /// The constraint backend for the circuit.
     /// For now, this needs to be exposed for the kimchi prover for kimchi specific low level data.
@@ -59,28 +53,28 @@ pub struct DebugInfo {
 
 impl<B: Backend> CircuitWriter<B> {
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
-        self.typed.expr_type(expr)
+        self.mast.expr_type(expr)
     }
 
     // TODO: can we get rid of this?
     pub fn node_type(&self, node_id: usize) -> Option<&TyKind> {
-        self.typed.node_type(node_id)
+        self.mast.tast.node_type(node_id)
     }
 
     pub fn struct_info(&self, qualified: &FullyQualified) -> Option<&StructInfo> {
-        self.typed.struct_info(qualified)
+        self.mast.tast.struct_info(qualified)
     }
 
     pub fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<B>> {
-        self.typed.fn_info(qualified)
+        self.mast.tast.fn_info(qualified)
     }
 
     pub fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
-        self.typed.const_info(qualified)
+        self.mast.tast.const_info(qualified)
     }
 
     pub fn size_of(&self, typ: &TyKind) -> usize {
-        self.typed.size_of(typ)
+        self.mast.tast.size_of(typ)
     }
 
     pub fn add_local_var(
@@ -91,7 +85,7 @@ impl<B: Backend> CircuitWriter<B> {
     ) {
         // check for consts first
         let qualified = FullyQualified::local(var_name.clone());
-        if let Some(_cst_info) = self.typed.const_info(&qualified) {
+        if let Some(_cst_info) = self.mast.tast.const_info(&qualified) {
             panic!(
                 "type checker bug: we already have a constant with the same name (`{var_name}`)!"
             );
@@ -108,7 +102,7 @@ impl<B: Backend> CircuitWriter<B> {
     ) -> VarInfo<B::Field, B::Var> {
         // check for consts first
         let qualified = FullyQualified::local(var_name.to_string());
-        if let Some(cst_info) = self.typed.const_info(&qualified) {
+        if let Some(cst_info) = self.mast.tast.const_info(&qualified) {
             let var = Var::new_constant_typ(cst_info, cst_info.typ.span);
             return VarInfo::new(var, false, Some(TyKind::Field));
         }
@@ -122,7 +116,8 @@ impl<B: Backend> CircuitWriter<B> {
     /// if there's no main function it'll panic.
     pub fn main_info(&self) -> Result<&FnInfo<B>> {
         let qualified = FullyQualified::local("main".to_string());
-        self.typed
+        self.mast
+            .tast
             .fn_info(&qualified)
             .ok_or(self.error(ErrorKind::NoMainFunction, Span::default()))
     }
@@ -134,15 +129,15 @@ impl<B: Backend> CircuitWriter<B> {
 
 impl<B: Backend> CircuitWriter<B> {
     /// Creates a global environment from the one created by the type checker.
-    fn new(typed: TypeChecker<B>, backend: B) -> Self {
+    fn new(typed: Mast<B>, backend: B) -> Self {
         Self {
-            typed,
+            mast: typed,
             backend,
             public_output: None,
         }
     }
 
-    pub fn generate_circuit(typed: TypeChecker<B>, backend: B) -> Result<CompiledCircuit<B>> {
+    pub fn generate_circuit(typed: Mast<B>, backend: B) -> Result<CompiledCircuit<B>> {
         // create circuit writer
         let mut circuit_writer = CircuitWriter::new(typed, backend);
 
