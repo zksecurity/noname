@@ -318,7 +318,7 @@ where
     fn add_constant(
         &mut self,
         //todo: do we need this?
-        label: Option<&'static str>,
+        _label: Option<&'static str>,
         value: F,
         span: Span,
     ) -> LinearCombination<F> {
@@ -335,7 +335,7 @@ where
         &mut self,
         public_output: Option<crate::var::Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<LinearCombination<F>>>,
-        main_span: Span,
+        _main_span: Span,
     ) -> crate::error::Result<()> {
         // store the return value in the public input that was created for that
         if let Some(public_output) = public_output {
