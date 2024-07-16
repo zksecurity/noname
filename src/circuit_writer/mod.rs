@@ -195,12 +195,19 @@ impl<B: Backend> CircuitWriter<B> {
 
         // constraint public outputs to the result of the circuit
         if let Some(public_output) = &public_output {
+            let span = match circuit_writer.main_info().as_ref().unwrap() {
+                FnInfo {
+                    kind: crate::imports::FnKind::Native(fn_def),
+                    ..
+                } => fn_def.body.last().unwrap().span,
+                _ => unreachable!(),
+            };
             let cvars = &public_output.cvars;
 
             for (pub_var, ret_var) in cvars.iter().zip(&returned_cells.clone().unwrap()) {
                 circuit_writer
                     .backend
-                    .assert_eq_var(pub_var.cvar().unwrap(), ret_var, main_span);
+                    .assert_eq_var(pub_var.cvar().unwrap(), ret_var, span);
             }
         }
 
