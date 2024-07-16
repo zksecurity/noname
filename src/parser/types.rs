@@ -1075,11 +1075,11 @@ impl Stmt {
 
                 // return xx;
                 //          ^
-                tokens.bump_expected(ctx, TokenKind::SemiColon)?;
+                let end_token = tokens.bump_expected(ctx, TokenKind::SemiColon)?;
 
                 Ok(Stmt {
                     kind: StmtKind::Return(Box::new(expr)),
-                    span,
+                    span: span.merge_with(end_token.span),
                 })
             }
 
