@@ -299,13 +299,23 @@ impl<B: Backend> Mast<B> {
                 fn_name,
                 args,
             } => {
+                // compute the observed arguments types
+                let mut observed = Vec::with_capacity(args.len());
+                for arg in args {
+                    if let Some(node) = self.compute_type(arg, typed_fn_env)? {
+                        observed.push((node, arg.span));
+                    } else {
+                        return Err(self.error(ErrorKind::CannotComputeExpression, arg.span));
+                    }
+                }
+
                 // retrieve the function signature
                 let qualified = FullyQualified::new(&module, &fn_name.value);
                 let fn_info = self.tast.fn_info(&qualified).unwrap();
 
                 // type check the function call
                 let method_call = false;
-                let res = self.check_fn_call(typed_fn_env, method_call, fn_info.clone(), args, expr.span)?;
+                let res = self.check_fn_call(method_call, fn_info.clone(), &observed, expr.span)?;
 
                 // assume the function call won't return constant value
                 res.map(|ty| ExprTyMInfo::new_anon(ty, None))
@@ -347,15 +357,30 @@ impl<B: Backend> Mast<B> {
                 // type check the method call
                 let method_call = true;
 
+                // compute the observed arguments types
+                let mut observed = Vec::with_capacity(args.len());
+                if let Some(self_arg) = fn_info.sig().arguments.first() {
+                    if self_arg.name.value == "self" {
+                        observed.push((self.compute_type(lhs, typed_fn_env)?.unwrap(), lhs.span));
+                    }
+                }
+
+                for arg in args {
+                    if let Some(node) = self.compute_type(arg, typed_fn_env)? {
+                        observed.push((node, arg.span));
+                    } else {
+                        return Err(self.error(ErrorKind::CannotComputeExpression, arg.span));
+                    }
+                }
+
                 // store lhs type as the self arg
-                typed_fn_env.store_type("self".to_string(), lhs_type.unwrap());
+                // typed_fn_env.store_type("self".to_string(), lhs_type.unwrap());
 
                 // typed_fn_env.nest();
                 let res = self.check_fn_call(
-                    typed_fn_env,
                     method_call,
                     fn_info,
-                    args,
+                    &observed,
                     expr.span,
                 )?;
                 // typed_fn_env.pop();
@@ -620,22 +645,12 @@ impl<B: Backend> Mast<B> {
         }
 
         // check the return
-        match (expected_return, return_typ.clone()) {
-            (None, None) => (),
-            (Some(expected), None) => {
-                return Err(self.error(ErrorKind::MissingReturn, expected.span))
-            }
-            (None, Some(_)) => {
-                return Err(self.error(ErrorKind::NoReturnExpected, stmts.last().unwrap().span))
-            }
-            (Some(expected), Some(observed)) => {
-                // todo: use exact match
-                if !observed.same_as(&expected.kind) {
-                    return Err(self.error(
-                        ErrorKind::ReturnTypeMismatch(observed.clone(), expected.kind.clone()),
-                        expected.span,
-                    ));
-                }
+        if let (Some(expected), Some(observed)) = (expected_return, return_typ.clone()) {
+            if !observed.same_as(&expected.kind) {
+                return Err(self.error(
+                    ErrorKind::ReturnTypeMismatch(observed.clone(), expected.kind.clone()),
+                    expected.span,
+                ));
             }
         };
 
@@ -658,14 +673,16 @@ impl<B: Backend> Mast<B> {
             }
             StmtKind::ForLoop { var, range, body } => {
                 // todo: should we loop through each iteration of the block?
-                for i in range.start..=range.end {
-                    typed_fn_env.reassign_type(
+                for i in range.start..range.end {
+                    typed_fn_env.nest();
+                    typed_fn_env.store_type(
                         var.value.clone(),
                         MTypeInfo::new(TyKind::BigInt, var.span, Some(i)),
                     )?;
 
                     // check block
                     self.check_block(typed_fn_env, body, None)?;
+                    typed_fn_env.pop();
                 }
             }
             StmtKind::Expr(expr) => {
@@ -686,10 +703,9 @@ impl<B: Backend> Mast<B> {
     /// Note that this can also be a method call.
     pub fn check_fn_call(
         &mut self,
-        typed_fn_env: &mut MonomorphizedFnEnv,
         method_call: bool, // indicates if it's a fn call or a method call
         fn_info: FnInfo<B>,
-        args: &[Expr],
+        args: &[(ExprTyMInfo, Span)],
         span: Span,
     ) -> Result<Option<TyKind>> {
         let (fn_sig, stmts) = match &fn_info.kind {
@@ -700,30 +716,12 @@ impl<B: Backend> Mast<B> {
         };
 
         // canonicalize the arguments depending on method call or not
-        let expected: Vec<_> = if method_call {
-            fn_sig
-                .arguments
-                .iter()
-                .filter(|arg| arg.name.value != "self")
-                .collect()
-        } else {
-            fn_sig.arguments.iter().collect()
-        };
-
-        // compute the observed arguments types
-        let mut observed = Vec::with_capacity(args.len());
-        for arg in args {
-            if let Some(node) = self.compute_type(arg, typed_fn_env)? {
-                observed.push((node, arg.span));
-            } else {
-                return Err(self.error(ErrorKind::CannotComputeExpression, arg.span));
-            }
-        }
+        let expected: Vec<_> = fn_sig.arguments.iter().collect();
 
         // check argument length
-        if expected.len() != observed.len() {
+        if expected.len() != args.len() {
             return Err(self.error(
-                ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
+                ErrorKind::MismatchFunctionArguments(args.len(), expected.len()),
                 span,
             ));
         }
@@ -733,13 +731,13 @@ impl<B: Backend> Mast<B> {
 
         // typed_fn_env.nest();
         // compare argument types with the function signature
-        for (sig_arg, (type_info, span)) in expected.iter().zip(observed) {
+        for (sig_arg, (type_info, span)) in expected.iter().zip(args) {
             // println!("{:?} {:?}", sig_arg, type_info);
             match &sig_arg.typ.kind {
                 TyKind::Generic(gen_name) => {
                     // infer the generic value from the observed type
                     let val = type_info.constant;
-                    let mty = MTypeInfo::new(type_info.typ, span, val);
+                    let mty = MTypeInfo::new(type_info.typ.clone(), *span, val);
 
                     // store the inferred value for generic parameter
                     typed_fn_env.store_type(
@@ -758,7 +756,7 @@ impl<B: Backend> Mast<B> {
                     // store the type of the argument in the env
                     typed_fn_env.store_type(
                         sig_arg.name.value.clone(),
-                        MTypeInfo::new(type_info.typ.clone(), span, type_info.constant),
+                        MTypeInfo::new(type_info.typ.clone(), *span, type_info.constant),
                     )?;
                 },
             }
@@ -788,10 +786,16 @@ impl<B: Backend> Mast<B> {
             None => None,
         };
 
-        let res = self.check_block(typed_fn_env, &stmts, ret_ty.as_ref());
-        // typed_fn_env.pop();
-
-        res
+        match fn_info.kind {
+            FnKind::BuiltIn(_, _) => {
+                // directly return the expected return type
+                Ok(ret_ty.map(|ty| ty.kind))
+            }
+            FnKind::Native(_) => {
+                // check the block
+                self.check_block(typed_fn_env, &stmts, ret_ty.as_ref())
+            }
+        }
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {

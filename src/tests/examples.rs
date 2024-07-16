@@ -481,7 +481,7 @@ fn test_generic_repeated_array(#[case] backend: BackendKind) -> miette::Result<(
     let private_inputs = r#"{}"#;
 
     test_file(
-        "generic-repeated-array",
+        "generic_repeated_array",
         public_inputs,
         private_inputs,
         vec!["1", "1", "1", "1", "1", "1", "1"],
