@@ -651,7 +651,6 @@
 <a href="#651" id="651">651</a>
 <a href="#652" id="652">652</a>
 <a href="#653" id="653">653</a>
-<a href="#654" id="654">654</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>arkworks;
 <span class="kw">pub mod </span>builtin;
 <span class="kw">pub mod </span>snarkjs;
@@ -989,7 +988,6 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         public_output: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::var::Var&lt;<span class="self">Self</span>::Field, <span class="self">Self</span>::Var&gt;&gt;,
         returned_cells: <span class="prelude-ty">Option</span>&lt;Vec&lt;LinearCombination&lt;F&gt;&gt;&gt;,
-        main_span: Span,
     ) -&gt; <span class="kw">crate</span>::error::Result&lt;()&gt; {
         <span class="comment">// store the return value in the public input that was created for that
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(public_output) = public_output {

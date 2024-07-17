@@ -2313,11 +2313,11 @@
 
                 <span class="comment">// return xx;
                 //          ^
-                </span>tokens.bump_expected(ctx, TokenKind::SemiColon)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>end_token = tokens.bump_expected(ctx, TokenKind::SemiColon)<span class="question-mark">?</span>;
 
                 <span class="prelude-val">Ok</span>(Stmt {
                     kind: StmtKind::Return(Box::new(expr)),
-                    span,
+                    span: span.merge_with(end_token.span),
                 })
             }
 

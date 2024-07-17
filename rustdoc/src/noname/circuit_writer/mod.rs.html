@@ -261,6 +261,13 @@
 <a href="#261" id="261">261</a>
 <a href="#262" id="262">262</a>
 <a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
 </pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     backends::Backend,
     constants::Span,
@@ -458,18 +465,25 @@
 
         <span class="comment">// constraint public outputs to the result of the circuit
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(public_output) = <span class="kw-2">&amp;</span>public_output {
+            <span class="kw">let </span>span = <span class="kw">match </span>circuit_writer.main_info().as_ref().unwrap() {
+                FnInfo {
+                    kind: <span class="kw">crate</span>::imports::FnKind::Native(fn_def),
+                    ..
+                } =&gt; fn_def.body.last().unwrap().span,
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+            };
             <span class="kw">let </span>cvars = <span class="kw-2">&amp;</span>public_output.cvars;
 
             <span class="kw">for </span>(pub_var, ret_var) <span class="kw">in </span>cvars.iter().zip(<span class="kw-2">&amp;</span>returned_cells.clone().unwrap()) {
                 circuit_writer
                     .backend
-                    .assert_eq_var(pub_var.cvar().unwrap(), ret_var, main_span);
+                    .assert_eq_var(pub_var.cvar().unwrap(), ret_var, span);
             }
         }
 
         circuit_writer
             .backend
-            .finalize_circuit(public_output, returned_cells, main_span)<span class="question-mark">?</span>;
+            .finalize_circuit(public_output, returned_cells)<span class="question-mark">?</span>;
 
         <span class="comment">//
         </span><span class="prelude-val">Ok</span>(CompiledCircuit::new(circuit_writer))
