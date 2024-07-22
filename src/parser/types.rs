@@ -1,5 +1,6 @@
 use educe::Educe;
 use std::{
+    collections::HashSet,
     fmt::Display,
     hash::{Hash, Hasher},
     str::FromStr,
@@ -138,6 +139,10 @@ pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<(V
     Ok((args, span))
 }
 
+pub fn is_numeric(typ: &TyKind) -> bool {
+    matches!(typ, TyKind::Field | TyKind::BigInt | TyKind::Generic(_))
+}
+
 //~
 //~ ## Type
 //~
@@ -195,12 +200,16 @@ pub enum TyKind {
     // U16,
     // U32,
     // U64,
+
+    /// A generic type for a numeric variable.
+    Generic(String),
 }
 
 impl TyKind {
     pub fn match_expected(&self, expected: &TyKind) -> bool {
         match (self, expected) {
-            (TyKind::BigInt, TyKind::Field) => true,
+            (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => true,
+            (TyKind::BigInt, TyKind::Generic(_)) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
@@ -258,6 +267,7 @@ impl Display for TyKind {
             TyKind::BigInt => write!(f, "BigInt"),
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
+            TyKind::Generic(v) => write!(f, "Generic({})", v),
         }
     }
 }
@@ -281,6 +291,10 @@ impl Ty {
         let token = tokens.bump_err(ctx, ErrorKind::MissingType)?;
 
         match token.kind {
+            TokenKind::Generic(name) => Ok(Self {
+                kind: TyKind::Generic(name),
+                span: token.span,
+            }),
             // module::Type or Type
             // ^^^^^^^^^^^^    ^^^^
             TokenKind::Identifier(ty_name) => {
@@ -372,7 +386,7 @@ impl Ty {
 //~
 //~ Backus–Naur Form (BNF) grammar:
 //~
-//~ fn_sig ::= ident "(" param { "," param } ")" [ return_val ]
+//~ fn_sig ::= ident ["<" ident "," ident ">"] "(" param { "," param } ")" [ return_val ]
 //~ return_val ::= "->" type
 //~ param ::= { "pub" } ident ":" type
 //~
@@ -381,6 +395,8 @@ impl FnSig {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let (name, kind) = FuncOrMethod::parse(ctx, tokens)?;
 
+        let generics = FunctionDef::parse_generics(ctx, tokens)?;
+
         let arguments = FunctionDef::parse_args(ctx, tokens, &kind)?;
 
         let return_type = FunctionDef::parse_fn_return_type(ctx, tokens)?;
@@ -388,6 +404,7 @@ impl FnSig {
         Ok(Self {
             kind,
             name,
+            generics,
             arguments,
             return_type,
         })
@@ -486,6 +503,7 @@ impl Default for FuncOrMethod {
 pub struct FnSig {
     pub kind: FuncOrMethod,
     pub name: Ident,
+    pub generics: HashSet<String>,
     /// (pub, ident, type)
     pub arguments: Vec<FnArg>,
     pub return_type: Option<Ty>,
@@ -576,6 +594,59 @@ impl FuncOrMethod {
 impl FunctionDef {
     pub fn is_main(&self) -> bool {
         self.sig.name.value == "main"
+    }
+
+    pub fn parse_generics(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<HashSet<String>> {
+        let mut generics = HashSet::new();
+
+        // <A, B>
+        // ^
+        if matches!(
+            tokens.peek(),
+            Some(Token {
+                kind: TokenKind::Less,
+                ..
+            })
+        ) {
+            tokens.bump(ctx);
+
+            loop {
+                // <A, B>
+                //  ^
+                let name = tokens.bump_generic(
+                    ctx,
+                    ErrorKind::InvalidFunctionSignature("expected generic parameter"),
+                )?;
+
+                generics.insert(name);
+
+                match tokens.bump_err(
+                    ctx,
+                    ErrorKind::InvalidFunctionSignature("expected `,` or `>`"),
+                )? {
+                    // <A, B>
+                    //   ^
+                    Token {
+                        kind: TokenKind::Comma,
+                        ..
+                    } => (),
+                    // <A, B>
+                    //      ^
+                    Token {
+                        kind: TokenKind::Greater,
+                        ..
+                    } => break,
+                    _ => {
+                        return Err(ctx.error(
+                            ErrorKind::InvalidFunctionSignature("expected `,` or `>`"),
+                            ctx.last_span(),
+                        ));
+                    }
+                }
+            }
+        }
+
+        Ok(generics)
     }
 
     pub fn parse_args(

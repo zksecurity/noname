@@ -79,4 +79,15 @@ impl Tokens {
             None => Err(ctx.error(kind, ctx.last_span())),
         }
     }
+
+    pub fn bump_generic(&mut self, ctx: &mut ParserCtx, kind: ErrorKind) -> Result<String> {
+        match self.bump(ctx) {
+            Some(Token {
+                kind: TokenKind::Generic(name),
+                span,
+            }) => Ok(name),
+            Some(token) => Err(ctx.error(kind, token.span)),
+            None => Err(ctx.error(kind, ctx.last_span())),
+        }
+    }
 }

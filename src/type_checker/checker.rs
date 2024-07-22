@@ -11,7 +11,7 @@ use crate::{
         types::{FnSig, FunctionDef, Stmt, StmtKind, Ty, TyKind},
         CustomType, Expr, ExprKind, Op2,
     },
-    syntax::is_type,
+    syntax::{is_generic_parameter, is_type},
 };
 
 use super::{FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
@@ -24,6 +24,8 @@ where
 {
     pub kind: FnKind<B>,
     pub span: Span,
+    // todo: generics for inferred values
+    // - will be useful for builtins that will need to know the generic values
 }
 
 impl<B: Backend> FnInfo<B> {
@@ -252,17 +254,15 @@ impl<B: Backend> TypeChecker<B> {
                     .compute_type(rhs, typed_fn_env)?
                     .expect("type-checker bug");
 
-                if lhs_node.typ != rhs_node.typ {
-                    // only allow bigint mixed with field
-                    match (&lhs_node.typ, &rhs_node.typ) {
-                        (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => (),
-                        _ => {
-                            return Err(self.error(
-                                ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
-                                expr.span,
-                            ))
-                        }
-                    }
+                // generic parameter is assumed to be of numeric type
+                if lhs_node.typ != rhs_node.typ
+                    && (!crate::parser::types::is_numeric(&lhs_node.typ)
+                        || !crate::parser::types::is_numeric(&rhs_node.typ))
+                {
+                    return Err(self.error(
+                        ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
+                        expr.span,
+                    ));
                 }
 
                 let typ = match op {
@@ -311,7 +311,8 @@ impl<B: Backend> TypeChecker<B> {
             ExprKind::Variable { module, name } => {
                 let qualified = FullyQualified::new(module, &name.value);
 
-                if is_type(&name.value) {
+                // generic parameter should be checked as a local variable
+                if is_type(&name.value) && !is_generic_parameter(&name.value) {
                     // if it's a type, make sure it exists
                     let _struct_info = self
                         .struct_info(&qualified)
@@ -365,6 +366,7 @@ impl<B: Backend> TypeChecker<B> {
                 let idx_typ = self.compute_type(idx, typed_fn_env)?;
                 match idx_typ.map(|t| t.typ) {
                     Some(TyKind::BigInt) => (),
+                    Some(TyKind::Generic(_)) => (),
                     _ => return Err(self.error(ErrorKind::ExpectedConstant, expr.span)),
                 };
 

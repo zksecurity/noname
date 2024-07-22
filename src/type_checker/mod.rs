@@ -127,6 +127,7 @@ impl<B: Backend> TypeChecker<B> {
             }
             TyKind::BigInt => 1,
             TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
+            TyKind::Generic(_) => unreachable!("generic should have been resolved"),
             TyKind::Bool => 1,
         }
     }
@@ -329,6 +330,15 @@ impl<B: Backend> TypeChecker<B> {
                             self.functions.insert(qualified, fn_info);
                         }
                     };
+
+                    // store generic parameters as local vars in the fn_env
+                    for gen in &function.sig.generics {
+                        typed_fn_env.store_type(
+                            gen.to_string(),
+                            // todo: let generic vars carry their span
+                            TypeInfo::new(TyKind::Generic(gen.to_string()), function.span),
+                        )?;
+                    }
 
                     // store variables and their types in the fn_env
                     for arg in &function.sig.arguments {

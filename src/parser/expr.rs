@@ -1,4 +1,4 @@
-use crate::syntax::is_type;
+use crate::syntax::{is_generic_parameter, is_type};
 use crate::{
     constants::Span,
     error::{ErrorKind, Result},
@@ -141,6 +141,16 @@ impl Expr {
         let lhs = match token.kind {
             // numeric
             TokenKind::BigUInt(b) => Expr::new(ctx, ExprKind::BigUInt(b), span),
+
+            // generic
+            TokenKind::Generic(n) => Expr::new(
+                ctx,
+                ExprKind::Variable {
+                    module: ModulePath::Local,
+                    name: Ident::new(n, span),
+                },
+                span,
+            ),
 
             // identifier
             TokenKind::Identifier(value) => {
@@ -446,6 +456,11 @@ impl Expr {
             }) => {
                 let ident = match &self.kind {
                     ExprKind::Variable { module, name } => {
+                        // probably generic on a for loop range
+                        if is_generic_parameter(&name.value) {
+                            return Ok(self);
+                        }
+
                         // probably an if condition
                         if !is_type(&name.value) {
                             return Ok(self);
