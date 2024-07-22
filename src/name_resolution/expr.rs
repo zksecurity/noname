@@ -78,6 +78,10 @@ impl NameResCtx {
                     self.resolve_expr(expr)?;
                 }
             }
+            ExprKind::RepeatedArrayDeclaration { item, size } => {
+                self.resolve_expr(item)?;
+                self.resolve_expr(size)?;
+            }
             ExprKind::CustomTypeDeclaration {
                 custom: struct_name,
                 fields,

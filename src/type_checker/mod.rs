@@ -127,6 +127,7 @@ impl<B: Backend> TypeChecker<B> {
             }
             TyKind::BigInt => 1,
             TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
+            TyKind::GenericArray(_, _) => unreachable!("generic arrays should have been resolved"),
             TyKind::Generic(_) => unreachable!("generic should have been resolved"),
             TyKind::Bool => 1,
         }

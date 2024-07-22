@@ -177,6 +177,25 @@ pub enum ModulePath {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum Symbolic {
+    Concrete(u32),
+    Generic(Ident),
+    Add(Box<Symbolic>, Box<Symbolic>),
+    Mul(Box<Symbolic>, Box<Symbolic>),
+}
+
+impl Display for Symbolic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Symbolic::Concrete(n) => write!(f, "{}", n),
+            Symbolic::Generic(ident) => write!(f, "{}", ident.value),
+            Symbolic::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
+            Symbolic::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum TyKind {
     /// The main primitive type. 'Nuf said.
     // TODO: Field { constant: bool },
@@ -203,9 +222,15 @@ pub enum TyKind {
 
     /// A generic type for a numeric variable.
     Generic(String),
+
+    /// An array with symbolic size.
+    /// This is an intermediate type.
+    /// After monomorphized, it will be converted to `Array`.
+    GenericArray(Box<TyKind>, Symbolic),
 }
 
 impl TyKind {
+    /// A less strict checks when comparing with generic types.
     pub fn match_expected(&self, expected: &TyKind) -> bool {
         match (self, expected) {
             (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => true,
@@ -213,6 +238,9 @@ impl TyKind {
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
+            (TyKind::GenericArray(lhs, _), TyKind::GenericArray(rhs, _))
+            | (TyKind::Array(lhs, _), TyKind::GenericArray(rhs, _))
+            | (TyKind::GenericArray(lhs, _), TyKind::Array(rhs, _)) => lhs.match_expected(rhs),
             (
                 TyKind::Custom { module, name },
                 TyKind::Custom {
@@ -225,11 +253,12 @@ impl TyKind {
         }
     }
 
+    /// A exact match check, assuming there is no generic type.
     pub fn same_as(&self, other: &TyKind) -> bool {
         match (self, other) {
             (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
-                lhs_size == rhs_size && lhs.match_expected(rhs)
+                lhs_size == rhs_size && lhs.same_as(rhs)
             }
             (
                 TyKind::Custom { module, name },
@@ -268,6 +297,7 @@ impl Display for TyKind {
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
             TyKind::Generic(v) => write!(f, "Generic({})", v),
+            TyKind::GenericArray(ty, size) => write!(f, "[{}; {}]", ty, size),
         }
     }
 }
@@ -348,31 +378,123 @@ impl Ty {
 
                 // [type; size]
                 //         ^
-                let siz = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
-                let siz: u32 = match siz.kind {
-                    TokenKind::BigUInt(b) => b
-                        .try_into()
-                        .map_err(|_e| ctx.error(ErrorKind::InvalidArraySize, siz.span))?,
-                    _ => {
-                        return Err(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
-                                num_bigint::BigUint::zero(),
-                            )),
-                            siz.span,
-                        ));
-                    }
-                };
+                let siz_first = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
 
                 // [type; size]
                 //            ^
-                let right_paren = tokens.bump_expected(ctx, TokenKind::RightBracket)?;
+                let siz_second = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
 
-                let span = span.merge_with(right_paren.span);
+                // return Array(ty, siz) if size is a number and right_paren is ]
+                match (&siz_first.kind, &siz_second.kind) {
+                    (TokenKind::BigUInt(b), TokenKind::RightBracket) => {
+                        let siz: u32 = b
+                            .try_into()
+                            .map_err(|_e| ctx.error(ErrorKind::InvalidArraySize, siz_first.span))?;
+                        let span = span.merge_with(siz_second.span);
 
-                Ok(Ty {
-                    kind: TyKind::Array(Box::new(ty.kind), siz),
-                    span,
-                })
+                        Ok(Ty {
+                            kind: TyKind::Array(Box::new(ty.kind), siz),
+                            span,
+                        })
+                    }
+                    // otherwise assume it is a GenericArray
+                    // [Field; NN]
+                    //         ^^^
+                    (TokenKind::Generic(name), TokenKind::RightBracket) => {
+                        let siz = Ident::new(name.to_string(), siz_first.span);
+                        let span = span.merge_with(siz_second.span);
+
+                        Ok(Ty {
+                            kind: TyKind::GenericArray(Box::new(ty.kind), Symbolic::Generic(siz)),
+                            span,
+                        })
+                    }
+                    // [Field; NN * 2 + MM]
+                    //         ^^^^^^^^^^^^
+                    _ => {
+                        // [Field; NN * 2 + MM]
+                        //         ^^^^^^
+                        let mut sym_lhs = match siz_first.kind {
+                            TokenKind::BigUInt(b) => {
+                                Symbolic::Concrete(b.try_into().map_err(|_e| {
+                                    ctx.error(ErrorKind::InvalidArraySize, siz_first.span)
+                                })?)
+                            }
+                            TokenKind::Generic(name) => {
+                                Symbolic::Generic(Ident::new(name, siz_first.span))
+                            }
+                            _ => return Err(ctx.error(ErrorKind::InvalidArraySize, siz_first.span)),
+                        };
+
+                        let mut sym_op = siz_second.kind;
+
+                        // todo: restrict to only one operator
+
+                        // [Field; NN * 2 + MM]
+                        //              ^^^^^^^
+                        loop {
+                            // [Field; NN * 2 + MM]
+                            //              ^
+                            let sym_rhs = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
+
+                            sym_lhs = match sym_op {
+                                TokenKind::Plus => match sym_rhs.kind {
+                                    TokenKind::Generic(name) => Symbolic::Add(
+                                        Box::new(sym_lhs),
+                                        Box::new(Symbolic::Generic(Ident::new(name, sym_rhs.span))),
+                                    ),
+                                    TokenKind::BigUInt(b) => Symbolic::Add(
+                                        Box::new(sym_lhs),
+                                        Box::new(Symbolic::Concrete(b.try_into().map_err(
+                                            |_e| {
+                                                ctx.error(ErrorKind::InvalidArraySize, sym_rhs.span)
+                                            },
+                                        )?)),
+                                    ),
+                                    _ => {
+                                        return Err(
+                                            ctx.error(ErrorKind::InvalidArraySize, sym_rhs.span)
+                                        );
+                                    }
+                                },
+                                TokenKind::Star => match sym_rhs.kind {
+                                    TokenKind::Generic(name) => Symbolic::Mul(
+                                        Box::new(sym_lhs),
+                                        Box::new(Symbolic::Generic(Ident::new(name, sym_rhs.span))),
+                                    ),
+                                    TokenKind::BigUInt(b) => Symbolic::Mul(
+                                        Box::new(sym_lhs),
+                                        Box::new(Symbolic::Concrete(b.try_into().map_err(
+                                            |_e| {
+                                                ctx.error(ErrorKind::InvalidArraySize, sym_rhs.span)
+                                            },
+                                        )?)),
+                                    ),
+                                    _ => {
+                                        return Err(
+                                            ctx.error(ErrorKind::InvalidArraySize, sym_rhs.span)
+                                        );
+                                    }
+                                },
+                                _ => {
+                                    return Err(
+                                        ctx.error(ErrorKind::InvalidArraySize, siz_second.span)
+                                    );
+                                }
+                            };
+
+                            // [Field; NN * 2 + MM]
+                            //                ^   ^
+                            sym_op = tokens.bump_err(ctx, ErrorKind::InvalidToken)?.kind;
+                            if sym_op == TokenKind::RightBracket {
+                                return Ok(Ty {
+                                    kind: TyKind::GenericArray(Box::new(ty.kind), sym_lhs),
+                                    span: span.merge_with(sym_rhs.span),
+                                });
+                            }
+                        }
+                    }
+                }
             }
 
             // unrecognized

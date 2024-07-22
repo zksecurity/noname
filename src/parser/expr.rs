@@ -103,6 +103,9 @@ pub enum ExprKind {
     /// `[ ... ]`
     ArrayDeclaration(Vec<Expr>),
 
+    /// `[item; size]`
+    RepeatedArrayDeclaration { item: Box<Expr>, size: Box<Expr> },
+
     /// `name { fields }`
     CustomTypeDeclaration {
         custom: CustomType,
@@ -297,52 +300,93 @@ impl Expr {
                 let mut items = vec![];
                 let last_span;
 
-                // [1, 2];
+                // check if if it's an array declaration with a default value
+                // [item; size];
                 //  ^^^^
-                loop {
-                    let token = tokens.peek();
+                let first_item = Expr::parse(ctx, tokens)?;
 
-                    // [1, 2];
-                    //      ^
-                    if let Some(Token {
-                        kind: TokenKind::RightBracket,
-                        span,
-                    }) = token
-                    {
-                        last_span = span;
+                // [item; size];
+                //      ^
+                let second_token = tokens.peek();
+
+                match second_token {
+                    // case of default array declaration
+                    Some(Token {
+                        kind: TokenKind::SemiColon,
+                        span: _,
+                    }) => {
+                        // last_span = first_item.span;
                         tokens.bump(ctx);
-                        break;
-                    };
 
-                    // [1, 2];
-                    //  ^
-                    let item = Expr::parse(ctx, tokens)?;
-                    items.push(item);
+                        // [item; size];
+                        //        ^^^^
+                        let size = Expr::parse(ctx, tokens)?;
 
-                    // [1, 2];
-                    //   ^  ^
-                    let token = tokens.bump_err(ctx, ErrorKind::InvalidEndOfLine)?;
-                    match &token.kind {
-                        TokenKind::RightBracket => {
-                            last_span = token.span;
-                            break;
+                        // [item; size];
+                        //            ^
+                        tokens.bump_expected(ctx, TokenKind::RightBracket)?;
+
+                        Expr::new(
+                            ctx,
+                            ExprKind::RepeatedArrayDeclaration {
+                                item: Box::new(first_item),
+                                size: Box::new(size.clone()),
+                            },
+                            span.merge_with(size.span),
+                        )
+                    }
+                    // otherwise fallback to concrete array declaration
+                    _ => {
+                        items.push(first_item);
+                        // [1, 2];
+                        //  ^^^^
+                        loop {
+                            // [1, 2];
+                            //   ^  ^
+                            let token = tokens.bump_err(ctx, ErrorKind::InvalidEndOfLine)?;
+                            match &token.kind {
+                                TokenKind::RightBracket => {
+                                    last_span = token.span;
+                                    break;
+                                }
+                                TokenKind::Comma => (),
+                                _ => return Err(ctx.error(ErrorKind::InvalidEndOfLine, token.span)),
+                            };
+
+                            let token = tokens.peek();
+
+                            // [1, 2];
+                            //      ^
+                            if let Some(Token {
+                                kind: TokenKind::RightBracket,
+                                span,
+                            }) = token
+                            {
+                                last_span = span;
+                                tokens.bump(ctx);
+                                break;
+                            };
+
+                            // [1, 2];
+                            //  ^
+                            let item = Expr::parse(ctx, tokens)?;
+                            items.push(item);
                         }
-                        TokenKind::Comma => (),
-                        _ => return Err(ctx.error(ErrorKind::InvalidEndOfLine, token.span)),
-                    };
-                }
 
-                if items.is_empty() {
-                    return Err(
-                        ctx.error(ErrorKind::UnexpectedError("empty array declaration"), span)
-                    );
-                }
+                        if items.is_empty() {
+                            return Err(ctx.error(
+                                ErrorKind::UnexpectedError("empty array declaration"),
+                                span,
+                            ));
+                        }
 
-                Expr::new(
-                    ctx,
-                    ExprKind::ArrayDeclaration(items),
-                    span.merge_with(last_span),
-                )
+                        Expr::new(
+                            ctx,
+                            ExprKind::ArrayDeclaration(items),
+                            span.merge_with(last_span),
+                        )
+                    }
+                }
             }
 
             // unrecognized pattern
