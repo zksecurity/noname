@@ -9,6 +9,10 @@ impl Expr {
         let span = self.span;
         let kind = kind.clone();
 
-        Expr { node_id, span, kind }
+        Expr {
+            node_id,
+            span,
+            kind,
+        }
     }
 }

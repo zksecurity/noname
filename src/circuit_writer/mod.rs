@@ -116,10 +116,7 @@ impl<B: Backend> CircuitWriter<B> {
     /// if there's no main function it'll panic.
     pub fn main_info(&self) -> Result<&FunctionDef> {
         if self.typed.main_fn_ast.is_none() {
-            return Err(self.error(
-                ErrorKind::NoMainFunction,
-                Span::default(),
-            ));
+            return Err(self.error(ErrorKind::NoMainFunction, Span::default()));
         }
 
         Ok(self.typed.main_fn_ast.as_ref().unwrap())

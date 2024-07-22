@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
 use num_bigint::BigUint;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     backends::Backend,
@@ -8,16 +8,13 @@ use crate::{
     imports::FnKind,
     parser::{
         types::{FnArg, FnSig, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
-        CustomType, Expr, ExprKind, FunctionDef, Op2, 
+        CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
     syntax::{is_generic_parameter, is_type},
-    type_checker::{
-        ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker, 
-    },
+    type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
 };
 
 pub mod ast;
-
 
 /// ExprMonoInfo holds the monomorphized expression node and its resolved type.
 #[derive(Debug, Clone)]
@@ -37,11 +34,7 @@ pub struct ExprMonoInfo {
 }
 
 impl ExprMonoInfo {
-    pub fn new(
-        expr: Expr,
-        typ: Option<TyKind>,
-        value: Option<u32>,
-    ) -> Self {
+    pub fn new(expr: Expr, typ: Option<TyKind>, value: Option<u32>) -> Self {
         if value.is_some() && !matches!(typ, Some(TyKind::BigInt)) {
             panic!("value can only be set for BigInt type");
         }
@@ -80,7 +73,11 @@ pub struct MTypeInfo {
 
 impl MTypeInfo {
     pub fn new(typ: &TyKind, span: Span, value: Option<u32>) -> Self {
-        Self { typ: typ.clone(), span, value }
+        Self {
+            typ: typ.clone(),
+            span,
+            value,
+        }
     }
 }
 
@@ -492,24 +489,20 @@ impl<B: Backend> Mast<B> {
                 };
 
                 let cst = match (lhs_mono.constant, rhs_mono.constant) {
-                    (Some(lhs), Some(rhs)) => {
-                        match op {
-                            Op2::Addition => Some(lhs + rhs),
-                            Op2::Subtraction => Some(lhs - rhs),
-                            Op2::Multiplication => Some(lhs * rhs),
-                            Op2::Division => Some(lhs / rhs),
-                            _ => None,
-                        }
-                    }
+                    (Some(lhs), Some(rhs)) => match op {
+                        Op2::Addition => Some(lhs + rhs),
+                        Op2::Subtraction => Some(lhs - rhs),
+                        Op2::Multiplication => Some(lhs * rhs),
+                        Op2::Division => Some(lhs / rhs),
+                        _ => None,
+                    },
                     _ => None,
                 };
 
                 match cst {
                     Some(v) => {
-                        let mexpr = expr.to_mast(
-                            &mut self.ctx,
-                            &ExprKind::BigUInt(BigUint::from(v)),
-                        );
+                        let mexpr =
+                            expr.to_mast(&mut self.ctx, &ExprKind::BigUInt(BigUint::from(v)));
 
                         ExprMonoInfo::new(mexpr, typ, Some(v))
                     }
@@ -533,10 +526,8 @@ impl<B: Backend> Mast<B> {
                 // todo: can constant be negative?
                 let inner_mono = self.monomorphize_expr(inner, typed_fn_env)?;
 
-                let mexpr = expr.to_mast(
-                    &mut self.ctx,
-                    &ExprKind::Negated(Box::new(inner_mono.expr)),
-                );
+                let mexpr =
+                    expr.to_mast(&mut self.ctx, &ExprKind::Negated(Box::new(inner_mono.expr)));
 
                 ExprMonoInfo::new(mexpr, Some(TyKind::Field), None)
             }
@@ -544,29 +535,20 @@ impl<B: Backend> Mast<B> {
             ExprKind::Not(inner) => {
                 let inner_mono = self.monomorphize_expr(inner, typed_fn_env)?;
 
-                let mexpr = expr.to_mast(
-                    &mut self.ctx,
-                    &ExprKind::Not(Box::new(inner_mono.expr)),
-                );
+                let mexpr = expr.to_mast(&mut self.ctx, &ExprKind::Not(Box::new(inner_mono.expr)));
 
                 ExprMonoInfo::new(mexpr, Some(TyKind::Bool), None)
             }
 
             ExprKind::BigUInt(inner) => {
                 let cst: u32 = inner.try_into().expect("biguint too large");
-                let mexpr = expr.to_mast(
-                    &mut self.ctx,
-                    &ExprKind::BigUInt(inner.clone()),
-                );
+                let mexpr = expr.to_mast(&mut self.ctx, &ExprKind::BigUInt(inner.clone()));
 
                 ExprMonoInfo::new(mexpr, Some(TyKind::BigInt), Some(cst))
             }
 
             ExprKind::Bool(inner) => {
-                let mexpr = expr.to_mast(
-                    &mut self.ctx,
-                    &ExprKind::Bool(*inner),
-                );
+                let mexpr = expr.to_mast(&mut self.ctx, &ExprKind::Bool(*inner));
 
                 ExprMonoInfo::new(mexpr, Some(TyKind::Bool), None)
             }
@@ -604,16 +586,9 @@ impl<B: Backend> Mast<B> {
                     // check if it's a constant first
                     let bigint: BigUint = cst.value[0].into();
                     let cst: u32 = bigint.clone().try_into().expect("biguint too large");
-                    let mexpr = expr.to_mast(
-                        &mut self.ctx,
-                        &ExprKind::BigUInt(bigint),
-                    );
+                    let mexpr = expr.to_mast(&mut self.ctx, &ExprKind::BigUInt(bigint));
 
-                    ExprMonoInfo::new(
-                        mexpr,
-                        Some(TyKind::BigInt),
-                        Some(cst),
-                    )
+                    ExprMonoInfo::new(mexpr, Some(TyKind::BigInt), Some(cst))
                 } else {
                     // otherwise it's a local variable
                     let mexpr = expr.to_mast(
@@ -680,9 +655,7 @@ impl<B: Backend> Mast<B> {
 
                 let mexpr = expr.to_mast(
                     &mut self.ctx,
-                    &ExprKind::ArrayDeclaration(
-                        items_mono.into_iter().map(|e| e.expr).collect(),
-                    ),
+                    &ExprKind::ArrayDeclaration(items_mono.into_iter().map(|e| e.expr).collect()),
                 );
 
                 let item_typ = tykind.expect("expected a value");
@@ -744,10 +717,7 @@ impl<B: Backend> Mast<B> {
 
                     if !typ_mono.same_as(&defined.1) {
                         return Err(self.error(
-                            ErrorKind::InvalidStructFieldType(
-                                defined.1.clone(),
-                                typ_mono.clone(),
-                            ),
+                            ErrorKind::InvalidStructFieldType(defined.1.clone(), typ_mono.clone()),
                             expr.span,
                         ));
                     }
@@ -759,7 +729,7 @@ impl<B: Backend> Mast<B> {
                     &mut self.ctx,
                     &ExprKind::CustomTypeDeclaration {
                         custom: custom.clone(),
-                        fields: fields_mono
+                        fields: fields_mono,
                     },
                 );
 
@@ -993,10 +963,8 @@ impl<B: Backend> Mast<B> {
                     let typ = type_info.typ.as_ref().expect("expected a value");
                     let cst = type_info.constant;
                     // store the type of the argument in the env
-                    typed_fn_env.store_type(
-                        &sig_arg.name.value,
-                        &MTypeInfo::new(typ, *span, cst),
-                    )?;
+                    typed_fn_env
+                        .store_type(&sig_arg.name.value, &MTypeInfo::new(typ, *span, cst))?;
                 }
             }
         }
@@ -1018,22 +986,20 @@ impl<B: Backend> Mast<B> {
 
         // evaluate generic return types using inferred values
         let ret_ty = match &fn_sig.return_type {
-            Some(ret_ty) => {
-                match &ret_ty.kind {
-                    TyKind::Generic(_) => {
-                        unreachable!()
-                    }
-                    TyKind::GenericArray(typ, size) => {
-                        let val = eval_generic_array_size(size, typed_fn_env);
-                        let tykind = TyKind::Array(typ.clone(), val);
-                        Some(Ty {
-                            kind: tykind,
-                            span: ret_ty.span,
-                        })
-                    }
-                    _ => Some(ret_ty.clone()),
+            Some(ret_ty) => match &ret_ty.kind {
+                TyKind::Generic(_) => {
+                    unreachable!()
                 }
-            }
+                TyKind::GenericArray(typ, size) => {
+                    let val = eval_generic_array_size(size, typed_fn_env);
+                    let tykind = TyKind::Array(typ.clone(), val);
+                    Some(Ty {
+                        kind: tykind,
+                        span: ret_ty.span,
+                    })
+                }
+                _ => Some(ret_ty.clone()),
+            },
             None => None,
         };
 
@@ -1054,7 +1020,8 @@ impl<B: Backend> Mast<B> {
                 }
             }
             FnKind::Native(fn_def) => {
-                let (stmts, typ) = self.monomorphize_block(typed_fn_env, &stmts, ret_ty.as_ref())?;
+                let (stmts, typ) =
+                    self.monomorphize_block(typed_fn_env, &stmts, ret_ty.as_ref())?;
 
                 let ret_typ = match typ {
                     Some(t) => Some(Ty {

@@ -614,7 +614,7 @@ impl<B: Backend> TypeChecker<B> {
                 if !is_numeric(&start_type.typ) || !is_numeric(&end_type.typ) {
                     return Err(self.error(ErrorKind::InvalidRangeSize, range.span));
                 }
-                
+
                 // check block
                 self.check_block(typed_fn_env, body, None)?;
 

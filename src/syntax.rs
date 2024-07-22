@@ -40,7 +40,7 @@ pub fn is_identifier(s: &str) -> bool {
             .all(|c| (c.is_ascii_alphabetic() && c.is_lowercase()) || c.is_numeric() || c == '_')
 }
 
-// todo: add camel case check in is_type to exclude generic pattern from type's 
+// todo: add camel case check in is_type to exclude generic pattern from type's
 /// Returns true if the given string is generic parameter
 pub fn is_generic_parameter(s: &str) -> bool {
     let mut chars = s.chars();

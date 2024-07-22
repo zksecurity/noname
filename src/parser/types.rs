@@ -219,7 +219,6 @@ pub enum TyKind {
     // U16,
     // U32,
     // U64,
-
     /// A generic type for a numeric variable.
     Generic(String),
 
