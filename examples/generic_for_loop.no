@@ -1,0 +1,27 @@
+fn join<NN, MM>(arr1: [Field; NN], arr2: [Field; MM]) -> [Field; NN + MM] {
+    let mut arr = [0; NN + MM];
+    for ii in 0..NN {
+        arr[ii] = arr1[ii];
+    }
+
+    //for jj in NN..MM {
+    //    arr[jj] = arr2[jj];// howcome this doesn't throw out of bound error?
+    //}
+    for jj in 0..MM {
+        arr[jj + NN] = arr2[jj];
+    }
+
+    return arr;
+}
+
+fn main(pub xx: Field) {
+    let arr1 = [xx + 1, xx + 2];
+    let arr2 = [xx + 3, xx + 4];
+    
+    let arr = join(arr1, arr2);
+
+    assert_eq(arr[0], arr1[0]);
+    assert_eq(arr[1], arr1[1]);
+    assert_eq(arr[2], arr2[0]);
+    assert_eq(arr[3], arr2[1]);
+}

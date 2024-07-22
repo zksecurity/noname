@@ -1,0 +1,9 @@
+fn last<NN>(arr: [Field; NN]) -> Field {
+    return arr[NN - 1];
+}
+
+fn main(pub xx: Field) {
+    let array = [xx + 1, xx + 2, xx + 3];
+    let elm = last(array);
+    assert_eq(elm, 4);
+}

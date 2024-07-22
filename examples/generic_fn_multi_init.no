@@ -1,0 +1,11 @@
+fn last<NN>(arr: [Field; NN]) -> Field {
+    return arr[NN - 1];
+}
+
+fn main(pub xx: Field) {
+    let arr1 = [xx + 1, xx + 2];
+    let arr2 = [xx + 4, xx + 5];
+    let e1 = last(arr1); // 3
+    let e2 = last(arr2); // 6
+    assert_eq(e1 + e2, 9);
+}
