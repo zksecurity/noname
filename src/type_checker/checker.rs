@@ -609,11 +609,12 @@ impl<B: Backend> TypeChecker<B> {
                 typed_fn_env
                     .store_type(var.value.clone(), TypeInfo::new(TyKind::BigInt, var.span))?;
 
-                // ensure start..end makes sense
-                if range.end < range.start {
-                    panic!("end can't be smaller than start (TODO: better error)");
+                let start_type = self.compute_type(&range.start, typed_fn_env)?.unwrap();
+                let end_type = self.compute_type(&range.end, typed_fn_env)?.unwrap();
+                if !is_numeric(&start_type.typ) || !is_numeric(&end_type.typ) {
+                    return Err(self.error(ErrorKind::InvalidRangeSize, range.span));
                 }
-
+                
                 // check block
                 self.check_block(typed_fn_env, body, None)?;
 

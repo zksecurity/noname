@@ -1051,15 +1051,9 @@ pub fn is_valid_fn_type(name: &str) -> bool {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Range {
-    pub start: u32,
-    pub end: u32,
+    pub start: Expr,
+    pub end: Expr,
     pub span: Span,
-}
-
-impl Range {
-    pub fn range(&self) -> std::ops::Range<u32> {
-        self.start..self.end
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1157,25 +1151,7 @@ impl Stmt {
 
                 // for i in 0..5 { ... }
                 //          ^
-                let (start, start_span) = match tokens.bump(ctx) {
-                    Some(Token {
-                        kind: TokenKind::BigUInt(n),
-                        span,
-                    }) => {
-                        let start: u32 = n
-                            .try_into()
-                            .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
-                        (start, span)
-                    }
-                    _ => {
-                        return Err(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
-                                num_bigint::BigUint::zero(),
-                            )),
-                            ctx.last_span(),
-                        ))
-                    }
-                };
+                let start = Expr::parse(ctx, tokens)?;
 
                 // for i in 0..5 { ... }
                 //           ^^
@@ -1183,25 +1159,10 @@ impl Stmt {
 
                 // for i in 0..5 { ... }
                 //             ^
-                let (end, end_span) = match tokens.bump(ctx) {
-                    Some(Token {
-                        kind: TokenKind::BigUInt(n),
-                        span,
-                    }) => {
-                        let end: u32 = n
-                            .try_into()
-                            .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
-                        (end, span)
-                    }
-                    _ => {
-                        return Err(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
-                                num_bigint::BigUint::zero(),
-                            )),
-                            ctx.last_span(),
-                        ))
-                    }
-                };
+                let end = Expr::parse(ctx, tokens)?;
+
+                let start_span = start.span;
+                let end_span = end.span;
 
                 let range = Range {
                     start,

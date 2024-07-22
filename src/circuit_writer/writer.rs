@@ -138,7 +138,25 @@ impl<B: Backend> CircuitWriter<B> {
             }
 
             StmtKind::ForLoop { var, range, body } => {
-                for ii in range.range() {
+                // compute the start and end of the range
+                let start_bg: BigUint = self
+                    .compute_expr(fn_env, &range.start)?
+                    .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, stmt.span))?
+                    .constant()
+                    .expect("expected constant")
+                    .into();
+                let start: u32 = start_bg.try_into().expect("start index is too big");
+
+                let end_bg: BigUint = self
+                    .compute_expr(fn_env, &range.end)?
+                    .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, stmt.span))?
+                    .constant()
+                    .expect("expected constant")
+                    .into();
+                let end: u32 = end_bg.try_into().expect("end index is too big");
+
+                // compute for the for loop block
+                for ii in start..end {
                     fn_env.nest();
 
                     let cst_var = Var::new_constant(ii.into(), var.span);
