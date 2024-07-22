@@ -2,9 +2,10 @@ use crate::{
     backends::Backend,
     constants::Span,
     error::{Error, ErrorKind, Result},
+    mast::Mast,
     parser::{
         types::{AttributeKind, FnArg, TyKind},
-        Expr,
+        Expr, FunctionDef,
     },
     type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
     var::Var,
@@ -25,11 +26,9 @@ pub struct CircuitWriter<B>
 where
     B: Backend,
 {
-    /// The type checker state for the main module.
-    // Important: this field must not be used directly.
-    // This is because, depending on the value of [current_module],
-    // the type checker state might be this one, or one of the ones in [dependencies].
-    typed: TypeChecker<B>,
+    /// The monomorphized state for the main module.
+    // The process walks through the monomorphized AST to generate the circuit.
+    typed: Mast<B>,
 
     /// The constraint backend for the circuit.
     /// For now, this needs to be exposed for the kimchi prover for kimchi specific low level data.
@@ -62,17 +61,12 @@ impl<B: Backend> CircuitWriter<B> {
         self.typed.expr_type(expr)
     }
 
-    // TODO: can we get rid of this?
-    pub fn node_type(&self, node_id: usize) -> Option<&TyKind> {
-        self.typed.node_type(node_id)
-    }
-
     pub fn struct_info(&self, qualified: &FullyQualified) -> Option<&StructInfo> {
         self.typed.struct_info(qualified)
     }
 
-    pub fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<B>> {
-        self.typed.fn_info(qualified)
+    pub fn fn_info(&self, expr: &Expr) -> Option<&FnInfo<B>> {
+        self.typed.expr_fn(expr)
     }
 
     pub fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
@@ -117,14 +111,18 @@ impl<B: Backend> CircuitWriter<B> {
         fn_env.get_local_var(var_name)
     }
 
-    /// Retrieves the [FnInfo] for the `main()` function.
+    /// Retrieves the [FunctionDef] for the `main()` function.
     /// This function should only be called if we know there's a main function,
     /// if there's no main function it'll panic.
-    pub fn main_info(&self) -> Result<&FnInfo<B>> {
-        let qualified = FullyQualified::local("main".to_string());
-        self.typed
-            .fn_info(&qualified)
-            .ok_or(self.error(ErrorKind::NoMainFunction, Span::default()))
+    pub fn main_info(&self) -> Result<&FunctionDef> {
+        if self.typed.main_fn_ast.is_none() {
+            return Err(self.error(
+                ErrorKind::NoMainFunction,
+                Span::default(),
+            ));
+        }
+
+        Ok(self.typed.main_fn_ast.as_ref().unwrap())
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
@@ -134,7 +132,7 @@ impl<B: Backend> CircuitWriter<B> {
 
 impl<B: Backend> CircuitWriter<B> {
     /// Creates a global environment from the one created by the type checker.
-    fn new(typed: TypeChecker<B>, backend: B) -> Self {
+    fn new(typed: Mast<B>, backend: B) -> Self {
         Self {
             typed,
             backend,
@@ -142,18 +140,16 @@ impl<B: Backend> CircuitWriter<B> {
         }
     }
 
-    pub fn generate_circuit(typed: TypeChecker<B>, backend: B) -> Result<CompiledCircuit<B>> {
+    pub fn generate_circuit(typed: Mast<B>, backend: B) -> Result<CompiledCircuit<B>> {
         // create circuit writer
         let mut circuit_writer = CircuitWriter::new(typed, backend);
 
         // get main function
-        let qualified = FullyQualified::local("main".to_string());
-        let main_fn_info = circuit_writer.main_info()?;
-
-        let function = match &main_fn_info.kind {
-            crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
-            crate::imports::FnKind::Native(fn_sig) => fn_sig.clone(),
-        };
+        let function = circuit_writer
+            .typed
+            .main_fn_ast
+            .clone()
+            .expect("main function hasn't been monomorphized");
 
         // initialize the circuit
         circuit_writer.backend.init_circuit();

@@ -5,12 +5,12 @@ use itertools::chain;
 //use serde::{Deserialize, Serialize};
 
 use crate::{
-    backends::{Backend, BackendVar},
+    backends::Backend,
     circuit_writer::CircuitWriter,
     compiler::Sources,
     error::{Error, ErrorKind, Result},
     inputs::JsonInputs,
-    type_checker::FnInfo,
+    parser::FunctionDef,
 };
 
 #[derive(Debug, Default)]
@@ -45,7 +45,7 @@ impl<B: Backend> CompiledCircuit<B> {
         Self { circuit }
     }
 
-    pub fn main_info(&self) -> &FnInfo<B> {
+    pub fn main_fn_def(&self) -> &FunctionDef {
         self.circuit
             .main_info()
             .expect("constrait-writer bug: no main function found in witness generation")
@@ -63,11 +63,8 @@ impl<B: Backend> CompiledCircuit<B> {
         let mut env = WitnessEnv::default();
 
         // get info on main
-        let main_info = self.main_info();
-        let main_sig = match &main_info.kind {
-            crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
-            crate::imports::FnKind::Native(fn_sig) => &fn_sig.sig,
-        };
+        let main_fn_def = self.main_fn_def();
+        let main_sig = &main_fn_def.sig;
 
         // create the argument's variables?
         for arg in &main_sig.arguments {
@@ -103,7 +100,7 @@ impl<B: Backend> CompiledCircuit<B> {
             return Err(Error::new(
                 "runtime",
                 ErrorKind::UnusedInput(name.clone()),
-                main_info.span,
+                main_fn_def.span,
             ));
         }
 

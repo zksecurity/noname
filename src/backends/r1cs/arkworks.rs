@@ -3,6 +3,7 @@ use crate::backends::{
     r1cs::{GeneratedWitness, R1CS},
     BackendField,
 };
+use crate::mast::Mast;
 use crate::witness::CompiledCircuit;
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystemRef, LinearCombination, SynthesisError, Variable,
@@ -105,9 +106,12 @@ pub fn compile_source_code<BF: BackendField>(
         node_id,
     )
     .unwrap();
+
+    let mut mast = Mast::new(tast);
+    mast.monomorphize()?;
     let r1cs = R1CS::<BF>::new();
     // compile
-    CircuitWriter::generate_circuit(tast, r1cs)
+    CircuitWriter::generate_circuit(mast, r1cs)
 }
 
 #[cfg(test)]

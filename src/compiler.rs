@@ -10,7 +10,7 @@ use miette::NamedSource;
 
 use crate::{
     backends::Backend, circuit_writer::CircuitWriter, cli::packages::UserRepo, error::Result,
-    inputs::JsonInputs, lexer::Token, name_resolution::NAST, parser::AST,
+    inputs::JsonInputs, lexer::Token, mast::Mast, name_resolution::NAST, parser::AST,
     type_checker::TypeChecker, witness::CompiledCircuit,
 };
 
@@ -72,6 +72,9 @@ impl<T> IntoMiette<T> for Result<T> {
     }
 }
 
+// todo: create a Compiler struct to encapsulate these?
+// - typechecker
+// - [last_node_id, nast]
 pub fn typecheck_next_file<B: Backend>(
     typechecker: &mut TypeChecker<B>,
     this_module: Option<UserRepo>,
@@ -141,7 +144,9 @@ pub fn compile<B: Backend>(
     tast: TypeChecker<B>,
     backend: B,
 ) -> miette::Result<CompiledCircuit<B>> {
-    CircuitWriter::generate_circuit(tast, backend).into_miette(sources)
+    let mut mast = Mast::new(tast);
+    mast.monomorphize()?;
+    CircuitWriter::generate_circuit(mast, backend).into_miette(sources)
 }
 
 pub fn generate_witness<B: Backend>(
