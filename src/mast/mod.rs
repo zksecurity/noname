@@ -283,7 +283,7 @@ impl<B: Backend> Mast<B> {
         typed_fn_env.pop();
 
         let mast = FunctionDef {
-            sig: func_def.sig.clone(),
+            sig: func_def.sig,
             body: stmts_mono,
             span: func_def.span,
         };
