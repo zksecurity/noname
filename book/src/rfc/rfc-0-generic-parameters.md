@@ -437,7 +437,7 @@ pub(crate) fn size_of(&self, typ: &TyKind) -> usize {
 ```
 
 ## Alternative approach
-One alternative approach to the monomorphization described above is to propagate the generic values directly in circuit writer, without the need to add the MAST phase.
+[One alternative approach](https://github.com/zksecurity/noname/pull/136) to the monomorphization described above is to propagate the generic values directly in circuit writer, without the need to add the MAST phase.
 
 The circuit writer walks through the original AST via the `compile_expr` function. This function propagate the values from the main function argument and constants and compute the `VarOrRef` as an result. The `VarOrRef` doesn't return the struture of the types being computed.
 
