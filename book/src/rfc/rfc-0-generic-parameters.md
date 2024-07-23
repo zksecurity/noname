@@ -435,3 +435,20 @@ pub(crate) fn size_of(&self, typ: &TyKind) -> usize {
     }
 }
 ```
+
+## Alternative approach
+One alternative approach to the monomorphization described above is to propagate the generic values directly in circuit writer, without the need to add the MAST phase.
+
+The circuit writer walks through the original AST via the `compile_expr` function. This function propagate the values from the main function argument and constants and compute the `VarOrRef` as an result. The `VarOrRef` doesn't return the struture of the types being computed.
+
+In the process, when it needs to determine the structure of the type behind an expression node, it relies on the `size_of` function to determine the number of vars representing the type. The `size_of` relies on the node id of an expression to look up the type. This is not a problem when the types are concrete.
+
+When the type behind an expression node is generic, the way of looking up the size of a type via `size_of` is not applicable anymore, since the expression node can be of a generic type.
+
+To solve this problem, there should be a new way to determine the size of a type for an expression node without relyin on the node id. One way, described `ComputedExpr`, is to retain the structure of the type through the propagation in `compute_expr`. Instead of passing around the `VarOrRef`, the `compute_expr` returns `ComputedExpr` which contains both the structure of the type and the underlying variables `VarOrRef`.
+
+For example, when it is computing for the `ExprKind::ArrayAccess`, it can use the `ComputedExpr` of the `array` expression node to determine the size of the array, so as to do some bound checks for access index.
+
+This approach would require a significant refactor of the circuit writer's compilation process. It would require changes to the assumptions from using `VarOrRef` to structured `ComputedExpr`. It would also need to rely on `ComputedExpr` to do some addtional checks instead of just relying on types. This would require quite a number of additional assumptions between the `ComputedExpr`, the actual types and generic parameters.
+
+Therefore, we thought the monomorphization approach is more straightforward and easier to maintain in a long run, considering the pipeline of the compiler.
