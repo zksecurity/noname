@@ -12,8 +12,8 @@ const c_mul = 2;
 
 // the return type is determined by the generic arguments
 // so `init_arr` can be used to create arrays with different sizes
-fn init_arr<N, M>(n: N, m: M) -> [Field; N * 2 + M] {
-    let arr = [0; n * c_mul + m];
+fn init_arr(const N, const M) -> [Field; N * 2 + M] {
+    let arr = [0; N * c_mul + M];
     return arr;
 }
 
@@ -27,7 +27,7 @@ fn main() -> [Field; 3 * c_mul + 1] {
 Inferring the generic values from the observed array argument:
 ```rust
 // N can be inferred from the array size of argument `arr`
-fn last<N>(arr: [Field; N]) -> Field {
+fn last(arr: [Field; N]) -> Field {
     // use generic parameter N to form dynamic expressions in the function scope
     return arr[N - 1];
 }
@@ -48,7 +48,7 @@ struct House<G> {
 }
 
 // it can also infer N and M from the arguments
-fn all_rooms<N, M>(house1: House<N>, house2: House<M>) -> [Room; N + M] {
+fn all_rooms(house1: House<N>, house2: House<M>) -> [Room; N + M] {
     // declare default array with symbolic size represented by generic parameters
     let rooms = [Room; N + M];
 
@@ -96,6 +96,38 @@ To support the generic syntax as shown in the examples above, we need to make ch
 
 The newly added phase MAST will be responsible for inferring the generic values from the observed arguments. It will also be responsible for type checking the inferred generic values. Circuit synthesizer will rely on inferred values from MAST and type metadata to determine how to organize the variables at the lowest level, `CellVar`.
 
+### Generic Syntax
+
+This RFC proposes a simple generic syntax without the introduction of the turbofish syntax, since we don't need to infer the generic parameters from the function arguments. Instead, the values of the generic parameters can be directly assigned by comparing values with the observed arguments.
+
+For example, with the turbofish, we could do something like:
+
+```rust
+fn create_arr<N>(arr: [Field; N + 3]) -> [Field; N + 3] {...}
+```
+
+This is a rare case where the generic parameter can't be trivially inferred from the observed arguments. To get it work without any advanced inference setups, it would require passing the value of N to the function via turbofish syntax, such as:
+
+```rust
+// a is then of type [Field, 6]
+let a = create_arr::<3>(arr);
+```
+
+The turbofish syntax allows direct passing the values for the generic parameter. However, for most of the cases, the values for the generic parameters can be obtained simply by observing the arguments passed to the function. This RFC aims to keep the syntax simple and to be intuitive.
+
+Without the turbofish syntax, the generic syntax can be simplified like the following:
+
+```rust
+// the value of N can be equal to the argument directly
+fn create_arr(const N) -> [typ; N]
+
+// if the argument is array, then the value of N can be equal to the size of the array
+fn last(arr: [typ; N]) -> Field
+fn join(arr1: [typ; N], arr2: [typ; M]) -> [typ; N + M]
+```
+
+In the function scope, it might need to determine whether a variable is a generic parameter or not. We can reserve the single capital alphabets for the generic parameters. For example, `N`, `M`, `G`, `K`, etc. The generic parameters can be used in the function arguments, return type, or expressions. 
+
 ### AST Parser
 Parser will need to collect the generic identifiers for the following constructions `FunctionDef`, `StructDef`. It will add two `TyKind`: `ConstGeneric` and `GenericArray`. The size of `GenericArray` can be represented by a `Symbolic` value, which can contain generic parameters.
 
@@ -141,7 +173,7 @@ pub struct StructDef {
 
 Example for a function with a generic parameter:
 ```rust
-fn init_arr<N>(n: N) -> [Field; N * 2 + 1] {...}
+fn init_arr(n: N) -> [Field; N * 2 + 1] {...}
 ```
 
 The parser should create the function definition like pseudo code below:
@@ -186,17 +218,13 @@ The consistency of the generic parameters should be checked. For example, the ge
 
 *Type check generic parameters for functions*
 ```rust
-// shouldn't allow unused generic parameters
-fn foo<N>(n: Field) -> Field {...}
+// shouldn't allow this, because the N should be defined in the function arguments
+fn foo(n: Field) -> [Field; N] {...}
 
-// shouldn't allow this, even though it is used in the return type
-// because we can't infer the value of N from the observed arguments
-fn foo<N>(n: Field) -> [Field; N] {...}
-
-// allowed
-fn foo<N>(n: N) {...}
-fn foo<N>(arr: [Field; N]) {...}
-fn foo<N>(thing: Thing<N>) {...}
+// not allowed if no use of N in the body
+fn foo(const N) {...} 
+fn foo(arr: [Field; N]) {...} 
+fn foo(thing: Thing<N>) {...}
 ```
 
 The bottom line is that the generic parameters should be used in the function arguments. This is because the inferring algorithm will be based on the observed arguments.
@@ -240,7 +268,7 @@ Example of inferring constant arguments:
 // constant generic
 // - the value of N can be inferred from the observed value of `size`
 // - store the value in the context
-fn gen_arr<N>(size: N) -> [Field; N * 3 + 1] {
+fn gen_arr(const N) -> [Field; N * 3 + 1] {
     let arr = [Field; N * 3 + 1];
     return arr;
 }
@@ -252,7 +280,7 @@ Example of inferring from array arguments:
 // First, here is a simple case.
 // - the N can be inferred from the array size of argument `arr` 
 // - store the value of N in the context
-fn last<N>(arr: [Field; N]) -> [Field; N - 1] {
+fn last(arr: [Field; N]) -> Field {
     return arr[N - 1];
 }
 ```
@@ -261,7 +289,7 @@ fn last<N>(arr: [Field; N]) -> [Field; N - 1] {
 // Then, here is a more challenging case that would require techniques like SMT to solve the unique values of the generic parameters.
 // Even N * 2 looks obvious to solve, solving it may need something like (computer algebra system) CAS in rust.
 // It is easy to evaluate the Symbolic values using the solved generic value. But the way around is difficult.
-fn last<N>(arr: [Field; N * 2]) -> [Field; 2 * N - 1] {
+fn last(arr: [Field; N * 2]) -> Field {
     return arr[N - 1];
 }
 ```
@@ -286,7 +314,7 @@ struct House<G> {
 // 3. the corresponding function argument definition is `GenericArray(Room, G)`
 // 4. using the inferring algorithm for generic array, G = 3
 // 5. update the function generic parameter N = 3 via the mapping {G: N}
-fn double<N>(house: House<N>) -> House<2 * N> {
+fn double(house: House<N>) -> House<2 * N> {
     // init house with doubled size of rooms
     // the expression N * 2 is evaluated to 6, 
     let new_house = House {
@@ -330,7 +358,7 @@ struct House<G> {
    rooms: [Room; G],
 }
 
-fn double<N>(house: House<N>) -> House<2 * N> {
+fn double(house: House<N>) -> House<2 * N> {
     let new_house = House {
         id: house.id,
         rooms: [Room; N * 2],
@@ -351,7 +379,7 @@ fn double<N>(house: House<N>) -> House<2 * N> {
 Example for generic array:
 ```rust
 // both N and M are inferred from the observed arguments house1 and house2 passed from main function
-fn all_rooms<N, M>(house1: House<N>, house2: House<M>) -> [Room; N + M] {
+fn all_rooms(house1: House<N>, house2: House<M>) -> [Room; N + M] {
     // `compute_type` steps into the case for `ExprKind::GenericArray`
     // load the generic values N and M from the context
     // convert the GenericArray to concrete Array
