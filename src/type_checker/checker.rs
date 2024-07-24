@@ -312,9 +312,9 @@ impl<B: Backend> TypeChecker<B> {
                 if is_type(&name.value) {
                     // if it's a type, make sure it exists
                     let _struct_info = self
-                    .struct_info(&qualified)
-                    .expect("custom type does not exist (TODO: better error)");
-                
+                        .struct_info(&qualified)
+                        .expect("custom type does not exist (TODO: better error)");
+
                     // and return its type
                     let res = ExprTyInfo::new_anon(TyKind::Custom {
                         module: module.clone(),

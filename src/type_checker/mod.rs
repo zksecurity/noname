@@ -11,7 +11,8 @@ use crate::{
         types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
         CustomType, Expr, StructDef,
     },
-    stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS}, syntax::is_generic_parameter,
+    stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS},
+    syntax::is_generic_parameter,
 };
 
 use ark_ff::Field;
@@ -335,7 +336,7 @@ impl<B: Backend> TypeChecker<B> {
                     for name in function.sig.generics.names() {
                         typed_fn_env.store_type(
                             name.to_string(),
-                            TypeInfo::new_cst(TyKind::Field, function.span)
+                            TypeInfo::new_cst(TyKind::Field, function.span),
                         )?;
                     }
 

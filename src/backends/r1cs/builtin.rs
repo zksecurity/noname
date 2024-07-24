@@ -1,5 +1,10 @@
 use crate::{
-    backends::BackendField, circuit_writer::{CircuitWriter, VarInfo}, constants::Span, error::Result, parser::types::GenericParameters, var::Var
+    backends::BackendField,
+    circuit_writer::{CircuitWriter, VarInfo},
+    constants::Span,
+    error::Result,
+    parser::types::GenericParameters,
+    var::Var,
 };
 
 use super::{LinearCombination, R1CS};

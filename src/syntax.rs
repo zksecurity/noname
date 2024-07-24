@@ -46,7 +46,7 @@ pub fn is_generic_parameter(s: &str) -> bool {
     if s.len() != 1 {
         return false;
     }
-    
+
     let mut chars = s.chars();
     // all should be uppercase alphabetic
     chars.all(|c| (c.is_ascii_alphabetic() && c.is_uppercase()))

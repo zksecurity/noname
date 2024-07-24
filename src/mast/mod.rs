@@ -200,21 +200,21 @@ impl GenericParameters {
         match existing {
             Some(GenericValue::Bound(v)) => {
                 if *v == value {
-                    return Ok(())
+                    return Ok(());
                 }
-                
-                Err(
-                    Error::new("mast", ErrorKind::ConflictGenericValue(name, *v, value), span)
-                )
-            }
-            Some(GenericValue::Unbound) => Ok(()),
-            _ => {
+
                 Err(Error::new(
                     "mast",
-                    ErrorKind::UnexpectedGenericParameter(name),
+                    ErrorKind::ConflictGenericValue(name, *v, value),
                     span,
                 ))
             }
+            Some(GenericValue::Unbound) => Ok(()),
+            _ => Err(Error::new(
+                "mast",
+                ErrorKind::UnexpectedGenericParameter(name),
+                span,
+            )),
         }
     }
 }
