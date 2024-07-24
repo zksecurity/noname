@@ -75,6 +75,117 @@ fn main() -> [Room; 4] {
 }
 ```
 
+## Builtin Examples
+Given the following function signatures for builtin functions:
+```rust
+fn from_bits(const N: Field, val: Field) -> [Field; N]
+fn from_bits(bits: [Bool; N]) -> Field
+```
+
+Calling the builtin functions in native code:
+```rust
+use std::to_bits;
+use std::from_bits;
+
+const num_bits = 8;
+
+fn main() {
+    let val1 = 101;
+    // `num_bits` will be assigned to the generic parameter `N`
+    // then the type of `bits` will be monomorphized to [Bool; 8]
+    let bits = to_bits(num_bits, val); 
+    // the value of `N` can be determined from the size of `bits` during monomorphization
+    // so the builtin function knows how many bits to convert
+    let val2 = from_bits(bits); 
+    assert_eq(val1, val2);
+}
+```
+
+
+The values for the generic parameters will be passed to the function via the `generics` argument:
+
+```rust
+fn to_bits<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    generics: &GenericParameters, 
+    vars: &[VarInfo<B::Field, B::Var>],
+    span: Span,
+) -> Result<Option<Var<B::Field, B::Var>>> {
+    // should be two input vars
+    assert_eq!(vars.len(), 2);
+
+    // first var is the number of bits
+
+    // but the better practice would be to retrieve the value from the generics
+    let num_var = generics.get("N");
+
+    // alternatively, it can be retrieved from the vars, but it is not recommended
+    // let num_var = &vars[0];
+
+    // second var is the value to convert
+    let val = &vars[1];
+
+    // convert value to bits
+    let mut bits = Vec::new();
+    let mut lc = 0;
+    let e2 = 1;
+    for i in 0..num_var {
+        // bits[i] = (in >> i) & 1;
+        let bit = compiler.backend.and(
+            compiler.backend.shr(val_var, i),
+            compiler.backend.constant(1),
+        );
+        bits.push(bit);
+
+        // bits[i] * (bits[i] -1 ) === 0;
+        let zero_mul = compiler.backend.mul(bit, compiler.backend.sub(bit, 1));
+        compiler.backend.assert_eq_const(zero_mul, 0, span);
+
+        // lc += bits[i] * e2;
+        lc = compiler.backend.add(lc, compiler.backend.mul(bit, e2));
+
+        e2 = e2 + e2;
+    }
+
+    compiler.backend.assert_var(val, lc, span);
+
+    Ok(Some(bits))
+}
+```
+
+Even there is no const argument declared like the `to_bits` example, it can still look up the values from the `generics`:
+```rust
+fn from_bits<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    generics: &GenericParameters,
+    vars: &[VarInfo<B::Field, B::Var>],
+    span: Span,
+) -> Result<Option<Var<B::Field, B::Var>>> {
+    // should be one input var
+    assert_eq!(vars.len(), 1);
+
+    let bits = &vars[0];
+
+    let num_bits = generics.get("N");
+
+    let mut lc = 0;
+    let e2 = 1;
+    // elements should be boolean type
+    for i in 0..num_bits {
+        let bit = &bits[i];
+
+        // lc += bits[i] * e2;
+        lc = compiler.backend.add(lc, compiler.backend.mul(bit.value(), e2));
+        e2 = e2 + e2;
+    }
+
+    Ok(Some(Var::new(lc)))
+```
+
+Both the return type and returned vars can be checked outside of the builtin functions. The return type can be checked automatically in the same way as the native functions, the types of which are propagated and converged at certain point, at which error will throw if the types are not matched.
+
+The return vars can be checked by relying on the types. Each concrete type has a fixed number of vars. With the resolved return type of the builtin function, we can check if the size is matched. Additionally, we can check the values recursively with the type structure, but it might only limited to checking the boolean type which got obvious bound 0 or 1.
+
 
 ## monomorphization
 The inference of the generic values can be done by observing the arguments passed to the function. Then it stores the inferred values in the relevant contexts for the following compiler pipeline to do type checking and circuit synthesizing. We call the process of inferring the generic values and type checking _Monomorphization_.
