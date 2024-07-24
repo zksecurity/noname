@@ -1,5 +1,5 @@
-fn last<NN>(arr: [Field; NN]) -> Field {
-    return arr[NN - 1];
+fn last(arr: [Field; N]) -> Field {
+    return arr[N - 1];
 }
 
 fn main(pub xx: Field) {

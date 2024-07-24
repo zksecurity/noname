@@ -168,6 +168,22 @@ impl MastCtx {
     }
 }
 
+impl Symbolic {
+    /// Evaluate symbolic size to an integer.
+    pub fn eval_generic_array_size(&self, typed_fn_env: &MonomorphizedFnEnv) -> u32 {
+        match self {
+            Symbolic::Concrete(v) => *v,
+            Symbolic::Generic(g) => typed_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
+            Symbolic::Add(a, b) => {
+                a.eval_generic_array_size(typed_fn_env) + b.eval_generic_array_size(typed_fn_env)
+            }
+            Symbolic::Mul(a, b) => {
+                a.eval_generic_array_size(typed_fn_env) * b.eval_generic_array_size(typed_fn_env)
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 /// Mast relies on the TAST for the information about the "unresolved" types to monomorphize.
 /// Things such as loading the function AST and struct AST from fully qualified names.
@@ -923,21 +939,10 @@ impl<B: Backend> Mast<B> {
         // create a context for the function call
         let typed_fn_env = &mut MonomorphizedFnEnv::new();
 
+        // todo: bind the generic values to FnInfo so the builtin functions can use the generic values
         // infer the generic values from the observed types
         for (sig_arg, (type_info, span)) in expected.iter().zip(args) {
             match &sig_arg.typ.kind {
-                TyKind::Generic(gen_name) => {
-                    // infer the generic value from the observed type
-                    let val = &type_info.constant;
-                    let typ = type_info.typ.as_ref().expect("expected a value");
-                    let mty = MTypeInfo::new(typ, *span, *val);
-
-                    // store the inferred value for generic parameter
-                    typed_fn_env.store_type(gen_name, &mty)?;
-
-                    // store local var value
-                    typed_fn_env.store_type(&sig_arg.name.value, &mty)?;
-                }
                 TyKind::GenericArray(_, sym_size) => {
                     let gen_name = match sym_size {
                         Symbolic::Generic(g) => &g.value,
@@ -987,11 +992,8 @@ impl<B: Backend> Mast<B> {
         // evaluate generic return types using inferred values
         let ret_ty = match &fn_sig.return_type {
             Some(ret_ty) => match &ret_ty.kind {
-                TyKind::Generic(_) => {
-                    unreachable!()
-                }
                 TyKind::GenericArray(typ, size) => {
-                    let val = eval_generic_array_size(size, typed_fn_env);
+                    let val = size.eval_generic_array_size(typed_fn_env);
                     let tykind = TyKind::Array(typ.clone(), val);
                     Some(Ty {
                         kind: tykind,
@@ -1053,23 +1055,5 @@ impl<B: Backend> Mast<B> {
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
         Error::new("mast", kind, span)
-    }
-}
-
-/// Evaluate symbolic size to an integer.
-pub fn eval_generic_array_size(sym: &Symbolic, typed_fn_env: &MonomorphizedFnEnv) -> u32 {
-    match sym {
-        Symbolic::Concrete(v) => *v,
-        Symbolic::Generic(g) => typed_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
-        Symbolic::Add(a, b) => {
-            let a = eval_generic_array_size(a, typed_fn_env);
-            let b = eval_generic_array_size(b, typed_fn_env);
-            a + b
-        }
-        Symbolic::Mul(a, b) => {
-            let a = eval_generic_array_size(a, typed_fn_env);
-            let b = eval_generic_array_size(b, typed_fn_env);
-            a * b
-        }
     }
 }

@@ -311,13 +311,12 @@ impl<B: Backend> TypeChecker<B> {
             ExprKind::Variable { module, name } => {
                 let qualified = FullyQualified::new(module, &name.value);
 
-                // generic parameter should be checked as a local variable
-                if is_type(&name.value) && !is_generic_parameter(&name.value) {
+                if is_type(&name.value) {
                     // if it's a type, make sure it exists
                     let _struct_info = self
-                        .struct_info(&qualified)
-                        .expect("custom type does not exist (TODO: better error)");
-
+                    .struct_info(&qualified)
+                    .expect("custom type does not exist (TODO: better error)");
+                
                     // and return its type
                     let res = ExprTyInfo::new_anon(TyKind::Custom {
                         module: module.clone(),
@@ -336,6 +335,7 @@ impl<B: Backend> TypeChecker<B> {
                         }
                     } else {
                         // otherwise it's a local variable
+                        // generic parameter is also checked as a local variable
                         let typ = typed_fn_env
                             .get_type(&name.value)
                             .ok_or_else(|| self.error(ErrorKind::UndefinedVariable, name.span))?
@@ -366,7 +366,6 @@ impl<B: Backend> TypeChecker<B> {
                 let idx_typ = self.compute_type(idx, typed_fn_env)?;
                 match idx_typ.map(|t| t.typ) {
                     Some(TyKind::BigInt) => (),
-                    Some(TyKind::Generic(_)) => (),
                     _ => return Err(self.error(ErrorKind::ExpectedConstant, expr.span)),
                 };
 
@@ -641,6 +640,9 @@ impl<B: Backend> TypeChecker<B> {
         Ok(None)
     }
 
+    // todo: collect generic parameters and update FnInfo.generics
+    // - HashSet<Ident, ValueBound>
+    // - ValueBound: Enum { Bound(u32), Unbound }
     /// type checks a function call.
     /// Note that this can also be a method call.
     pub fn check_fn_call(

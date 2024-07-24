@@ -1,6 +1,6 @@
-fn init_arr<NN, MM>(nn: NN, mm: MM) -> [Field; NN * 2 + MM] {
-    // should use propagated values for nn mm to evaluate actual size
-    let arr = [0; (nn * 2) + mm];
+fn init_arr(const N: Field, const M: Field) -> [Field; N * 2 + M] {
+    // should use propagated values for N M to evaluate actual size
+    let arr = [0; (N * 2) + M];
     return arr;
 }
 

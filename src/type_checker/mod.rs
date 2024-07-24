@@ -11,7 +11,7 @@ use crate::{
         types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
         CustomType, Expr, StructDef,
     },
-    stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS},
+    stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS}, syntax::is_generic_parameter,
 };
 
 use ark_ff::Field;
@@ -128,7 +128,6 @@ impl<B: Backend> TypeChecker<B> {
             TyKind::BigInt => 1,
             TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
             TyKind::GenericArray(_, _) => unreachable!("generic arrays should have been resolved"),
-            TyKind::Generic(_) => unreachable!("generic should have been resolved"),
             TyKind::Bool => 1,
         }
     }
@@ -337,12 +336,17 @@ impl<B: Backend> TypeChecker<B> {
                         typed_fn_env.store_type(
                             gen.to_string(),
                             // todo: let generic vars carry their span
-                            TypeInfo::new(TyKind::Generic(gen.to_string()), function.span),
+                            TypeInfo::new_cst(TyKind::Field, function.span)
                         )?;
                     }
 
                     // store variables and their types in the fn_env
                     for arg in &function.sig.arguments {
+                        // skip const generic as they should be already stored
+                        if is_generic_parameter(&arg.name.value) {
+                            continue;
+                        }
+
                         // public_output is a reserved name,
                         // associated automatically to the public output of the main function
                         if RESERVED_ARGS.contains(&arg.name.value.as_str()) {
