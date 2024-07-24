@@ -360,8 +360,8 @@ impl<B: Backend> CircuitWriter<B> {
 
                 let res = match &fn_info.kind {
                     // assert() <-- for example
-                    FnKind::BuiltIn(_sig, handle) => {
-                        let res = handle(self, &vars, expr.span);
+                    FnKind::BuiltIn(sig, handle) => {
+                        let res = handle(self, &sig.generics, &vars, expr.span);
                         res.map(|r| r.map(VarOrRef::Var))
                     }
 

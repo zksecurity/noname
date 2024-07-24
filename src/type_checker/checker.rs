@@ -24,8 +24,6 @@ where
 {
     pub kind: FnKind<B>,
     pub span: Span,
-    // todo: generics for inferred values
-    // - will be useful for builtins that will need to know the generic values
 }
 
 impl<B: Backend> FnInfo<B> {

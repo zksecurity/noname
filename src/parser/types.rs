@@ -1,6 +1,6 @@
 use educe::Educe;
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fmt::Display,
     hash::{Hash, Hasher},
     str::FromStr,
@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     cli::packages::UserRepo,
     constants::Span,
-    error::{ErrorKind, Result},
+    error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind, Tokens},
     stdlib::BUILTIN_FN_NAMES,
     syntax::{is_generic_parameter, is_type},
@@ -554,7 +554,7 @@ impl Ty {
 //~
 //~ Backus–Naur Form (BNF) grammar:
 //~
-//~ fn_sig ::= ident ["<" ident "," ident ">"] "(" param { "," param } ")" [ return_val ]
+//~ fn_sig ::= ident "(" param { "," param } ")" [ return_val ]
 //~ return_val ::= "->" type
 //~ param ::= { "pub" } ident ":" type
 //~
@@ -566,18 +566,22 @@ impl FnSig {
         let arguments = FunctionDef::parse_args(ctx, tokens, &kind)?;
 
         // extract generic parameters from arguments
-        let mut generics = HashSet::new();
+        let mut generics = GenericParameters::default();
         for arg in &arguments {
             match &arg.typ.kind {
                 TyKind::Field => {
                     // extract from const argument
                     if is_generic_parameter(&arg.name.value) {
-                        generics.insert(arg.name.value.clone());
+                        generics.add(arg.name.value.to_string());
                     }
                 }
                 TyKind::GenericArray(_, sym) => {
                     // extract all generic parameters from the symbolic size
-                    generics.extend(sym.extract_generics());
+                    let extracted = sym.extract_generics();
+
+                    for name in extracted {
+                        generics.add(name);
+                    }
                 }
                 _ => (),
             }
@@ -682,12 +686,21 @@ impl Default for FuncOrMethod {
     }
 }
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct GenericParameters(pub HashMap<String, GenericValue>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum GenericValue {
+    Bound(u32),
+    Unbound,
+}
+
 // TODO: remove default here?
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct FnSig {
     pub kind: FuncOrMethod,
     pub name: Ident,
-    pub generics: HashSet<String>,
+    pub generics: GenericParameters,
     /// (pub, ident, type)
     pub arguments: Vec<FnArg>,
     pub return_type: Option<Ty>,

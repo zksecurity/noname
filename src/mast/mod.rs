@@ -7,7 +7,10 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FnArg, FnSig, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
+        types::{
+            FnArg, FnSig, GenericParameters, GenericValue, Range, Stmt, StmtKind, Symbolic, Ty,
+            TyKind,
+        },
         CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
     syntax::{is_generic_parameter, is_type},
@@ -174,11 +177,43 @@ impl Symbolic {
         match self {
             Symbolic::Concrete(v) => *v,
             Symbolic::Generic(g) => typed_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
-            Symbolic::Add(a, b) => {
-                a.eval(typed_fn_env) + b.eval(typed_fn_env)
+            Symbolic::Add(a, b) => a.eval(typed_fn_env) + b.eval(typed_fn_env),
+            Symbolic::Mul(a, b) => a.eval(typed_fn_env) * b.eval(typed_fn_env),
+        }
+    }
+}
+
+impl GenericParameters {
+    /// Return all generic parameter names
+    pub fn names(&self) -> HashSet<String> {
+        self.0.keys().cloned().collect()
+    }
+
+    /// Add an unbound generic parameter
+    pub fn add(&mut self, name: String) {
+        self.0.insert(name, GenericValue::Unbound);
+    }
+
+    /// Bind a generic parameter to a value
+    pub fn bind(&mut self, name: String, value: u32, span: Span) -> Result<()> {
+        let existing = self.0.get(&name);
+        match existing {
+            Some(GenericValue::Bound(v)) => {
+                if *v == value {
+                    return Ok(())
+                }
+                
+                Err(
+                    Error::new("mast", ErrorKind::ConflictGenericValue(name, *v, value), span)
+                )
             }
-            Symbolic::Mul(a, b) => {
-                a.eval(typed_fn_env) * b.eval(typed_fn_env)
+            Some(GenericValue::Unbound) => Ok(()),
+            _ => {
+                Err(Error::new(
+                    "mast",
+                    ErrorKind::UnexpectedGenericParameter(name),
+                    span,
+                ))
             }
         }
     }
@@ -939,9 +974,12 @@ impl<B: Backend> Mast<B> {
         // create a context for the function call
         let typed_fn_env = &mut MonomorphizedFnEnv::new();
 
-        // todo: bind the generic values to FnInfo so the builtin functions can use the generic values
+        // to bind the generic values
+        let mut generics = fn_sig.generics.clone();
+
         // infer the generic values from the observed types
         for (sig_arg, (type_info, span)) in expected.iter().zip(args) {
+            let arg_name = &sig_arg.name.value;
             match &sig_arg.typ.kind {
                 TyKind::GenericArray(_, sym_size) => {
                     let gen_name = match sym_size {
@@ -956,20 +994,35 @@ impl<B: Backend> Mast<B> {
                         _ => panic!("expected array type"),
                     };
 
+                    // bind generic value
+                    generics.bind(gen_name.to_string(), *size, sig_arg.span)?;
+
                     // store the inferred value for generic parameter
                     let gen_mty = MTypeInfo::new(&TyKind::BigInt, *span, Some(*size));
                     typed_fn_env.store_type(gen_name, &gen_mty)?;
 
                     // store concrete array type for the argument name
                     let arr_mty = MTypeInfo::new(arr_type, *span, None);
-                    typed_fn_env.store_type(&sig_arg.name.value, &arr_mty)?;
+                    typed_fn_env.store_type(arg_name, &arr_mty)?;
                 }
                 _ => {
                     let typ = type_info.typ.as_ref().expect("expected a value");
                     let cst = type_info.constant;
+
+                    if is_generic_parameter(arg_name) {
+                        if cst.is_none() {
+                            return Err(self.error(
+                                ErrorKind::GenericValueExpected(arg_name.to_string()),
+                                *span,
+                            ));
+                        }
+
+                        // bind generic value
+                        generics.bind(arg_name.to_string(), cst.unwrap(), sig_arg.span)?;
+                    }
+
                     // store the type of the argument in the env
-                    typed_fn_env
-                        .store_type(&sig_arg.name.value, &MTypeInfo::new(typ, *span, cst))?;
+                    typed_fn_env.store_type(arg_name, &MTypeInfo::new(typ, *span, cst))?;
                 }
             }
         }
@@ -1011,13 +1064,12 @@ impl<B: Backend> Mast<B> {
                 let sig_typed = FnSig {
                     name: sig.name.clone(),
                     kind: sig.kind.clone(),
-                    generics: HashSet::new(),
+                    generics,
                     arguments: fn_args_typed,
                     return_type: ret_ty.clone(),
                 };
                 FnInfo {
                     kind: FnKind::BuiltIn(sig_typed, handle),
-                    // todo: add generics field to pass to the rust function code
                     span: fn_info.span,
                 }
             }
@@ -1038,7 +1090,7 @@ impl<B: Backend> Mast<B> {
                         sig: FnSig {
                             name: fn_def.sig.name.clone(),
                             kind: fn_def.sig.kind.clone(),
-                            generics: HashSet::new(),
+                            generics,
                             arguments: fn_args_typed,
                             return_type: ret_typ,
                         },

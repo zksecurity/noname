@@ -332,10 +332,9 @@ impl<B: Backend> TypeChecker<B> {
                     };
 
                     // store generic parameters as local vars in the fn_env
-                    for gen in &function.sig.generics {
+                    for name in function.sig.generics.names() {
                         typed_fn_env.store_type(
-                            gen.to_string(),
-                            // todo: let generic vars carry their span
+                            name.to_string(),
                             TypeInfo::new_cst(TyKind::Field, function.span)
                         )?;
                     }
