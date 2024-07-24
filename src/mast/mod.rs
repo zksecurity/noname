@@ -170,15 +170,15 @@ impl MastCtx {
 
 impl Symbolic {
     /// Evaluate symbolic size to an integer.
-    pub fn eval_generic_array_size(&self, typed_fn_env: &MonomorphizedFnEnv) -> u32 {
+    pub fn eval(&self, typed_fn_env: &MonomorphizedFnEnv) -> u32 {
         match self {
             Symbolic::Concrete(v) => *v,
             Symbolic::Generic(g) => typed_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
             Symbolic::Add(a, b) => {
-                a.eval_generic_array_size(typed_fn_env) + b.eval_generic_array_size(typed_fn_env)
+                a.eval(typed_fn_env) + b.eval(typed_fn_env)
             }
             Symbolic::Mul(a, b) => {
-                a.eval_generic_array_size(typed_fn_env) * b.eval_generic_array_size(typed_fn_env)
+                a.eval(typed_fn_env) * b.eval(typed_fn_env)
             }
         }
     }
@@ -993,7 +993,7 @@ impl<B: Backend> Mast<B> {
         let ret_ty = match &fn_sig.return_type {
             Some(ret_ty) => match &ret_ty.kind {
                 TyKind::GenericArray(typ, size) => {
-                    let val = size.eval_generic_array_size(typed_fn_env);
+                    let val = size.eval(typed_fn_env);
                     let tykind = TyKind::Array(typ.clone(), val);
                     Some(Ty {
                         kind: tykind,
