@@ -101,7 +101,7 @@ impl TypedFnEnv {
         match self
             .vars
             .insert(ident.clone(), (self.current_scope, type_info.clone()))
-        {   
+        {
             Some((_, existing_type_info)) if existing_type_info.disabled => Ok(()),
             Some(_) => Err(Error::new(
                 "type-checker",
