@@ -194,15 +194,15 @@ where
 }
 
 impl<B: Backend> Mast<B> {
-    pub fn new(tast: TypeChecker<B>) -> Self {
-        Self {
-            tast,
-            node_types: HashMap::new(),
-            node_functions: HashMap::new(),
-            ctx: MastCtx::new(),
-            main_fn_ast: None,
-        }
-    }
+    // pub fn new(tast: TypeChecker<B>) -> Self {
+    //     Self {
+    //         tast,
+    //         node_types: HashMap::new(),
+    //         node_functions: HashMap::new(),
+    //         ctx: MastCtx::new(),
+    //         main_fn_ast: None,
+    //     }
+    // }
 
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
         self.node_types.get(&expr.node_id)
@@ -251,7 +251,13 @@ impl<B: Backend> Mast<B> {
     /// This is the entry point of the monomorphization process.
     /// It stores the monomorphized AST at the end.
     pub fn monomorphize(tast: TypeChecker<B>) -> Result<Self> {
-        let mut mast = Self::new(tast);
+        let mut mast = Mast {
+            tast,
+            node_types: HashMap::new(),
+            node_functions: HashMap::new(),
+            ctx: MastCtx::new(),
+            main_fn_ast: None,
+        };
 
         // store mtype in mast
         let qualified = FullyQualified::local("main".to_string());
