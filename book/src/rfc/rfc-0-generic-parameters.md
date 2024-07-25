@@ -78,7 +78,7 @@ fn main() -> [Room; 4] {
 ## Builtin Examples
 Given the following function signatures for builtin functions:
 ```rust
-fn from_bits(const N: Field, val: Field) -> [Field; N]
+fn to_bits(const N: Field, val: Field) -> [Field; N]
 fn from_bits(bits: [Bool; N]) -> Field
 ```
 
