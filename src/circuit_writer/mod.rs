@@ -28,7 +28,7 @@ where
 {
     /// The monomorphized state for the main module.
     // The process walks through the monomorphized AST to generate the circuit.
-    typed: Mast<B>,
+    ast: Mast<B>,
 
     /// The constraint backend for the circuit.
     /// For now, this needs to be exposed for the kimchi prover for kimchi specific low level data.
@@ -58,23 +58,23 @@ pub struct DebugInfo {
 
 impl<B: Backend> CircuitWriter<B> {
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
-        self.typed.expr_type(expr)
+        self.ast.expr_type(expr)
     }
 
     pub fn struct_info(&self, qualified: &FullyQualified) -> Option<&StructInfo> {
-        self.typed.struct_info(qualified)
+        self.ast.struct_info(qualified)
     }
 
     pub fn fn_info(&self, expr: &Expr) -> Option<&FnInfo<B>> {
-        self.typed.expr_fn(expr)
+        self.ast.expr_fn(expr)
     }
 
     pub fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
-        self.typed.const_info(qualified)
+        self.ast.const_info(qualified)
     }
 
     pub fn size_of(&self, typ: &TyKind) -> usize {
-        self.typed.size_of(typ)
+        self.ast.size_of(typ)
     }
 
     pub fn add_local_var(
@@ -85,7 +85,7 @@ impl<B: Backend> CircuitWriter<B> {
     ) {
         // check for consts first
         let qualified = FullyQualified::local(var_name.clone());
-        if let Some(_cst_info) = self.typed.const_info(&qualified) {
+        if let Some(_cst_info) = self.ast.const_info(&qualified) {
             panic!(
                 "type checker bug: we already have a constant with the same name (`{var_name}`)!"
             );
@@ -102,7 +102,7 @@ impl<B: Backend> CircuitWriter<B> {
     ) -> VarInfo<B::Field, B::Var> {
         // check for consts first
         let qualified = FullyQualified::local(var_name.to_string());
-        if let Some(cst_info) = self.typed.const_info(&qualified) {
+        if let Some(cst_info) = self.ast.const_info(&qualified) {
             let var = Var::new_constant_typ(cst_info, cst_info.typ.span);
             return VarInfo::new(var, false, Some(TyKind::Field));
         }
@@ -115,11 +115,11 @@ impl<B: Backend> CircuitWriter<B> {
     /// This function should only be called if we know there's a main function,
     /// if there's no main function it'll panic.
     pub fn main_info(&self) -> Result<&FunctionDef> {
-        if self.typed.main_fn_ast.is_none() {
+        if self.ast.main_fn_ast.is_none() {
             return Err(self.error(ErrorKind::NoMainFunction, Span::default()));
         }
 
-        Ok(self.typed.main_fn_ast.as_ref().unwrap())
+        Ok(self.ast.main_fn_ast.as_ref().unwrap())
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
@@ -131,7 +131,7 @@ impl<B: Backend> CircuitWriter<B> {
     /// Creates a global environment from the one created by the type checker.
     fn new(typed: Mast<B>, backend: B) -> Self {
         Self {
-            typed,
+            ast: typed,
             backend,
             public_output: None,
         }
@@ -143,7 +143,7 @@ impl<B: Backend> CircuitWriter<B> {
 
         // get main function
         let function = circuit_writer
-            .typed
+            .ast
             .main_fn_ast
             .clone()
             .expect("main function hasn't been monomorphized");
