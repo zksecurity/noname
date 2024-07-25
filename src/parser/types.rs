@@ -237,6 +237,7 @@ impl TyKind {
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
+            // the checks on the generic arrays can be done in MAST
             (TyKind::GenericArray(lhs, _), TyKind::GenericArray(rhs, _))
             | (TyKind::Array(lhs, _), TyKind::GenericArray(rhs, _))
             | (TyKind::GenericArray(lhs, _), TyKind::Array(rhs, _)) => lhs.match_expected(rhs),
