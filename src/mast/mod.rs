@@ -275,14 +275,12 @@ impl<B: Backend> Mast<B> {
             }
         }
 
-        typed_fn_env.nest();
         // inferring for main function body
         let (stmts_mono, _) = mast.monomorphize_block(
             &mut typed_fn_env,
             &func_def.body,
             func_def.sig.return_type.as_ref(),
         )?;
-        typed_fn_env.pop();
 
         let main_func_mast = FunctionDef {
             sig: func_def.sig.clone(),
@@ -780,6 +778,8 @@ impl<B: Backend> Mast<B> {
         stmts: &[Stmt],
         expected_return: Option<&Ty>,
     ) -> Result<(Vec<Stmt>, Option<TyKind>)> {
+        typed_fn_env.nest();
+
         let mut return_typ = None;
 
         let mut stmts_mono = vec![];
@@ -803,6 +803,8 @@ impl<B: Backend> Mast<B> {
                 ));
             }
         };
+
+        typed_fn_env.pop();
 
         Ok((stmts_mono, return_typ))
     }
