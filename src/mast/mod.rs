@@ -235,7 +235,7 @@ impl<B: Backend> Mast<B> {
         let main_fn = mast
             .tast
             .fn_info(&qualified)
-            .ok_or(mast.error(ErrorKind::NoMainFunction, Span::default()))?;
+            .expect("main function not found");
 
         let func_def = match &main_fn.kind {
             // `fn main() { ... }`
