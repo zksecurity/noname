@@ -1014,11 +1014,10 @@ impl<B: Backend> Mast<B> {
         let func_def = match fn_info.kind {
             FnKind::BuiltIn(sig, handle) => {
                 let sig_typed = FnSig {
-                    name: sig.name.clone(),
-                    kind: sig.kind.clone(),
                     generics: HashSet::new(),
                     arguments: fn_args_typed,
                     return_type: ret_ty.clone(),
+                    ..sig.clone()
                 };
                 FnInfo {
                     kind: FnKind::BuiltIn(sig_typed, handle),
@@ -1041,11 +1040,10 @@ impl<B: Backend> Mast<B> {
                 FnInfo {
                     kind: FnKind::Native(FunctionDef {
                         sig: FnSig {
-                            name: fn_def.sig.name.clone(),
-                            kind: fn_def.sig.kind.clone(),
                             generics: HashSet::new(),
                             arguments: fn_args_typed,
                             return_type: ret_typ,
+                            ..fn_def.sig
                         },
                         body: stmts,
                         span: fn_def.span,
