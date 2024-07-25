@@ -105,33 +105,6 @@ impl<B: Backend> TypeChecker<B> {
     pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
         self.constants.get(&qualified)
     }
-
-    /// Returns the number of field elements contained in the given type.
-    // TODO: might want to memoize that at some point
-    pub(crate) fn size_of(&self, typ: &TyKind) -> usize {
-        match typ {
-            TyKind::Field => 1,
-            TyKind::Custom { module, name } => {
-                let qualified = FullyQualified::new(&module, &name);
-                let struct_info = self
-                    .struct_info(&qualified)
-                    .expect("bug in the type checker: cannot find struct info");
-
-                let mut sum = 0;
-
-                for (_, t) in &struct_info.fields {
-                    sum += self.size_of(t);
-                }
-
-                sum
-            }
-            TyKind::BigInt => 1,
-            TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
-            TyKind::GenericArray(_, _) => unreachable!("generic arrays should have been resolved"),
-            TyKind::Generic(_) => unreachable!("generic should have been resolved"),
-            TyKind::Bool => 1,
-        }
-    }
 }
 
 impl<B: Backend> TypeChecker<B> {
