@@ -348,7 +348,7 @@ impl<B: Backend> Mast<B> {
                 let mut observed = Vec::with_capacity(args.len());
                 for arg in args {
                     let node = self.monomorphize_expr(arg, typed_fn_env)?;
-                    observed.push((node, arg.span));
+                    observed.push(node);
                 }
 
                 // retrieve the function signature
@@ -359,7 +359,7 @@ impl<B: Backend> Mast<B> {
                     .expect("function not found")
                     .to_owned();
 
-                let args_mono = observed.clone().into_iter().map(|e| e.0.expr).collect();
+                let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
 
                 let mexpr = expr.to_mast(
                     &mut self.ctx,
@@ -417,14 +417,14 @@ impl<B: Backend> Mast<B> {
                 let mut observed = Vec::with_capacity(args.len());
                 if let Some(self_arg) = fn_info.sig().arguments.first() {
                     if self_arg.name.value == "self" {
-                        observed.push((self.monomorphize_expr(lhs, typed_fn_env)?, lhs.span));
+                        observed.push(self.monomorphize_expr(lhs, typed_fn_env)?);
                     }
                 }
 
                 let mut args_mono = vec![];
                 for arg in args {
                     let expr_mono = self.monomorphize_expr(arg, typed_fn_env)?;
-                    observed.push((expr_mono.clone(), arg.span));
+                    observed.push(expr_mono.clone());
                     args_mono.push(expr_mono.expr);
                 }
 
@@ -905,7 +905,7 @@ impl<B: Backend> Mast<B> {
     pub fn instantiate_fn_call(
         &mut self,
         fn_info: FnInfo<B>,
-        args: &[(ExprMonoInfo, Span)],
+        args: &[ExprMonoInfo],
         span: Span,
     ) -> Result<(FnInfo<B>, Option<TyKind>)> {
         let (fn_sig, stmts) = match &fn_info.kind {
@@ -928,13 +928,13 @@ impl<B: Backend> Mast<B> {
         let typed_fn_env = &mut MonomorphizedFnEnv::new();
 
         // infer the generic values from the observed types
-        for (sig_arg, (type_info, span)) in expected.iter().zip(args) {
+        for (sig_arg, expr_mono_info) in expected.iter().zip(args) {
             match &sig_arg.typ.kind {
                 TyKind::Generic(gen_name) => {
                     // infer the generic value from the observed type
-                    let val = &type_info.constant;
-                    let typ = type_info.typ.as_ref().expect("expected a value");
-                    let mty = MTypeInfo::new(typ, *span, *val);
+                    let val = expr_mono_info.constant;
+                    let typ = expr_mono_info.typ.as_ref().expect("expected a value");
+                    let mty = MTypeInfo::new(typ, expr_mono_info.expr.span, val);
 
                     // store the inferred value for generic parameter
                     typed_fn_env.store_type(gen_name, &mty)?;
@@ -949,26 +949,26 @@ impl<B: Backend> Mast<B> {
                     };
 
                     // infer the array size from the observed type
-                    let arr_type = type_info.typ.as_ref().expect("expected a value");
+                    let arr_type = expr_mono_info.typ.as_ref().expect("expected a value");
                     let size = match arr_type {
                         TyKind::Array(_, size) => size,
                         _ => panic!("expected array type"),
                     };
 
                     // store the inferred value for generic parameter
-                    let gen_mty = MTypeInfo::new(&TyKind::BigInt, *span, Some(*size));
+                    let gen_mty = MTypeInfo::new(&TyKind::BigInt, expr_mono_info.expr.span, Some(*size));
                     typed_fn_env.store_type(gen_name, &gen_mty)?;
 
                     // store concrete array type for the argument name
-                    let arr_mty = MTypeInfo::new(arr_type, *span, None);
+                    let arr_mty = MTypeInfo::new(arr_type, expr_mono_info.expr.span, None);
                     typed_fn_env.store_type(&sig_arg.name.value, &arr_mty)?;
                 }
                 _ => {
-                    let typ = type_info.typ.as_ref().expect("expected a value");
-                    let cst = type_info.constant;
+                    let typ = expr_mono_info.typ.as_ref().expect("expected a value");
+                    let cst = expr_mono_info.constant;
                     // store the type of the argument in the env
                     typed_fn_env
-                        .store_type(&sig_arg.name.value, &MTypeInfo::new(typ, *span, cst))?;
+                        .store_type(&sig_arg.name.value, &MTypeInfo::new(typ, expr_mono_info.expr.span, cst))?;
                 }
             }
         }
@@ -977,7 +977,7 @@ impl<B: Backend> Mast<B> {
         let fn_args_typed = expected
             .iter()
             .zip(args)
-            .map(|(arg, (mono_info, _))| FnArg {
+            .map(|(arg, mono_info)| FnArg {
                 name: arg.name.clone(),
                 attribute: arg.attribute.clone(),
                 span: arg.span,
