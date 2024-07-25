@@ -252,7 +252,7 @@ impl TyKind {
         }
     }
 
-    /// A exact match check, assuming there is no generic type.
+    /// An exact match check, assuming there is no generic type.
     pub fn same_as(&self, other: &TyKind) -> bool {
         match (self, other) {
             (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => true,
