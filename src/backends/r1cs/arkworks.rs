@@ -107,8 +107,7 @@ pub fn compile_source_code<BF: BackendField>(
     )
     .unwrap();
 
-    let mut mast = Mast::new(tast);
-    mast.monomorphize()?;
+    let mast = Mast::monomorphize(tast)?;
     let r1cs = R1CS::<BF>::new();
     // compile
     CircuitWriter::generate_circuit(mast, r1cs)

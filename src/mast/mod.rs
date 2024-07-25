@@ -227,13 +227,15 @@ impl<B: Backend> Mast<B> {
     /// Monomorphize the main function.
     /// This is the entry point of the monomorphization process.
     /// It stores the monomorphized AST at the end.
-    pub fn monomorphize(&mut self) -> Result<()> {
+    pub fn monomorphize(tast: TypeChecker<B>) -> Result<Self> {
+        let mut mast = Self::new(tast);
+
         // store mtype in mast
         let qualified = FullyQualified::local("main".to_string());
-        let main_fn = self
+        let main_fn = mast
             .tast
             .fn_info(&qualified)
-            .ok_or(self.error(ErrorKind::NoMainFunction, Span::default()))?;
+            .ok_or(mast.error(ErrorKind::NoMainFunction, Span::default()))?;
 
         let func_def = match &main_fn.kind {
             // `fn main() { ... }`
@@ -275,22 +277,22 @@ impl<B: Backend> Mast<B> {
 
         typed_fn_env.nest();
         // inferring for main function body
-        let (stmts_mono, _) = self.monomorphize_block(
+        let (stmts_mono, _) = mast.monomorphize_block(
             &mut typed_fn_env,
             &func_def.body,
             func_def.sig.return_type.as_ref(),
         )?;
         typed_fn_env.pop();
 
-        let mast = FunctionDef {
+        let main_func_mast = FunctionDef {
             sig: func_def.sig.clone(),
             body: stmts_mono,
             span: func_def.span,
         };
 
-        self.main_fn_ast = Some(mast);
+        mast.main_fn_ast = Some(main_func_mast);
 
-        Ok(())
+        Ok(mast)
     }
 
     /// Recursively monomorphize an expression node.
