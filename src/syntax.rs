@@ -42,8 +42,8 @@ pub fn is_identifier(s: &str) -> bool {
 
 /// Returns true if the given string is generic parameter
 pub fn is_generic_parameter(s: &str) -> bool {
-    // should only be one uppercase letter
-    if s.len() != 1 {
+    // should be at least 2 uppercase letters
+    if s.len() < 2 {
         return false;
     }
 
@@ -83,10 +83,11 @@ mod tests {
         assert!(is_identifier("cond2"));
         assert!(is_type("Cond2"));
         assert!(!is_type("C"));
-        assert!(is_generic_parameter("N"));
-        assert!(!is_generic_parameter("NN"));
-        assert!(!is_generic_parameter("N1"));
+        assert!(!is_generic_parameter("N"));
         assert!(!is_generic_parameter("n"));
         assert!(!is_generic_parameter("nn"));
+        assert!(is_generic_parameter("NN"));
+        assert!(!is_generic_parameter("N1"));
+        assert!(!is_generic_parameter("N_"));
     }
 }

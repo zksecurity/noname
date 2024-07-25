@@ -1,14 +1,14 @@
-fn join(arr1: [Field; N], arr2: [Field; M]) -> [Field; N + M] {
-    let mut arr = [0; N + M];
-    for ii in 0..N {
+fn join(arr1: [Field; LLEN], arr2: [Field; RLEN]) -> [Field; LLEN + RLEN] {
+    let mut arr = [0; LLEN + RLEN];
+    for ii in 0..LLEN {
         arr[ii] = arr1[ii];
     }
 
-    //for jj in N..M {
+    //for jj in LLEN..RLEN {
     //    arr[jj] = arr2[jj];// howcome this doesn't throw out of bound error?
     //}
-    for jj in 0..M {
-        arr[jj + N] = arr2[jj];
+    for jj in 0..RLEN {
+        arr[jj + LLEN] = arr2[jj];
     }
 
     return arr;
