@@ -945,7 +945,10 @@ impl<B: Backend> Mast<B> {
                 TyKind::GenericArray(_, sym_size) => {
                     let gen_name = match sym_size {
                         Symbolic::Generic(g) => &g.value,
-                        _ => panic!("only allow a single generic parameter for an argument"),
+                        _ => return Err(self.error(
+                            ErrorKind::InvalidSymbolicSize,
+                            expr_mono_info.expr.span,
+                        )),
                     };
 
                     // infer the array size from the observed type

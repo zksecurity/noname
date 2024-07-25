@@ -129,6 +129,9 @@ pub enum ErrorKind {
 
     #[error("invalid array size, expected [_; x] with x in [0,2^32]")]
     InvalidArraySize,
+    
+    #[error("only allow a single generic parameter for the size of an array argument")]
+    InvalidSymbolicSize,
 
     #[error("the value passed could not be converted to a field element")]
     InvalidField(String),
