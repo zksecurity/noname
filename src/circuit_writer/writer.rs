@@ -715,7 +715,7 @@ impl<B: Backend> CircuitWriter<B> {
                 //
                 Ok(Some(var))
             }
-            ExprKind::RepeatedArrayDeclaration { item, size } => {
+            ExprKind::RepeatedArrayInit { item, size } => {
                 let size = self
                     .compute_expr(fn_env, size)?
                     .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, expr.span))?;

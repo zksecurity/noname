@@ -742,14 +742,14 @@ impl<B: Backend> Mast<B> {
                     None,
                 )
             }
-            ExprKind::RepeatedArrayDeclaration { item, size } => {
+            ExprKind::RepeatedArrayInit { item, size } => {
                 let item_mono = self.monomorphize_expr(item, typed_fn_env)?;
                 let size_mono = self.monomorphize_expr(size, typed_fn_env)?;
 
                 let item_typ = item_mono.typ.expect("expected a value");
                 let mexpr = expr.to_mast(
                     &mut self.ctx,
-                    &ExprKind::RepeatedArrayDeclaration {
+                    &ExprKind::RepeatedArrayInit {
                         item: Box::new(item_mono.expr),
                         size: Box::new(size_mono.expr),
                     },

@@ -502,7 +502,7 @@ impl<B: Backend> TypeChecker<B> {
                 });
                 Some(res)
             }
-            ExprKind::RepeatedArrayDeclaration { item, size } => {
+            ExprKind::RepeatedArrayInit { item, size } => {
                 let item_node = self
                     .compute_type(item, typed_fn_env)?
                     .expect("expected a typed item");
