@@ -11,7 +11,7 @@ use crate::{
     imports::FnKind,
     lexer::Token,
     parser::{
-        types::{FnSig, TyKind},
+        types::{FnSig, GenericParameters, TyKind},
         ParserCtx,
     },
     type_checker::FnInfo,
@@ -74,6 +74,7 @@ pub fn builtin_fns<B: Backend>() -> Vec<FnInfo<B>> {
 /// Asserts that two vars are equal.
 fn assert_eq<B: Backend>(
     compiler: &mut CircuitWriter<B>,
+    _generics: &GenericParameters,
     vars: &[VarInfo<B::Field, B::Var>],
     span: Span,
 ) -> Result<Option<Var<B::Field, B::Var>>> {
@@ -134,6 +135,7 @@ fn assert_eq<B: Backend>(
 /// Asserts that a condition is true.
 fn assert<B: Backend>(
     compiler: &mut CircuitWriter<B>,
+    _generics: &GenericParameters,
     vars: &[VarInfo<B::Field, B::Var>],
     span: Span,
 ) -> Result<Option<Var<B::Field, B::Var>>> {

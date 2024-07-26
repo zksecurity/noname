@@ -7,7 +7,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FnArg, FnSig, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
+        types::{FnArg, FnSig, GenericParameters, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
         CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
     syntax::{is_generic_parameter, is_type},
@@ -153,7 +153,7 @@ impl MonomorphizedFnEnv {
 
 /// A context to store the last node id for the monomorphized AST.
 #[derive(Debug)]
-pub struct MastCtx<B> 
+pub struct MastCtx<B>
 where
     B: Backend,
 {
@@ -165,7 +165,7 @@ where
 
 impl<B: Backend> MastCtx<B> {
     pub fn new(tast: TypeChecker<B>) -> Self {
-        Self { 
+        Self {
             last_node_id: 0,
             tast,
             node_types: HashMap::new(),
@@ -176,6 +176,65 @@ impl<B: Backend> MastCtx<B> {
     pub fn next_node_id(&mut self) -> usize {
         self.last_node_id += 1;
         self.last_node_id
+    }
+}
+
+impl Symbolic {
+    /// Evaluate symbolic size to an integer.
+    pub fn eval(&self, typed_fn_env: &MonomorphizedFnEnv) -> u32 {
+        match self {
+            Symbolic::Concrete(v) => *v,
+            Symbolic::Generic(g) => typed_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
+            Symbolic::Add(a, b) => a.eval(typed_fn_env) + b.eval(typed_fn_env),
+            Symbolic::Mul(a, b) => a.eval(typed_fn_env) * b.eval(typed_fn_env),
+        }
+    }
+}
+
+impl GenericParameters {
+    /// Return all generic parameter names
+    pub fn names(&self) -> HashSet<String> {
+        self.0.keys().cloned().collect()
+    }
+
+    /// Add an unbound generic parameter
+    pub fn add(&mut self, name: String) {
+        self.0.insert(name, None);
+    }
+
+    /// Get the value of a generic parameter
+    pub fn get(&self, name: &str) -> u32 {
+        self.0
+            .get(name)
+            .expect("generic parameter not found")
+            .expect("generic value not assigned")
+    }
+
+    /// Bind a generic parameter to a value
+    pub fn bind(&mut self, name: &String, value: u32, span: Span) -> Result<()> {
+        let existing = self.0.get(name);
+        match existing {
+            Some(Some(v)) => {
+                if *v == value {
+                    return Ok(());
+                }
+
+                Err(Error::new(
+                    "mast",
+                    ErrorKind::ConflictGenericValue(name.to_string(), *v, value),
+                    span,
+                ))
+            }
+            Some(None) => {
+                self.0.insert(name.to_string(), Some(value));
+                Ok(())
+            }
+            None => Err(Error::new(
+                "mast",
+                ErrorKind::UnexpectedGenericParameter(name.to_string()),
+                span,
+            )),
+        }
     }
 }
 
@@ -250,32 +309,27 @@ impl<B: Backend> Mast<B> {
             TyKind::BigInt => 1,
             TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
             TyKind::GenericArray(_, _) => unreachable!("generic arrays should have been resolved"),
-            TyKind::Generic(_) => unreachable!("generic should have been resolved"),
             TyKind::Bool => 1,
         }
     }
-
-    
 }
 /// Monomorphize the main function.
 /// This is the entry point of the monomorphization process.
 /// It stores the monomorphized AST at the end.
 pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
     let qualified = FullyQualified::local("main".to_string());
-    let main_fn = tast
-        .fn_info(&qualified)
-        .expect("main function not found");
+    let main_fn = tast.fn_info(&qualified).expect("main function not found");
 
     let func_def = match &main_fn.kind {
         // `fn main() { ... }`
         FnKind::Native(function) => function.clone(),
-        
+
         _ => panic!("main function must be native"),
     };
-    
+
     // create a new typed fn environment to type check the function
     let mut mono_fn_env = MonomorphizedFnEnv::default();
-    
+
     // store variables and their types in the fn_env
     for arg in &func_def.sig.arguments {
         // store the args' type in the fn environment
@@ -284,7 +338,7 @@ pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
             &MTypeInfo::new(&arg.typ.kind, arg.span, None),
         )?;
     }
-    
+
     // the output value returned by the main function is also a main_args with a special name (public_output)
     if let Some(typ) = &func_def.sig.return_type {
         match typ.kind {
@@ -303,7 +357,7 @@ pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
             _ => unimplemented!(),
         }
     }
-    
+
     let mut ctx = MastCtx::new(tast);
 
     // inferring for main function body
@@ -406,8 +460,7 @@ fn monomorphize_expr<B: Backend>(
             );
 
             // instantiate the function call
-            let (fn_info_mono, typ) =
-                instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
             ctx.node_functions.insert(mexpr.node_id, fn_info_mono);
 
@@ -433,7 +486,10 @@ fn monomorphize_expr<B: Backend>(
             let struct_info = ctx
                 .tast
                 .struct_info(&qualified)
-                .ok_or(error(ErrorKind::UndefinedStruct(struct_name.clone()), lhs.span))?
+                .ok_or(error(
+                    ErrorKind::UndefinedStruct(struct_name.clone()),
+                    lhs.span,
+                ))?
                 .clone();
 
             // get method info
@@ -473,8 +529,7 @@ fn monomorphize_expr<B: Backend>(
             );
 
             // instantiate the function call
-            let (fn_info_mono, typ) =
-                instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
             ctx.node_functions.insert(mexpr.node_id, fn_info_mono);
 
             // assume the function call won't return constant value
@@ -536,8 +591,7 @@ fn monomorphize_expr<B: Backend>(
 
             match cst {
                 Some(v) => {
-                    let mexpr =
-                        expr.to_mast(ctx, &ExprKind::BigUInt(BigUint::from(v)));
+                    let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(BigUint::from(v)));
 
                     ExprMonoInfo::new(mexpr, typ, Some(v))
                 }
@@ -561,8 +615,7 @@ fn monomorphize_expr<B: Backend>(
             // todo: can constant be negative?
             let inner_mono = monomorphize_expr(ctx, inner, mono_fn_env)?;
 
-            let mexpr =
-                expr.to_mast(ctx, &ExprKind::Negated(Box::new(inner_mono.expr)));
+            let mexpr = expr.to_mast(ctx, &ExprKind::Negated(Box::new(inner_mono.expr)));
 
             ExprMonoInfo::new(mexpr, Some(TyKind::Field), None)
         }
@@ -595,10 +648,8 @@ fn monomorphize_expr<B: Backend>(
 
             let res = if is_generic_parameter(&name.value) {
                 let mtype = mono_fn_env.get_type_info(&name.value).unwrap();
-                let mexpr = expr.to_mast(
-                    ctx,
-                    &ExprKind::BigUInt(BigUint::from(mtype.value.unwrap())),
-                );
+                let mexpr =
+                    expr.to_mast(ctx, &ExprKind::BigUInt(BigUint::from(mtype.value.unwrap())));
 
                 ExprMonoInfo::new(mexpr, Some(mtype.typ.clone()), mtype.value)
             } else if is_type(&name.value) {
@@ -730,9 +781,10 @@ fn monomorphize_expr<B: Backend>(
                 span: _,
             } = custom;
             let qualified = FullyQualified::new(module, name);
-            let struct_info = ctx.tast.struct_info(&qualified).ok_or_else(|| {
-                error(ErrorKind::UndefinedStruct(name.clone()), expr.span)
-            })?;
+            let struct_info = ctx
+                .tast
+                .struct_info(&qualified)
+                .ok_or_else(|| error(ErrorKind::UndefinedStruct(name.clone()), expr.span))?;
 
             let defined_fields = &struct_info.fields.clone();
 
@@ -944,8 +996,20 @@ pub fn instantiate_fn_call<B: Backend>(
     span: Span,
 ) -> Result<(FnInfo<B>, Option<TyKind>)> {
     let (fn_sig, stmts) = match &fn_info.kind {
-        FnKind::BuiltIn(sig, _) => (sig, Vec::<Stmt>::new()),
-        FnKind::Native(func) => (&func.sig, func.body.clone()),
+        FnKind::BuiltIn(sig, _) => {
+            let mut sig = sig.clone();
+            // resolve generic values
+            sig.resolve_generic_values(args)?;
+
+            (sig, Vec::<Stmt>::new())
+        }
+        FnKind::Native(func) => {
+            let mut sig = func.sig.clone();
+            // resolve generic values
+            sig.resolve_generic_values(args)?;
+
+            (sig, func.body.clone())
+        }
     };
 
     // canonicalize the arguments depending on method call or not
@@ -962,53 +1026,26 @@ pub fn instantiate_fn_call<B: Backend>(
     // create a context for the function call
     let typed_fn_env = &mut MonomorphizedFnEnv::new();
 
-    // infer the generic values from the observed types
-    for (sig_arg, expr_mono_info) in expected.iter().zip(args) {
-        match &sig_arg.typ.kind {
-            TyKind::Generic(gen_name) => {
-                // infer the generic value from the observed type
-                let val = expr_mono_info.constant;
-                let typ = expr_mono_info.typ.as_ref().expect("expected a value");
-                let mty = MTypeInfo::new(typ, expr_mono_info.expr.span, val);
+    // store the values for generic parameters in the env
+    for gen in &fn_sig.generics.names() {
+        let val = fn_sig.generics.get(gen);
+        typed_fn_env.store_type(gen, &MTypeInfo::new(&TyKind::BigInt, span, Some(val)))?;
+    }
 
-                // store the inferred value for generic parameter
-                typed_fn_env.store_type(gen_name, &mty)?;
+    // store the types of the arguments in the env
+    for (sig_arg, mono_info) in expected.iter().zip(args) {
+        let arg_name = &sig_arg.name.value;
 
-                // store local var value
-                typed_fn_env.store_type(&sig_arg.name.value, &mty)?;
-            }
-            TyKind::GenericArray(_, sym_size) => {
-                let gen_name = match sym_size {
-                    Symbolic::Generic(g) => &g.value,
-                    _ => return Err(error(
-                        ErrorKind::InvalidSymbolicSize,
-                        expr_mono_info.expr.span,
-                    )),
-                };
-
-                // infer the array size from the observed type
-                let arr_type = expr_mono_info.typ.as_ref().expect("expected a value");
-                let size = match arr_type {
-                    TyKind::Array(_, size) => size,
-                    _ => panic!("expected array type"),
-                };
-
-                // store the inferred value for generic parameter
-                let gen_mty = MTypeInfo::new(&TyKind::BigInt, expr_mono_info.expr.span, Some(*size));
-                typed_fn_env.store_type(gen_name, &gen_mty)?;
-
-                // store concrete array type for the argument name
-                let arr_mty = MTypeInfo::new(arr_type, expr_mono_info.expr.span, None);
-                typed_fn_env.store_type(&sig_arg.name.value, &arr_mty)?;
-            }
-            _ => {
-                let typ = expr_mono_info.typ.as_ref().expect("expected a value");
-                let cst = expr_mono_info.constant;
-                // store the type of the argument in the env
-                typed_fn_env
-                    .store_type(&sig_arg.name.value, &MTypeInfo::new(typ, expr_mono_info.expr.span, cst))?;
-            }
+        // generic parameters should have been stored in the env
+        if is_generic_parameter(arg_name) {
+            continue;
         }
+
+        let typ = mono_info.typ.as_ref().expect("expected a value");
+        typed_fn_env.store_type(
+            arg_name,
+            &MTypeInfo::new(typ, mono_info.expr.span, mono_info.constant),
+        )?;
     }
 
     // reconstruct FnArgs using the observed types
@@ -1029,11 +1066,8 @@ pub fn instantiate_fn_call<B: Backend>(
     // evaluate generic return types using inferred values
     let ret_ty = match &fn_sig.return_type {
         Some(ret_ty) => match &ret_ty.kind {
-            TyKind::Generic(_) => {
-                unreachable!()
-            }
             TyKind::GenericArray(typ, size) => {
-                let val = eval_generic_array_size(size, typed_fn_env);
+                let val = size.eval(typed_fn_env);
                 let tykind = TyKind::Array(typ.clone(), val);
                 Some(Ty {
                     kind: tykind,
@@ -1047,22 +1081,19 @@ pub fn instantiate_fn_call<B: Backend>(
 
     // construct the monomorphized function AST
     let func_def = match fn_info.kind {
-        FnKind::BuiltIn(sig, handle) => {
+        FnKind::BuiltIn(_, handle) => {
             let sig_typed = FnSig {
-                generics: HashSet::new(),
                 arguments: fn_args_typed,
                 return_type: ret_ty.clone(),
-                ..sig.clone()
+                ..fn_sig
             };
             FnInfo {
                 kind: FnKind::BuiltIn(sig_typed, handle),
-                // todo: add generics field to pass to the rust function code
                 span: fn_info.span,
             }
         }
         FnKind::Native(fn_def) => {
-            let (stmts, typ) =
-                monomorphize_block(ctx, typed_fn_env, &stmts, ret_ty.as_ref())?;
+            let (stmts, typ) = monomorphize_block(ctx, typed_fn_env, &stmts, ret_ty.as_ref())?;
 
             let ret_typ = match typ {
                 Some(t) => Some(Ty {
@@ -1075,10 +1106,9 @@ pub fn instantiate_fn_call<B: Backend>(
             FnInfo {
                 kind: FnKind::Native(FunctionDef {
                     sig: FnSig {
-                        generics: HashSet::new(),
                         arguments: fn_args_typed,
                         return_type: ret_typ,
-                        ..fn_def.sig
+                        ..fn_sig
                     },
                     body: stmts,
                     span: fn_def.span,
@@ -1092,22 +1122,4 @@ pub fn instantiate_fn_call<B: Backend>(
 }
 pub fn error(kind: ErrorKind, span: Span) -> Error {
     Error::new("mast", kind, span)
-}
-
-/// Evaluate symbolic size to an integer.
-pub fn eval_generic_array_size(sym: &Symbolic, typed_fn_env: &MonomorphizedFnEnv) -> u32 {
-    match sym {
-        Symbolic::Concrete(v) => *v,
-        Symbolic::Generic(g) => typed_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
-        Symbolic::Add(a, b) => {
-            let a = eval_generic_array_size(a, typed_fn_env);
-            let b = eval_generic_array_size(b, typed_fn_env);
-            a + b
-        }
-        Symbolic::Mul(a, b) => {
-            let a = eval_generic_array_size(a, typed_fn_env);
-            let b = eval_generic_array_size(b, typed_fn_env);
-            a * b
-        }
-    }
 }

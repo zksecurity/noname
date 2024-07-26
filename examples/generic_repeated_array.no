@@ -1,11 +1,10 @@
-fn init_arr<NN, MM>(nn: NN, mm: MM) -> [Field; NN * 2 + MM] {
-    // should use propagated values for nn mm to evaluate actual size
-    let arr = [0; (nn * 2) + mm];
+fn init_arr(const LEFT: Field, const RIGHT: Field) -> [Field; LEFT * 2 + RIGHT] {
+    let arr = [0; (LEFT * 2) + RIGHT];
     return arr;
 }
 
-// current algo see -> [Field; 3 * 2 + 1] as GenericArray
 fn main(pub public_input: Field) -> [Field; 7] {
+    // [Field; 3 * 2 + 1]
     let mut arr = init_arr(3, 1);
     for ii in 0..7 {
         arr[ii] = public_input;

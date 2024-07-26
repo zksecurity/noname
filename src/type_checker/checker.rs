@@ -24,8 +24,6 @@ where
 {
     pub kind: FnKind<B>,
     pub span: Span,
-    // todo: generics for inferred values
-    // - will be useful for builtins that will need to know the generic values
 }
 
 impl<B: Backend> FnInfo<B> {
@@ -310,8 +308,7 @@ impl<B: Backend> TypeChecker<B> {
             ExprKind::Variable { module, name } => {
                 let qualified = FullyQualified::new(module, &name.value);
 
-                // generic parameter should be checked as a local variable
-                if is_type(&name.value) && !is_generic_parameter(&name.value) {
+                if is_type(&name.value) {
                     // if it's a type, make sure it exists
                     let _struct_info = self
                         .struct_info(&qualified)
@@ -335,6 +332,7 @@ impl<B: Backend> TypeChecker<B> {
                         }
                     } else {
                         // otherwise it's a local variable
+                        // generic parameter is also checked as a local variable
                         let typ = typed_fn_env
                             .get_type(&name.value)
                             .ok_or_else(|| self.error(ErrorKind::UndefinedVariable, name.span))?
@@ -365,7 +363,6 @@ impl<B: Backend> TypeChecker<B> {
                 let idx_typ = self.compute_type(idx, typed_fn_env)?;
                 match idx_typ.map(|t| t.typ) {
                     Some(TyKind::BigInt) => (),
-                    Some(TyKind::Generic(_)) => (),
                     _ => return Err(self.error(ErrorKind::ExpectedConstant, expr.span)),
                 };
 

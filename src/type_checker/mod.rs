@@ -12,6 +12,7 @@ use crate::{
         CustomType, Expr, StructDef,
     },
     stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS},
+    syntax::is_generic_parameter,
 };
 
 use ark_ff::Field;
@@ -306,16 +307,20 @@ impl<B: Backend> TypeChecker<B> {
                     };
 
                     // store generic parameters as local vars in the fn_env
-                    for gen in &function.sig.generics {
+                    for name in function.sig.generics.names() {
                         typed_fn_env.store_type(
-                            gen.to_string(),
-                            // todo: let generic vars carry their span
-                            TypeInfo::new(TyKind::Generic(gen.to_string()), function.span),
+                            name.to_string(),
+                            TypeInfo::new_cst(TyKind::Field, function.span),
                         )?;
                     }
 
                     // store variables and their types in the fn_env
                     for arg in &function.sig.arguments {
+                        // skip const generic as they should be already stored
+                        if function.sig.generics.names().contains(&arg.name.value) {
+                            continue;
+                        }
+
                         // public_output is a reserved name,
                         // associated automatically to the public output of the main function
                         if RESERVED_ARGS.contains(&arg.name.value.as_str()) {

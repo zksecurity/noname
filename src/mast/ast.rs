@@ -1,4 +1,7 @@
-use crate::{backends::Backend, parser::{Expr, ExprKind}};
+use crate::{
+    backends::Backend,
+    parser::{Expr, ExprKind},
+};
 
 use super::MastCtx;
 
@@ -10,9 +13,9 @@ impl Expr {
         let kind = kind.clone();
 
         Expr {
-            node_id,
-            span,
-            kind,
+            node_id: ctx.next_node_id(),
+            kind: kind.clone(),
+            ..self.clone()
         }
     }
 }

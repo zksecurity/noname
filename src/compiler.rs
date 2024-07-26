@@ -9,9 +9,17 @@ use std::collections::HashMap;
 use miette::NamedSource;
 
 use crate::{
-    backends::Backend, circuit_writer::CircuitWriter, cli::packages::UserRepo, error::Result,
-    inputs::JsonInputs, lexer::Token, mast::{self}, name_resolution::NAST, parser::AST,
-    type_checker::TypeChecker, witness::CompiledCircuit,
+    backends::Backend,
+    circuit_writer::CircuitWriter,
+    cli::packages::UserRepo,
+    error::Result,
+    inputs::JsonInputs,
+    lexer::Token,
+    mast::{self},
+    name_resolution::NAST,
+    parser::AST,
+    type_checker::TypeChecker,
+    witness::CompiledCircuit,
 };
 
 /// Contains the association between a counter and the corresponding filename and source code.

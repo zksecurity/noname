@@ -145,16 +145,6 @@ impl Expr {
             // numeric
             TokenKind::BigUInt(b) => Expr::new(ctx, ExprKind::BigUInt(b), span),
 
-            // generic
-            TokenKind::Generic(n) => Expr::new(
-                ctx,
-                ExprKind::Variable {
-                    module: ModulePath::Local,
-                    name: Ident::new(n, span),
-                },
-                span,
-            ),
-
             // identifier
             TokenKind::Identifier(value) => {
                 let maybe_module = Ident::new(value, span);

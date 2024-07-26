@@ -119,7 +119,6 @@ impl Display for Keyword {
 pub enum TokenKind {
     Keyword(Keyword),   // reserved keywords
     Identifier(String), // [a-zA-Z](A-Za-z0-9_)*
-    Generic(String),    // [A-Z]*
     BigUInt(BigUint),   // (0-9)*
     Dot,                // .
     DoubleDot,          // ..
@@ -158,7 +157,6 @@ impl Display for TokenKind {
         use TokenKind::*;
         let desc = match self {
             Keyword(_) => "keyword (use, let, etc.)",
-            Generic(_) => "uppercase alphabetic string",
             Identifier(_) => {
                 "a lowercase alphanumeric (including underscore) string starting with a letter"
             }
@@ -248,14 +246,7 @@ impl Token {
                         }
                     }
                 } else if is_generic_parameter(&ident_or_number) {
-                    if ident_or_number.len() < 2 {
-                        return Err(ctx.error(
-                            ErrorKind::NoOneLetterVariable,
-                            Span::new(ctx.filename_id, ctx.offset, 1),
-                        ));
-                    }
-
-                    TokenKind::Generic(ident_or_number)
+                    TokenKind::Identifier(ident_or_number)
                 } else if is_identifier_or_type(&ident_or_number) {
                     if ident_or_number.len() < 2 {
                         return Err(ctx.error(
