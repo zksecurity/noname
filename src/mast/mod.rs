@@ -1013,15 +1013,7 @@ impl<B: Backend> Mast<B> {
                     let cst = type_info.constant;
 
                     // we expect `const GENPARM: Field` or `const normal_const: Field` or `normal_arg: SomeType`
-                    if is_generic_parameter(arg_name) {
-                        // there should be a constant value propagated 
-                        if cst.is_none() {
-                            return Err(self.error(
-                                ErrorKind::GenericValueExpected(arg_name.to_string()),
-                                *span,
-                            ));
-                        }
-
+                    if is_generic_parameter(arg_name) && cst.is_some() {
                         // bind generic value
                         generics.bind(arg_name.to_string(), cst.unwrap(), sig_arg.span)?;
                     }
