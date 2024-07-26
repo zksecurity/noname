@@ -10,7 +10,7 @@ use miette::NamedSource;
 
 use crate::{
     backends::Backend, circuit_writer::CircuitWriter, cli::packages::UserRepo, error::Result,
-    inputs::JsonInputs, lexer::Token, mast::Mast, name_resolution::NAST, parser::AST,
+    inputs::JsonInputs, lexer::Token, mast::{self}, name_resolution::NAST, parser::AST,
     type_checker::TypeChecker, witness::CompiledCircuit,
 };
 
@@ -144,7 +144,7 @@ pub fn compile<B: Backend>(
     tast: TypeChecker<B>,
     backend: B,
 ) -> miette::Result<CompiledCircuit<B>> {
-    let mut mast = Mast::monomorphize(tast)?;
+    let mut mast = mast::monomorphize(tast)?;
     CircuitWriter::generate_circuit(mast, backend).into_miette(sources)
 }
 
