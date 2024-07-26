@@ -274,12 +274,12 @@ impl<B: Backend> Mast<B> {
         };
 
         // create a new typed fn environment to type check the function
-        let mut typed_fn_env = MonomorphizedFnEnv::default();
+        let mut mono_fn_env = MonomorphizedFnEnv::default();
 
         // store variables and their types in the fn_env
         for arg in &func_def.sig.arguments {
             // store the args' type in the fn environment
-            typed_fn_env.store_type(
+            mono_fn_env.store_type(
                 &arg.name.value,
                 &MTypeInfo::new(&arg.typ.kind, arg.span, None),
             )?;
@@ -289,13 +289,13 @@ impl<B: Backend> Mast<B> {
         if let Some(typ) = &func_def.sig.return_type {
             match typ.kind {
                 TyKind::Field => {
-                    typed_fn_env.store_type(
+                    mono_fn_env.store_type(
                         "public_output".as_ref(),
                         &MTypeInfo::new(&typ.kind, typ.span, None),
                     )?;
                 }
                 TyKind::Array(_, _) => {
-                    typed_fn_env.store_type(
+                    mono_fn_env.store_type(
                         "public_output".as_ref(),
                         &MTypeInfo::new(&typ.kind, typ.span, None),
                     )?;
@@ -306,7 +306,7 @@ impl<B: Backend> Mast<B> {
 
         // inferring for main function body
         let (stmts_mono, _) = mast.monomorphize_block(
-            &mut typed_fn_env,
+            &mut mono_fn_env,
             &func_def.body,
             func_def.sig.return_type.as_ref(),
         )?;
@@ -329,11 +329,11 @@ impl<B: Backend> Mast<B> {
     fn monomorphize_expr(
         &mut self,
         expr: &Expr,
-        typed_fn_env: &mut MonomorphizedFnEnv,
+        mono_fn_env: &mut MonomorphizedFnEnv,
     ) -> Result<ExprMonoInfo> {
         let expr_mono: ExprMonoInfo = match &expr.kind {
             ExprKind::FieldAccess { lhs, rhs } => {
-                let lhs_mono = self.monomorphize_expr(lhs, typed_fn_env)?;
+                let lhs_mono = self.monomorphize_expr(lhs, mono_fn_env)?;
 
                 // obtain the type of the field
                 let (module, struct_name) = match lhs_mono.typ {
@@ -376,7 +376,7 @@ impl<B: Backend> Mast<B> {
                 // compute the observed arguments types
                 let mut observed = Vec::with_capacity(args.len());
                 for arg in args {
-                    let node = self.monomorphize_expr(arg, typed_fn_env)?;
+                    let node = self.monomorphize_expr(arg, mono_fn_env)?;
                     observed.push(node);
                 }
 
@@ -416,7 +416,7 @@ impl<B: Backend> Mast<B> {
                 args,
             } => {
                 // retrieve struct name on the lhs
-                let lhs_mono = self.monomorphize_expr(lhs, typed_fn_env)?;
+                let lhs_mono = self.monomorphize_expr(lhs, mono_fn_env)?;
                 let (module, struct_name) = match lhs_mono.clone().typ {
                     Some(TyKind::Custom { module, name }) => (module, name),
                     _ => return Err(self.error(ErrorKind::MethodCallOnNonCustomStruct, expr.span)),
@@ -446,13 +446,13 @@ impl<B: Backend> Mast<B> {
                 let mut observed = Vec::with_capacity(args.len());
                 if let Some(self_arg) = fn_info.sig().arguments.first() {
                     if self_arg.name.value == "self" {
-                        observed.push(self.monomorphize_expr(lhs, typed_fn_env)?);
+                        observed.push(self.monomorphize_expr(lhs, mono_fn_env)?);
                     }
                 }
 
                 let mut args_mono = vec![];
                 for arg in args {
-                    let expr_mono = self.monomorphize_expr(arg, typed_fn_env)?;
+                    let expr_mono = self.monomorphize_expr(arg, mono_fn_env)?;
                     observed.push(expr_mono.clone());
                     args_mono.push(expr_mono.expr);
                 }
@@ -477,10 +477,10 @@ impl<B: Backend> Mast<B> {
 
             ExprKind::Assignment { lhs, rhs } => {
                 // compute type of lhs
-                let lhs_mono = self.monomorphize_expr(lhs, typed_fn_env)?;
+                let lhs_mono = self.monomorphize_expr(lhs, mono_fn_env)?;
 
                 // and is of the same type as the rhs
-                let rhs_mono = self.monomorphize_expr(rhs, typed_fn_env)?;
+                let rhs_mono = self.monomorphize_expr(rhs, mono_fn_env)?;
 
                 if !rhs_mono.typ.unwrap().same_as(&lhs_mono.typ.unwrap()) {
                     panic!("lhs type doesn't match rhs type");
@@ -503,8 +503,8 @@ impl<B: Backend> Mast<B> {
                 rhs,
                 protected,
             } => {
-                let lhs_mono = self.monomorphize_expr(lhs, typed_fn_env)?;
-                let rhs_mono = self.monomorphize_expr(rhs, typed_fn_env)?;
+                let lhs_mono = self.monomorphize_expr(lhs, mono_fn_env)?;
+                let rhs_mono = self.monomorphize_expr(rhs, mono_fn_env)?;
 
                 let typ = match op {
                     Op2::Equality => Some(TyKind::Bool),
@@ -553,7 +553,7 @@ impl<B: Backend> Mast<B> {
 
             ExprKind::Negated(inner) => {
                 // todo: can constant be negative?
-                let inner_mono = self.monomorphize_expr(inner, typed_fn_env)?;
+                let inner_mono = self.monomorphize_expr(inner, mono_fn_env)?;
 
                 let mexpr =
                     expr.to_mast(&mut self.ctx, &ExprKind::Negated(Box::new(inner_mono.expr)));
@@ -562,7 +562,7 @@ impl<B: Backend> Mast<B> {
             }
 
             ExprKind::Not(inner) => {
-                let inner_mono = self.monomorphize_expr(inner, typed_fn_env)?;
+                let inner_mono = self.monomorphize_expr(inner, mono_fn_env)?;
 
                 let mexpr = expr.to_mast(&mut self.ctx, &ExprKind::Not(Box::new(inner_mono.expr)));
 
@@ -588,7 +588,7 @@ impl<B: Backend> Mast<B> {
                 let qualified = FullyQualified::new(module, &name.value);
 
                 let res = if is_generic_parameter(&name.value) {
-                    let mtype = typed_fn_env.get_type_info(&name.value).unwrap();
+                    let mtype = mono_fn_env.get_type_info(&name.value).unwrap();
                     let mexpr = expr.to_mast(
                         &mut self.ctx,
                         &ExprKind::BigUInt(BigUint::from(mtype.value.unwrap())),
@@ -628,7 +628,7 @@ impl<B: Backend> Mast<B> {
                         },
                     );
 
-                    let mtype = typed_fn_env.get_type_info(&name.value).unwrap().clone();
+                    let mtype = mono_fn_env.get_type_info(&name.value).unwrap().clone();
                     ExprMonoInfo::new(mexpr, Some(mtype.typ), mtype.value)
                 };
 
@@ -637,8 +637,8 @@ impl<B: Backend> Mast<B> {
 
             ExprKind::ArrayAccess { array, idx } => {
                 // get type of lhs
-                let array_mono = self.monomorphize_expr(array, typed_fn_env)?;
-                let id_mono = self.monomorphize_expr(idx, typed_fn_env)?;
+                let array_mono = self.monomorphize_expr(array, mono_fn_env)?;
+                let id_mono = self.monomorphize_expr(idx, mono_fn_env)?;
 
                 // get type of element
                 let el_typ = match array_mono.typ.unwrap() {
@@ -667,7 +667,7 @@ impl<B: Backend> Mast<B> {
                 let mut items_mono = vec![];
 
                 for item in items {
-                    let item_mono = self.monomorphize_expr(item, typed_fn_env)?;
+                    let item_mono = self.monomorphize_expr(item, mono_fn_env)?;
                     items_mono.push(item_mono.clone());
 
                     if let Some(tykind) = &tykind {
@@ -694,11 +694,11 @@ impl<B: Backend> Mast<B> {
             }
 
             ExprKind::IfElse { cond, then_, else_ } => {
-                let cond_mono = self.monomorphize_expr(cond, typed_fn_env)?;
+                let cond_mono = self.monomorphize_expr(cond, mono_fn_env)?;
 
                 // compute type of if/else branches
-                let then_mono = self.monomorphize_expr(then_, typed_fn_env)?;
-                let else_mono = self.monomorphize_expr(else_, typed_fn_env)?;
+                let then_mono = self.monomorphize_expr(then_, mono_fn_env)?;
+                let else_mono = self.monomorphize_expr(else_, mono_fn_env)?;
 
                 // make sure that the type of then_ and else_ match
                 if then_mono.typ != else_mono.typ {
@@ -741,7 +741,7 @@ impl<B: Backend> Mast<B> {
                         ));
                     }
 
-                    let observed_mono = &self.monomorphize_expr(&observed.1, typed_fn_env)?;
+                    let observed_mono = &self.monomorphize_expr(&observed.1, mono_fn_env)?;
                     let typ_mono = observed_mono.typ.as_ref().expect("expected a value");
 
                     if !typ_mono.same_as(&defined.1) {
@@ -772,8 +772,8 @@ impl<B: Backend> Mast<B> {
                 )
             }
             ExprKind::RepeatedArrayInit { item, size } => {
-                let item_mono = self.monomorphize_expr(item, typed_fn_env)?;
-                let size_mono = self.monomorphize_expr(size, typed_fn_env)?;
+                let item_mono = self.monomorphize_expr(item, mono_fn_env)?;
+                let size_mono = self.monomorphize_expr(size, mono_fn_env)?;
 
                 let item_typ = item_mono.typ.expect("expected a value");
                 let mexpr = expr.to_mast(
