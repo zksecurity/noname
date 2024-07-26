@@ -254,8 +254,7 @@ impl<B: Backend> TypeChecker<B> {
 
                 // generic parameter is assumed to be of numeric type
                 if lhs_node.typ != rhs_node.typ
-                    && (!crate::parser::types::is_numeric(&lhs_node.typ)
-                        || !crate::parser::types::is_numeric(&rhs_node.typ))
+                    && (!is_numeric(&lhs_node.typ) || !is_numeric(&rhs_node.typ))
                 {
                     return Err(self.error(
                         ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
@@ -499,7 +498,7 @@ impl<B: Backend> TypeChecker<B> {
                 });
                 Some(res)
             }
-            ExprKind::RepeatedArrayDeclaration { item, size } => {
+            ExprKind::RepeatedArrayInit { item, size } => {
                 let item_node = self
                     .compute_type(item, typed_fn_env)?
                     .expect("expected a typed item");
@@ -508,7 +507,7 @@ impl<B: Backend> TypeChecker<B> {
                     .compute_type(size, typed_fn_env)?
                     .expect("expected a typed size");
 
-                if crate::parser::types::is_numeric(&size_node.typ) {
+                if is_numeric(&size_node.typ) {
                     // todo: see if we can determine whether the size node is generic or not
                     // use generic array to bypass the array check, as the size node might include generic parameters.
                     // the mast phase will resolve the size node to a constant, and check the types.

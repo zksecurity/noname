@@ -104,7 +104,7 @@ pub enum ExprKind {
     ArrayDeclaration(Vec<Expr>),
 
     /// `[item; size]`
-    RepeatedArrayDeclaration { item: Box<Expr>, size: Box<Expr> },
+    RepeatedArrayInit { item: Box<Expr>, size: Box<Expr> },
 
     /// `name { fields }`
     CustomTypeDeclaration {
@@ -318,7 +318,7 @@ impl Expr {
 
                         Expr::new(
                             ctx,
-                            ExprKind::RepeatedArrayDeclaration {
+                            ExprKind::RepeatedArrayInit {
                                 item: Box::new(first_item),
                                 size: Box::new(size.clone()),
                             },

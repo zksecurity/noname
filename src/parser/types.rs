@@ -256,6 +256,7 @@ impl TyKind {
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
+            // the checks on the generic arrays can be done in MAST
             (TyKind::GenericArray(lhs, _), TyKind::GenericArray(rhs, _))
             | (TyKind::Array(lhs, _), TyKind::GenericArray(rhs, _))
             | (TyKind::GenericArray(lhs, _), TyKind::Array(rhs, _)) => lhs.match_expected(rhs),
@@ -271,7 +272,7 @@ impl TyKind {
         }
     }
 
-    /// A exact match check, assuming there is no generic type.
+    /// An exact match check, assuming there is no generic type.
     pub fn same_as(&self, other: &TyKind) -> bool {
         match (self, other) {
             (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => true,
