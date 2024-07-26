@@ -638,9 +638,6 @@ impl<B: Backend> TypeChecker<B> {
         Ok(None)
     }
 
-    // todo: collect generic parameters and update FnInfo.generics
-    // - HashSet<Ident, ValueBound>
-    // - ValueBound: Enum { Bound(u32), Unbound }
     /// type checks a function call.
     /// Note that this can also be a method call.
     pub fn check_fn_call(

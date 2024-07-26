@@ -556,7 +556,7 @@ impl Ty {
 //~
 //~ fn_sig ::= ident "(" param { "," param } ")" [ return_val ]
 //~ return_val ::= "->" type
-//~ param ::= { "pub" } ident ":" type
+//~ param ::= { "pub" | "const" } ident ":" type
 //~
 
 impl FnSig {
@@ -571,10 +571,11 @@ impl FnSig {
             match &arg.typ.kind {
                 TyKind::Field => {
                     // extract from const argument
-                    if is_generic_parameter(&arg.name.value) {
+                    if is_generic_parameter(&arg.name.value) && arg.is_constant() {
                         generics.add(arg.name.value.to_string());
                     }
                 }
+                // todo: recursive extract [[Field; N], M]
                 TyKind::GenericArray(_, sym) => {
                     // extract all generic parameters from the symbolic size
                     let extracted = sym.extract_generics();
@@ -687,9 +688,11 @@ impl Default for FuncOrMethod {
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
+// todo: remove pub from HashMap, and implement getter or setter
 pub struct GenericParameters(pub HashMap<String, GenericValue>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+// todo: this is same as Option type
 pub enum GenericValue {
     Bound(u32),
     Unbound,

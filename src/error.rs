@@ -133,7 +133,7 @@ pub enum ErrorKind {
     #[error("invalid generic parameter, expected single uppercase letter, such as N, M, etc.")]
     InvalidGenericParameter,
 
-    #[error("mising generic value: `{0}`")]
+    #[error("missing generic value: `{0}`")]
     GenericValueExpected(String),
 
     #[error("conflict generic values during binding for `{0}`: `{1}` and `{2}`")]

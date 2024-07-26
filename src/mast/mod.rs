@@ -209,8 +209,11 @@ impl GenericParameters {
                     span,
                 ))
             }
-            Some(GenericValue::Unbound) => Ok(()),
-            _ => Err(Error::new(
+            Some(GenericValue::Unbound) => {
+                self.0.insert(name, GenericValue::Bound(value));
+                Ok(())
+            },
+            None => Err(Error::new(
                 "mast",
                 ErrorKind::UnexpectedGenericParameter(name),
                 span,
@@ -1009,7 +1012,9 @@ impl<B: Backend> Mast<B> {
                     let typ = type_info.typ.as_ref().expect("expected a value");
                     let cst = type_info.constant;
 
+                    // we expect `const GENPARM: Field` or `const normal_const: Field` or `normal_arg: SomeType`
                     if is_generic_parameter(arg_name) {
+                        // there should be a constant value propagated 
                         if cst.is_none() {
                             return Err(self.error(
                                 ErrorKind::GenericValueExpected(arg_name.to_string()),
