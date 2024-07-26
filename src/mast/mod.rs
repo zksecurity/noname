@@ -7,10 +7,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{
-            FnArg, FnSig, GenericParameters, Range, Stmt, StmtKind, Symbolic, Ty,
-            TyKind,
-        },
+        types::{FnArg, FnSig, GenericParameters, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
         CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
     syntax::{is_generic_parameter, is_type},
@@ -207,8 +204,7 @@ impl GenericParameters {
 
     /// Get the value of a generic parameter
     pub fn get(&self, name: &str) -> u32 {
-        self
-            .0
+        self.0
             .get(name)
             .expect("generic parameter not found")
             .expect("generic value not assigned")
@@ -1041,13 +1037,15 @@ pub fn instantiate_fn_call<B: Backend>(
         let arg_name = &sig_arg.name.value;
 
         // generic parameters should have been stored in the env
-        if is_generic_parameter(arg_name)  {
+        if is_generic_parameter(arg_name) {
             continue;
         }
-        
+
         let typ = mono_info.typ.as_ref().expect("expected a value");
-        typed_fn_env
-            .store_type(arg_name, &MTypeInfo::new(typ, mono_info.expr.span, mono_info.constant))?;
+        typed_fn_env.store_type(
+            arg_name,
+            &MTypeInfo::new(typ, mono_info.expr.span, mono_info.constant),
+        )?;
     }
 
     // reconstruct FnArgs using the observed types

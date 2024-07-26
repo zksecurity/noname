@@ -1,4 +1,7 @@
-use crate::{backends::Backend, parser::{Expr, ExprKind}};
+use crate::{
+    backends::Backend,
+    parser::{Expr, ExprKind},
+};
 
 use super::MastCtx;
 

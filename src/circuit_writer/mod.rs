@@ -138,10 +138,7 @@ impl<B: Backend> CircuitWriter<B> {
         let mut circuit_writer = CircuitWriter::new(typed, backend);
 
         // get main function
-        let function = circuit_writer
-            .mast
-            .ast()
-            .clone();
+        let function = circuit_writer.mast.ast().clone();
 
         // initialize the circuit
         circuit_writer.backend.init_circuit();

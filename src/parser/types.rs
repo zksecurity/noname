@@ -680,9 +680,7 @@ impl FnSig {
                 // const NN: Field
                 _ => {
                     let cst = observed_arg.constant;
-                    if is_generic_parameter(sig_arg.name.value.as_str())
-                        && cst.is_some()
-                    {
+                    if is_generic_parameter(sig_arg.name.value.as_str()) && cst.is_some() {
                         self.generics.bind(
                             &sig_arg.name.value,
                             cst.unwrap(),

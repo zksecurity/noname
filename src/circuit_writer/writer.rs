@@ -141,13 +141,15 @@ impl<B: Backend> CircuitWriter<B> {
                 // compute the start and end of the range
                 let start_bg: BigUint = self
                     .compute_expr(fn_env, &range.start)?
-                    .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, range.start.span))?
+                    .ok_or_else(|| {
+                        self.error(ErrorKind::CannotComputeExpression, range.start.span)
+                    })?
                     .constant()
                     .expect("expected constant")
                     .into();
-                let start: u32 = start_bg.try_into().map_err(|_| {
-                    self.error(ErrorKind::InvalidRangeSize, range.start.span)
-                })?;
+                let start: u32 = start_bg
+                    .try_into()
+                    .map_err(|_| self.error(ErrorKind::InvalidRangeSize, range.start.span))?;
 
                 let end_bg: BigUint = self
                     .compute_expr(fn_env, &range.end)?
@@ -155,9 +157,9 @@ impl<B: Backend> CircuitWriter<B> {
                     .constant()
                     .expect("expected constant")
                     .into();
-                let end: u32 = end_bg.try_into().map_err(|_| {
-                    self.error(ErrorKind::InvalidRangeSize, range.end.span)
-                })?;
+                let end: u32 = end_bg
+                    .try_into()
+                    .map_err(|_| self.error(ErrorKind::InvalidRangeSize, range.end.span))?;
 
                 // compute for the for loop block
                 for ii in start..end {
