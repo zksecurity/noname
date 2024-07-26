@@ -343,7 +343,7 @@ impl<B: Backend> TypeChecker<B> {
                     // store variables and their types in the fn_env
                     for arg in &function.sig.arguments {
                         // skip const generic as they should be already stored
-                        if is_generic_parameter(&arg.name.value) {
+                        if function.sig.generics.names().contains(&arg.name.value) {
                             continue;
                         }
 
