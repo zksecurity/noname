@@ -289,6 +289,31 @@ impl TyKind {
             _ => false,
         }
     }
+
+    /// Recursively extract generic parameters from GenericArray type
+    /// it should be able to extract generic parameter 'N' 'M' from [[Field; N], M]
+    pub fn extract_generics(&self) -> HashSet<String> {
+        let mut generics = HashSet::new();
+
+        match self {
+            TyKind::Field => (),
+            TyKind::BigInt => (),
+            TyKind::Bool => (),
+            TyKind::Custom { .. } => (),
+            // e.g [[Field; N], 3]
+            TyKind::Array(ty, _) => {
+                generics.extend(ty.extract_generics());
+            }
+            // e.g [[Field; N], M]
+            TyKind::GenericArray(ty, sym) => {
+                generics.extend(ty.extract_generics());
+                generics.extend(sym.extract_generics());
+            }
+        }
+
+        generics
+    }
+
 }
 
 impl Display for TyKind {
@@ -575,10 +600,9 @@ impl FnSig {
                         generics.add(arg.name.value.to_string());
                     }
                 }
-                // todo: recursive extract [[Field; N], M]
-                TyKind::GenericArray(_, sym) => {
-                    // extract all generic parameters from the symbolic size
-                    let extracted = sym.extract_generics();
+                TyKind::GenericArray(_, _) => {
+                    // recursively extract all generic parameters from the symbolic size
+                    let extracted = arg.typ.kind.extract_generics();
 
                     for name in extracted {
                         generics.add(name);
