@@ -14,6 +14,7 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind, Tokens},
+    mast::ExprMonoInfo,
     stdlib::BUILTIN_FN_NAMES,
     syntax::{is_generic_parameter, is_type},
 };
@@ -314,7 +315,6 @@ impl TyKind {
 
         generics
     }
-
 }
 
 impl Display for TyKind {
@@ -601,6 +601,14 @@ impl FnSig {
                         generics.add(arg.name.value.to_string());
                     }
                 }
+                TyKind::Array(ty, _) => {
+                    // recursively extract all generic parameters from the item type
+                    let extracted = ty.extract_generics();
+
+                    for name in extracted {
+                        generics.add(name);
+                    }
+                }
                 TyKind::GenericArray(_, _) => {
                     // recursively extract all generic parameters from the symbolic size
                     let extracted = arg.typ.kind.extract_generics();
@@ -622,6 +630,70 @@ impl FnSig {
             arguments,
             return_type,
         })
+    }
+
+    /// Recursively assign values to the generic parameters based on observed Array type argument
+    fn resolve_generic_array(
+        &mut self,
+        sig_arg: &TyKind,
+        observed: &TyKind,
+        span: Span,
+    ) -> Result<()> {
+        match (sig_arg, observed) {
+            // [[Field; NN]; MM]
+            (TyKind::GenericArray(ty, sym), TyKind::Array(observed_ty, observed_size)) => {
+                // resolve the generic parameter
+                match sym {
+                    Symbolic::Generic(ident) => {
+                        self.generics.bind(&ident.value, *observed_size, span)?;
+                    }
+                    _ => unreachable!("no operation allowed on symbolic size in function argument"),
+                }
+
+                // recursively resolve the generic parameter
+                self.resolve_generic_array(ty, observed_ty, span)?;
+            }
+            // [[Field; NN]; 3]
+            (TyKind::Array(ty, _), TyKind::Array(observed_ty, _)) => {
+                // recursively resolve the generic parameter
+                self.resolve_generic_array(ty, observed_ty, span)?;
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
+
+    /// Resolve generic values for each generic parameter
+    pub fn resolve_generic_values(&mut self, observed: &[ExprMonoInfo]) -> Result<()> {
+        for (sig_arg, observed_arg) in self.arguments.clone().iter().zip(observed) {
+            let observed_ty = observed_arg.typ.clone().expect("expected type");
+            match (&sig_arg.typ.kind, &observed_ty) {
+                (TyKind::GenericArray(_, _), TyKind::Array(_, _))
+                | (TyKind::Array(_, _), TyKind::Array(_, _)) => {
+                    self.resolve_generic_array(
+                        &sig_arg.typ.kind,
+                        &observed_ty,
+                        observed_arg.expr.span,
+                    )?;
+                }
+                // const NN: Field
+                _ => {
+                    let cst = observed_arg.constant;
+                    if is_generic_parameter(sig_arg.name.value.as_str())
+                        && cst.is_some()
+                    {
+                        self.generics.bind(
+                            &sig_arg.name.value,
+                            cst.unwrap(),
+                            observed_arg.expr.span,
+                        )?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -714,14 +786,7 @@ impl Default for FuncOrMethod {
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 // todo: remove pub from HashMap, and implement getter or setter
-pub struct GenericParameters(pub HashMap<String, GenericValue>);
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-// todo: this is same as Option type
-pub enum GenericValue {
-    Bound(u32),
-    Unbound,
-}
+pub struct GenericParameters(pub HashMap<String, Option<u32>>);
 
 // TODO: remove default here?
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
