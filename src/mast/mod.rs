@@ -181,12 +181,12 @@ impl<B: Backend> MastCtx<B> {
 
 impl Symbolic {
     /// Evaluate symbolic size to an integer.
-    pub fn eval(&self, typed_fn_env: &MonomorphizedFnEnv) -> u32 {
+    pub fn eval(&self, mono_fn_env: &MonomorphizedFnEnv) -> u32 {
         match self {
             Symbolic::Concrete(v) => *v,
-            Symbolic::Generic(g) => typed_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
-            Symbolic::Add(a, b) => a.eval(typed_fn_env) + b.eval(typed_fn_env),
-            Symbolic::Mul(a, b) => a.eval(typed_fn_env) * b.eval(typed_fn_env),
+            Symbolic::Generic(g) => mono_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
+            Symbolic::Add(a, b) => a.eval(mono_fn_env) + b.eval(mono_fn_env),
+            Symbolic::Mul(a, b) => a.eval(mono_fn_env) * b.eval(mono_fn_env),
         }
     }
 }
@@ -861,18 +861,18 @@ fn monomorphize_expr<B: Backend>(
 /// Monomorphize a block of statements.
 pub fn monomorphize_block<B: Backend>(
     ctx: &mut MastCtx<B>,
-    typed_fn_env: &mut MonomorphizedFnEnv,
+    mono_fn_env: &mut MonomorphizedFnEnv,
     stmts: &[Stmt],
     expected_return: Option<&Ty>,
 ) -> Result<(Vec<Stmt>, Option<TyKind>)> {
-    typed_fn_env.nest();
+    mono_fn_env.nest();
 
     let mut return_typ = None;
 
     let mut stmts_mono = vec![];
 
     for stmt in stmts {
-        if let Some((stmt, ret_typ)) = monomorphize_stmt(ctx, typed_fn_env, stmt)? {
+        if let Some((stmt, ret_typ)) = monomorphize_stmt(ctx, mono_fn_env, stmt)? {
             stmts_mono.push(stmt);
 
             if ret_typ.is_some() {
@@ -891,7 +891,7 @@ pub fn monomorphize_block<B: Backend>(
         }
     };
 
-    typed_fn_env.pop();
+    mono_fn_env.pop();
 
     Ok((stmts_mono, return_typ))
 }
@@ -899,17 +899,17 @@ pub fn monomorphize_block<B: Backend>(
 /// Monomorphize a statement.
 pub fn monomorphize_stmt<B: Backend>(
     ctx: &mut MastCtx<B>,
-    typed_fn_env: &mut MonomorphizedFnEnv,
+    mono_fn_env: &mut MonomorphizedFnEnv,
     stmt: &Stmt,
 ) -> Result<Option<(Stmt, Option<TyKind>)>> {
     let res = match &stmt.kind {
         StmtKind::Assign { mutable, lhs, rhs } => {
-            let rhs_mono = monomorphize_expr(ctx, rhs, typed_fn_env)?;
+            let rhs_mono = monomorphize_expr(ctx, rhs, mono_fn_env)?;
             let typ = rhs_mono.typ.as_ref().expect("expected a type");
             let type_info = MTypeInfo::new(typ, lhs.span, None);
 
             // store the type of lhs in the env
-            typed_fn_env.store_type(&lhs.value, &type_info)?;
+            mono_fn_env.store_type(&lhs.value, &type_info)?;
 
             let stmt_mono = Stmt {
                 kind: StmtKind::Assign {
@@ -923,15 +923,15 @@ pub fn monomorphize_stmt<B: Backend>(
             Some((stmt_mono, None))
         }
         StmtKind::ForLoop { var, range, body } => {
-            typed_fn_env.store_type(
+            mono_fn_env.store_type(
                 &var.value,
                 // because we don't unroll the loop in the monomorphized AST
                 // no constant value even if it's a BigInt
                 &MTypeInfo::new(&TyKind::BigInt, var.span, None),
             )?;
 
-            let start_mono = monomorphize_expr(ctx, &range.start, typed_fn_env)?;
-            let end_mono = monomorphize_expr(ctx, &range.end, typed_fn_env)?;
+            let start_mono = monomorphize_expr(ctx, &range.start, mono_fn_env)?;
+            let end_mono = monomorphize_expr(ctx, &range.end, mono_fn_env)?;
 
             if start_mono.constant.is_none() || end_mono.constant.is_none() {
                 return Err(error(ErrorKind::InvalidRangeSize, stmt.span));
@@ -947,7 +947,7 @@ pub fn monomorphize_stmt<B: Backend>(
                 span: range.span,
             };
 
-            let (stmts_mono, _) = monomorphize_block(ctx, typed_fn_env, body, None)?;
+            let (stmts_mono, _) = monomorphize_block(ctx, mono_fn_env, body, None)?;
             let loop_stmt_mono = Stmt {
                 kind: StmtKind::ForLoop {
                     var: var.clone(),
@@ -960,7 +960,7 @@ pub fn monomorphize_stmt<B: Backend>(
             Some((loop_stmt_mono, None))
         }
         StmtKind::Expr(expr) => {
-            let expr_mono = monomorphize_expr(ctx, expr, typed_fn_env)?;
+            let expr_mono = monomorphize_expr(ctx, expr, mono_fn_env)?;
             let stmt_mono = Stmt {
                 kind: StmtKind::Expr(Box::new(expr_mono.expr)),
                 span: stmt.span,
@@ -969,7 +969,7 @@ pub fn monomorphize_stmt<B: Backend>(
             Some((stmt_mono, None))
         }
         StmtKind::Return(res) => {
-            let expr_mono = monomorphize_expr(ctx, res, typed_fn_env)?;
+            let expr_mono = monomorphize_expr(ctx, res, mono_fn_env)?;
             let stmt_mono = Stmt {
                 kind: StmtKind::Return(Box::new(expr_mono.expr)),
                 span: stmt.span,
@@ -1024,12 +1024,12 @@ pub fn instantiate_fn_call<B: Backend>(
     }
 
     // create a context for the function call
-    let typed_fn_env = &mut MonomorphizedFnEnv::new();
+    let mono_fn_env = &mut MonomorphizedFnEnv::new();
 
     // store the values for generic parameters in the env
     for gen in &fn_sig.generics.names() {
         let val = fn_sig.generics.get(gen);
-        typed_fn_env.store_type(gen, &MTypeInfo::new(&TyKind::BigInt, span, Some(val)))?;
+        mono_fn_env.store_type(gen, &MTypeInfo::new(&TyKind::BigInt, span, Some(val)))?;
     }
 
     // store the types of the arguments in the env
@@ -1042,7 +1042,7 @@ pub fn instantiate_fn_call<B: Backend>(
         }
 
         let typ = mono_info.typ.as_ref().expect("expected a value");
-        typed_fn_env.store_type(
+        mono_fn_env.store_type(
             arg_name,
             &MTypeInfo::new(typ, mono_info.expr.span, mono_info.constant),
         )?;
@@ -1067,7 +1067,7 @@ pub fn instantiate_fn_call<B: Backend>(
     let ret_ty = match &fn_sig.return_type {
         Some(ret_ty) => match &ret_ty.kind {
             TyKind::GenericArray(typ, size) => {
-                let val = size.eval(typed_fn_env);
+                let val = size.eval(mono_fn_env);
                 let tykind = TyKind::Array(typ.clone(), val);
                 Some(Ty {
                     kind: tykind,
@@ -1093,7 +1093,7 @@ pub fn instantiate_fn_call<B: Backend>(
             }
         }
         FnKind::Native(fn_def) => {
-            let (stmts, typ) = monomorphize_block(ctx, typed_fn_env, &stmts, ret_ty.as_ref())?;
+            let (stmts, typ) = monomorphize_block(ctx, mono_fn_env, &stmts, ret_ty.as_ref())?;
 
             let ret_typ = match typ {
                 Some(t) => Some(Ty {
