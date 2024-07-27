@@ -645,7 +645,7 @@ impl FnSig {
                 // resolve the generic parameter
                 match sym {
                     Symbolic::Generic(ident) => {
-                        self.generics.bind(&ident.value, *observed_size, span)?;
+                        self.generics.assign(&ident.value, *observed_size, span)?;
                     }
                     _ => unreachable!("no operation allowed on symbolic size in function argument"),
                 }
@@ -681,7 +681,7 @@ impl FnSig {
                 _ => {
                     let cst = observed_arg.constant;
                     if is_generic_parameter(sig_arg.name.value.as_str()) && cst.is_some() {
-                        self.generics.bind(
+                        self.generics.assign(
                             &sig_arg.name.value,
                             cst.unwrap(),
                             observed_arg.expr.span,

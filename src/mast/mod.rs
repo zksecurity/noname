@@ -211,7 +211,7 @@ impl GenericParameters {
     }
 
     /// Bind a generic parameter to a value
-    pub fn bind(&mut self, name: &String, value: u32, span: Span) -> Result<()> {
+    pub fn assign(&mut self, name: &String, value: u32, span: Span) -> Result<()> {
         let existing = self.0.get(name);
         match existing {
             Some(Some(v)) => {
