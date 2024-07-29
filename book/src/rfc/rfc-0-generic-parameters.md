@@ -519,6 +519,35 @@ fn main() {
 
 The current `compute_type` function can remain as it is. It stores the computed concrete types, such as `Array` or `Custom` as shown in the examples above, instead of the generic types. It creates a mapping between the expression node from the AST and the type `TypeKind`.
 
+### Function Call Instantiation
+The functions are defined as `FunctionDef`, which is an AST containing the signature and the body of the function. The body is a vector of statements, each of which is a tree of expression nodes. It is fine to have different function calls pointing to these functions' original AST, when the content of these functions doesn't change, and so are the expression nodes.
+
+However, when a function takes generic arguments, the actual arguments can result in different expression nodes. For example:
+
+```rust
+fn last(arr: [Field; N]) -> Field {
+    return arr[N - 1];
+}
+
+fn main() {
+    let arr1 = [1, 2, 3, 4, 5];
+    let arr2 = [6, 7, 8, 9];
+
+    let last1 = last(arr1); // instantiate `last` function with N = 5
+    let last2 = last(arr2); // instantiate `last` function with N = 4
+}
+```
+
+The monomorphized body of the function call for `last(arr1)` is `return arr[5 - 1]`, while the one for `last(arr2)` is `return arr[4 - 1]`. Therefore, we can't have a single expression node representing both `arr[5 - 1]` and `arr[4 - 1]` expression nodes. These functions should be instantiated with new ASTs, which are monomorphized from the original ASTs. They will be regenerated with the generic parameters being resolved with concrete values. 
+
+To ensure no conflicts in the node IDs being regenerated for these instantiated functions, the AST for the main function as an entry point will be regenerated. The monomorphized AST preserves the span information to point to the noname source code for the existing debugging feature.
+
+Same as before, these instantiated functions can be pointed by the expression nodes `ExprKind::FnCall`. With the support of generic parameters, we need to change the way of loading the function AST, as the current fully qualified name pattern doesn't contain the information to differentiate the instantiated functions with different generic values.
+
+The new string pattern to store the monomorphized function AST can be:
+`fn_full_qualified_name#generic1=value1#generic2=value2`
+
+
 ### Circuit Synthesizer
 Circuit synthesizer relies on the `compute_expr` function to walk through the AST, which is the `FunctionDef`as the entry point. Using the mapping between expression node and the type, the results of the lookup will be always in concrete types. 
 
