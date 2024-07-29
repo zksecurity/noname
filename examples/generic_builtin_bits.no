@@ -2,12 +2,11 @@ use std::to_bits;
 use std::from_bits;
 
 fn main(pub xx: Field) {
-    let bits = to_bits(4, xx);
-    // 0010 = xx, where xx = 2
+    let bits = to_bits(3, xx);
+    // 010 = xx, where xx = 2
     assert(!bits[0]);
     assert(bits[1]);
-    assert(!bits[1]);
-    assert(!bits[1]);
+    assert(!bits[2]);
 
     let val = from_bits(bits);
     assert_eq(val, xx);
