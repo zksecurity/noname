@@ -12,7 +12,7 @@ const c_mul = 2;
 
 // the return type is determined by the generic arguments
 // so `init_arr` can be used to create arrays with different sizes
-fn init_arr(const N, const M) -> [Field; N * 2 + M] {
+fn init_arr(const N: Field, const M: Field) -> [Field; N * 2 + M] {
     let arr = [0; N * c_mul + M];
     return arr;
 }
@@ -350,6 +350,36 @@ struct House<N> {
 // allowed
 struct House<N> {
     rooms: [Room; N],
+}
+```
+
+*Forbid generic function in for-loop*
+```rust
+for ii in 0..NN {
+    // any function takes the for loop var as its argument should be forbidden
+    fn_call(ii);
+}
+```
+
+To allow generic functions in for-loop, we will need to take care of unrolling the loop and instantiating the function with the concrete value of the loop variable. This is not in the scope of this RFC.
+
+*Forbid operations on symbolic value of arguments*
+```rust
+// disallow arithmetic operations on the symbolic value of the function arguments,
+// such as N * 2 in this case.
+// because it is challenging to infer the value of N.
+fn last(arr: [Field; NN * 2]) -> Field {
+    return arr[NN - 1];
+}
+```
+
+*Forbid more than one binary operation on symbolic value of return type*
+```rust
+// allow return type to be [Field; NN + MM], which has only one binary operation on the symbolic value,
+// while disallow [Field; NN * 2 + MM], which has two binary operations 
+fn init_arr(const NN: Field, const MM: Field) -> [Field; NN * 2 + MM] {
+    let arr = [0; NN * 2 + MM];
+    return arr;
 }
 ```
 
