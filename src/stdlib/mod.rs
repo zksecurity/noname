@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use ark_ff::One;
+use ark_ff::{One, Zero};
 use once_cell::sync::Lazy;
 
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
         ParserCtx,
     },
     type_checker::FnInfo,
-    var::{ConstOrCell, Var},
+    var::{ConstOrCell, Value, Var},
 };
 
 pub mod crypto;
@@ -29,9 +29,13 @@ pub const QUALIFIED_BUILTINS: &str = "std/builtins";
 
 const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(lhs: Field, rhs: Field)";
+const TO_BITS_FN: &str = "to_bits(const LEN: Field, val: Field) -> [Bool; LEN]";
+const FROM_BITS_FN: &str = "from_bits(bits: [Bool; LEN]) -> Field";
 
+// todo: each addition of builtins require changing this and `get_builtin_fn`,
+// - can we encapsulate them in a single place?
 /// List of builtin function signatures.
-pub const BUILTIN_SIGS: &[&str] = &[ASSERT_FN, ASSERT_EQ_FN];
+pub const BUILTIN_SIGS: &[&str] = &[ASSERT_FN, ASSERT_EQ_FN, TO_BITS_FN, FROM_BITS_FN];
 
 // Unique set of builtin function names, derived from function signatures.
 pub static BUILTIN_FN_NAMES: Lazy<HashSet<String>> = Lazy::new(|| {
@@ -54,6 +58,8 @@ pub fn get_builtin_fn<B: Backend>(name: &str) -> Option<FnInfo<B>> {
     let fn_handle = match name {
         ASSERT_FN => assert,
         ASSERT_EQ_FN => assert_eq,
+        TO_BITS_FN => to_bits,
+        FROM_BITS_FN => from_bits,
         _ => return None,
     };
 
@@ -162,4 +168,128 @@ fn assert<B: Backend>(
     }
 
     Ok(None)
+}
+
+fn to_bits<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    generics: &GenericParameters,
+    vars: &[VarInfo<B::Field, B::Var>],
+    span: Span,
+) -> Result<Option<Var<B::Field, B::Var>>> {
+    // should be two input vars
+    assert_eq!(vars.len(), 2);
+
+    // but the better practice would be to retrieve the value from the generics
+    let num_var = generics.get("LEN");
+
+    // num should be greater than 0
+    assert!(num_var > 0);
+
+    // alternatively, it can be retrieved from the first var, but it is not recommended
+    // let num_var = &vars[0];
+
+    let var_info = &vars[1];
+    let var = &var_info.var;
+    assert_eq!(var.len(), 1);
+
+    // second var is the value to convert
+    let val = match &var[0] {
+        ConstOrCell::Cell(cvar) => cvar,
+        ConstOrCell::Const(_) => todo!(),
+    };
+
+    // convert value to bits
+    let mut bits = Vec::new();
+    let mut e2 = 1u32;
+    let one = B::Field::one();
+    let zero = B::Field::zero();
+    let mut lc: Option<B::Var> = None;
+
+    // this constant is to adapt to the backend::sub api which only accepts vars as operands
+    let var_one = compiler
+        .backend
+        .add_constant(Some("constant one"), one, span);
+
+    for i in 0..num_var {
+        // value >> i & 1
+        let bit = compiler
+            .backend
+            .new_internal_var(Value::RSAnd(val.clone(), i as usize), Span::new(2, 1, 1));
+
+        // constrain it to be either 0 or 1
+        // bits[i] * (bits[i] - 1 ) === 0;
+        // todo: might need to add sub_const to the backend?
+        let bit_minus_one = compiler.backend.sub(&bit, &var_one, Span::new(2, 2, 1));
+        let zero_mul = compiler
+            .backend
+            .mul(&bit, &bit_minus_one, Span::new(2, 3, 1));
+        compiler
+            .backend
+            .assert_eq_const(&zero_mul, zero, Span::new(2, 4, 1));
+
+        // lc += bits[i] * e2;
+        let weighted_bit =
+            compiler
+                .backend
+                .mul_const(&bit, &B::Field::from(e2), Span::new(2, 5, 1));
+        lc = if i == 0 {
+            Some(weighted_bit)
+        } else {
+            Some(
+                compiler
+                    .backend
+                    .add(&lc.unwrap(), &weighted_bit, Span::new(2, 6, 1)),
+            )
+        };
+
+        bits.push(bit.clone());
+        e2 = e2 + e2;
+    }
+
+    compiler
+        .backend
+        .assert_eq_var(val, &lc.unwrap(), Span::new(2, 7, 1));
+
+    let bits_cvars = bits.into_iter().map(ConstOrCell::Cell).collect();
+    Ok(Some(Var::new(bits_cvars, span)))
+}
+
+fn from_bits<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    generics: &GenericParameters,
+    vars: &[VarInfo<B::Field, B::Var>],
+    span: Span,
+) -> Result<Option<Var<B::Field, B::Var>>> {
+    // only one input var
+    assert_eq!(vars.len(), 1);
+
+    let var_info = &vars[0];
+    let num_bits = generics.get("LEN");
+
+    let bits_vars = var_info.var.cvars.iter().map(|c| match c {
+        ConstOrCell::Cell(c) => c,
+        ConstOrCell::Const(_) => todo!(),
+    });
+
+    // this might not be necessary since it should be checked in the type checker
+    assert_eq!(num_bits as usize, bits_vars.len());
+
+    let mut e2 = 1u32;
+    let mut lc: Option<B::Var> = None;
+
+    // accumulate the contribution of each bit
+    for bit in bits_vars {
+        let weighted_bit = compiler.backend.mul_const(bit, &B::Field::from(e2), span);
+
+        lc = match lc {
+            None => Some(weighted_bit),
+            Some(v) => Some(compiler.backend.add(&v, &weighted_bit, span)),
+        };
+
+        e2 = e2 + e2;
+    }
+
+    let cvar = ConstOrCell::Cell(lc.unwrap());
+
+    Ok(Some(Var::new_cvar(cvar, span)))
 }

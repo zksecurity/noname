@@ -1,6 +1,7 @@
 use std::{fmt::Debug, hash::Hash, str::FromStr};
 
-use ark_ff::{Field, Zero};
+use ::kimchi::o1_utils::FieldHelpers;
+use ark_ff::{Field, One, Zero};
 use num_bigint::BigUint;
 
 use crate::{
@@ -180,6 +181,22 @@ pub trait Backend: Clone {
             Value::Scale(scalar, var) => {
                 let var = self.compute_var(env, var)?;
                 Ok(*scalar * var)
+            }
+            Value::RSAnd(var, shift) => {
+                let var = self.compute_var(env, var)?;
+                let bits = var.to_bits();
+
+                // extract the bit after shifting
+                let rbit = bits[*shift];
+
+                // convert the bit back to a field element
+                let res = if rbit {
+                    Self::Field::one()
+                } else {
+                    Self::Field::zero()
+                };
+
+                Ok(res)
             }
         }
     }
