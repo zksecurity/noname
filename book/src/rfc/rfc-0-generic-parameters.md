@@ -547,6 +547,16 @@ Same as before, these instantiated functions can be pointed by the expression no
 The new string pattern to store the monomorphized function AST can be:
 `fn_full_qualified_name#generic1=value1#generic2=value2`
 
+This string needs to be generated on the fly or attached to the node of `ExprKind::FnCall`. For the later case, we can add a new field `instant_id` to the `ExprKind::FnCall` to serve as postfix of that string pattern.
+
+```rust
+FnCall {
+    module: ModulePath,
+    fn_name: Ident,
+    args: Vec<Expr>,
+    instant_id: String, // #generic1=value1#generic2=value2
+}
+```
 
 ### Circuit Synthesizer
 Circuit synthesizer relies on the `compute_expr` function to walk through the AST, which is the `FunctionDef`as the entry point. Using the mapping between expression node and the type, the results of the lookup will be always in concrete types. 
