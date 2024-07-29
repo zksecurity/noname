@@ -482,73 +482,6 @@ To recap, here is the pseudo code for the inferring algorithm for function
 //  return type
 ```
 
-### Type Check Algorithm 
-
-Pseudo code for the type check algorithm in MAST phase:
-```rust
-// load its ExprKind
-// if it is a generic type, such as GenericArray or ConstGeneric
-//    load the generic values from the context
-//    evaluate the Generic type to concrete type, such as Array or Constant
-// type check with the expected type
-```
-
-Reusing the previous example in the inferring algorithm section, the type checking would be like:
-```rust
-struct House<G> {
-   rooms: [Room; G],
-}
-
-fn double(house: House<N>) -> House<2 * N> {
-    let new_house = House {
-        id: house.id,
-        rooms: [Room; N * 2],
-    };
-
-    // type check the return value
-    // compute the type of new_house in generic form House<6>
-    // compare with the return type House<2 * N>
-    return new_house;
-
-    // we might need to update the TyKind::Custom to have a mapping of generic parameters to concrete values.
-    // so `new_house` => Custom{generic: {"G": 6}}, 
-    // while the return type can be also computed as Custom{generic: {"G": 2 * N}} 
-    // where it uses the inferred N = 3 in the scope.
-}
-```
-
-Example for generic array:
-```rust
-// both N and M are inferred from the observed arguments house1 and house2 passed from main function
-fn all_rooms(house1: House<N>, house2: House<M>) -> [Room; N + M] {
-    // `compute_type` steps into the case for `ExprKind::GenericArray`
-    // load the generic values N and M from the context
-    // convert the GenericArray to concrete Array
-    // store the concrete Array in MastEnv using expr.node_id as key
-    let rooms = [Room; N + M];
-    for i in 0..N {
-        rooms[i] = house1.rooms[i];
-    }
-    for i in 0..M {
-        rooms[N + i] = house2.rooms[i];
-    }
-
-    // should type check with the return type [Room; N + M] as the concrete type eg. [Room; 4]
-    // rooms = TyKind::Array(Room, 4); while the return type is TyKind::Array(Room, N + M) where N = 3, M = 1
-    return rooms;
-}
-
-fn main() {
-    ...
-    // type of house1 is Array(Room, 3)
-    // type of house2 is Array(Room, 1)
-    let rooms = all_rooms(house1, house2);
-    ...
-}
-```
-
-The current `compute_type` function can remain as it is. It stores the computed concrete types, such as `Array` or `Custom` as shown in the examples above, instead of the generic types. It creates a mapping between the expression node from the AST and the type `TypeKind`.
-
 ### Function Call Instantiation
 The functions are defined as `FunctionDef`, which is an AST containing the signature and the body of the function. The body is a vector of statements, each of which is a tree of expression nodes. It is fine to have different function calls pointing to these functions' original AST, when the content of these functions doesn't change, and so are the expression nodes.
 
@@ -578,6 +511,11 @@ The new string pattern to store the monomorphized function AST can be:
 `fn_full_qualified_name#generic1=value1#generic2=value2`
 
 This string needs to be generated on the fly or attached to the node of `ExprKind::FnCall`. For the later case, we can add a new field `instant_id` to the `ExprKind::FnCall` to serve as postfix of that string pattern.
+
+*Type checking*
+In this RFC, the generic parameters should only take place in the function arguments or its return type. The instantiation of a generic function will resolve the generic types to be concrete types. Similar to the TAST phase, during the monomorphization of a function body, the computed concrete type can be propagated and compared with the return type of the function signature. 
+
+The type check in this phase will always be in concrete type. Any unresolved generic type will fail the type check.
 
 ```rust
 FnCall {
