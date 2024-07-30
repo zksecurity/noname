@@ -75,7 +75,7 @@ impl TypedFnEnv {
 
     /// Exits a scoped block.
     pub fn pop(&mut self) {
-        self.current_scope.checked_sub(1).expect("scope bug");
+        self.current_scope = self.current_scope.checked_sub(1).expect("scope bug");
 
         //Remove variables as we exit the scope
         let current_scope = self.current_scope;
