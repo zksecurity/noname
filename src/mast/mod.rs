@@ -181,11 +181,7 @@ impl<B: Backend> MastCtx<B> {
 
 impl Symbolic {
     /// Evaluate symbolic size to an integer.
-    pub fn eval<B: Backend>(
-        &self,
-        mono_fn_env: &MonomorphizedFnEnv,
-        tast: &TypeChecker<B>,
-    ) -> u32 {
+    pub fn eval<B: Backend>(&self, mono_fn_env: &MonomorphizedFnEnv, tast: &TypeChecker<B>) -> u32 {
         match self {
             Symbolic::Concrete(v) => *v,
             Symbolic::Constant(var) => {
@@ -195,7 +191,7 @@ impl Symbolic {
                 // convert to u32
                 let bigint: BigUint = cst.value[0].into();
                 bigint.try_into().expect("biguint too large")
-            },
+            }
             Symbolic::Generic(g) => mono_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
             Symbolic::Add(a, b) => a.eval(mono_fn_env, tast) + b.eval(mono_fn_env, tast),
             Symbolic::Mul(a, b) => a.eval(mono_fn_env, tast) * b.eval(mono_fn_env, tast),

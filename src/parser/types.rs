@@ -258,7 +258,7 @@ pub enum TyKind {
     // - it can contain a single literal number as the size
     // - so perhaps both types [Array] and [GenericArray] should be unified as `Array(kind, symbolic_size)`
     // - then the TAST phase allows computed Array type contain generic parameters in the symbolic size
-    // - while the MAST phase will monomorphize the generic parameters, meaning it only allows concrete values 
+    // - while the MAST phase will monomorphize the generic parameters, meaning it only allows concrete values
     // - which are either a constant or a literal number
     /// An array with symbolic size.
     /// This is an intermediate type.
@@ -461,8 +461,7 @@ impl Ty {
                         let span = span.merge_with(siz_second.span);
                         let sym = if is_generic_parameter(name) {
                             Symbolic::Generic(siz)
-                        }
-                        else {
+                        } else {
                             Symbolic::Constant(siz)
                         };
 
@@ -470,8 +469,7 @@ impl Ty {
                             kind: TyKind::GenericArray(Box::new(ty.kind), sym),
                             span,
                         })
-
-                    },
+                    }
                     _ => Err(ctx.error(ErrorKind::InvalidSymbolicSize, siz_first.span)),
                 }
             }
