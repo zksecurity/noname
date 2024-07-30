@@ -179,7 +179,11 @@ pub enum ModulePath {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Symbolic {
+    /// A literal number
     Concrete(u32),
+    /// Point to a constant variable
+    Constant(Ident),
+    /// Generic parameter
     Generic(Ident),
     Add(Box<Symbolic>, Box<Symbolic>),
     Mul(Box<Symbolic>, Box<Symbolic>),
@@ -189,6 +193,7 @@ impl Display for Symbolic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Symbolic::Concrete(n) => write!(f, "{}", n),
+            Symbolic::Constant(ident) => write!(f, "{}", ident.value),
             Symbolic::Generic(ident) => write!(f, "{}", ident.value),
             Symbolic::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
             Symbolic::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
@@ -206,6 +211,9 @@ impl Symbolic {
 
         match self {
             Symbolic::Concrete(_) => (),
+            Symbolic::Constant(ident) => {
+                generics.insert(ident.value.clone());
+            }
             Symbolic::Generic(ident) => {
                 generics.insert(ident.value.clone());
             }
@@ -243,6 +251,15 @@ pub enum TyKind {
     // U16,
     // U32,
     // U64,
+
+    // todo: the name of generic array isn't quite accurate
+    // - not only it can contain generic parameters
+    // - it can contain a single constant var as the size
+    // - it can contain a single literal number as the size
+    // - so perhaps both types [Array] and [GenericArray] should be unified as `Array(kind, symbolic_size)`
+    // - then the TAST phase allows computed Array type contain generic parameters in the symbolic size
+    // - while the MAST phase will monomorphize the generic parameters, meaning it only allows concrete values 
+    // - which are either a constant or a literal number
     /// An array with symbolic size.
     /// This is an intermediate type.
     /// After monomorphized, it will be converted to `Array`.
@@ -436,21 +453,24 @@ impl Ty {
                             span,
                         })
                     }
-                    // otherwise assume it is a GenericArray
+                    // [Field; nn]
                     // [Field; NN]
                     //         ^^^
                     (TokenKind::Identifier(name), TokenKind::RightBracket) => {
-                        if !is_generic_parameter(name) {
-                            return Err(ctx.error(ErrorKind::InvalidArraySize, siz_first.span));
-                        }
-
                         let siz = Ident::new(name.to_string(), siz_first.span);
                         let span = span.merge_with(siz_second.span);
+                        let sym = if is_generic_parameter(name) {
+                            Symbolic::Generic(siz)
+                        }
+                        else {
+                            Symbolic::Constant(siz)
+                        };
 
                         Ok(Ty {
-                            kind: TyKind::GenericArray(Box::new(ty.kind), Symbolic::Generic(siz)),
+                            kind: TyKind::GenericArray(Box::new(ty.kind), sym),
                             span,
                         })
+
                     },
                     _ => Err(ctx.error(ErrorKind::InvalidSymbolicSize, siz_first.span)),
                 }

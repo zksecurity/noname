@@ -181,12 +181,24 @@ impl<B: Backend> MastCtx<B> {
 
 impl Symbolic {
     /// Evaluate symbolic size to an integer.
-    pub fn eval(&self, mono_fn_env: &MonomorphizedFnEnv) -> u32 {
+    pub fn eval<B: Backend>(
+        &self,
+        mono_fn_env: &MonomorphizedFnEnv,
+        tast: &TypeChecker<B>,
+    ) -> u32 {
         match self {
             Symbolic::Concrete(v) => *v,
+            Symbolic::Constant(var) => {
+                let qualified = FullyQualified::local(var.value.clone());
+                let cst = tast.const_info(&qualified).expect("constant not found");
+
+                // convert to u32
+                let bigint: BigUint = cst.value[0].into();
+                bigint.try_into().expect("biguint too large")
+            },
             Symbolic::Generic(g) => mono_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
-            Symbolic::Add(a, b) => a.eval(mono_fn_env) + b.eval(mono_fn_env),
-            Symbolic::Mul(a, b) => a.eval(mono_fn_env) * b.eval(mono_fn_env),
+            Symbolic::Add(a, b) => a.eval(mono_fn_env, tast) + b.eval(mono_fn_env, tast),
+            Symbolic::Mul(a, b) => a.eval(mono_fn_env, tast) * b.eval(mono_fn_env, tast),
         }
     }
 }
@@ -651,6 +663,7 @@ fn monomorphize_expr<B: Backend>(
             let id_mono = monomorphize_expr(ctx, idx, mono_fn_env)?;
 
             // get type of element
+            println!("{:?}", array_mono.typ);
             let el_typ = match array_mono.typ.unwrap() {
                 TyKind::Array(typkind, _) => Some(*typkind),
                 _ => panic!("not an array"),
@@ -1020,7 +1033,7 @@ pub fn instantiate_fn_call<B: Backend>(
     let ret_ty = match &fn_sig.return_type {
         Some(ret_ty) => match &ret_ty.kind {
             TyKind::GenericArray(typ, size) => {
-                let val = size.eval(mono_fn_env);
+                let val = size.eval(mono_fn_env, &ctx.tast);
                 let tykind = TyKind::Array(typ.clone(), val);
                 Some(Ty {
                     kind: tykind,
