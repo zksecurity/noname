@@ -783,8 +783,54 @@ impl Default for FuncOrMethod {
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-// todo: remove pub from HashMap, and implement getter or setter
-pub struct GenericParameters(pub HashMap<String, Option<u32>>);
+pub struct GenericParameters(HashMap<String, Option<u32>>);
+
+impl GenericParameters {
+    /// Return all generic parameter names
+    pub fn names(&self) -> HashSet<String> {
+        self.0.keys().cloned().collect()
+    }
+
+    /// Add an unbound generic parameter
+    pub fn add(&mut self, name: String) {
+        self.0.insert(name, None);
+    }
+
+    /// Get the value of a generic parameter
+    pub fn get(&self, name: &str) -> u32 {
+        self.0
+            .get(name)
+            .expect("generic parameter not found")
+            .expect("generic value not assigned")
+    }
+
+    /// Bind a generic parameter to a value
+    pub fn assign(&mut self, name: &String, value: u32, span: Span) -> Result<()> {
+        let existing = self.0.get(name);
+        match existing {
+            Some(Some(v)) => {
+                if *v == value {
+                    return Ok(());
+                }
+
+                Err(Error::new(
+                    "mast",
+                    ErrorKind::ConflictGenericValue(name.to_string(), *v, value),
+                    span,
+                ))
+            }
+            Some(None) => {
+                self.0.insert(name.to_string(), Some(value));
+                Ok(())
+            }
+            None => Err(Error::new(
+                "mast",
+                ErrorKind::UnexpectedGenericParameter(name.to_string()),
+                span,
+            )),
+        }
+    }
+}
 
 // TODO: remove default here?
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
