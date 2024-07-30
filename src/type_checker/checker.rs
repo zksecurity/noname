@@ -126,6 +126,11 @@ impl<B: Backend> TypeChecker<B> {
                 })?;
                 let fn_sig = fn_info.sig().clone();
 
+                // check if generic is allowed
+                if fn_sig.is_generic() && typed_fn_env.is_in_forloop() {
+                    return Err(self.error(ErrorKind::GenericInForLoop, expr.span));
+                }
+
                 // type check the function call
                 let method_call = false;
                 let res = self.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)?;
@@ -158,6 +163,11 @@ impl<B: Backend> TypeChecker<B> {
                     .methods
                     .get(&method_name.value)
                     .expect("method not found on custom struct (TODO: better error)");
+
+                // check if generic is allowed
+                if method_type.sig.is_generic() && typed_fn_env.is_in_forloop() {
+                    return Err(self.error(ErrorKind::GenericInForLoop, expr.span));
+                }
 
                 // type check the method call
                 let method_call = true;
@@ -600,6 +610,7 @@ impl<B: Backend> TypeChecker<B> {
             StmtKind::ForLoop { var, range, body } => {
                 // enter a new scope
                 typed_fn_env.nest();
+                typed_fn_env.start_forloop();
 
                 // create var (for now it's always a bigint)
                 typed_fn_env
@@ -616,6 +627,7 @@ impl<B: Backend> TypeChecker<B> {
 
                 // exit the scope
                 typed_fn_env.pop();
+                typed_fn_env.end_forloop();
             }
             StmtKind::Expr(expr) => {
                 // make sure the expression does not return any type

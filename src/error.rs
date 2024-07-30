@@ -145,6 +145,9 @@ pub enum ErrorKind {
     #[error("unexpected generic parameter: `{0}`")]
     UnexpectedGenericParameter(String),
 
+    #[error("calling generic functions in for loop is not allowed")]
+    GenericInForLoop,
+
     #[error("the value passed could not be converted to a field element")]
     InvalidField(String),
 

@@ -693,6 +693,11 @@ impl FnSig {
 
         Ok(())
     }
+
+    /// Returns true if the function contains generic parameters
+    pub fn is_generic(&self) -> bool {
+        !self.generics.is_empty()
+    }
 }
 
 /// Any kind of text that can represent a type, a variable, a function name, etc.
@@ -802,6 +807,11 @@ impl GenericParameters {
             .get(name)
             .expect("generic parameter not found")
             .expect("generic value not assigned")
+    }
+
+    /// Returns whether the generic parameters are empty
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     /// Bind a generic parameter to a value

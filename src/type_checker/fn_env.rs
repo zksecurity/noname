@@ -65,6 +65,9 @@ pub struct TypedFnEnv {
     /// This needs to be garbage collected when we exit a scope.
     // TODO: there's an output_type field that's a reserved keyword?
     vars: HashMap<String, (usize, TypeInfo)>,
+
+    /// Whether it is in a for loop or not.
+    forloop: bool,
 }
 
 impl TypedFnEnv {
@@ -88,6 +91,21 @@ impl TypedFnEnv {
                 type_info.disabled = true;
             }
         }
+    }
+
+    /// Returns whether it is in a for loop.
+    pub fn is_in_forloop(&self) -> bool {
+        self.forloop
+    }
+
+    /// Flags it as in the for loop.
+    pub fn start_forloop(&mut self) {
+        self.forloop = true;
+    }
+
+    /// Flags it as not in the for loop.
+    pub fn end_forloop(&mut self) {
+        self.forloop = false;
     }
 
     /// Returns true if a scope is a prefix of our scope.
