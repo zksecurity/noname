@@ -673,8 +673,6 @@ fn monomorphize_expr<B: Backend>(
                 },
             );
 
-            // todo: check the bounds of the array
-
             ExprMonoInfo::new(mexpr, el_typ, None)
         }
 
