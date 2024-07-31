@@ -7,9 +7,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{
-            FnArg, FnSig, GenericParameters, Range, Stmt, StmtKind, Symbolic, Ty, TyKind,
-        },
+        types::{FnArg, FnSig, GenericParameters, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
         CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
     syntax::{is_generic_parameter, is_type},
@@ -288,7 +286,6 @@ pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
         )?;
     }
 
-
     let mut ctx = MastCtx::new(tast);
 
     // inferring for main function body
@@ -368,7 +365,7 @@ fn monomorphize_expr<B: Backend>(
                 .expect("function not found")
                 .to_owned();
 
-            // monomorphize the function call 
+            // monomorphize the function call
             let (mexpr, typ) = if fn_info.sig().require_monomorphization() {
                 let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
@@ -389,8 +386,7 @@ fn monomorphize_expr<B: Backend>(
                 ctx.tast.add_monomorphized_fn(qualified, fn_info_mono);
 
                 (mexpr, typ)
-            }
-            else {
+            } else {
                 // otherwise, reuse the expression node and the computed type
                 (expr.clone(), ctx.tast.expr_type(expr).cloned())
             };
@@ -450,7 +446,7 @@ fn monomorphize_expr<B: Backend>(
                 args_mono.push(expr_mono.expr);
             }
 
-            // monomorphize the function call 
+            // monomorphize the function call
             let (mexpr, typ) = if fn_info.sig().require_monomorphization() {
                 let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
@@ -471,8 +467,7 @@ fn monomorphize_expr<B: Backend>(
                 ctx.tast.add_monomorphized_fn(qualified, fn_info_mono);
 
                 (mexpr, typ)
-            }
-            else {
+            } else {
                 // otherwise, reuse the expression node and the computed type
                 (expr.clone(), ctx.tast.expr_type(expr).cloned())
             };
@@ -795,7 +790,8 @@ fn monomorphize_expr<B: Backend>(
     };
 
     if let Some(typ) = &expr_mono.typ {
-        ctx.tast.add_monomorphized_type(expr_mono.expr.node_id, typ.clone());
+        ctx.tast
+            .add_monomorphized_type(expr_mono.expr.node_id, typ.clone());
     }
 
     Ok(expr_mono)

@@ -85,7 +85,7 @@ where
     node_types: HashMap<usize, TyKind>,
 
     /// The last node id for the MAST phase to reference.
-    node_id: usize,    
+    node_id: usize,
 }
 
 impl<B: Backend> TypeChecker<B> {

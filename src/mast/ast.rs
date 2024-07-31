@@ -11,7 +11,7 @@ impl Expr {
         if !ctx.in_generic_func {
             return self.clone();
         }
-        
+
         Expr {
             node_id: ctx.next_node_id(),
             kind: kind.clone(),
