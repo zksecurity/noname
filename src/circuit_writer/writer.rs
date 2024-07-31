@@ -334,8 +334,9 @@ impl<B: Backend> CircuitWriter<B> {
                 }
 
                 // retrieve the function in the env
+                let qualified = FullyQualified::new(module, &fn_name.value);
                 let fn_info = self
-                    .fn_info(expr)
+                    .fn_info(&qualified)
                     .ok_or_else(|| {
                         self.error(
                             ErrorKind::UndefinedFunction(fn_name.value.clone()),
@@ -449,20 +450,18 @@ impl<B: Backend> CircuitWriter<B> {
                 let self_var = self.compute_expr(fn_env, lhs)?;
 
                 // find method info
-                let fn_info = self
-                    .fn_info(expr)
-                    .ok_or_else(|| {
-                        self.error(
-                            ErrorKind::UndefinedFunction(method_name.value.clone()),
-                            method_name.span,
-                        )
-                    })?
+                let qualified = FullyQualified::new(module, struct_name);
+                let struct_info = self
+                    .struct_info(&qualified)
+                    .ok_or(self.error(
+                        ErrorKind::UnexpectedError("struct not found"),
+                        method_name.span,
+                    ))?
                     .clone();
-
-                let func = match &fn_info.kind {
-                    FnKind::Native(func) => func,
-                    _ => panic!("expected native function"),
-                };
+                let func = struct_info
+                    .methods
+                    .get(&method_name.value)
+                    .expect("could not find method");
 
                 // if method has a `self` argument, manually add it to the list of argument
                 let mut vars = vec![];
