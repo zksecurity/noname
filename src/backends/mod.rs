@@ -182,11 +182,11 @@ pub trait Backend: Clone {
                 let var = self.compute_var(env, var)?;
                 Ok(*scalar * var)
             }
-            Value::RSAnd(var, shift) => {
+            Value::NthBit(var, shift) => {
                 let var = self.compute_var(env, var)?;
                 let bits = var.to_bits();
 
-                // extract the bit after shifting
+                // extract the bit
                 let rbit = bits[*shift];
 
                 // convert the bit back to a field element

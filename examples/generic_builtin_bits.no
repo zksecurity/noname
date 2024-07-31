@@ -1,13 +1,23 @@
 use std::to_bits;
 use std::from_bits;
 
+// 010 = xx, where xx = 2
 fn main(pub xx: Field) {
+    // var
     let bits = to_bits(3, xx);
-    // 010 = xx, where xx = 2
     assert(!bits[0]);
     assert(bits[1]);
     assert(!bits[2]);
 
     let val = from_bits(bits);
     assert_eq(val, xx);
+
+    // constant
+    let cst_bits = to_bits(3, 2);
+    assert(!cst_bits[0]);
+    assert(cst_bits[1]);
+    assert(!cst_bits[2]);
+
+    let cst = from_bits(cst_bits);
+    assert_eq(cst, xx);
 }

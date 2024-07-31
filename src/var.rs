@@ -46,8 +46,7 @@ where
     /// Note that it will potentially return 0 if the given variable is 0.
     Inverse(B::Var),
 
-    /// Extract the right most bit after an arithmetic right shift on the given variable.
-    /// e.g. `value >> 1 & 1`
+    /// Extract the nth bit from a value.
     // todo: consider using Value itself as argument, which wraps B::Var or B::Field, as Value::Var or Value::Field
     // - so the arguments for these operations can be either B::Var or B::Field
     // - there can be some cases where the value to shift doesn't need to be from the witness vector
@@ -56,7 +55,7 @@ where
     // - the problem of adding the cell var for the intermediate value is that
     // - the var likely won't end up in the circuit, that would trigger error.
     // but does this make sense to all different backends? is it possible that some backend doesn't allow certain out of circuit calculations like this?
-    RSAnd(B::Var, usize),
+    NthBit(B::Var, usize),
 
     /// A public or private input to the function
     /// There's an index associated to a variable name, as the variable could be composed of several field elements.
@@ -78,7 +77,7 @@ impl<B: Backend> std::fmt::Debug for Value<B> {
             Value::External(..) => write!(f, "External"),
             Value::PublicOutput(..) => write!(f, "PublicOutput"),
             Value::Scale(..) => write!(f, "Scaling"),
-            Value::RSAnd(_, _) => todo!(),
+            Value::NthBit(_, _) => write!(f, "NthBit"),
         }
     }
 }
