@@ -17,10 +17,6 @@ pub struct TypeInfo {
     /// If the variable is a constant or not.
     pub constant: bool,
 
-    /// A variable becomes disabled once we exit its scope.
-    /// We do this instead of deleting a variable to detect shadowing.
-    pub disabled: bool,
-
     /// Some type information.
     pub typ: TyKind,
 
@@ -33,7 +29,6 @@ impl TypeInfo {
         Self {
             mutable: false,
             constant: false,
-            disabled: false,
             typ,
             span,
         }
@@ -80,14 +75,12 @@ impl TypedFnEnv {
 
     /// Exits a scoped block.
     pub fn pop(&mut self) {
-        self.current_scope.checked_sub(1).expect("scope bug");
+        self.current_scope = self.current_scope.checked_sub(1).expect("scope bug");
 
-        // disable variables as we exit the scope
-        for (_name, (scope, type_info)) in self.vars.iter_mut() {
-            if *scope > self.current_scope {
-                type_info.disabled = true;
-            }
-        }
+        //Remove variables as we exit the scope
+        let current_scope = self.current_scope;
+        self.vars
+            .retain(|_name, (scope, _type_info)| *scope <= current_scope);
     }
 
     /// Returns true if a scope is a prefix of our scope.
@@ -124,7 +117,7 @@ impl TypedFnEnv {
     // TODO: return an error no?
     pub fn get_type_info(&self, ident: &str) -> Option<&TypeInfo> {
         if let Some((scope, type_info)) = self.vars.get(ident) {
-            if self.is_in_scope(*scope) && !type_info.disabled {
+            if self.is_in_scope(*scope) {
                 Some(type_info)
             } else {
                 None
