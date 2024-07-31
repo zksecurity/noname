@@ -83,6 +83,9 @@ where
     /// This can be used by the circuit-writer when it needs type information.
     // TODO: I think we should get rid of this if we can
     node_types: HashMap<usize, TyKind>,
+
+    /// The last node id for the MAST phase to reference.
+    node_id: usize,    
 }
 
 impl<B: Backend> TypeChecker<B> {
@@ -106,6 +109,22 @@ impl<B: Backend> TypeChecker<B> {
     pub(crate) fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
         self.constants.get(&qualified)
     }
+
+    pub fn last_node_id(&self) -> usize {
+        self.node_id
+    }
+
+    pub fn update_node_id(&mut self, node_id: usize) {
+        self.node_id = node_id;
+    }
+
+    pub fn add_monomorphized_fn(&mut self, qualified: FullyQualified, fn_info: FnInfo<B>) {
+        self.functions.insert(qualified, fn_info);
+    }
+
+    pub fn add_monomorphized_type(&mut self, node_id: usize, typ: TyKind) {
+        self.node_types.insert(node_id, typ);
+    }
 }
 
 impl<B: Backend> TypeChecker<B> {
@@ -116,6 +135,7 @@ impl<B: Backend> TypeChecker<B> {
             structs: HashMap::new(),
             constants: HashMap::new(),
             node_types: HashMap::new(),
+            node_id: 0,
         };
 
         // initialize it with the builtins

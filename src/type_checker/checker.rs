@@ -127,7 +127,7 @@ impl<B: Backend> TypeChecker<B> {
                 let fn_sig = fn_info.sig().clone();
 
                 // check if generic is allowed
-                if fn_sig.is_generic() && typed_fn_env.is_in_forloop() {
+                if fn_sig.require_monomorphization() && typed_fn_env.is_in_forloop() {
                     return Err(self.error(ErrorKind::GenericInForLoop, expr.span));
                 }
 
@@ -165,7 +165,7 @@ impl<B: Backend> TypeChecker<B> {
                     .expect("method not found on custom struct (TODO: better error)");
 
                 // check if generic is allowed
-                if method_type.sig.is_generic() && typed_fn_env.is_in_forloop() {
+                if method_type.sig.require_monomorphization() && typed_fn_env.is_in_forloop() {
                     return Err(self.error(ErrorKind::GenericInForLoop, expr.span));
                 }
 
@@ -536,6 +536,12 @@ impl<B: Backend> TypeChecker<B> {
         // save the type of that expression in our typed global env
         if let Some(typ) = &typ {
             self.node_types.insert(expr.node_id, typ.typ.clone());
+        }
+
+        // update last node id
+        // todo: probably better to pass the node id from nast
+        if self.node_id < expr.node_id {
+            self.node_id = expr.node_id;
         }
 
         // return the type to the caller

@@ -599,9 +599,57 @@ impl FnSig {
         Ok(())
     }
 
-    /// Returns true if the function contains generic parameters
-    pub fn is_generic(&self) -> bool {
-        !self.generics.is_empty()
+    /// Returns true if the function signature contains generic parameters or generic array types.
+    /// Either:
+    /// - `const NN: Field` or `[[Field; NN]; MM]`
+    /// - `[Field; cst]`, where cst is a constant variable. We also monomorphize generic array with a constant var as its size.
+    pub fn require_monomorphization(&self) -> bool {
+        let has_arg_cst = self
+            .arguments
+            .iter()
+            .any(|arg| self.has_constant(&arg.typ.kind));
+
+        let has_ret_cst = self.return_type.is_some()
+            && self.has_constant(&self.return_type.as_ref().unwrap().kind);
+
+        !self.generics.is_empty() || has_arg_cst || has_ret_cst
+    }
+
+    /// Recursively check if the generic array symbolic value contains constant variant
+    fn has_constant(&self, typ: &TyKind) -> bool {
+        match typ {
+            TyKind::GenericArray(ty, sym) => {
+                match sym {
+                    Symbolic::Constant(_) => return true,
+                    _ => false,
+                };
+
+                self.has_constant(ty)
+            }
+            TyKind::Array(ty, _) => self.has_constant(ty),
+            _ => false,
+        }
+    }
+
+    /// Returns the monomorphized function name,
+    /// using the patter: `fn_full_qualified_name#generic1=value1#generic2=value2`
+    pub fn monomorphized_name(&self) -> Ident {
+        let mut name = self.name.clone();
+
+        if self.require_monomorphization() {
+            let mut generics = self.generics.0.iter().collect::<Vec<_>>();
+            generics.sort_by(|a, b| a.0.cmp(b.0));
+
+            let generics = generics
+                .iter()
+                .map(|(name, value)| format!("{}={}", name, value.unwrap()))
+                .collect::<Vec<_>>()
+                .join("#");
+
+            name.value.push_str(&format!("#{}", generics));
+        }
+
+        name
     }
 }
 

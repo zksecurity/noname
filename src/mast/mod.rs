@@ -7,7 +7,9 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FnArg, FnSig, GenericParameters, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
+        types::{
+            FnArg, FnSig, GenericParameters, Range, Stmt, StmtKind, Symbolic, Ty, TyKind,
+        },
         CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
     syntax::{is_generic_parameter, is_type},
@@ -157,25 +159,30 @@ pub struct MastCtx<B>
 where
     B: Backend,
 {
-    last_node_id: usize,
     tast: TypeChecker<B>,
-    node_types: HashMap<usize, TyKind>,
-    node_functions: HashMap<usize, FnInfo<B>>,
+    in_generic_func: bool,
 }
 
 impl<B: Backend> MastCtx<B> {
     pub fn new(tast: TypeChecker<B>) -> Self {
         Self {
-            last_node_id: 0,
             tast,
-            node_types: HashMap::new(),
-            node_functions: HashMap::new(),
+            in_generic_func: false,
         }
     }
 
     pub fn next_node_id(&mut self) -> usize {
-        self.last_node_id += 1;
-        self.last_node_id
+        let new_node_id = self.tast.last_node_id() + 1;
+        self.tast.update_node_id(new_node_id);
+        new_node_id
+    }
+
+    pub fn start_monomorphize_func(&mut self) {
+        self.in_generic_func = true;
+    }
+
+    pub fn finish_monomorphize_func(&mut self) {
+        self.in_generic_func = false;
     }
 }
 
@@ -206,46 +213,27 @@ impl Symbolic {
 /// - Resolved types. This can be used to determine the size of a type.
 /// - Instantiated functions. The circuit writer will load the instantiated function AST by node id.
 /// - Monomorphized AST is generated for the circuit writer to walk through and compute.
-pub struct Mast<B>
-where
-    B: Backend,
-{
-    tast: TypeChecker<B>,
-
-    /// Mapping from node id to resolved type
-    node_types: HashMap<usize, TyKind>,
-
-    /// Mapping from node id to instantiated functions
-    node_functions: HashMap<usize, FnInfo<B>>,
-
-    /// Monomorphized AST of the main function
-    main_fn_ast: FunctionDef,
-}
+pub struct Mast<B: Backend>(TypeChecker<B>);
 
 impl<B: Backend> Mast<B> {
     /// Returns the concrete type for the given expression node.
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
-        self.node_types.get(&expr.node_id)
-    }
-
-    /// Returns the instantiated function for the given expression node, which should be [FnCall] node.
-    pub fn expr_fn(&self, expr: &Expr) -> Option<&FnInfo<B>> {
-        self.node_functions.get(&expr.node_id)
+        self.0.expr_type(expr)
     }
 
     /// Returns the struct info for the given fully qualified name.
     pub fn struct_info(&self, qualified: &FullyQualified) -> Option<&StructInfo> {
-        self.tast.struct_info(qualified)
+        self.0.struct_info(qualified)
     }
 
     /// Returns the constant variable info for the given fully qualified name.
     pub fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
-        self.tast.const_info(qualified)
+        self.0.const_info(qualified)
     }
 
-    /// Returns the AST for monomorphized main function
-    pub fn ast(&self) -> &FunctionDef {
-        &self.main_fn_ast
+    /// Returns the function info by fully qualified name.
+    pub fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<B>> {
+        self.0.fn_info(qualified)
     }
 
     // TODO: might want to memoize that at some point
@@ -300,47 +288,18 @@ pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
         )?;
     }
 
-    // the output value returned by the main function is also a main_args with a special name (public_output)
-    if let Some(typ) = &func_def.sig.return_type {
-        match typ.kind {
-            TyKind::Field => {
-                mono_fn_env.store_type(
-                    "public_output".as_ref(),
-                    &MTypeInfo::new(&typ.kind, typ.span, None),
-                )?;
-            }
-            TyKind::Array(_, _) => {
-                mono_fn_env.store_type(
-                    "public_output".as_ref(),
-                    &MTypeInfo::new(&typ.kind, typ.span, None),
-                )?;
-            }
-            _ => unimplemented!(),
-        }
-    }
 
     let mut ctx = MastCtx::new(tast);
 
     // inferring for main function body
-    let (stmts_mono, _) = monomorphize_block(
+    monomorphize_block(
         &mut ctx,
         &mut mono_fn_env,
         &func_def.body,
         func_def.sig.return_type.as_ref(),
     )?;
 
-    let main_fn_ast = FunctionDef {
-        sig: func_def.sig,
-        body: stmts_mono,
-        span: func_def.span,
-    };
-
-    Ok(Mast {
-        tast: ctx.tast,
-        node_types: ctx.node_types,
-        node_functions: ctx.node_functions,
-        main_fn_ast,
-    })
+    Ok(Mast(ctx.tast))
 }
 
 /// Recursively monomorphize an expression node.
@@ -409,21 +368,32 @@ fn monomorphize_expr<B: Backend>(
                 .expect("function not found")
                 .to_owned();
 
-            let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
+            // monomorphize the function call 
+            let (mexpr, typ) = if fn_info.sig().require_monomorphization() {
+                let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
-            let mexpr = expr.to_mast(
-                ctx,
-                &ExprKind::FnCall {
-                    module: module.clone(),
-                    fn_name: fn_name.clone(),
-                    args: args_mono,
-                },
-            );
+                let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
 
-            // instantiate the function call
-            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+                let fn_name_mono = &fn_info_mono.sig().name;
+                let mexpr = expr.to_mast(
+                    ctx,
+                    &ExprKind::FnCall {
+                        module: module.clone(),
+                        fn_name: fn_name_mono.clone(),
+                        args: args_mono,
+                    },
+                );
 
-            ctx.node_functions.insert(mexpr.node_id, fn_info_mono);
+                let qualified = FullyQualified::new(module, &fn_name_mono.value);
+
+                ctx.tast.add_monomorphized_fn(qualified, fn_info_mono);
+
+                (mexpr, typ)
+            }
+            else {
+                // otherwise, reuse the expression node and the computed type
+                (expr.clone(), ctx.tast.expr_type(expr).cloned())
+            };
 
             // assume the function call won't return constant value
             ExprMonoInfo::new(mexpr, typ, None)
@@ -480,18 +450,32 @@ fn monomorphize_expr<B: Backend>(
                 args_mono.push(expr_mono.expr);
             }
 
-            let mexpr = expr.to_mast(
-                ctx,
-                &ExprKind::MethodCall {
-                    lhs: Box::new(lhs_mono.expr),
-                    method_name: method_name.clone(),
-                    args: args_mono,
-                },
-            );
+            // monomorphize the function call 
+            let (mexpr, typ) = if fn_info.sig().require_monomorphization() {
+                let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
-            // instantiate the function call
-            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
-            ctx.node_functions.insert(mexpr.node_id, fn_info_mono);
+                let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
+
+                let fn_name_mono = &fn_info_mono.sig().name;
+                let mexpr = expr.to_mast(
+                    ctx,
+                    &ExprKind::FnCall {
+                        module: module.clone(),
+                        fn_name: fn_name_mono.clone(),
+                        args: args_mono,
+                    },
+                );
+
+                let qualified = FullyQualified::new(&module, &fn_name_mono.value);
+
+                ctx.tast.add_monomorphized_fn(qualified, fn_info_mono);
+
+                (mexpr, typ)
+            }
+            else {
+                // otherwise, reuse the expression node and the computed type
+                (expr.clone(), ctx.tast.expr_type(expr).cloned())
+            };
 
             // assume the function call won't return constant value
             ExprMonoInfo::new(mexpr, typ, None)
@@ -659,7 +643,6 @@ fn monomorphize_expr<B: Backend>(
             let id_mono = monomorphize_expr(ctx, idx, mono_fn_env)?;
 
             // get type of element
-            println!("{:?}", array_mono.typ);
             let el_typ = match array_mono.typ.unwrap() {
                 TyKind::Array(typkind, _) => Some(*typkind),
                 _ => panic!("not an array"),
@@ -812,7 +795,7 @@ fn monomorphize_expr<B: Backend>(
     };
 
     if let Some(typ) = &expr_mono.typ {
-        ctx.node_types.insert(expr_mono.expr.node_id, typ.clone());
+        ctx.tast.add_monomorphized_type(expr_mono.expr.node_id, typ.clone());
     }
 
     Ok(expr_mono)
@@ -955,6 +938,8 @@ pub fn instantiate_fn_call<B: Backend>(
     args: &[ExprMonoInfo],
     span: Span,
 ) -> Result<(FnInfo<B>, Option<TyKind>)> {
+    ctx.start_monomorphize_func();
+
     let (fn_sig, stmts) = match &fn_info.kind {
         FnKind::BuiltIn(sig, _) => {
             let mut sig = sig.clone();
@@ -1079,6 +1064,8 @@ pub fn instantiate_fn_call<B: Backend>(
             }
         }
     };
+
+    ctx.finish_monomorphize_func();
 
     Ok((func_def, ret_ty.map(|t| t.kind)))
 }
