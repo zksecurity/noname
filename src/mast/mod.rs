@@ -1045,6 +1045,7 @@ pub fn instantiate_fn_call<B: Backend>(
             let sig_typed = FnSig {
                 arguments: fn_args_typed,
                 return_type: ret_ty.clone(),
+                generics: GenericParameters::default(),
                 ..fn_sig
             };
             FnInfo {
@@ -1068,6 +1069,7 @@ pub fn instantiate_fn_call<B: Backend>(
                     sig: FnSig {
                         arguments: fn_args_typed,
                         return_type: ret_typ,
+                        generics: GenericParameters::default(),
                         ..fn_sig
                     },
                     body: stmts,
