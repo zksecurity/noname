@@ -1,16 +1,10 @@
 use std::crypto;
 
-fn main(pub public_input: Field, private_input: [Field; 3]) {
-    let mut sum = 0;
-
-    for ii in 0..3 {
-        sum = sum + private_input[ii];
+fn main(pub public_input: Field, private_input: [Field; 2]) {
     
-    }
+    let xx = private_input[0] + private_input[1];
+    assert_eq(xx, 2);
     
-    for ii in 0..3 {
-        sum = sum + private_input[ii];
-    }
-
-    assert_eq(sum, public_input);
+    let digest = crypto::poseidon(private_input);
+    assert_eq(digest[0], public_input);
 }
