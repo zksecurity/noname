@@ -1,7 +1,7 @@
 const size = 2;
 
-fn init() -> [Field; size] {
-    return [4; size];
+fn init() -> [Field; size] { // array type can depends on constant var
+    return [4; size]; // array init with constant var
 }
 
 fn main(pub public_input: [Field; 2]) {
