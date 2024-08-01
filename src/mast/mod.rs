@@ -266,10 +266,16 @@ impl<B: Backend> Mast<B> {
 /// This is the entry point of the monomorphization process.
 /// It stores the monomorphized AST at the end.
 pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
-    let qualified = FullyQualified::local("main".to_string());
-    let main_fn = tast.fn_info(&qualified).expect("main function not found");
+    let mut ctx = MastCtx::new(tast);
 
-    let func_def = match &main_fn.kind {
+    let qualified = FullyQualified::local("main".to_string());
+    let mut main_fn = ctx
+        .tast
+        .fn_info(&qualified)
+        .expect("main function not found")
+        .clone();
+
+    let mut func_def = match &main_fn.kind {
         // `fn main() { ... }`
         FnKind::Native(function) => function.clone(),
 
@@ -288,15 +294,19 @@ pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
         )?;
     }
 
-    let mut ctx = MastCtx::new(tast);
-
-    // inferring for main function body
-    monomorphize_block(
+    // monomorphize main function body
+    let (stmts, _) = monomorphize_block(
         &mut ctx,
         &mut mono_fn_env,
         &func_def.body,
         func_def.sig.return_type.as_ref(),
     )?;
+
+    // override the main function AST with the monomorphized version
+    func_def.body = stmts;
+    main_fn.kind = FnKind::Native(func_def);
+
+    ctx.tast.add_monomorphized_fn(qualified, main_fn.clone());
 
     Ok(Mast(ctx.tast))
 }
@@ -374,17 +384,16 @@ fn monomorphize_expr<B: Backend>(
                 let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
 
                 let fn_name_mono = &fn_info_mono.sig().name;
-                let mexpr = expr.to_mast(
-                    ctx,
-                    &ExprKind::FnCall {
+                let mexpr = Expr {
+                    kind: ExprKind::FnCall {
                         module: module.clone(),
                         fn_name: fn_name_mono.clone(),
                         args: args_mono,
                     },
-                );
+                    ..expr.clone()
+                };
 
                 let qualified = FullyQualified::new(module, &fn_name_mono.value);
-
                 ctx.tast.add_monomorphized_fn(qualified, fn_info_mono);
 
                 (mexpr, typ)
@@ -1052,6 +1061,7 @@ pub fn instantiate_fn_call<B: Backend>(
             FnInfo {
                 kind: FnKind::Native(FunctionDef {
                     sig: FnSig {
+                        name: fn_sig.monomorphized_name(),
                         arguments: fn_args_typed,
                         return_type: ret_typ,
                         generics: GenericParameters::default(),
