@@ -15,7 +15,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind, Tokens},
     mast::ExprMonoInfo,
-    stdlib::BUILTIN_FN_NAMES,
+    stdlib::builtins::BUILTIN_FN_NAMES,
     syntax::{is_generic_parameter, is_type},
 };
 
@@ -1089,7 +1089,7 @@ impl FunctionDef {
         let sig = FnSig::parse(ctx, tokens)?;
 
         // make sure that it doesn't shadow a builtin
-        if BUILTIN_FN_NAMES.contains(&sig.name.value) {
+        if BUILTIN_FN_NAMES.contains(&sig.name.value.as_ref()) {
             return Err(ctx.error(
                 ErrorKind::ShadowingBuiltIn(sig.name.value.clone()),
                 sig.name.span,

@@ -46,6 +46,17 @@ where
     /// Note that it will potentially return 0 if the given variable is 0.
     Inverse(B::Var),
 
+    /// Extract the nth bit from a value.
+    // todo: consider using Value itself as argument, which wraps B::Var or B::Field, as Value::Var or Value::Field
+    // - so the arguments for these operations can be either B::Var or B::Field
+    // - there can be some cases where the value to shift doesn't need to be from the witness vector
+    // - for example, when adding a symbolic value to represent the `value >> 1 & 1`,
+    // - we simply want to calculate the value without needing to add cell var for the intermediate value, such as `value >> 1`
+    // - the problem of adding the cell var for the intermediate value is that
+    // - the var likely won't end up in the circuit, that would trigger error.
+    // but does this make sense to all different backends? is it possible that some backend doesn't allow certain out of circuit calculations like this?
+    NthBit(B::Var, usize),
+
     /// A public or private input to the function
     /// There's an index associated to a variable name, as the variable could be composed of several field elements.
     External(String, usize),
@@ -66,6 +77,7 @@ impl<B: Backend> std::fmt::Debug for Value<B> {
             Value::External(..) => write!(f, "External"),
             Value::PublicOutput(..) => write!(f, "PublicOutput"),
             Value::Scale(..) => write!(f, "Scaling"),
+            Value::NthBit(_, _) => write!(f, "NthBit"),
         }
     }
 }
