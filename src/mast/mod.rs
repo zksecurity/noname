@@ -255,7 +255,9 @@ impl<B: Backend> Mast<B> {
             }
             TyKind::BigInt => 1,
             TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
-            TyKind::GenericArray(_, _) => unreachable!("generic arrays should have been resolved"),
+            TyKind::GenericSizedArray(_, _) => {
+                unreachable!("generic arrays should have been resolved")
+            }
             TyKind::Bool => 1,
         }
     }
@@ -1009,7 +1011,7 @@ pub fn instantiate_fn_call<B: Backend>(
     // evaluate generic return types using inferred values
     let ret_ty = match &fn_sig.return_type {
         Some(ret_ty) => match &ret_ty.kind {
-            TyKind::GenericArray(typ, size) => {
+            TyKind::GenericSizedArray(typ, size) => {
                 let val = size.eval(mono_fn_env, &ctx.tast);
                 let tykind = TyKind::Array(typ.clone(), val);
                 Some(Ty {

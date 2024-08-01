@@ -365,7 +365,7 @@ impl<B: Backend> TypeChecker<B> {
                 let typ = self.compute_type(array, typed_fn_env)?.unwrap();
 
                 // check that it is an array
-                if !matches!(typ.typ, TyKind::Array(..) | TyKind::GenericArray(..)) {
+                if !matches!(typ.typ, TyKind::Array(..) | TyKind::GenericSizedArray(..)) {
                     return Err(self.error(ErrorKind::ArrayAccessOnNonArray, expr.span));
                 }
 
@@ -379,7 +379,7 @@ impl<B: Backend> TypeChecker<B> {
                 // get type of element
                 let el_typ = match typ.typ {
                     TyKind::Array(typkind, _) => *typkind,
-                    TyKind::GenericArray(typkind, _) => *typkind,
+                    TyKind::GenericSizedArray(typkind, _) => *typkind,
                     _ => panic!("not an array"),
                 };
 
@@ -521,7 +521,7 @@ impl<B: Backend> TypeChecker<B> {
                     // todo: see if we can determine whether the size node is generic or not
                     // use generic array to bypass the array check, as the size node might include generic parameters.
                     // the mast phase will resolve the size node to a constant, and check the types.
-                    let res = ExprTyInfo::new_anon(TyKind::GenericArray(
+                    let res = ExprTyInfo::new_anon(TyKind::GenericSizedArray(
                         Box::new(item_node.typ),
                         // mock up a symbolic size
                         Symbolic::Generic(Ident::new("x".to_string(), size.span)),

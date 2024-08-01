@@ -251,19 +251,10 @@ pub enum TyKind {
     // U16,
     // U32,
     // U64,
-
-    // todo: the name of generic array isn't quite accurate
-    // - not only it can contain generic parameters
-    // - it can contain a single constant var as the size
-    // - it can contain a single literal number as the size
-    // - so perhaps both types [Array] and [GenericArray] should be unified as `Array(kind, symbolic_size)`
-    // - then the TAST phase allows computed Array type contain generic parameters in the symbolic size
-    // - while the MAST phase will monomorphize the generic parameters, meaning it only allows concrete values
-    // - which are either a constant or a literal number
     /// An array with symbolic size.
     /// This is an intermediate type.
     /// After monomorphized, it will be converted to `Array`.
-    GenericArray(Box<TyKind>, Symbolic),
+    GenericSizedArray(Box<TyKind>, Symbolic),
 }
 
 impl TyKind {
@@ -275,9 +266,9 @@ impl TyKind {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
             // the checks on the generic arrays can be done in MAST
-            (TyKind::GenericArray(lhs, _), TyKind::GenericArray(rhs, _))
-            | (TyKind::Array(lhs, _), TyKind::GenericArray(rhs, _))
-            | (TyKind::GenericArray(lhs, _), TyKind::Array(rhs, _)) => lhs.match_expected(rhs),
+            (TyKind::GenericSizedArray(lhs, _), TyKind::GenericSizedArray(rhs, _))
+            | (TyKind::Array(lhs, _), TyKind::GenericSizedArray(rhs, _))
+            | (TyKind::GenericSizedArray(lhs, _), TyKind::Array(rhs, _)) => lhs.match_expected(rhs),
             (
                 TyKind::Custom { module, name },
                 TyKind::Custom {
@@ -324,7 +315,7 @@ impl TyKind {
                 generics.extend(ty.extract_generics());
             }
             // e.g [[Field; N], M]
-            TyKind::GenericArray(ty, sym) => {
+            TyKind::GenericSizedArray(ty, sym) => {
                 generics.extend(ty.extract_generics());
                 generics.extend(sym.extract_generics());
             }
@@ -357,7 +348,7 @@ impl Display for TyKind {
             TyKind::BigInt => write!(f, "BigInt"),
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
-            TyKind::GenericArray(ty, size) => write!(f, "[{}; {}]", ty, size),
+            TyKind::GenericSizedArray(ty, size) => write!(f, "[{}; {}]", ty, size),
         }
     }
 }
@@ -466,7 +457,7 @@ impl Ty {
                         };
 
                         Ok(Ty {
-                            kind: TyKind::GenericArray(Box::new(ty.kind), sym),
+                            kind: TyKind::GenericSizedArray(Box::new(ty.kind), sym),
                             span,
                         })
                     }
@@ -514,7 +505,7 @@ impl FnSig {
                         generics.add(name);
                     }
                 }
-                TyKind::GenericArray(_, _) => {
+                TyKind::GenericSizedArray(_, _) => {
                     // recursively extract all generic parameters from the symbolic size
                     let extracted = arg.typ.kind.extract_generics();
 
@@ -546,7 +537,7 @@ impl FnSig {
     ) -> Result<()> {
         match (sig_arg, observed) {
             // [[Field; NN]; MM]
-            (TyKind::GenericArray(ty, sym), TyKind::Array(observed_ty, observed_size)) => {
+            (TyKind::GenericSizedArray(ty, sym), TyKind::Array(observed_ty, observed_size)) => {
                 // resolve the generic parameter
                 match sym {
                     Symbolic::Generic(ident) => {
@@ -574,7 +565,7 @@ impl FnSig {
         for (sig_arg, observed_arg) in self.arguments.clone().iter().zip(observed) {
             let observed_ty = observed_arg.typ.clone().expect("expected type");
             match (&sig_arg.typ.kind, &observed_ty) {
-                (TyKind::GenericArray(_, _), TyKind::Array(_, _))
+                (TyKind::GenericSizedArray(_, _), TyKind::Array(_, _))
                 | (TyKind::Array(_, _), TyKind::Array(_, _)) => {
                     self.resolve_generic_array(
                         &sig_arg.typ.kind,
@@ -618,7 +609,7 @@ impl FnSig {
     /// Recursively check if the generic array symbolic value contains constant variant
     fn has_constant(&self, typ: &TyKind) -> bool {
         match typ {
-            TyKind::GenericArray(ty, sym) => {
+            TyKind::GenericSizedArray(ty, sym) => {
                 match sym {
                     Symbolic::Constant(_) => return true,
                     _ => false,

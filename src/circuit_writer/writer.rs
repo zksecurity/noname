@@ -274,7 +274,9 @@ impl<B: Backend> CircuitWriter<B> {
                 }
             }
             TyKind::BigInt => unreachable!(),
-            TyKind::GenericArray(_, _) => unreachable!("generic array should have been resolved"),
+            TyKind::GenericSizedArray(_, _) => {
+                unreachable!("generic array should have been resolved")
+            }
         };
         Ok(())
     }
