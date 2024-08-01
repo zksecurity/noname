@@ -94,7 +94,7 @@ The current pipeline of compiling noname code is:
 1. Parse the code into AST
 2. Convert the AST into NAST with naming resolution
 3. Convert the NAST into TAST with type metadata collection and type checking
-4. Circuit synthesizing TAST into an arithemtic backend
+4. Circuit synthesizing TAST into an constraint system
 
 With generic parameters, the current TAST phase can't handle the type checking anymore, because the generic parameters are unknown. For example, it can't type check the array with symbolic size without resolving the values for the generic parameters.
 
@@ -284,7 +284,7 @@ To recap, here is the pseudo code for the resolving algorithm for function
 ### Function Call Instantiation
 The functions are defined as `FunctionDef`, which is an AST containing the signature and the body of the function. The body is a vector of statements, each of which is a tree of expression nodes. It is fine to have different function calls pointing to these functions' original AST, when the content of these functions doesn't change, and so are the expression nodes.
 
-However, when a function takes generic arguments, the actual arguments can result in different expression nodes. The two calls should point to two different monomorphized function instances. For example:
+However, when a function takes generic arguments, the actual arguments can result in different expression nodes. For example:
 
 ```rust
 fn last(arr: [Field; LEN]) -> Field {
@@ -300,7 +300,7 @@ fn main() {
 }
 ```
 
-The monomorphized body of the function call for `last(arr1)` is `return arr[5 - 1]`, while the one for `last(arr2)` is `return arr[4 - 1]`. Therefore, we can't have a single expression node representing both `arr[5 - 1]` and `arr[4 - 1]` expression nodes. These functions should be instantiated with new ASTs, which are monomorphized from the original ASTs. They will be regenerated with the generic parameters being resolved with concrete values. 
+The monomorphized body of the function call for `last(arr1)` is `return arr[5 - 1]`, while the one for `last(arr2)` is `return arr[4 - 1]`. Therefore, we can't have a single expression node representing both `arr[5 - 1]` and `arr[4 - 1]` expression nodes. These functions should be instantiated with new ASTs, which are monomorphized from the original ASTs. They will be regenerated with the generic parameters being resolved with concrete values. The two calls to `last` should point to two different monomorphized function instances.
 
 To ensure no conflicts in the node IDs being regenerated for these instantiated functions, the AST for the main function as an entry point will be regenerated. The monomorphized AST preserves the span information to point to the noname source code for the existing debugging feature.
 
