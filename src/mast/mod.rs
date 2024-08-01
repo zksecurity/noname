@@ -651,6 +651,8 @@ fn monomorphize_expr<B: Backend>(
                 },
             );
 
+            // note that circuit write does the boundary check
+
             ExprMonoInfo::new(mexpr, el_typ, None)
         }
 
