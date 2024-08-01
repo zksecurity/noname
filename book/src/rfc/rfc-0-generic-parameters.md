@@ -332,6 +332,11 @@ Here is an overview of the monomorphization process:
 
 7. At the end, it overrides the main function AST with the monomorphized version, and delete generic functions based on the list.
 
+All the updates are done to the existing stores in the TAST. 
+- Instantiated functions are added to `HashMap<FullyQualified, FnInfo<B>>`.
+- Types for Monomorphized nodes are stored in `HashMap<usize, TyKind>` (Keep in mind the store for node types `HashMap<usize, TyKind>` can also contain the node types for the deleted functions. We may need to figure out a way to safely delete the node types belonging to a deleted function)
+- Generic functions should be delete from `HashMap<FullyQualified, FnInfo<B>>`
+
 
 ### Circuit Synthesizer
 Circuit synthesizer will rely on the monomorphized AST to compile the circuit. To synthesizer, the workflow will be the same as before, but with the monomorphized AST. It doesn't need to be aware of the newly added support related to generics. The added MAST phase simplifies what needs to be done in the circuit synthesizer to support the generic features, in comparison to the alternative approach described in the following section.
