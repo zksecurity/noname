@@ -464,14 +464,14 @@ fn monomorphize_expr<B: Backend>(
                 let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
 
                 let fn_name_mono = &fn_info_mono.sig().name;
-                let mexpr = expr.to_mast(
-                    ctx,
-                    &ExprKind::FnCall {
+                let mexpr = Expr {
+                    kind: ExprKind::FnCall {
                         module: module.clone(),
                         fn_name: fn_name_mono.clone(),
                         args: args_mono,
                     },
-                );
+                    ..expr.clone()
+                };
 
                 let qualified = FullyQualified::new(&module, &fn_name_mono.value);
 
