@@ -661,7 +661,7 @@ impl Backend for KimchiVesta {
 
         // create a gate to store the result
         self.add_generic_gate(
-            "add two variables together",
+            "multiply two variables together",
             vec![Some(*lhs), Some(*rhs), Some(res)],
             vec![zero, zero, one.neg(), one],
             span,
