@@ -11,7 +11,7 @@ fn main(pub public_input: Field, private_input: Field) -> Bool {
 }
 ```
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > Noname is currently in Beta, and there are a large number of known limitations. Please check the [issues](https://github.com/zksecurity/noname/issues) if you find something that doesn't work, or if you want to start contributing to this project!
 
 You can run the above example with the following command:
@@ -25,6 +25,8 @@ On particularity of noname is the `--debug` option that shows you how the code r
 <img width="871" alt="Screen Shot 2022-11-11 at 11 01 45 PM" src="https://user-images.githubusercontent.com/1316043/201461923-8d6d6756-9faa-40fe-8f71-16334a4cb98d.png">
 
 ## Quick Start
+
+To get started with no strings attached, you can use the [Noname Code Playground](https://noname-playground.xyz) to write and run your code in the browser. Alternatively, you can install the compiler on your system.
 
 You need to install the compiler from source using [cargo](https://rustup.rs/).  You can do this by running the following command:
 
@@ -43,6 +45,7 @@ $ noname
 We have a lot of resources to learn and understand how noname works:
 
 - [Noname Book](https://zksecurity.github.io/noname): A high-level language to write circuits using a zero-knowledge proof system
+- [Noname Playground](https://noname-playground.xyz): Write, run, and prove Noname code in the browser
 - [Kimchi](https://minaprotocol.com/blog/kimchi-the-latest-update-to-minas-proof-system): The latest update to Mina’s proof system
 - Series of [blog posts](https://cryptologie.net/article/573) to read more about the noname
 - [Noname meets Ethereum](https://www.zksecurity.xyz/blog/posts/noname-r1cs/): Integration with SnarkJS
@@ -54,7 +57,7 @@ We have a lot of resources to learn and understand how noname works:
 Once [noname is installed on your system](#installation), use `noname new` to create a project in a new directory, or `noname init` to initialize an existing directory. For example:
 
 ```
-$ noname new --path my_project 
+$ noname new --path my_project
 ```
 
 This will create a `Noname.toml` manifest file, which contains the name of your project (which must follow a Github `user/repo` format) as well as dependencies you're using (following the same format, as they are retrieved from Github).
@@ -82,3 +85,4 @@ $ noname test
 ```
 
 which will attempt to create a proof and verify it. See the [examples](#examples) section to see how to use it.
+
