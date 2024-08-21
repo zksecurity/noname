@@ -204,6 +204,9 @@ pub enum ErrorKind {
     #[error("cannot convert `{0}` to field element")]
     CannotConvertToField(String),
 
+    #[error("cannot convert `{0}` to {1}")]
+    CannotConvertFromField(String, String),
+
     #[error("a return value was expected by the function signature")]
     MissingReturn,
 

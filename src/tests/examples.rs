@@ -562,3 +562,21 @@ fn test_generic_for_loop(#[case] backend: BackendKind) -> miette::Result<()> {
 
     Ok(())
 }
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_builtin_bits(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"xx":"2"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_builtin_bits",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+    )?;
+
+    Ok(())
+}

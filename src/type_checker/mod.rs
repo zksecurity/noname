@@ -11,8 +11,6 @@ use crate::{
         types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
         CustomType, Expr, StructDef,
     },
-    stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS},
-    syntax::is_generic_parameter,
 };
 
 use ark_ff::Field;
@@ -138,29 +136,19 @@ impl<B: Backend> TypeChecker<B> {
             node_id: 0,
         };
 
-        // initialize it with the builtins
-        let builtin_module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));
-        for fn_info in builtin_fns() {
-            let qualified = FullyQualified::new(&builtin_module, &fn_info.sig().name.value);
-            if type_checker
-                .functions
-                .insert(qualified, fn_info.clone())
-                .is_some()
-            {
-                panic!("type-checker bug: global imports conflict");
-            }
-        }
-
         // initialize it with the standard library
-        let crypto_module = ModulePath::Absolute(UserRepo::new("std/crypto"));
-        for fn_info in crypto_fns() {
-            let qualified = FullyQualified::new(&crypto_module, &fn_info.sig().name.value);
-            if type_checker
-                .functions
-                .insert(qualified, fn_info.clone())
-                .is_some()
-            {
-                panic!("type-checker bug: global imports conflict");
+        for module_impl in crate::stdlib::AllStdModules::all_std_modules() {
+            let module_path =
+                ModulePath::Absolute(UserRepo::new(&format!("std/{}", module_impl.get_name())));
+            for fn_info in module_impl.get_parsed_fns() {
+                let qualified = FullyQualified::new(&module_path, &fn_info.sig().name.value);
+                if type_checker
+                    .functions
+                    .insert(qualified, fn_info.clone())
+                    .is_some()
+                {
+                    panic!("type-checker bug: global imports conflict");
+                }
             }
         }
 
