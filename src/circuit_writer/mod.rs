@@ -5,7 +5,7 @@ use crate::{
     mast::Mast,
     parser::{
         types::{AttributeKind, FnArg, TyKind},
-        Expr, FunctionDef,
+        Expr,
     },
     type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
     var::Var,
@@ -28,7 +28,7 @@ where
 {
     /// The monomorphized state for the main module.
     // The process walks through the monomorphized AST to generate the circuit.
-    mast: Mast<B>,
+    typed: Mast<B>,
 
     /// The constraint backend for the circuit.
     /// For now, this needs to be exposed for the kimchi prover for kimchi specific low level data.
@@ -58,23 +58,23 @@ pub struct DebugInfo {
 
 impl<B: Backend> CircuitWriter<B> {
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
-        self.mast.expr_type(expr)
+        self.typed.expr_type(expr)
     }
 
     pub fn struct_info(&self, qualified: &FullyQualified) -> Option<&StructInfo> {
-        self.mast.struct_info(qualified)
+        self.typed.struct_info(qualified)
     }
 
-    pub fn fn_info(&self, expr: &Expr) -> Option<&FnInfo<B>> {
-        self.mast.expr_fn(expr)
+    pub fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<B>> {
+        self.typed.fn_info(qualified)
     }
 
     pub fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
-        self.mast.const_info(qualified)
+        self.typed.const_info(qualified)
     }
 
     pub fn size_of(&self, typ: &TyKind) -> usize {
-        self.mast.size_of(typ)
+        self.typed.size_of(typ)
     }
 
     pub fn add_local_var(
@@ -85,7 +85,7 @@ impl<B: Backend> CircuitWriter<B> {
     ) {
         // check for consts first
         let qualified = FullyQualified::local(var_name.clone());
-        if let Some(_cst_info) = self.mast.const_info(&qualified) {
+        if let Some(_cst_info) = self.typed.const_info(&qualified) {
             panic!(
                 "type checker bug: we already have a constant with the same name (`{var_name}`)!"
             );
@@ -102,7 +102,7 @@ impl<B: Backend> CircuitWriter<B> {
     ) -> VarInfo<B::Field, B::Var> {
         // check for consts first
         let qualified = FullyQualified::local(var_name.to_string());
-        if let Some(cst_info) = self.mast.const_info(&qualified) {
+        if let Some(cst_info) = self.typed.const_info(&qualified) {
             let var = Var::new_constant_typ(cst_info, cst_info.typ.span);
             return VarInfo::new(var, false, Some(TyKind::Field));
         }
@@ -111,11 +111,14 @@ impl<B: Backend> CircuitWriter<B> {
         fn_env.get_local_var(var_name)
     }
 
-    /// Retrieves the [FunctionDef] for the `main()` function.
+    /// Retrieves the [FnInfo] for the `main()` function.
     /// This function should only be called if we know there's a main function,
     /// if there's no main function it'll panic.
-    pub fn main_info(&self) -> Result<&FunctionDef> {
-        Ok(self.mast.ast())
+    pub fn main_info(&self) -> Result<&FnInfo<B>> {
+        let qualified = FullyQualified::local("main".to_string());
+        self.typed
+            .fn_info(&qualified)
+            .ok_or(self.error(ErrorKind::NoMainFunction, Span::default()))
     }
 
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
@@ -127,7 +130,7 @@ impl<B: Backend> CircuitWriter<B> {
     /// Creates a global environment from the one created by the type checker.
     fn new(typed: Mast<B>, backend: B) -> Self {
         Self {
-            mast: typed,
+            typed,
             backend,
             public_output: None,
         }
@@ -138,7 +141,13 @@ impl<B: Backend> CircuitWriter<B> {
         let mut circuit_writer = CircuitWriter::new(typed, backend);
 
         // get main function
-        let function = circuit_writer.mast.ast().clone();
+        let qualified = FullyQualified::local("main".to_string());
+        let main_fn_info = circuit_writer.main_info()?;
+
+        let function = match &main_fn_info.kind {
+            crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
+            crate::imports::FnKind::Native(fn_sig) => fn_sig.clone(),
+        };
 
         // initialize the circuit
         circuit_writer.backend.init_circuit();

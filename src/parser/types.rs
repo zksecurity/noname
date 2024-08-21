@@ -179,7 +179,11 @@ pub enum ModulePath {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Symbolic {
+    /// A literal number
     Concrete(u32),
+    /// Point to a constant variable
+    Constant(Ident),
+    /// Generic parameter
     Generic(Ident),
     Add(Box<Symbolic>, Box<Symbolic>),
     Mul(Box<Symbolic>, Box<Symbolic>),
@@ -189,6 +193,7 @@ impl Display for Symbolic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Symbolic::Concrete(n) => write!(f, "{}", n),
+            Symbolic::Constant(ident) => write!(f, "{}", ident.value),
             Symbolic::Generic(ident) => write!(f, "{}", ident.value),
             Symbolic::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
             Symbolic::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
@@ -206,6 +211,9 @@ impl Symbolic {
 
         match self {
             Symbolic::Concrete(_) => (),
+            Symbolic::Constant(ident) => {
+                generics.insert(ident.value.clone());
+            }
             Symbolic::Generic(ident) => {
                 generics.insert(ident.value.clone());
             }
@@ -246,7 +254,7 @@ pub enum TyKind {
     /// An array with symbolic size.
     /// This is an intermediate type.
     /// After monomorphized, it will be converted to `Array`.
-    GenericArray(Box<TyKind>, Symbolic),
+    GenericSizedArray(Box<TyKind>, Symbolic),
 }
 
 impl TyKind {
@@ -258,9 +266,9 @@ impl TyKind {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
             // the checks on the generic arrays can be done in MAST
-            (TyKind::GenericArray(lhs, _), TyKind::GenericArray(rhs, _))
-            | (TyKind::Array(lhs, _), TyKind::GenericArray(rhs, _))
-            | (TyKind::GenericArray(lhs, _), TyKind::Array(rhs, _)) => lhs.match_expected(rhs),
+            (TyKind::GenericSizedArray(lhs, _), TyKind::GenericSizedArray(rhs, _))
+            | (TyKind::Array(lhs, _), TyKind::GenericSizedArray(rhs, _))
+            | (TyKind::GenericSizedArray(lhs, _), TyKind::Array(rhs, _)) => lhs.match_expected(rhs),
             (
                 TyKind::Custom { module, name },
                 TyKind::Custom {
@@ -307,7 +315,7 @@ impl TyKind {
                 generics.extend(ty.extract_generics());
             }
             // e.g [[Field; N], M]
-            TyKind::GenericArray(ty, sym) => {
+            TyKind::GenericSizedArray(ty, sym) => {
                 generics.extend(ty.extract_generics());
                 generics.extend(sym.extract_generics());
             }
@@ -340,7 +348,7 @@ impl Display for TyKind {
             TyKind::BigInt => write!(f, "BigInt"),
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
-            TyKind::GenericArray(ty, size) => write!(f, "[{}; {}]", ty, size),
+            TyKind::GenericSizedArray(ty, size) => write!(f, "[{}; {}]", ty, size),
         }
     }
 }
@@ -436,136 +444,24 @@ impl Ty {
                             span,
                         })
                     }
-                    // otherwise assume it is a GenericArray
+                    // [Field; nn]
                     // [Field; NN]
                     //         ^^^
                     (TokenKind::Identifier(name), TokenKind::RightBracket) => {
-                        if !is_generic_parameter(name) {
-                            return Err(ctx.error(ErrorKind::InvalidArraySize, siz_first.span));
-                        }
-
                         let siz = Ident::new(name.to_string(), siz_first.span);
                         let span = span.merge_with(siz_second.span);
+                        let sym = if is_generic_parameter(name) {
+                            Symbolic::Generic(siz)
+                        } else {
+                            Symbolic::Constant(siz)
+                        };
 
                         Ok(Ty {
-                            kind: TyKind::GenericArray(Box::new(ty.kind), Symbolic::Generic(siz)),
+                            kind: TyKind::GenericSizedArray(Box::new(ty.kind), sym),
                             span,
                         })
                     }
-                    // [Field; NN * 2 + MM]
-                    //         ^^^^^^^^^^^^
-                    _ => {
-                        // [Field; NN * 2 + MM]
-                        //         ^^^^^^
-                        let mut sym_lhs = match siz_first.kind {
-                            TokenKind::BigUInt(b) => {
-                                Symbolic::Concrete(b.try_into().map_err(|_e| {
-                                    ctx.error(ErrorKind::InvalidArraySize, siz_first.span)
-                                })?)
-                            }
-                            TokenKind::Identifier(name) => {
-                                if !is_generic_parameter(&name) {
-                                    return Err(
-                                        ctx.error(ErrorKind::InvalidArraySize, siz_first.span)
-                                    );
-                                }
-                                Symbolic::Generic(Ident::new(name, siz_first.span))
-                            }
-                            _ => return Err(ctx.error(ErrorKind::InvalidArraySize, siz_first.span)),
-                        };
-
-                        let mut sym_op = siz_second.kind;
-
-                        // todo: restrict to only one operator
-
-                        // [Field; NN * 2 + MM]
-                        //              ^^^^^^^
-                        loop {
-                            // [Field; NN * 2 + MM]
-                            //              ^
-                            let sym_rhs = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
-
-                            sym_lhs = match sym_op {
-                                TokenKind::Plus => match sym_rhs.kind {
-                                    TokenKind::Identifier(name) => {
-                                        if !is_generic_parameter(&name) {
-                                            return Err(ctx.error(
-                                                ErrorKind::InvalidGenericParameter,
-                                                sym_rhs.span,
-                                            ));
-                                        }
-
-                                        Symbolic::Add(
-                                            Box::new(sym_lhs),
-                                            Box::new(Symbolic::Generic(Ident::new(
-                                                name,
-                                                sym_rhs.span,
-                                            ))),
-                                        )
-                                    }
-                                    TokenKind::BigUInt(b) => Symbolic::Add(
-                                        Box::new(sym_lhs),
-                                        Box::new(Symbolic::Concrete(b.try_into().map_err(
-                                            |_e| {
-                                                ctx.error(ErrorKind::InvalidArraySize, sym_rhs.span)
-                                            },
-                                        )?)),
-                                    ),
-                                    _ => {
-                                        return Err(
-                                            ctx.error(ErrorKind::InvalidArraySize, sym_rhs.span)
-                                        );
-                                    }
-                                },
-                                TokenKind::Star => match sym_rhs.kind {
-                                    TokenKind::Identifier(name) => {
-                                        if !is_generic_parameter(&name) {
-                                            return Err(ctx.error(
-                                                ErrorKind::InvalidGenericParameter,
-                                                sym_rhs.span,
-                                            ));
-                                        }
-
-                                        Symbolic::Mul(
-                                            Box::new(sym_lhs),
-                                            Box::new(Symbolic::Generic(Ident::new(
-                                                name,
-                                                sym_rhs.span,
-                                            ))),
-                                        )
-                                    }
-                                    TokenKind::BigUInt(b) => Symbolic::Mul(
-                                        Box::new(sym_lhs),
-                                        Box::new(Symbolic::Concrete(b.try_into().map_err(
-                                            |_e| {
-                                                ctx.error(ErrorKind::InvalidArraySize, sym_rhs.span)
-                                            },
-                                        )?)),
-                                    ),
-                                    _ => {
-                                        return Err(
-                                            ctx.error(ErrorKind::InvalidArraySize, sym_rhs.span)
-                                        );
-                                    }
-                                },
-                                _ => {
-                                    return Err(
-                                        ctx.error(ErrorKind::InvalidArraySize, siz_second.span)
-                                    );
-                                }
-                            };
-
-                            // [Field; NN * 2 + MM]
-                            //                ^   ^
-                            sym_op = tokens.bump_err(ctx, ErrorKind::InvalidToken)?.kind;
-                            if sym_op == TokenKind::RightBracket {
-                                return Ok(Ty {
-                                    kind: TyKind::GenericArray(Box::new(ty.kind), sym_lhs),
-                                    span: span.merge_with(sym_rhs.span),
-                                });
-                            }
-                        }
-                    }
+                    _ => Err(ctx.error(ErrorKind::InvalidSymbolicSize, siz_first.span)),
                 }
             }
 
@@ -609,7 +505,7 @@ impl FnSig {
                         generics.add(name);
                     }
                 }
-                TyKind::GenericArray(_, _) => {
+                TyKind::GenericSizedArray(_, _) => {
                     // recursively extract all generic parameters from the symbolic size
                     let extracted = arg.typ.kind.extract_generics();
 
@@ -641,7 +537,7 @@ impl FnSig {
     ) -> Result<()> {
         match (sig_arg, observed) {
             // [[Field; NN]; MM]
-            (TyKind::GenericArray(ty, sym), TyKind::Array(observed_ty, observed_size)) => {
+            (TyKind::GenericSizedArray(ty, sym), TyKind::Array(observed_ty, observed_size)) => {
                 // resolve the generic parameter
                 match sym {
                     Symbolic::Generic(ident) => {
@@ -669,7 +565,7 @@ impl FnSig {
         for (sig_arg, observed_arg) in self.arguments.clone().iter().zip(observed) {
             let observed_ty = observed_arg.typ.clone().expect("expected type");
             match (&sig_arg.typ.kind, &observed_ty) {
-                (TyKind::GenericArray(_, _), TyKind::Array(_, _))
+                (TyKind::GenericSizedArray(_, _), TyKind::Array(_, _))
                 | (TyKind::Array(_, _), TyKind::Array(_, _)) => {
                     self.resolve_generic_array(
                         &sig_arg.typ.kind,
@@ -692,6 +588,59 @@ impl FnSig {
         }
 
         Ok(())
+    }
+
+    /// Returns true if the function signature contains generic parameters or generic array types.
+    /// Either:
+    /// - `const NN: Field` or `[[Field; NN]; MM]`
+    /// - `[Field; cst]`, where cst is a constant variable. We also monomorphize generic array with a constant var as its size.
+    pub fn require_monomorphization(&self) -> bool {
+        let has_arg_cst = self
+            .arguments
+            .iter()
+            .any(|arg| self.has_constant(&arg.typ.kind));
+
+        let has_ret_cst = self.return_type.is_some()
+            && self.has_constant(&self.return_type.as_ref().unwrap().kind);
+
+        !self.generics.is_empty() || has_arg_cst || has_ret_cst
+    }
+
+    /// Recursively check if the generic array symbolic value contains constant variant
+    fn has_constant(&self, typ: &TyKind) -> bool {
+        match typ {
+            TyKind::GenericSizedArray(ty, sym) => {
+                match sym {
+                    Symbolic::Constant(_) => return true,
+                    _ => false,
+                };
+
+                self.has_constant(ty)
+            }
+            TyKind::Array(ty, _) => self.has_constant(ty),
+            _ => false,
+        }
+    }
+
+    /// Returns the monomorphized function name,
+    /// using the patter: `fn_full_qualified_name#generic1=value1#generic2=value2`
+    pub fn monomorphized_name(&self) -> Ident {
+        let mut name = self.name.clone();
+
+        if self.require_monomorphization() {
+            let mut generics = self.generics.0.iter().collect::<Vec<_>>();
+            generics.sort_by(|a, b| a.0.cmp(b.0));
+
+            let generics = generics
+                .iter()
+                .map(|(name, value)| format!("{}={}", name, value.unwrap()))
+                .collect::<Vec<_>>()
+                .join("#");
+
+            name.value.push_str(&format!("#{}", generics));
+        }
+
+        name
     }
 }
 
@@ -783,8 +732,59 @@ impl Default for FuncOrMethod {
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-// todo: remove pub from HashMap, and implement getter or setter
-pub struct GenericParameters(pub HashMap<String, Option<u32>>);
+pub struct GenericParameters(HashMap<String, Option<u32>>);
+
+impl GenericParameters {
+    /// Return all generic parameter names
+    pub fn names(&self) -> HashSet<String> {
+        self.0.keys().cloned().collect()
+    }
+
+    /// Add an unbound generic parameter
+    pub fn add(&mut self, name: String) {
+        self.0.insert(name, None);
+    }
+
+    /// Get the value of a generic parameter
+    pub fn get(&self, name: &str) -> u32 {
+        self.0
+            .get(name)
+            .expect("generic parameter not found")
+            .expect("generic value not assigned")
+    }
+
+    /// Returns whether the generic parameters are empty
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Bind a generic parameter to a value
+    pub fn assign(&mut self, name: &String, value: u32, span: Span) -> Result<()> {
+        let existing = self.0.get(name);
+        match existing {
+            Some(Some(v)) => {
+                if *v == value {
+                    return Ok(());
+                }
+
+                Err(Error::new(
+                    "mast",
+                    ErrorKind::ConflictGenericValue(name.to_string(), *v, value),
+                    span,
+                ))
+            }
+            Some(None) => {
+                self.0.insert(name.to_string(), Some(value));
+                Ok(())
+            }
+            None => Err(Error::new(
+                "mast",
+                ErrorKind::UnexpectedGenericParameter(name.to_string()),
+                span,
+            )),
+        }
+    }
+}
 
 // TODO: remove default here?
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]

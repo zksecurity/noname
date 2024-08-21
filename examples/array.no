@@ -1,8 +1,18 @@
+const size = 2;
+
+fn init() -> [Field; size] { // array type can depends on constant var
+    return [4; size]; // array init with constant var
+}
+
 fn main(pub public_input: [Field; 2]) {
     let xx = [1, 2, 3];
 
     assert_eq(public_input[0], xx[0]);
     assert_eq(public_input[1], xx[1]);
 
-    assert_eq(1, 1);
+    let yy = [3; 2];
+    let zz = init();
+
+    assert_eq(public_input[0] + 2, yy[0]);
+    assert_eq(public_input[1] + 2, zz[1]);
 }

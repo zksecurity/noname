@@ -152,7 +152,7 @@ pub fn compile<B: Backend>(
     tast: TypeChecker<B>,
     backend: B,
 ) -> miette::Result<CompiledCircuit<B>> {
-    let mut mast = mast::monomorphize(tast)?;
+    let mast = mast::monomorphize(tast)?;
     CircuitWriter::generate_circuit(mast, backend).into_miette(sources)
 }
 

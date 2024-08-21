@@ -126,6 +126,11 @@ impl<B: Backend> TypeChecker<B> {
                 })?;
                 let fn_sig = fn_info.sig().clone();
 
+                // check if generic is allowed
+                if fn_sig.require_monomorphization() && typed_fn_env.is_in_forloop() {
+                    return Err(self.error(ErrorKind::GenericInForLoop, expr.span));
+                }
+
                 // type check the function call
                 let method_call = false;
                 let res = self.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)?;
@@ -158,6 +163,11 @@ impl<B: Backend> TypeChecker<B> {
                     .methods
                     .get(&method_name.value)
                     .expect("method not found on custom struct (TODO: better error)");
+
+                // check if generic is allowed
+                if method_type.sig.require_monomorphization() && typed_fn_env.is_in_forloop() {
+                    return Err(self.error(ErrorKind::GenericInForLoop, expr.span));
+                }
 
                 // type check the method call
                 let method_call = true;
@@ -355,7 +365,7 @@ impl<B: Backend> TypeChecker<B> {
                 let typ = self.compute_type(array, typed_fn_env)?.unwrap();
 
                 // check that it is an array
-                if !matches!(typ.typ, TyKind::Array(..) | TyKind::GenericArray(..)) {
+                if !matches!(typ.typ, TyKind::Array(..) | TyKind::GenericSizedArray(..)) {
                     return Err(self.error(ErrorKind::ArrayAccessOnNonArray, expr.span));
                 }
 
@@ -369,7 +379,7 @@ impl<B: Backend> TypeChecker<B> {
                 // get type of element
                 let el_typ = match typ.typ {
                     TyKind::Array(typkind, _) => *typkind,
-                    TyKind::GenericArray(typkind, _) => *typkind,
+                    TyKind::GenericSizedArray(typkind, _) => *typkind,
                     _ => panic!("not an array"),
                 };
 
@@ -511,7 +521,7 @@ impl<B: Backend> TypeChecker<B> {
                     // todo: see if we can determine whether the size node is generic or not
                     // use generic array to bypass the array check, as the size node might include generic parameters.
                     // the mast phase will resolve the size node to a constant, and check the types.
-                    let res = ExprTyInfo::new_anon(TyKind::GenericArray(
+                    let res = ExprTyInfo::new_anon(TyKind::GenericSizedArray(
                         Box::new(item_node.typ),
                         // mock up a symbolic size
                         Symbolic::Generic(Ident::new("x".to_string(), size.span)),
@@ -526,6 +536,12 @@ impl<B: Backend> TypeChecker<B> {
         // save the type of that expression in our typed global env
         if let Some(typ) = &typ {
             self.node_types.insert(expr.node_id, typ.typ.clone());
+        }
+
+        // update last node id
+        // todo: probably better to pass the node id from nast
+        if self.node_id < expr.node_id {
+            self.node_id = expr.node_id;
         }
 
         // return the type to the caller
@@ -600,6 +616,7 @@ impl<B: Backend> TypeChecker<B> {
             StmtKind::ForLoop { var, range, body } => {
                 // enter a new scope
                 typed_fn_env.nest();
+                typed_fn_env.start_forloop();
 
                 // create var (for now it's always a bigint)
                 typed_fn_env
@@ -616,6 +633,7 @@ impl<B: Backend> TypeChecker<B> {
 
                 // exit the scope
                 typed_fn_env.pop();
+                typed_fn_env.end_forloop();
             }
             StmtKind::Expr(expr) => {
                 // make sure the expression does not return any type

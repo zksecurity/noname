@@ -3,7 +3,11 @@ fn last(arr: [Field; LEN]) -> Field {
 }
 
 fn main(pub xx: Field) {
-    let array = [xx + 1, xx + 2, xx + 3];
-    let elm = last(array);
-    assert_eq(elm, 4);
+    let array1 = [xx + 1, xx + 2, xx + 3];
+    let elm1 = last(array1);
+    assert_eq(elm1, 4);
+
+    let array2 = [xx + 1, xx + 2];
+    let elm2 = last(array2);
+    assert_eq(elm2, 3);
 }
