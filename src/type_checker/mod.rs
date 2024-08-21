@@ -11,8 +11,6 @@ use crate::{
         types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
         CustomType, Expr, StructDef,
     },
-    stdlib::builtins::QUALIFIED_BUILTINS,
-    syntax::is_generic_parameter,
 };
 
 use ark_ff::Field;

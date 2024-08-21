@@ -9,13 +9,7 @@ use crate::{
     constants::Span,
     constraints::boolean,
     error::Result,
-    imports::FnKind,
-    lexer::Token,
-    parser::{
-        types::{FnSig, GenericParameters},
-        ParserCtx,
-    },
-    type_checker::FnInfo,
+    parser::types::GenericParameters,
     var::{ConstOrCell, Value, Var},
 };
 
