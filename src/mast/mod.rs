@@ -1037,9 +1037,9 @@ pub fn instantiate_fn_call<B: Backend>(
     let func_def = match fn_info.kind {
         FnKind::BuiltIn(_, handle) => {
             let sig_typed = FnSig {
+                name: fn_sig.monomorphized_name(),
                 arguments: fn_args_typed,
                 return_type: ret_ty.clone(),
-                generics: GenericParameters::default(),
                 ..fn_sig
             };
             FnInfo {
@@ -1064,7 +1064,6 @@ pub fn instantiate_fn_call<B: Backend>(
                         name: fn_sig.monomorphized_name(),
                         arguments: fn_args_typed,
                         return_type: ret_typ,
-                        generics: GenericParameters::default(),
                         ..fn_sig
                     },
                     body: stmts,
