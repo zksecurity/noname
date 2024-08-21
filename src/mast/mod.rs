@@ -949,17 +949,16 @@ pub fn instantiate_fn_call<B: Backend>(
 ) -> Result<(FnInfo<B>, Option<TyKind>)> {
     ctx.start_monomorphize_func();
 
+    // resolve generic values
     let (fn_sig, stmts) = match &fn_info.kind {
         FnKind::BuiltIn(sig, _) => {
             let mut sig = sig.clone();
-            // resolve generic values
             sig.resolve_generic_values(args)?;
 
             (sig, Vec::<Stmt>::new())
         }
         FnKind::Native(func) => {
             let mut sig = func.sig.clone();
-            // resolve generic values
             sig.resolve_generic_values(args)?;
 
             (sig, func.body.clone())
@@ -1017,8 +1016,8 @@ pub fn instantiate_fn_call<B: Backend>(
         })
         .collect();
 
-    // evaluate generic return types using inferred values
-    let ret_ty = match &fn_sig.return_type {
+    // evaluate return types using the resolved generic values
+    let ret_typed = match &fn_sig.return_type {
         Some(ret_ty) => match &ret_ty.kind {
             TyKind::GenericSizedArray(typ, size) => {
                 let val = size.eval(mono_fn_env, &ctx.tast);
@@ -1033,40 +1032,27 @@ pub fn instantiate_fn_call<B: Backend>(
         None => None,
     };
 
+    let sig_typed = FnSig {
+        name: fn_sig.monomorphized_name(),
+        arguments: fn_args_typed,
+        return_type: ret_typed.clone(),
+        ..fn_sig
+    };
+
     // construct the monomorphized function AST
     let func_def = match fn_info.kind {
-        FnKind::BuiltIn(_, handle) => {
-            let sig_typed = FnSig {
-                name: fn_sig.monomorphized_name(),
-                arguments: fn_args_typed,
-                return_type: ret_ty.clone(),
-                ..fn_sig
-            };
-            FnInfo {
-                kind: FnKind::BuiltIn(sig_typed, handle),
-                span: fn_info.span,
-            }
-        }
+        FnKind::BuiltIn(_, handle) => FnInfo {
+            kind: FnKind::BuiltIn(sig_typed, handle),
+            span: fn_info.span,
+        },
         FnKind::Native(fn_def) => {
-            let (stmts, typ) = monomorphize_block(ctx, mono_fn_env, &stmts, ret_ty.as_ref())?;
-
-            let ret_typ = match typ {
-                Some(t) => Some(Ty {
-                    kind: t,
-                    span: fn_def.sig.return_type.as_ref().unwrap().span,
-                }),
-                None => None,
-            };
+            let (stmts_typed, _) =
+                monomorphize_block(ctx, mono_fn_env, &stmts, ret_typed.as_ref())?;
 
             FnInfo {
                 kind: FnKind::Native(FunctionDef {
-                    sig: FnSig {
-                        name: fn_sig.monomorphized_name(),
-                        arguments: fn_args_typed,
-                        return_type: ret_typ,
-                        ..fn_sig
-                    },
-                    body: stmts,
+                    sig: sig_typed,
+                    body: stmts_typed,
                     span: fn_def.span,
                 }),
                 span: fn_info.span,
@@ -1076,7 +1062,7 @@ pub fn instantiate_fn_call<B: Backend>(
 
     ctx.finish_monomorphize_func();
 
-    Ok((func_def, ret_ty.map(|t| t.kind)))
+    Ok((func_def, ret_typed.map(|t| t.kind)))
 }
 pub fn error(kind: ErrorKind, span: Span) -> Error {
     Error::new("mast", kind, span)
