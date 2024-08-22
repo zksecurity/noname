@@ -35,7 +35,7 @@ pub struct ExprMonoInfo {
 
 impl ExprMonoInfo {
     pub fn new(expr: Expr, typ: Option<TyKind>, value: Option<u32>) -> Self {
-        if value.is_some() && !matches!(typ, Some(TyKind::BigInt{ constant: true })) {
+        if value.is_some() && !matches!(typ, Some(TyKind::BigInt { constant: true })) {
             panic!("value can only be set for BigInt type");
         }
 
@@ -253,7 +253,7 @@ impl<B: Backend> Mast<B> {
 
                 sum
             }
-            TyKind::BigInt{..} => 1,
+            TyKind::BigInt { .. } => 1,
             TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
             TyKind::GenericSizedArray(_, _) => {
                 unreachable!("generic arrays should have been resolved")
@@ -583,7 +583,7 @@ fn monomorphize_expr<B: Backend>(
             let cst: u32 = inner.try_into().expect("biguint too large");
             let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(inner.clone()));
 
-            ExprMonoInfo::new(mexpr, Some(TyKind::BigInt{ constant: true }), Some(cst))
+            ExprMonoInfo::new(mexpr, Some(TyKind::BigInt { constant: true }), Some(cst))
         }
 
         ExprKind::Bool(inner) => {
@@ -625,7 +625,7 @@ fn monomorphize_expr<B: Backend>(
                 let cst: u32 = bigint.clone().try_into().expect("biguint too large");
                 let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(bigint));
 
-                ExprMonoInfo::new(mexpr, Some(TyKind::BigInt{ constant: true}), Some(cst))
+                ExprMonoInfo::new(mexpr, Some(TyKind::BigInt { constant: true }), Some(cst))
             } else {
                 // otherwise it's a local variable
                 let mexpr = expr.to_mast(
@@ -879,7 +879,7 @@ pub fn monomorphize_stmt<B: Backend>(
                 &var.value,
                 // because we don't unroll the loop in the monomorphized AST
                 // no constant value even if it's a BigInt
-                &MTypeInfo::new(&TyKind::BigInt{ constant: true }, var.span, None),
+                &MTypeInfo::new(&TyKind::BigInt { constant: true }, var.span, None),
             )?;
 
             let start_mono = monomorphize_expr(ctx, &range.start, mono_fn_env)?;
@@ -982,7 +982,10 @@ pub fn instantiate_fn_call<B: Backend>(
     // store the values for generic parameters in the env
     for gen in &fn_sig.generics.names() {
         let val = fn_sig.generics.get(gen);
-        mono_fn_env.store_type(gen, &MTypeInfo::new(&TyKind::BigInt{ constant: true }, span, Some(val)))?;
+        mono_fn_env.store_type(
+            gen,
+            &MTypeInfo::new(&TyKind::BigInt { constant: true }, span, Some(val)),
+        )?;
     }
 
     // store the types of the arguments in the env

@@ -273,7 +273,7 @@ impl<B: Backend> CircuitWriter<B> {
                     offset += len;
                 }
             }
-            TyKind::BigInt{..} => unreachable!(),
+            TyKind::BigInt { .. } => unreachable!(),
             TyKind::GenericSizedArray(_, _) => {
                 unreachable!("generic array should have been resolved")
             }

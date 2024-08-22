@@ -42,14 +42,14 @@ fn assert_eq_fn<B: Backend>(
     let rhs_info = &vars[1];
 
     // they are both of type field
-    if !matches!(lhs_info.typ, Some(TyKind::Field | TyKind::BigInt{..})) {
+    if !matches!(lhs_info.typ, Some(TyKind::Field | TyKind::BigInt { .. })) {
         panic!(
             "the lhs of assert_eq must be of type Field or BigInt. It was of type {:?}",
             lhs_info.typ
         );
     }
 
-    if !matches!(rhs_info.typ, Some(TyKind::Field | TyKind::BigInt{..})) {
+    if !matches!(rhs_info.typ, Some(TyKind::Field | TyKind::BigInt { .. })) {
         panic!(
             "the rhs of assert_eq must be of type Field or BigInt. It was of type {:?}",
             rhs_info.typ

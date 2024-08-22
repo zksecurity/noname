@@ -141,7 +141,7 @@ pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<(V
 }
 
 pub fn is_numeric(typ: &TyKind) -> bool {
-    matches!(typ, TyKind::Field | TyKind::BigInt{..})
+    matches!(typ, TyKind::Field | TyKind::BigInt { .. })
 }
 
 //~
@@ -261,7 +261,7 @@ impl TyKind {
     /// A less strict checks when comparing with generic types.
     pub fn match_expected(&self, expected: &TyKind) -> bool {
         match (self, expected) {
-            (TyKind::BigInt{..}, TyKind::Field) | (TyKind::Field, TyKind::BigInt{..}) => true,
+            (TyKind::BigInt { .. }, TyKind::Field) | (TyKind::Field, TyKind::BigInt { .. }) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
@@ -284,7 +284,7 @@ impl TyKind {
     /// An exact match check, assuming there is no generic type.
     pub fn same_as(&self, other: &TyKind) -> bool {
         match (self, other) {
-            (TyKind::BigInt{..}, TyKind::Field) | (TyKind::Field, TyKind::BigInt{..}) => true,
+            (TyKind::BigInt { .. }, TyKind::Field) | (TyKind::Field, TyKind::BigInt { .. }) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.same_as(rhs)
             }
@@ -307,7 +307,7 @@ impl TyKind {
 
         match self {
             TyKind::Field => (),
-            TyKind::BigInt{..} => (),
+            TyKind::BigInt { .. } => (),
             TyKind::Bool => (),
             TyKind::Custom { .. } => (),
             // e.g [[Field; N], 3]
@@ -345,7 +345,7 @@ impl Display for TyKind {
                 ModulePath::Local => write!(f, "a `{}` struct", name),
             },
             TyKind::Field => write!(f, "Field"),
-            TyKind::BigInt{..} => write!(f, "BigInt"),
+            TyKind::BigInt { .. } => write!(f, "BigInt"),
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
             TyKind::GenericSizedArray(ty, size) => write!(f, "[{}; {}]", ty, size),
