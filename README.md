@@ -64,9 +64,10 @@ This will create a `Noname.toml` manifest file, which contains the name of your 
 
 This will also create a `src` directory, which contains a `main.no` file, which is the entry point of your program. If you want to create a library, pass the `--lib` flag to the `new` or `init` command of `noname`, and it will create a `lib.no` file instead.
 
+Folder structure:
+
 ```
 root
-.
 ├── Noname.toml
 └── src
     └── main.no
