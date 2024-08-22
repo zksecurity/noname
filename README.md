@@ -17,7 +17,7 @@ fn main(pub public_input: Field, private_input: Field) -> Bool {
 You can run the above example with the following command:
 
 ```console
-$ noname test --path examples/public_output_bool.no --private-inputs '{"private_input": "1"}' --public-inputs '{"public_input": "1"}' --debug
+noname test --path examples/public_output_bool.no --private-inputs '{"private_input": "1"}' --public-inputs '{"public_input": "1"}' --debug
 ```
 
 On particularity of noname is the `--debug` option that shows you how the code relates to the compiled constraints:
@@ -31,13 +31,13 @@ To get started with no strings attached, you can use the [Noname Code Playground
 You need to install the compiler from source using [cargo](https://rustup.rs/).  You can do this by running the following command:
 
 ```console
-$ cargo install --git https://www.github.com/zksecurity/noname
+cargo install --git https://www.github.com/zksecurity/noname
 ```
 
 Then simply write `noname` in the console to get access to the CLI. See the [Usage](#usage) section for more information on usage.
 
 ```console
-$ noname
+noname
 ```
 
 ## More Resources
@@ -57,7 +57,7 @@ We have a lot of resources to learn and understand how noname works:
 Once [noname is installed on your system](#installation), use `noname new` to create a project in a new directory, or `noname init` to initialize an existing directory. For example:
 
 ```
-$ noname new --path my_project
+noname new --path my_project
 ```
 
 This will create a `Noname.toml` manifest file, which contains the name of your project (which must follow a Github `user/repo` format) as well as dependencies you're using (following the same format, as they are retrieved from Github).
@@ -65,7 +65,7 @@ This will create a `Noname.toml` manifest file, which contains the name of your 
 This will also create a `src` directory, which contains a `main.no` file, which is the entry point of your program. If you want to create a library, pass the `--lib` flag to the `new` or `init` command of `noname`, and it will create a `lib.no` file instead.
 
 ```
-$ tree
+root
 .
 ├── Noname.toml
 └── src
@@ -75,13 +75,13 @@ $ tree
 You can then use the following command to check the correctness of your code (and its dependencies):
 
 ```
-$ noname check
+noname check
 ```
 
 or you can test a full run with:
 
 ```
-$ noname test
+noname test
 ```
 
 which will attempt to create a proof and verify it. See the [examples](#examples) section to see how to use it.
