@@ -130,7 +130,7 @@ impl NameResCtx {
             TyKind::Custom { module, name: _ } => {
                 self.resolve(module, false)?;
             }
-            TyKind::BigInt => (),
+            TyKind::BigInt{..} => (),
             TyKind::Array(typ_kind, _) => self.resolve_typ_kind(typ_kind)?,
             TyKind::GenericSizedArray(typ_kind, _) => self.resolve_typ_kind(typ_kind)?,
             TyKind::Bool => (),

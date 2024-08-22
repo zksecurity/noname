@@ -76,7 +76,7 @@ impl<B: Backend> CompiledCircuit<B> {
         use serde_json::Value;
 
         match (expected_input, input) {
-            (TyKind::BigInt, _) => unreachable!(),
+            (TyKind::BigInt{..}, _) => unreachable!(),
             (TyKind::Field, Value::String(ss)) => {
                 let cell_value =
                     B::Field::from_str(&ss).map_err(|_| ParsingError::InvalidField(ss))?;

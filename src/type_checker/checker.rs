@@ -288,7 +288,7 @@ impl<B: Backend> TypeChecker<B> {
 
             ExprKind::Negated(inner) => {
                 let inner_typ = self.compute_type(inner, typed_fn_env)?.unwrap();
-                if !matches!(inner_typ.typ, TyKind::Field | TyKind::BigInt) {
+                if !matches!(inner_typ.typ, TyKind::Field | TyKind::BigInt { .. }) {
                     return Err(self.error(
                         ErrorKind::MismatchType(TyKind::Field, inner_typ.typ),
                         expr.span,
@@ -310,7 +310,7 @@ impl<B: Backend> TypeChecker<B> {
                 Some(ExprTyInfo::new_anon(TyKind::Bool))
             }
 
-            ExprKind::BigUInt(_) => Some(ExprTyInfo::new_anon(TyKind::BigInt)),
+            ExprKind::BigUInt(_) => Some(ExprTyInfo::new_anon(TyKind::BigInt { constant: true })),
 
             ExprKind::Bool(_) => Some(ExprTyInfo::new_anon(TyKind::Bool)),
 
@@ -336,7 +336,7 @@ impl<B: Backend> TypeChecker<B> {
                     let typ = if let Some(cst) = self.constants.get(&qualified) {
                         // if it's a field, we need to convert it to a bigint
                         if matches!(cst.typ.kind, TyKind::Field) {
-                            TyKind::BigInt
+                            TyKind::BigInt { constant: true }
                         } else {
                             cst.typ.kind.clone()
                         }
@@ -349,7 +349,7 @@ impl<B: Backend> TypeChecker<B> {
                             .clone();
                         // if it's a field, we need to convert it to a bigint
                         if matches!(typ, TyKind::Field) {
-                            TyKind::BigInt
+                            TyKind::BigInt { constant: false }
                         } else {
                             typ
                         }
@@ -372,7 +372,7 @@ impl<B: Backend> TypeChecker<B> {
                 // check that expression is a bigint
                 let idx_typ = self.compute_type(idx, typed_fn_env)?;
                 match idx_typ.map(|t| t.typ) {
-                    Some(TyKind::BigInt) => (),
+                    Some(TyKind::BigInt { .. }) => (),
                     _ => return Err(self.error(ErrorKind::ExpectedConstant, expr.span)),
                 };
 
@@ -619,8 +619,10 @@ impl<B: Backend> TypeChecker<B> {
                 typed_fn_env.start_forloop();
 
                 // create var (for now it's always a bigint)
-                typed_fn_env
-                    .store_type(var.value.clone(), TypeInfo::new(TyKind::BigInt, var.span))?;
+                typed_fn_env.store_type(
+                    var.value.clone(),
+                    TypeInfo::new(TyKind::BigInt { constant: true }, var.span),
+                )?;
 
                 let start_type = self.compute_type(&range.start, typed_fn_env)?.unwrap();
                 let end_type = self.compute_type(&range.end, typed_fn_env)?.unwrap();
@@ -707,6 +709,13 @@ impl<B: Backend> TypeChecker<B> {
 
         // compare argument types with the function signature
         for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
+            // check const
+            if let Some(attr) = &sig_arg.attribute {
+                if attr.is_constant() && !matches!(typ, TyKind::BigInt { constant: true }) {
+                    return Err(self.error(ErrorKind::ExpectedConstantArg, span));
+                }
+            }
+
             if !typ.match_expected(&sig_arg.typ.kind) {
                 return Err(self.error(
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),

@@ -257,6 +257,9 @@ pub enum ErrorKind {
     #[error("array indexes must be constants in circuits")]
     ExpectedConstant,
 
+    #[error("the function argument must be a constant")]
+    ExpectedConstantArg,
+
     #[error("kimchi setup: {0}")]
     KimchiSetup(#[from] kimchi::error::SetupError),
 
