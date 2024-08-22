@@ -90,7 +90,7 @@ impl<B: Backend> TypeChecker<B> {
                 // obtain the type of the field
                 let (module, struct_name) = match lhs_node.typ {
                     TyKind::Custom { module, name } => (module, name),
-                    _ => panic!("field access must be done on a custom struct"),
+                    _ => return Err(self.error(ErrorKind::FieldAccessOnNonCustomStruct, expr.span)),
                 };
 
                 // get struct info
@@ -104,10 +104,16 @@ impl<B: Backend> TypeChecker<B> {
                     .fields
                     .iter()
                     .find(|(name, _)| name == &rhs.value)
-                    .map(|(_, typ)| typ.clone())
-                    .expect("could not find field");
+                    .map(|(_, typ)| typ.clone());
 
-                Some(ExprTyInfo::new(lhs_node.var_name, res))
+                if let Some(res) = res {
+                    Some(ExprTyInfo::new(lhs_node.var_name, res))
+                } else {
+                    return Err(self.error(
+                        ErrorKind::UndefinedField(struct_info.name.clone(), rhs.value.clone()),
+                        expr.span,
+                    ));
+                }
             }
 
             // `module::fn_name(args)`
@@ -154,10 +160,15 @@ impl<B: Backend> TypeChecker<B> {
                     .clone();
 
                 // get method info
-                let method_type = struct_info
-                    .methods
-                    .get(&method_name.value)
-                    .expect("method not found on custom struct (TODO: better error)");
+                let method_type = struct_info.methods.get(&method_name.value);
+
+                if method_type.is_none() {
+                    return Err(self.error(
+                        ErrorKind::UndefinedMethod(struct_name.clone(), method_name.value.clone()),
+                        method_name.span,
+                    ));
+                }
+                let method_type = method_type.unwrap();
 
                 // type check the method call
                 let method_call = true;
@@ -238,7 +249,10 @@ impl<B: Backend> TypeChecker<B> {
                 let rhs_typ = self.compute_type(rhs, typed_fn_env)?.unwrap();
 
                 if !rhs_typ.typ.match_expected(&lhs_node.typ) {
-                    panic!("lhs type doesn't match rhs type (TODO: replace with error)");
+                    return Err(self.error(
+                        ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_typ.typ.clone()),
+                        expr.span,
+                    ));
                 }
 
                 None
@@ -412,7 +426,10 @@ impl<B: Backend> TypeChecker<B> {
                     .compute_type(cond, typed_fn_env)?
                     .expect("can't compute type of condition");
                 if !matches!(cond_node.typ, TyKind::Bool) {
-                    panic!("`if` must be followed by a boolean");
+                    return Err(self.error(
+                        ErrorKind::IfElseInvalidConditionType(cond_node.typ.clone()),
+                        cond.span,
+                    ));
                 }
 
                 // then_ and else_ can only be variables, field accesses, or array accesses
@@ -422,7 +439,7 @@ impl<B: Backend> TypeChecker<B> {
                         | ExprKind::FieldAccess { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {
-                    panic!("`if` branch must be a variable, a field access, or an array access. It can't be logic that creates constraints.");
+                    return Err(self.error(ErrorKind::IfElseInvalidIfBranch(), then_.span));
                 }
 
                 if !matches!(
@@ -431,7 +448,7 @@ impl<B: Backend> TypeChecker<B> {
                         | ExprKind::FieldAccess { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {
-                    panic!("`else` branch must be a variable, a field access, or an array access. It can't be logic that creates constraints.");
+                    return Err(self.error(ErrorKind::IfElseInvalidElseBranch(), else_.span));
                 }
 
                 // compute type of if/else branches
@@ -444,10 +461,9 @@ impl<B: Backend> TypeChecker<B> {
 
                 // make sure that the type of then_ and else_ match
                 if then_node.typ != else_node.typ {
-                    panic!("`if` branch and `else` branch must have matching types");
+                    return Err(self.error(ErrorKind::IfElseMismatchingBranchesTypes(), expr.span));
                 }
 
-                //
                 Some(ExprTyInfo::new_anon(then_node.typ))
             }
 
@@ -585,7 +601,7 @@ impl<B: Backend> TypeChecker<B> {
 
                 // ensure start..end makes sense
                 if range.end < range.start {
-                    panic!("end can't be smaller than start (TODO: better error)");
+                    return Err(self.error(ErrorKind::InvalidRange, range.span));
                 }
 
                 // check block
