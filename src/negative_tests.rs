@@ -1,19 +1,8 @@
 use crate::{
-    backends::kimchi::KimchiVesta,
-    compiler::{typecheck_next_file_inner, Sources},
-    error::ErrorKind,
-    type_checker::TypeChecker,
+    backends::kimchi::KimchiVesta, compiler::{typecheck_next_file_inner, Sources}, error::{ErrorKind, Result}, mast::Mast, type_checker::TypeChecker
 };
 
-#[test]
-fn test_return() {
-    // no return expected
-    let code = r#"
-    fn thing(xx: Field) {
-        return xx;
-    }
-    "#;
-
+fn tast_pass(code: &str) -> (Result<usize>, TypeChecker<KimchiVesta>) {
     let mut tast = TypeChecker::<KimchiVesta>::new();
     let res = typecheck_next_file_inner(
         &mut tast,
@@ -24,6 +13,24 @@ fn test_return() {
         0,
     );
 
+    (res, tast)
+}
+
+fn mast_pass(code: &str) -> Result<Mast<KimchiVesta>> {
+    let tast = tast_pass(code).1;
+    crate::mast::monomorphize(tast)
+}
+
+#[test]
+fn test_return() {
+    // no return expected
+    let code = r#"
+    fn thing(xx: Field) {
+        return xx;
+    }
+    "#;
+
+    let res = tast_pass(code).0;
     assert!(matches!(res.unwrap_err().kind, ErrorKind::NoReturnExpected));
 }
 
@@ -36,16 +43,7 @@ fn test_return_expected() {
     }
     "#;
 
-    let mut tast = TypeChecker::<KimchiVesta>::new();
-    let res = typecheck_next_file_inner(
-        &mut tast,
-        None,
-        &mut Sources::new(),
-        "example.no".to_string(),
-        code.to_string(),
-        0,
-    );
-
+    let res = tast_pass(code).0;
     assert!(matches!(res.unwrap_err().kind, ErrorKind::MissingReturn));
 }
 
@@ -58,16 +56,7 @@ fn test_return_mismatch() {
         }
         "#;
 
-    let mut tast = TypeChecker::<KimchiVesta>::new();
-    let res = typecheck_next_file_inner(
-        &mut tast,
-        None,
-        &mut Sources::new(),
-        "example.no".to_string(),
-        code.to_string(),
-        0,
-    );
-
+    let res = tast_pass(code).0;
     assert!(matches!(
         res.unwrap_err().kind,
         ErrorKind::ReturnTypeMismatch(..)
@@ -89,16 +78,7 @@ fn test_generic_const_for_loop() {
         }
         "#;
 
-    let mut tast = TypeChecker::<KimchiVesta>::new();
-    let res = typecheck_next_file_inner(
-        &mut tast,
-        None,
-        &mut Sources::new(),
-        "example.no".to_string(),
-        code.to_string(),
-        0,
-    );
-
+    let res = tast_pass(code).0;
     assert!(matches!(res.unwrap_err().kind, ErrorKind::GenericInForLoop));
 }
 
@@ -118,16 +98,7 @@ fn test_generic_array_for_loop() {
         }
         "#;
 
-    let mut tast = TypeChecker::<KimchiVesta>::new();
-    let res = typecheck_next_file_inner(
-        &mut tast,
-        None,
-        &mut Sources::new(),
-        "example.no".to_string(),
-        code.to_string(),
-        0,
-    );
-
+    let res = tast_pass(code).0;
     assert!(matches!(res.unwrap_err().kind, ErrorKind::GenericInForLoop));
 }
 
@@ -139,16 +110,7 @@ fn test_generic_missing_parameter_arg() {
         }
         "#;
 
-    let mut tast = TypeChecker::<KimchiVesta>::new();
-    let res = typecheck_next_file_inner(
-        &mut tast,
-        None,
-        &mut Sources::new(),
-        "example.no".to_string(),
-        code.to_string(),
-        0,
-    );
-
+    let res = tast_pass(code).0;
     assert!(matches!(
         res.unwrap_err().kind,
         ErrorKind::UndefinedVariable
@@ -167,17 +129,7 @@ fn test_generic_ret_type_mismatched() {
         }
         "#;
 
-    let mut tast = TypeChecker::<KimchiVesta>::new();
-    let _ = typecheck_next_file_inner(
-        &mut tast,
-        None,
-        &mut Sources::new(),
-        "example.no".to_string(),
-        code.to_string(),
-        0,
-    );
-    let res = crate::mast::monomorphize(tast).err();
-
+    let res = mast_pass(code).err();
     assert!(matches!(
         res.unwrap().kind,
         ErrorKind::ReturnTypeMismatch(..)
