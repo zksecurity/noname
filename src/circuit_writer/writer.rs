@@ -142,7 +142,8 @@ impl<B: Backend> CircuitWriter<B> {
                     fn_env.nest();
 
                     let cst_var = Var::new_constant(ii.into(), var.span);
-                    let var_info = VarInfo::new(cst_var, false, Some(TyKind::Field));
+                    let var_info =
+                        VarInfo::new(cst_var, false, Some(TyKind::Field { constant: true }));
                     self.add_local_var(fn_env, var.value.clone(), var_info);
 
                     self.compile_block(fn_env, body)?;
@@ -220,7 +221,7 @@ impl<B: Backend> CircuitWriter<B> {
         span: Span,
     ) -> Result<()> {
         match input_typ {
-            TyKind::Field => (),
+            TyKind::Field { constant: false } => (),
             TyKind::Bool => {
                 assert_eq!(input.len(), 1);
                 boolean::check(self, &input[0], span);
@@ -249,7 +250,7 @@ impl<B: Backend> CircuitWriter<B> {
                     offset += len;
                 }
             }
-            TyKind::BigInt => unreachable!(),
+            TyKind::Field { constant: true } => unreachable!(),
         };
         Ok(())
     }

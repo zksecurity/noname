@@ -174,15 +174,10 @@ pub enum ModulePath {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum TyKind {
     /// The main primitive type. 'Nuf said.
-    // TODO: Field { constant: bool },
-    Field,
+    Field { constant: bool },
 
     /// Custom / user-defined types
     Custom { module: ModulePath, name: String },
-
-    /// This could be the same as Field, but we use this to also track the fact that it's a constant.
-    // TODO: get rid of this type tho no?
-    BigInt,
 
     /// An array of a fixed size.
     Array(Box<TyKind>, u32),
@@ -200,7 +195,7 @@ pub enum TyKind {
 impl TyKind {
     pub fn match_expected(&self, expected: &TyKind) -> bool {
         match (self, expected) {
-            (TyKind::BigInt, TyKind::Field) => true,
+            (TyKind::Field { .. }, TyKind::Field { .. }) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
@@ -218,7 +213,6 @@ impl TyKind {
 
     pub fn same_as(&self, other: &TyKind) -> bool {
         match (self, other) {
-            (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
@@ -254,8 +248,7 @@ impl Display for TyKind {
                 ),
                 ModulePath::Local => write!(f, "a `{}` struct", name),
             },
-            TyKind::Field => write!(f, "Field"),
-            TyKind::BigInt => write!(f, "BigInt"),
+            TyKind::Field { constant } => write!(f, "Field; Constant: {}", constant),
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
         }
@@ -268,7 +261,10 @@ impl Ty {
             "Field" | "Bool" if !matches!(module, ModulePath::Local) => {
                 panic!("reserved types cannot be in a module (TODO: better error)")
             }
-            "Field" => TyKind::Field,
+            // Default the `constant` to false, as here has no context for const attribute.
+            // For a function argument and it is with const attribute,
+            // the `constant` will be corrected to true by the `FnSig` parser.
+            "Field" => TyKind::Field { constant: false },
             "Bool" => TyKind::Bool,
             _ => TyKind::Custom {
                 module,
@@ -381,7 +377,16 @@ impl FnSig {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let (name, kind) = FuncOrMethod::parse(ctx, tokens)?;
 
-        let arguments = FunctionDef::parse_args(ctx, tokens, &kind)?;
+        let mut arguments = FunctionDef::parse_args(ctx, tokens, &kind)?;
+
+        // if it is with const attribute, then converts it to a constant field.
+        // this is because the parser doesn't know if a token has a corresponding attribute
+        // until it has parsed the whole token.
+        for arg in &mut arguments {
+            if arg.is_constant() {
+                arg.typ.kind = TyKind::Field { constant: true };
+            }
+        }
 
         let return_type = FunctionDef::parse_fn_return_type(ctx, tokens)?;
 

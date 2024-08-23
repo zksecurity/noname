@@ -110,7 +110,7 @@ impl<B: Backend> CircuitWriter<B> {
         let qualified = FullyQualified::local(var_name.to_string());
         if let Some(cst_info) = self.typed.const_info(&qualified) {
             let var = Var::new_constant_typ(cst_info, cst_info.typ.span);
-            return VarInfo::new(var, false, Some(TyKind::Field));
+            return VarInfo::new(var, false, Some(TyKind::Field { constant: true }));
         }
 
         // then check for local variables
@@ -237,9 +237,10 @@ impl<B: Backend> CircuitWriter<B> {
 
         // get length
         let len = match &typ.kind {
-            TyKind::Field => 1,
+            TyKind::Field { constant: false } => 1,
+            TyKind::Field { constant: true } => unreachable!(),
             TyKind::Array(typ, len) => {
-                if !matches!(**typ, TyKind::Field) {
+                if !matches!(**typ, TyKind::Field { constant: false }) {
                     unimplemented!();
                 }
                 *len as usize

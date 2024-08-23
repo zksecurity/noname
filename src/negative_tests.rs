@@ -73,3 +73,38 @@ fn test_return_mismatch() {
         ErrorKind::ReturnTypeMismatch(..)
     ));
 }
+
+#[test]
+fn test_const_attr_mismatch() {
+    let code = r#"
+        struct House {
+            room_num: [Field; 2],
+        }
+
+        fn House.room(self, const idx: Field) -> Field {
+            return self.room_num[idx];
+        }
+
+        fn main(pub xx: Field) -> Field {
+            let house = House { room_num: [1, 2] };
+
+            // xx is not a constant
+            return house.room(xx);
+        }
+        "#;
+
+    let mut tast = TypeChecker::<KimchiVesta>::new();
+    let res = typecheck_next_file_inner(
+        &mut tast,
+        None,
+        &mut Sources::new(),
+        "example.no".to_string(),
+        code.to_string(),
+        0,
+    );
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::ArgumentTypeMismatch(..)
+    ));
+}

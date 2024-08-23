@@ -33,7 +33,7 @@ pub fn poseidon(
     // an array of length 2
     match &var_info.typ {
         Some(TyKind::Array(el_typ, 2)) => {
-            assert!(matches!(&**el_typ, TyKind::Field | TyKind::BigInt));
+            assert!(matches!(&**el_typ, TyKind::Field { .. }));
         }
         _ => panic!("wrong type for input to poseidon"),
     };
