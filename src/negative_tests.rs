@@ -130,3 +130,56 @@ fn test_generic_array_for_loop() {
 
     assert!(matches!(res.unwrap_err().kind, ErrorKind::GenericInForLoop));
 }
+
+#[test]
+fn test_generic_missing_parameter_arg() {
+    let code = r#"
+        fn gen(const len: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+        "#;
+
+    let mut tast = TypeChecker::<KimchiVesta>::new();
+    let res = typecheck_next_file_inner(
+        &mut tast,
+        None,
+        &mut Sources::new(),
+        "example.no".to_string(),
+        code.to_string(),
+        0,
+    );
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::UndefinedVariable
+    ));
+}
+
+#[test]
+fn test_generic_ret_type_mismatched() {
+    let code = r#"
+        // mast phase should catch the type mismatch in the return type
+        fn gen(const LEN: Field) -> [Field; 2] {
+            return [0; LEN];
+        }
+        fn main(pub xx: Field) {
+            let ret = gen(3);
+        }
+        "#;
+
+    let mut tast = TypeChecker::<KimchiVesta>::new();
+    let _ = typecheck_next_file_inner(
+        &mut tast,
+        None,
+        &mut Sources::new(),
+        "example.no".to_string(),
+        code.to_string(),
+        0,
+    );
+    let res = crate::mast::monomorphize(tast).err();
+
+    assert!(matches!(
+        res.unwrap().kind,
+        ErrorKind::ReturnTypeMismatch(..)
+    ));
+}
