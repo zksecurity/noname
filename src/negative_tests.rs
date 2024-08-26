@@ -1,24 +1,36 @@
 use crate::{
-    backends::kimchi::KimchiVesta, compiler::{typecheck_next_file_inner, Sources}, error::{ErrorKind, Result}, mast::Mast, type_checker::TypeChecker
+    backends::r1cs::{R1csBn254Field, R1CS},
+    circuit_writer::CircuitWriter,
+    compiler::{typecheck_next_file_inner, Sources},
+    error::{ErrorKind, Result},
+    mast::Mast,
+    type_checker::TypeChecker,
+    witness::CompiledCircuit,
 };
 
-fn tast_pass(code: &str) -> (Result<usize>, TypeChecker<KimchiVesta>) {
-    let mut tast = TypeChecker::<KimchiVesta>::new();
+fn tast_pass(code: &str) -> (Result<usize>, TypeChecker<R1CS<R1csBn254Field>>, Sources) {
+    let mut source = Sources::new();
+    let mut tast = TypeChecker::<R1CS<R1csBn254Field>>::new();
     let res = typecheck_next_file_inner(
         &mut tast,
         None,
-        &mut Sources::new(),
+        &mut source,
         "example.no".to_string(),
         code.to_string(),
         0,
     );
 
-    (res, tast)
+    (res, tast, source)
 }
 
-fn mast_pass(code: &str) -> Result<Mast<KimchiVesta>> {
-    let tast = tast_pass(code).1;
+fn mast_pass(code: &str) -> Result<Mast<R1CS<R1csBn254Field>>> {
+    let (_, tast, _) = tast_pass(code);
     crate::mast::monomorphize(tast)
+}
+
+fn synthesizer_pass(code: &str) -> Result<CompiledCircuit<R1CS<R1csBn254Field>>> {
+    let mast = mast_pass(code);
+    CircuitWriter::generate_circuit(mast?, R1CS::new())
 }
 
 #[test]
@@ -118,20 +130,108 @@ fn test_generic_missing_parameter_arg() {
 }
 
 #[test]
-fn test_generic_ret_type_mismatched() {
+fn test_generic_symbolic_size_mismatched() {
+    // tast should catch the type mismatch in tast phase
     let code = r#"
-        // mast phase should catch the type mismatch in the return type
         fn gen(const LEN: Field) -> [Field; 2] {
             return [0; LEN];
         }
+        "#;
+
+    let res = tast_pass(code).0;
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::ReturnTypeMismatch(..)
+    ));
+}
+
+#[test]
+fn test_generic_type_mismatched() {
+    let code = r#"
+        fn gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+        
+        fn comp(arr1: [Field; LEN], arr2: [Field; LEN]) {
+            for ii in 0..LEN {
+                assert_eq(arr1[ii], arr2[ii]);
+            }
+        }
+
         fn main(pub xx: Field) {
-            let ret = gen(3);
+            let arr1 = gen(2);
+            let arr2 = gen(3);
+            comp(arr1, arr2);
         }
         "#;
 
     let res = mast_pass(code).err();
     assert!(matches!(
         res.unwrap().kind,
-        ErrorKind::ReturnTypeMismatch(..)
+        ErrorKind::ConflictGenericValue(..)
+    ));
+}
+
+#[test]
+fn test_generic_assignment_type_mismatched() {
+    let code = r#"
+        fn gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+        
+        fn main(pub xx: Field) {
+            let mut arr = [0; 3];
+            arr = gen(2);
+        }
+        "#;
+
+    let res = mast_pass(code).err();
+    assert!(matches!(
+        res.unwrap().kind,
+        ErrorKind::AssignmentTypeMismatch(..)
+    ));
+}
+
+#[test]
+fn test_generic_custom_type_mismatched() {
+    let code = r#"
+        struct Thing {
+            xx: [Field; 2],
+        }
+
+        fn gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+        
+        fn main(pub xx: Field) {
+            let arr = gen(3);
+            let thing = Thing { xx: arr };
+        }
+        "#;
+
+    let res = mast_pass(code).err();
+    assert!(matches!(
+        res.unwrap().kind,
+        ErrorKind::InvalidStructFieldType(..)
+    ));
+}
+
+#[test]
+fn test_array_bounds() {
+    let code = r#"
+        fn gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+        fn main(pub xx: Field) {
+            let arr = gen(3);
+            arr[3] = 1;
+        }
+        "#;
+
+    let res = synthesizer_pass(code).err();
+    assert!(matches!(
+        res.unwrap().kind,
+        ErrorKind::ArrayIndexOutOfBounds(..)
     ));
 }

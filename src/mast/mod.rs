@@ -494,8 +494,14 @@ fn monomorphize_expr<B: Backend>(
             // and is of the same type as the rhs
             let rhs_mono = monomorphize_expr(ctx, rhs, mono_fn_env)?;
 
-            if !rhs_mono.typ.unwrap().same_as(&lhs_mono.typ.unwrap()) {
-                panic!("lhs type doesn't match rhs type");
+            let lhs_typ = lhs_mono.typ.unwrap();
+            let rhs_typ = rhs_mono.typ.unwrap();
+
+            if !lhs_typ.same_as(&rhs_typ) {
+                return Err(error(
+                    ErrorKind::AssignmentTypeMismatch(lhs_typ, rhs_typ),
+                    expr.span,
+                ));
             }
 
             let mexpr = expr.to_mast(

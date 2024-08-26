@@ -281,6 +281,9 @@ pub enum ErrorKind {
     #[error("only variables and arrays can be mutated")]
     InvalidAssignmentExpression,
 
+    #[error("unexpected assignment type. Expected: {0} and got {1}")]
+    AssignmentTypeMismatch(TyKind, TyKind),
+
     #[error("the main function must have at least one argument")]
     NoArgsInMain,
 
