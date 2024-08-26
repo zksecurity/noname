@@ -100,7 +100,8 @@ With generic parameters, the current TAST phase can't handle the type checking a
 
 To extend the type checking to support generic parameters, we can add a MAST phase (Monomorphized AST), right after the TAST phase, to resolve the values of the generic parameters. The circuit synthesizer will rely on the MAST instead of the TAST to compile a circuit.
 
-The new pipeline will be: AST Parser -> NAST -> TAST -> MAST -> Circuit synthesizing
+Below is the diagram of the compiler pipeline with the MAST phase added:
+![pipeline](/book/src/assets/compiler-pipeline.png)
 
 ## Implementation
 To support the generic syntax as shown in the examples above, we need to make changes to the AST Parser support generic syntax. Furthermore, because the generic parameters can't be resolved at TAST phase, the some type checkings will be less strict and deferred to MAST phase.
