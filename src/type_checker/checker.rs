@@ -248,7 +248,7 @@ impl<B: Backend> TypeChecker<B> {
                 // and is of the same type as the rhs
                 let rhs_typ = self.compute_type(rhs, typed_fn_env)?.unwrap();
 
-                if !rhs_typ.typ.match_expected(&lhs_node.typ) {
+                if !rhs_typ.typ.compare_with(&lhs_node.typ, false) {
                     return Err(self.error(
                         ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_typ.typ.clone()),
                         expr.span,
@@ -394,7 +394,7 @@ impl<B: Backend> TypeChecker<B> {
                         .expect("expected a value");
 
                     if let Some(tykind) = &tykind {
-                        if !tykind.same_as(&item_typ.typ) {
+                        if !tykind.compare_with(&item_typ.typ,true) {
                             return Err(self.error(
                                 ErrorKind::MismatchType(tykind.clone(), item_typ.typ),
                                 expr.span,
@@ -492,7 +492,7 @@ impl<B: Backend> TypeChecker<B> {
                         .compute_type(&observed.1, typed_fn_env)?
                         .expect("expected a value (TODO: better error)");
 
-                    if !observed_typ.typ.match_expected(&defined.1) {
+                    if !observed_typ.typ.compare_with(&defined.1, false) {
                         return Err(self.error(
                             ErrorKind::InvalidStructFieldType(defined.1.clone(), observed_typ.typ),
                             expr.span,
@@ -546,7 +546,7 @@ impl<B: Backend> TypeChecker<B> {
                 return Err(self.error(ErrorKind::NoReturnExpected, stmts.last().unwrap().span))
             }
             (Some(expected), Some(observed)) => {
-                if !observed.match_expected(&expected.kind) {
+                if !observed.compare_with(&expected.kind,false) {
                     return Err(self.error(
                         ErrorKind::ReturnTypeMismatch(expected.kind.clone(), observed.clone()),
                         expected.span,
@@ -683,7 +683,7 @@ impl<B: Backend> TypeChecker<B> {
                 ));
             }
 
-            if !typ.match_expected(&sig_arg.typ.kind) {
+            if !typ.compare_with(&sig_arg.typ.kind, false) {
                 return Err(self.error(
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                     span,

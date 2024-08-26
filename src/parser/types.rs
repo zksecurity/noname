@@ -193,38 +193,34 @@ pub enum TyKind {
 }
 
 impl TyKind {
-    pub fn match_expected(&self, expected: &TyKind) -> bool {
-        match (self, expected) {
-            (TyKind::Field { .. }, TyKind::Field { .. }) => true,
-            (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
-                lhs_size == rhs_size && lhs.match_expected(rhs)
-            }
-            (
-                TyKind::Custom { module, name },
-                TyKind::Custom {
-                    module: expected_module,
-                    name: expected_name,
-                },
-            ) => module == expected_module && name == expected_name,
-            (x, y) if x == y => true,
-            _ => false,
-        }
-    }
-
-    pub fn same_as(&self, other: &TyKind) -> bool {
+    pub fn compare_with(&self, other: &TyKind, exact_match: bool) -> bool {
         match (self, other) {
-            (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
-                lhs_size == rhs_size && lhs.match_expected(rhs)
+            // Handle the Field types with optional exact match logic
+            (TyKind::Field { constant: true }, TyKind::Field { constant: false })
+            | (TyKind::Field { constant: false }, TyKind::Field { constant: true }) => {
+                !exact_match
             }
+            (TyKind::Field { .. }, TyKind::Field { .. }) => true,
+    
+            // Array type comparison considering size and type
+            (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
+                lhs_size == rhs_size && lhs.compare_with(rhs, exact_match)
+            }
+    
+            // Custom type comparison by module and name
             (
                 TyKind::Custom { module, name },
                 TyKind::Custom {
-                    module: expected_module,
-                    name: expected_name,
+                    module: other_module,
+                    name: other_name,
                 },
-            ) => module == expected_module && name == expected_name,
-            (x, y) if x == y => true,
-            _ => false,
+            ) => module == other_module && name == other_name,
+    
+            // Exact match comparison
+            (x, y) if exact_match => x == y,
+    
+            // Fallback to basic equality check
+            (x, y) => x == y,
         }
     }
 }
