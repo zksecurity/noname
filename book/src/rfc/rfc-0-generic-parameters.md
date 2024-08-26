@@ -334,19 +334,12 @@ fn last(arr: [Field; LEN * 2]) -> Field {
 In this RFC, we want to just enforce the syntax to be sufficient to support the simple cases. That is to disallow arithmetic operations among generic parameters for function arguments. 
 
 
-To recap, here is the pseudo code for the resolving algorithm for function
-```rust
-// at function caller scope
-// collect observed arguments
-//  at function callee scope
-//    for each argument
-//      if the argument involves generic parameters
-//        resolve the generic values from observed arguments
-//    for each statement
-//      compute the type with the resolved generic values
-//      type checks
-//  return type
-```
+To recap, here is the pseudo code for the resolving algorithm for function:
+1. Collect the observed arguments
+2. For each argument, resolve the generic values from the observed arguments
+3. For each statement, compute the type with the resolved generic values
+4. Type check the resolved type being returned with the expected return type
+
 
 ### Function Call Instantiation
 The functions are defined as `FunctionDef`, which is an AST containing the signature and the body of the function. The body is a vector of statements, each of which is a tree of expression nodes. It is fine to have different function calls pointing to these functions' original AST, when the content of these functions doesn't change, and so are the expression nodes.
