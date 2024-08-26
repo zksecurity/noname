@@ -106,6 +106,72 @@ Below is the diagram of the compiler pipeline with the MAST phase added:
 ## Implementation
 To support the generic syntax as shown in the examples above, we need to make changes to the AST Parser support generic syntax. Furthermore, because the generic parameters can't be resolved at TAST phase, the some type checkings will be less strict and deferred to MAST phase.
 
+Here is a list of cases where the type checks can't be done at TAST phase, as they need to resolve the generic values:
+
+1. Inconsistent sizes of arrays with same generic parameters
+```rust
+fn gen(const LEN: Field) -> [Field; LEN] {
+    return [0; LEN];
+}
+
+// expect same generic size
+fn comp(arr1: [Field; LEN], arr2: [Field; LEN]) {
+    for ii in 0..LEN {
+        assert_eq(arr1[ii], arr2[ii]);
+    }
+}
+
+fn main(pub xx: Field) {
+    let arr1 = gen(2);
+    let arr2 = gen(3);
+    // arrays with different sizes
+    comp(arr1, arr2); 
+}
+```
+
+2. Assignment type mismatched
+```rust
+fn gen(const LEN: Field) -> [Field; LEN] {
+    return [0; LEN];
+}
+
+fn main(pub xx: Field) {
+    let mut arr = [0; 3];
+    // arrays with different sizes
+    arr = gen(2);
+}
+```
+
+3. Custom type field mismatched
+```rust
+struct Thing {
+    xx: [Field; 2],
+}
+
+fn gen(const LEN: Field) -> [Field; LEN] {
+    return [0; LEN];
+}
+
+fn main(pub xx: Field) {
+    let arr = gen(3);
+    // array size mismatched
+    let thing = Thing { xx: arr };
+}
+```
+
+4. Array index out of bounds
+```rust
+fn gen(const LEN: Field) -> [Field; LEN] {
+    return [0; LEN];
+}
+fn main(pub xx: Field) {
+    let arr = gen(3);
+    // 3 is out of bounds
+    arr[3] = 1;
+}
+```
+
+
 The newly added phase MAST will be responsible for resolving the generic values from the observed arguments. It includes type checking on the monomorphized types that are bypass in the TAST phase. 
 
 ### Generic Syntax
@@ -265,7 +331,7 @@ fn last(arr: [Field; LEN * 2]) -> Field {
 }
 ```
 
-In this RFC, we want to just enforce the syntax to be sufficient to support the simple cases. That is to disallow arithemtic operations among generic parameters for function arguments. 
+In this RFC, we want to just enforce the syntax to be sufficient to support the simple cases. That is to disallow arithmetic operations among generic parameters for function arguments. 
 
 
 To recap, here is the pseudo code for the resolving algorithm for function
