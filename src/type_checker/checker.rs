@@ -507,7 +507,7 @@ impl<B: Backend> TypeChecker<B> {
                         .compute_type(&observed.1, typed_fn_env)?
                         .expect("expected a value (TODO: better error)");
 
-                        if !observed_typ.typ.match_expected(&defined.1, false) {
+                    if !observed_typ.typ.match_expected(&defined.1, false) {
                         return Err(self.error(
                             ErrorKind::InvalidStructFieldType(defined.1.clone(), observed_typ.typ),
                             expr.span,
@@ -727,7 +727,7 @@ impl<B: Backend> TypeChecker<B> {
                 ));
             }
 
-            if !typ.match_expected(&sig_arg.typ.kind, false)  {
+            if !typ.match_expected(&sig_arg.typ.kind, false) {
                 return Err(self.error(
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                     span,

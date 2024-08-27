@@ -496,7 +496,7 @@ fn monomorphize_expr<B: Backend>(
             let lhs_typ = lhs_mono.typ.unwrap();
             let rhs_typ = rhs_mono.typ.unwrap();
 
-            if !lhs_typ.same_as(&rhs_typ) {
+            if !lhs_typ.match_expected(&rhs_typ, true) {
                 return Err(error(
                     ErrorKind::AssignmentTypeMismatch(lhs_typ, rhs_typ),
                     expr.span,
@@ -684,7 +684,7 @@ fn monomorphize_expr<B: Backend>(
                 items_mono.push(item_mono.clone());
 
                 if let Some(tykind) = &tykind {
-                    if !tykind.same_as(&item_mono.clone().typ.unwrap()) {
+                    if !tykind.match_expected(&item_mono.clone().typ.unwrap(), true) {
                         return Err(error(
                             ErrorKind::MismatchType(tykind.clone(), item_mono.typ.unwrap()),
                             expr.span,
@@ -758,7 +758,7 @@ fn monomorphize_expr<B: Backend>(
                 let observed_mono = &monomorphize_expr(ctx, &observed.1, mono_fn_env)?;
                 let typ_mono = observed_mono.typ.as_ref().expect("expected a value");
 
-                if !typ_mono.same_as(&defined.1) {
+                if !typ_mono.match_expected(&defined.1, true) {
                     return Err(error(
                         ErrorKind::InvalidStructFieldType(defined.1.clone(), typ_mono.clone()),
                         expr.span,
@@ -840,7 +840,7 @@ pub fn monomorphize_block<B: Backend>(
 
     // check the return
     if let (Some(expected), Some(observed)) = (expected_return, return_typ.clone()) {
-        if !observed.same_as(&expected.kind) {
+        if !observed.match_expected(&expected.kind, true) {
             return Err(error(
                 ErrorKind::ReturnTypeMismatch(observed.clone(), expected.kind.clone()),
                 expected.span,
