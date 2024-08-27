@@ -66,33 +66,7 @@ So that shadowing is disallowed, even in different scopes, there is only one var
 
 An environment is unique to a function, as it is important that different functions can use the same variable names.
 
-## Type Comparison with compare_with
-
-The type checker uses the `compare_with` function to compare two types (`TyKind`) in the program. This function provides flexibility in comparing types either strictly (exact match) or leniently (allowing certain type differences).
-
-The compare_with function works as follows:
-
-- Lenient Match: When exact_match is set to false, certain type differences are allowed. For example, `BigInt` and `Field` types can be considered equivalent in some contexts.
-
-- Exact Match: When exact_match is true, the comparison requires the types to match exactly, including any additional attributes like whether a `Field` is constant or not.
-
-
-Here's an example of how the compare_with function might be used:
-
-```
-if !rhs_typ.typ.compare_with(&lhs_node.typ, true) {  // Change `true` to `false` if leniency is required
-                    return Err(self.error(
-                        ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_typ.typ.clone()),
-                        expr.span,
-                    ));
-                }
-
-```
-In this example, the function checks whether the right-hand side type (`rhs_typ.typ`) matches the left-hand side type (`lhs_node.typ`) with leniency. If they do not match, an error is returned.
-
-
-
-## Some Notes
+Some notes:
 
 * Currently the notion of module is quite shaky. It is used mostly for `crypto::poseidon` at the moment.
 * `functions` is mostly used for builtins like `assert_eq`
@@ -104,4 +78,3 @@ more:
 * we should be able to create a new Environment whenever we parse a new function, so the functions/modules should be part of another (AvailableToAllScopes)
 * variables is something that has nothing to do with the "Type" Environment and should be moved elsewhere no? GateCreationEnv?
 * there needs to be a namespace in the typeinfo
-

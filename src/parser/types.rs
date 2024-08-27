@@ -193,34 +193,42 @@ pub enum TyKind {
 }
 
 impl TyKind {
-    pub fn compare_with(&self, other: &TyKind, exact_match: bool) -> bool {
-        match (self, other) {
-            // Handle the Field types with optional exact match logic
-            (TyKind::Field { constant: true }, TyKind::Field { constant: false })
-            | (TyKind::Field { constant: false }, TyKind::Field { constant: true }) => {
-                !exact_match
+    /// Compares two `TyKind` types to determine if they match based on the `ignore_constants` flag.
+    ///
+    /// # Parameters
+    /// - `expected`: The expected `TyKind` type to compare against.
+    /// - `ignore_constants`: A flag indicating whether to ignore the `constant` field in `TyKind::Field` comparisons.
+    ///
+    /// # Returns
+    /// - `true` if the `self` and `expected` types match according to the rules defined and the `ignore_constants` flag.
+    /// - `false` otherwise.
+    ///
+    /// # Matching Rules
+    /// - If both types are `Field`, the function compares their `constant` fields unless `ignore_constants` is `true`.
+    /// - For `Array` types, it checks if both the size and element types match recursively.
+    /// - For `Custom` types, it compares the `module` and `name` fields for equality.
+    /// - For other types, it uses basic equality check
+    pub fn match_expected(&self, expected: &TyKind, ignore_constants: bool) -> bool {
+        match (self, expected) {
+            // If the types are both `Field`, consider the `ignore_constants` flag
+            (TyKind::Field { constant: observed }, TyKind::Field { constant: expected }) => {
+                (!expected || *observed) || ignore_constants
             }
-            (TyKind::Field { .. }, TyKind::Field { .. }) => true,
-    
             // Array type comparison considering size and type
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
-                lhs_size == rhs_size && lhs.compare_with(rhs, exact_match)
+                lhs_size == rhs_size && lhs.match_expected(rhs, ignore_constants)
             }
-    
             // Custom type comparison by module and name
             (
                 TyKind::Custom { module, name },
                 TyKind::Custom {
-                    module: other_module,
-                    name: other_name,
+                    module: expected_module,
+                    name: expected_name,
                 },
-            ) => module == other_module && name == other_name,
-    
-            // Exact match comparison
-            (x, y) if exact_match => x == y,
-    
+            ) => module == expected_module && name == expected_name,
             // Fallback to basic equality check
-            (x, y) => x == y,
+            (x, y) if x == y => true,
+            _ => false,
         }
     }
 }
