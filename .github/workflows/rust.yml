@@ -57,3 +57,13 @@ jobs:
       #   with:
       #     command: clippy
       #     args: --all-features -- -D warnings
+
+      #
+      # Docker build and run
+      #
+
+      - name: Build Docker image
+        run: docker build -t snarkjs .
+
+      - name: Run Docker container
+        run: docker run --rm snarkjs
