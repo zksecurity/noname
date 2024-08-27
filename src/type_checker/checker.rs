@@ -531,11 +531,9 @@ impl<B: Backend> TypeChecker<B> {
                     .expect("expected a typed size");
 
                 if is_numeric(&size_node.typ) {
-                    // use generic array to bypass the array check, as the size node might include generic parameters.
-                    // the mast phase will resolve the size node to a constant, and check the types.
+                    // use generic array as the size node might include generic parameters or constant vars
                     let res = ExprTyInfo::new_anon(TyKind::GenericSizedArray(
                         Box::new(item_node.typ),
-                        // mock up a symbolic size
                         Symbolic::parse(size)?,
                     ));
                     Some(res)
@@ -589,7 +587,7 @@ impl<B: Backend> TypeChecker<B> {
                 return Err(self.error(ErrorKind::NoReturnExpected, stmts.last().unwrap().span))
             }
             (Some(expected), Some(observed)) => {
-                if !observed.same_as(&expected.kind) {
+                if !observed.match_expected(&expected.kind) {
                     return Err(self.error(
                         ErrorKind::ReturnTypeMismatch(expected.kind.clone(), observed.clone()),
                         expected.span,

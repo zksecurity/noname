@@ -7,8 +7,8 @@ use std::{
 };
 
 use ark_ff::{Field, Zero};
-use serde::{Deserialize, Serialize};
 use num_traits::ToPrimitive;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     cli::packages::UserRepo,
@@ -237,9 +237,13 @@ impl Symbolic {
                 } else {
                     Ok(Symbolic::Constant(name.clone()))
                 }
-            },
-            ExprKind::BinaryOp { op, lhs, rhs, protected: _ } => {
-                // todo: do we need to take care of "protected"?
+            }
+            ExprKind::BinaryOp {
+                op,
+                lhs,
+                rhs,
+                protected: _,
+            } => {
                 let lhs = Symbolic::parse(lhs)?;
                 let rhs = Symbolic::parse(rhs);
 
