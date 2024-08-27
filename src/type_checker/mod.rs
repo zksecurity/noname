@@ -377,19 +377,17 @@ impl<B: Backend> TypeChecker<B> {
                     if let Some(typ) = &function.sig.return_type {
                         if is_main {
                             match typ.kind {
-                                TyKind::Field => {
+                                TyKind::Field
+                                | TyKind::Custom { .. }
+                                | TyKind::Array(_, _)
+                                | TyKind::Bool => {
                                     typed_fn_env.store_type(
                                         "public_output".to_string(),
                                         TypeInfo::new_mut(typ.kind.clone(), typ.span),
                                     )?;
                                 }
-                                TyKind::Array(_, _) => {
-                                    typed_fn_env.store_type(
-                                        "public_output".to_string(),
-                                        TypeInfo::new_mut(typ.kind.clone(), typ.span),
-                                    )?;
-                                }
-                                _ => unimplemented!(),
+                                TyKind::BigInt => unreachable!(),
+                                TyKind::GenericSizedArray(_, _) => unreachable!(),
                             }
                         }
                     }

@@ -309,7 +309,6 @@ impl Backend for KimchiVesta {
         &mut self,
         public_output: Option<Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<KimchiCellVar>>,
-        main_span: Span,
     ) -> Result<()> {
         // TODO: the current tests pass even this is commented out. Add a test case for this one.
         // important: there might still be a pending generic gate
@@ -662,7 +661,7 @@ impl Backend for KimchiVesta {
 
         // create a gate to store the result
         self.add_generic_gate(
-            "add two variables together",
+            "multiply two variables together",
             vec![Some(*lhs), Some(*rhs), Some(res)],
             vec![zero, zero, one.neg(), one],
             span,

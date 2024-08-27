@@ -305,11 +305,17 @@ pub enum ErrorKind {
     #[error("method call can only be applied on custom structs")]
     MethodCallOnNonCustomStruct,
 
+    #[error("field access can only be applied on custom structs")]
+    FieldAccessOnNonCustomStruct,
+
     #[error("array access can only be performed on arrays")]
     ArrayAccessOnNonArray,
 
     #[error("struct `{0}` does not exist (are you sure it is defined?)")]
     UndefinedStruct(String),
+
+    #[error("struct `{0}` does not have a method called `{1}`")]
+    UndefinedMethod(String, String),
 
     #[error("struct `{0}` does not have a field called `{1}`")]
     UndefinedField(String, String),
@@ -325,4 +331,19 @@ pub enum ErrorKind {
 
     #[error("invalid hexadecimal literal `${0}`")]
     InvalidHexLiteral(String),
+
+    #[error("if-else condition is expected to be a boolean, but has type `{0}`")]
+    IfElseInvalidConditionType(TyKind),
+
+    #[error("`if` branch must be a variable, a field access, or an array access. It can't be logic that creates constraints.")]
+    IfElseInvalidIfBranch(),
+
+    #[error("`else` branch must be a variable, a field access, or an array access. It can't be logic that creates constraints.")]
+    IfElseInvalidElseBranch(),
+
+    #[error("`if` branch and `else` branch must have matching types")]
+    IfElseMismatchingBranchesTypes(),
+
+    #[error("invalid range, the end value can't be smaller than the start value")]
+    InvalidRange,
 }

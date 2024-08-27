@@ -1,0 +1,13 @@
+struct Thing {
+    xx: Field,
+    yy: Field,
+}
+
+fn main(pub xx: Field, pub yy: Field) -> Thing {
+    let thing = Thing {
+        xx: xx,
+        yy: yy,
+    };
+
+    return thing;
+}

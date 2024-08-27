@@ -206,7 +206,6 @@ pub trait Backend: Clone {
         &mut self,
         public_output: Option<Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<Self::Var>>,
-        main_span: Span,
     ) -> Result<()>;
 
     /// Generate the witness for a backend.

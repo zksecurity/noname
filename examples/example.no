@@ -1,6 +1,7 @@
 use std::crypto;
 
 fn main(pub public_input: Field, private_input: [Field; 2]) {
+    
     let xx = private_input[0] + private_input[1];
     assert_eq(xx, 2);
     
