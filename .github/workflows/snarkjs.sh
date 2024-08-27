@@ -46,10 +46,7 @@ fi
 
 # Compile the circuit
 echo "Compiling the circuit..."
-if ! circom "$DIR_PATH/circuit.circom" --r1cs --wasm --sym -o "$DIR_PATH"; then
-    echo "Error: Circuit compilation failed."
-    exit 1
-fi
+circom "$DIR_PATH/circuit.circom" --r1cs --wasm --sym -o "$DIR_PATH"
 
 # Check if the circuit.r1cs file was created
 if [ ! -f "$DIR_PATH/circuit.r1cs" ]; then
@@ -59,42 +56,22 @@ fi
 
 # Generate witness
 echo "Generating the witness..."
-if ! node "$DIR_PATH/circuit_js/generate_witness.js" "$DIR_PATH/circuit_js/circuit.wasm" "$DIR_PATH/input.json" "$DIR_PATH/output.wtns"; then
-    echo "Error: Witness generation failed."
-    exit 1
-fi
+node "$DIR_PATH/circuit_js/generate_witness.js" "$DIR_PATH/circuit_js/circuit.wasm" "$DIR_PATH/input.json" "$DIR_PATH/output.wtns"
 
 # Generate a proof and verify it via snarkjs
 if $NEW_PTAU; then
     echo "Generating new powers of tau..."
-    if ! snarkjs powersoftau new $CURVE 16 "pot_${CURVE}_0000.ptau" -v; then
-        echo "Error: Powers of tau generation failed."
-        exit 1
-    fi
-
-    if ! echo "your-random-text" | snarkjs powersoftau contribute "pot_${CURVE}_0000.ptau" "pot_${CURVE}_0001.ptau" --name="First contribution" -v; then
-        echo "Error: Contribution to powers of tau failed."
-        exit 1
-    fi
-
-    if ! snarkjs powersoftau prepare phase2 "pot_${CURVE}_0001.ptau" "pot_${CURVE}_final.ptau" -v; then
-        echo "Error: Preparing phase 2 failed."
-        exit 1
-    fi
+    snarkjs powersoftau new $CURVE 16 "pot_${CURVE}_0000.ptau" -v
+    echo "your-random-text" | snarkjs powersoftau contribute "pot_${CURVE}_0000.ptau" "pot_${CURVE}_0001.ptau" --name="First contribution" -v
+    snarkjs powersoftau prepare phase2 "pot_${CURVE}_0001.ptau" "pot_${CURVE}_final.ptau" -v
 fi
 
 # Continue with snarkjs commands
 echo "Running snarkjs wchk..."
-if ! snarkjs wchk "$DIR_PATH/circuit.r1cs" "$DIR_PATH/output.wtns"; then
-    echo "Error: snarkjs wchk failed."
-    exit 1
-fi
+snarkjs wchk "$DIR_PATH/circuit.r1cs" "$DIR_PATH/output.wtns"
 
 echo "Running snarkjs groth16 setup..."
-if ! snarkjs groth16 setup "$DIR_PATH/circuit.r1cs" "pot_${CURVE}_final.ptau" "test_${CURVE}_0000.zkey"; then
-    echo "Error: snarkjs groth16 setup failed."
-    exit 1
-fi
+snarkjs groth16 setup "$DIR_PATH/circuit.r1cs" "pot_${CURVE}_final.ptau" "test_${CURVE}_0000.zkey"
 
 if [ ! -f "test_${CURVE}_0000.zkey" ]; then
     echo "Error: test_${CURVE}_0000.zkey does not exist."
@@ -102,10 +79,7 @@ if [ ! -f "test_${CURVE}_0000.zkey" ]; then
 fi
 
 echo "Running snarkjs zkey contribute..."
-if ! echo "your-random-text" | snarkjs zkey contribute "test_${CURVE}_0000.zkey" "test_${CURVE}_0001.zkey" --name="1st Contributor Name" -v; then
-    echo "Error: snarkjs zkey contribute failed."
-    exit 1
-fi
+echo "your-random-text" | snarkjs zkey contribute "test_${CURVE}_0000.zkey" "test_${CURVE}_0001.zkey" --name="1st Contributor Name" -v
 
 if [ ! -f "test_${CURVE}_0001.zkey" ]; then
     echo "Error: test_${CURVE}_0001.zkey does not exist."
@@ -113,16 +87,10 @@ if [ ! -f "test_${CURVE}_0001.zkey" ]; then
 fi
 
 echo "Exporting verification key..."
-if ! snarkjs zkey export verificationkey "test_${CURVE}_0001.zkey" "verification_key.json"; then
-    echo "Error: Exporting verification key failed."
-    exit 1
-fi
+snarkjs zkey export verificationkey "test_${CURVE}_0001.zkey" "verification_key.json"
 
 echo "Proving with groth16..."
-if ! snarkjs groth16 prove "test_${CURVE}_0001.zkey" "$DIR_PATH/output.wtns" "proof.json" "public.json"; then
-    echo "Error: groth16 proof generation failed."
-    exit 1
-fi
+snarkjs groth16 prove "test_${CURVE}_0001.zkey" "$DIR_PATH/output.wtns" "proof.json" "public.json"
 
 if [ ! -f "verification_key.json" ]; then
     echo "Error: verification_key.json does not exist."
@@ -130,22 +98,10 @@ if [ ! -f "verification_key.json" ]; then
 fi
 
 echo "Verifying proof with groth16..."
-if ! snarkjs groth16 verify "verification_key.json" "public.json" "proof.json"; then
-    echo "Error: groth16 proof verification failed."
-    exit 1
-fi
+snarkjs groth16 verify "verification_key.json" "public.json" "proof.json"
 
 # Export the verifier contract and calldata via snarkjs
 echo "Exporting Solidity verifier and calldata..."
-if ! snarkjs zkey export solidityverifier "test_${CURVE}_0001.zkey" verifier.sol; then
-    echo "Error: Exporting Solidity verifier failed."
-    exit 1
-fi
-
+snarkjs zkey export solidityverifier "test_${CURVE}_0001.zkey" verifier.sol
 echo "Calldata to test:"
-if ! snarkjs zkey export soliditycalldata public.json proof.json; then
-    echo "Error: Exporting Solidity calldata failed."
-    exit 1
-fi
-
-echo "Test completed successfully."
+snarkjs zkey export soliditycalldata public.json proof.json
