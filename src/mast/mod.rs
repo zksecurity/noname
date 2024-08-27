@@ -104,16 +104,7 @@ impl MonomorphizedFnEnv {
     pub fn pop(&mut self) {
         self.current_scope = self.current_scope.checked_sub(1).expect("scope bug");
 
-        // remove variables as we exit the scope
-        let mut to_delete = vec![];
-        for (name, (scope, _)) in self.vars.iter() {
-            if *scope > self.current_scope {
-                to_delete.push(name.clone());
-            }
-        }
-        for d in to_delete {
-            self.vars.remove(&d);
-        }
+        self.vars.retain(|_, (scope, _)| *scope <= self.current_scope);
     }
 
     /// Returns true if a scope is a prefix of our scope.
