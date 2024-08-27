@@ -6,11 +6,11 @@ fn zip(a1: [Field; 3], a2: [Field; 3]) -> [[Field; 2]; 3] {
     return result;
 }
 
-fn main(pub bedroom_holes: [Field; 3]) -> Field {
+fn main(pub arr: [Field; 3]) -> Field {
     let expected = [1, 2, 3];
-    for pair in zip(bedroom_holes, expected) {
+    for pair in zip(arr, expected) {
         assert_eq(pair[0], pair[1]);
     }
 
-    return bedroom_holes[0];
+    return arr[0];
 }
