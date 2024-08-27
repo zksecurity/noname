@@ -123,6 +123,10 @@ impl<B: Backend> TypeChecker<B> {
     pub fn add_monomorphized_type(&mut self, node_id: usize, typ: TyKind) {
         self.node_types.insert(node_id, typ);
     }
+
+    pub fn remove_fn(&mut self, qualified: &FullyQualified) {
+        self.functions.remove(qualified);
+    }
 }
 
 impl<B: Backend> TypeChecker<B> {

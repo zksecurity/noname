@@ -1,5 +1,5 @@
 use num_bigint::BigUint;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::{
     backends::Backend,
@@ -7,7 +7,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FnArg, FnSig, GenericParameters, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
+        types::{FnArg, FnSig, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
         CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
     syntax::{is_generic_parameter, is_type},
@@ -104,7 +104,8 @@ impl MonomorphizedFnEnv {
     pub fn pop(&mut self) {
         self.current_scope = self.current_scope.checked_sub(1).expect("scope bug");
 
-        self.vars.retain(|_, (scope, _)| *scope <= self.current_scope);
+        self.vars
+            .retain(|_, (scope, _)| *scope <= self.current_scope);
     }
 
     /// Returns true if a scope is a prefix of our scope.
@@ -150,6 +151,7 @@ where
 {
     tast: TypeChecker<B>,
     in_generic_func: bool,
+    functions_to_delete: Vec<FullyQualified>,
 }
 
 impl<B: Backend> MastCtx<B> {
@@ -157,6 +159,7 @@ impl<B: Backend> MastCtx<B> {
         Self {
             tast,
             in_generic_func: false,
+            functions_to_delete: vec![],
         }
     }
 
@@ -172,6 +175,23 @@ impl<B: Backend> MastCtx<B> {
 
     pub fn finish_monomorphize_func(&mut self) {
         self.in_generic_func = false;
+    }
+
+    pub fn add_monomorphized_fn(
+        &mut self,
+        old_qualified: FullyQualified,
+        new_qualified: FullyQualified,
+        fn_info: FnInfo<B>,
+    ) {
+        self.tast.add_monomorphized_fn(new_qualified, fn_info);
+        self.functions_to_delete.push(old_qualified);
+    }
+
+    pub fn clear_generic_fns(&mut self) {
+        for qualified in &self.functions_to_delete {
+            self.tast.remove_fn(qualified);
+        }
+        self.functions_to_delete.clear();
     }
 }
 
@@ -299,6 +319,8 @@ pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
 
     ctx.tast.add_monomorphized_fn(qualified, main_fn.clone());
 
+    ctx.clear_generic_fns();
+
     Ok(Mast(ctx.tast))
 }
 
@@ -361,10 +383,10 @@ fn monomorphize_expr<B: Backend>(
             }
 
             // retrieve the function signature
-            let qualified = FullyQualified::new(module, &fn_name.value);
+            let old_qualified = FullyQualified::new(module, &fn_name.value);
             let fn_info = ctx
                 .tast
-                .fn_info(&qualified)
+                .fn_info(&old_qualified)
                 .expect("function not found")
                 .to_owned();
 
@@ -385,7 +407,7 @@ fn monomorphize_expr<B: Backend>(
                 };
 
                 let qualified = FullyQualified::new(module, &fn_name_mono.value);
-                ctx.tast.add_monomorphized_fn(qualified, fn_info_mono);
+                ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
 
                 (mexpr, typ)
             } else {

@@ -11,7 +11,7 @@ use crate::{
         types::{is_numeric, FnSig, FunctionDef, Ident, Stmt, StmtKind, Symbolic, Ty, TyKind},
         CustomType, Expr, ExprKind, Op2,
     },
-    syntax::{is_generic_parameter, is_type},
+    syntax::is_type,
 };
 
 use super::{FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
