@@ -1,0 +1,16 @@
+fn zip(a1: [Field; 3], a2: [Field; 3]) -> [[Field; 2]; 3] {
+    let mut result = [[a1[0], a1[0]], [a1[0], a1[0]], [a1[0], a1[0]]];
+    for index in 0..3 {
+        result[index] = [a1[index], a2[index]];
+    }
+    return result;
+}
+
+fn main(pub bedroom_holes: [Field; 3]) -> Field {
+    let expected = [1, 2, 3];
+    for pair in zip(bedroom_holes, expected) {
+        assert_eq(pair[0], pair[1]);
+    }
+
+    return bedroom_holes[0];
+}
