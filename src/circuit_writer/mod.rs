@@ -2,6 +2,7 @@ use crate::{
     backends::Backend,
     constants::Span,
     error::{Error, ErrorKind, Result},
+    mast::Mast,
     parser::{
         types::{AttributeKind, FnArg, TyKind},
         Expr,
@@ -25,11 +26,9 @@ pub struct CircuitWriter<B>
 where
     B: Backend,
 {
-    /// The type checker state for the main module.
-    // Important: this field must not be used directly.
-    // This is because, depending on the value of [current_module],
-    // the type checker state might be this one, or one of the ones in [dependencies].
-    typed: TypeChecker<B>,
+    /// The monomorphized state for the main module.
+    // The process walks through the monomorphized AST to generate the circuit.
+    typed: Mast<B>,
 
     /// The constraint backend for the circuit.
     /// For now, this needs to be exposed for the kimchi prover for kimchi specific low level data.
@@ -60,11 +59,6 @@ pub struct DebugInfo {
 impl<B: Backend> CircuitWriter<B> {
     pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
         self.typed.expr_type(expr)
-    }
-
-    // TODO: can we get rid of this?
-    pub fn node_type(&self, node_id: usize) -> Option<&TyKind> {
-        self.typed.node_type(node_id)
     }
 
     pub fn struct_info(&self, qualified: &FullyQualified) -> Option<&StructInfo> {
@@ -134,7 +128,7 @@ impl<B: Backend> CircuitWriter<B> {
 
 impl<B: Backend> CircuitWriter<B> {
     /// Creates a global environment from the one created by the type checker.
-    fn new(typed: TypeChecker<B>, backend: B) -> Self {
+    fn new(typed: Mast<B>, backend: B) -> Self {
         Self {
             typed,
             backend,
@@ -142,7 +136,7 @@ impl<B: Backend> CircuitWriter<B> {
         }
     }
 
-    pub fn generate_circuit(typed: TypeChecker<B>, backend: B) -> Result<CompiledCircuit<B>> {
+    pub fn generate_circuit(typed: Mast<B>, backend: B) -> Result<CompiledCircuit<B>> {
         // create circuit writer
         let mut circuit_writer = CircuitWriter::new(typed, backend);
 

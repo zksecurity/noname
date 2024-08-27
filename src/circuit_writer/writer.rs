@@ -138,7 +138,31 @@ impl<B: Backend> CircuitWriter<B> {
             }
 
             StmtKind::ForLoop { var, range, body } => {
-                for ii in range.range() {
+                // compute the start and end of the range
+                let start_bg: BigUint = self
+                    .compute_expr(fn_env, &range.start)?
+                    .ok_or_else(|| {
+                        self.error(ErrorKind::CannotComputeExpression, range.start.span)
+                    })?
+                    .constant()
+                    .expect("expected constant")
+                    .into();
+                let start: u32 = start_bg
+                    .try_into()
+                    .map_err(|_| self.error(ErrorKind::InvalidRangeSize, range.start.span))?;
+
+                let end_bg: BigUint = self
+                    .compute_expr(fn_env, &range.end)?
+                    .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, range.end.span))?
+                    .constant()
+                    .expect("expected constant")
+                    .into();
+                let end: u32 = end_bg
+                    .try_into()
+                    .map_err(|_| self.error(ErrorKind::InvalidRangeSize, range.end.span))?;
+
+                // compute for the for loop block
+                for ii in start..end {
                     fn_env.nest();
 
                     let cst_var = Var::new_constant(ii.into(), var.span);
@@ -251,6 +275,9 @@ impl<B: Backend> CircuitWriter<B> {
                 }
             }
             TyKind::Field { constant: true } => unreachable!(),
+            TyKind::GenericSizedArray(_, _) => {
+                unreachable!("generic array should have been resolved")
+            }
         };
         Ok(())
     }
@@ -343,8 +370,8 @@ impl<B: Backend> CircuitWriter<B> {
 
                 let res = match &fn_info.kind {
                     // assert() <-- for example
-                    FnKind::BuiltIn(_sig, handle) => {
-                        let res = handle(self, &vars, expr.span);
+                    FnKind::BuiltIn(sig, handle) => {
+                        let res = handle(self, &sig.generics, &vars, expr.span);
                         res.map(|r| r.map(VarOrRef::Var))
                     }
 
@@ -689,6 +716,26 @@ impl<B: Backend> CircuitWriter<B> {
                 let var = VarOrRef::Var(Var::new(cvars, expr.span));
 
                 //
+                Ok(Some(var))
+            }
+            ExprKind::RepeatedArrayInit { item, size } => {
+                let size = self
+                    .compute_expr(fn_env, size)?
+                    .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, expr.span))?;
+                let size = size
+                    .constant()
+                    .ok_or_else(|| self.error(ErrorKind::ExpectedConstant, expr.span))?;
+                let size: BigUint = size.into();
+                let size: usize = size.try_into().unwrap();
+
+                let mut cvars = vec![];
+                for _ in 0..size {
+                    let var = self.compute_expr(fn_env, item)?.unwrap();
+                    let to_extend = var.value(self, fn_env).cvars.clone();
+                    cvars.extend(to_extend);
+                }
+
+                let var = VarOrRef::Var(Var::new(cvars, expr.span));
                 Ok(Some(var))
             }
         }

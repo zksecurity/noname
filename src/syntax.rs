@@ -40,15 +40,33 @@ pub fn is_identifier(s: &str) -> bool {
             .all(|c| (c.is_ascii_alphabetic() && c.is_lowercase()) || c.is_numeric() || c == '_')
 }
 
+/// Returns true if the given string is generic parameter
+pub fn is_generic_parameter(s: &str) -> bool {
+    // should be at least 2 uppercase letters
+    if s.len() < 2 {
+        return false;
+    }
+
+    let mut chars = s.chars();
+    // all should be uppercase alphabetic
+    chars.all(|c| (c.is_ascii_alphabetic() && c.is_uppercase()))
+}
+
 /// Returns true if the given string is a type
-/// (first letter is an uppercase)
+/// Check camel case
 pub fn is_type(s: &str) -> bool {
     let mut chars = s.chars();
+    // must have at least two char
+    if s.len() < 2 {
+        return false;
+    }
+
     let first_char = chars.next().unwrap();
     // first char is an uppercase letter
     // rest are lowercase alphanumeric
-    first_char.is_alphabetic() && first_char.is_uppercase() && chars.all(|c| (c.is_alphanumeric()))
-    // TODO: check camel case?
+    first_char.is_alphabetic()
+        && first_char.is_uppercase()
+        && chars.all(|c| ((c.is_alphabetic() && c.is_lowercase()) || c.is_numeric()))
 }
 
 #[cfg(test)]
@@ -64,5 +82,12 @@ mod tests {
         assert!(is_identifier_or_type("c_ond2"));
         assert!(is_identifier("cond2"));
         assert!(is_type("Cond2"));
+        assert!(!is_type("C"));
+        assert!(!is_generic_parameter("N"));
+        assert!(!is_generic_parameter("n"));
+        assert!(!is_generic_parameter("nn"));
+        assert!(is_generic_parameter("NN"));
+        assert!(!is_generic_parameter("N1"));
+        assert!(!is_generic_parameter("N_"));
     }
 }

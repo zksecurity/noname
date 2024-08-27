@@ -520,3 +520,111 @@ fn test_dup_var(#[case] backend: BackendKind) -> miette::Result<()> {
 
     Ok(())
 }
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_repeated_array(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"public_input":"1"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_repeated_array",
+        public_inputs,
+        private_inputs,
+        vec!["1", "1", "1"],
+        backend,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_array_access(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"xx":"1"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_array_access",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_array_nested(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"xx":"1"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_array_nested",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_fn_multi_init(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"xx":"1"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_fn_multi_init",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_for_loop(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"xx":"1"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_for_loop",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_builtin_bits(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"xx":"2"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_builtin_bits",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+    )?;
+
+    Ok(())
+}
