@@ -1,0 +1,19 @@
+fn last(arr: [[Field; NN]; 3]) -> Field {
+    let mut newarr = [0; NN * 3];
+
+    let mut index = 0;
+    for ii in 0..3 {
+        let inner = arr[ii];
+        for jj in 0..NN {
+            newarr[(ii * NN) + jj] = inner[jj];
+        }
+    }
+
+    return newarr[(NN * 3) - 1];
+}
+
+fn main(pub xx: Field) {
+    let array = [[xx + 1, xx + 2, xx + 3]; 3];
+    let elm = last(array);
+    assert_eq(elm, 4);
+}
