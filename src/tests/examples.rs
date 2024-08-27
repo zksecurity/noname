@@ -264,6 +264,18 @@ fn test_for_loop(#[case] backend: BackendKind) -> miette::Result<()> {
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_dup_var(#[case] backend: BackendKind) -> miette::Result<()> {
+    let private_inputs = r#"{"private_input": ["1", "2", "2"]}"#;
+    let public_inputs = r#"{"public_input": "10"}"#;
+
+    test_file("dup_var", public_inputs, private_inputs, vec![], backend)?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_array(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"public_input": ["1", "2"]}"#;
@@ -505,18 +517,6 @@ fn test_public_output_types(#[case] backend: BackendKind) -> miette::Result<()> 
         vec!["1", "2"],
         backend,
     )?;
-
-    Ok(())
-}
-
-#[rstest]
-#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
-fn test_dup_var(#[case] backend: BackendKind) -> miette::Result<()> {
-    let private_inputs = r#"{"private_input": ["1", "2", "2"]}"#;
-    let public_inputs = r#"{"public_input": "10"}"#;
-
-    test_file("dup_var", public_inputs, private_inputs, vec![], backend)?;
 
     Ok(())
 }

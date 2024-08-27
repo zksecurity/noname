@@ -880,7 +880,7 @@ pub fn monomorphize_stmt<B: Backend>(
             Some((stmt_mono, None))
         }
         StmtKind::ForLoop { var, range, body } => {
-            // enter new scope
+            // enter a new scope
             mono_fn_env.nest();
 
             mono_fn_env.store_type(
@@ -917,7 +917,7 @@ pub fn monomorphize_stmt<B: Backend>(
                 span: stmt.span,
             };
 
-            // exit scope
+            // exit the scope
             mono_fn_env.pop();
 
             Some((loop_stmt_mono, None))
