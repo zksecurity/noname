@@ -338,7 +338,17 @@ impl Display for TyKind {
                 ),
                 ModulePath::Local => write!(f, "a `{}` struct", name),
             },
-            TyKind::Field { constant } => write!(f, "Field; Constant: {}", constant),
+            TyKind::Field { constant } => {
+                write!(
+                    f,
+                    "{}",
+                    if *constant {
+                        "a constant field element"
+                    } else {
+                        "a field element"
+                    }
+                )
+            }
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
             TyKind::GenericSizedArray(ty, size) => write!(f, "[{}; {}]", ty, size),
