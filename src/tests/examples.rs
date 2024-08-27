@@ -596,6 +596,24 @@ fn test_generic_fn_multi_init(#[case] backend: BackendKind) -> miette::Result<()
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn generic_method_multi_init(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"xx":"1"}"#;
+    let private_inputs = r#"{"yy":"2"}"#;
+
+    test_file(
+        "generic_method_multi_init",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_generic_for_loop(#[case] backend: BackendKind) -> miette::Result<()> {
     let public_inputs = r#"{"xx":"1"}"#;
     let private_inputs = r#"{}"#;

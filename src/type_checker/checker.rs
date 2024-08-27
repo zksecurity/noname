@@ -33,6 +33,13 @@ impl<B: Backend> FnInfo<B> {
             FnKind::Native(func) => &func.sig,
         }
     }
+
+    pub fn native(&self) -> &FunctionDef {
+        match &self.kind {
+            FnKind::Native(func) => func,
+            _ => panic!("expected a native function"),
+        }
+    }
 }
 
 /// Keeps track of the signature of a user-defined struct.

@@ -151,7 +151,10 @@ where
 {
     tast: TypeChecker<B>,
     in_generic_func: bool,
+    // fully qualified function name
     functions_to_delete: Vec<FullyQualified>,
+    // fully qualified struct name, method name
+    methods_to_delete: Vec<(FullyQualified, String)>,
 }
 
 impl<B: Backend> MastCtx<B> {
@@ -160,6 +163,7 @@ impl<B: Backend> MastCtx<B> {
             tast,
             in_generic_func: false,
             functions_to_delete: vec![],
+            methods_to_delete: vec![],
         }
     }
 
@@ -187,11 +191,26 @@ impl<B: Backend> MastCtx<B> {
         self.functions_to_delete.push(old_qualified);
     }
 
+    pub fn add_monomorphized_method(
+        &mut self,
+        struct_qualified: FullyQualified,
+        old_method_name: &str,
+        method_name: &str,
+        fn_info: &FunctionDef,
+    ) {
+        self.tast.add_monomorphized_method(struct_qualified.clone(), method_name, fn_info);
+        self.methods_to_delete.push((struct_qualified, old_method_name.to_string()));
+    }
+
     pub fn clear_generic_fns(&mut self) {
         for qualified in &self.functions_to_delete {
             self.tast.remove_fn(qualified);
         }
         self.functions_to_delete.clear();
+
+        for (struct_qualified, method_name) in &self.methods_to_delete {
+            self.tast.remove_method(struct_qualified, method_name);
+        }
     }
 }
 
@@ -433,10 +452,10 @@ fn monomorphize_expr<B: Backend>(
             };
 
             // get struct info
-            let qualified = FullyQualified::new(&module, &struct_name);
+            let struct_qualified = FullyQualified::new(&module, &struct_name);
             let struct_info = ctx
                 .tast
-                .struct_info(&qualified)
+                .struct_info(&struct_qualified)
                 .ok_or(error(
                     ErrorKind::UndefinedStruct(struct_name.clone()),
                     lhs.span,
@@ -474,21 +493,18 @@ fn monomorphize_expr<B: Backend>(
             let (mexpr, typ) = if fn_info.sig().require_monomorphization() {
                 let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
-                let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
-
                 let fn_name_mono = &fn_info_mono.sig().name;
                 let mexpr = Expr {
-                    kind: ExprKind::FnCall {
-                        module: module.clone(),
-                        fn_name: fn_name_mono.clone(),
+                    kind: ExprKind::MethodCall {
+                        lhs: Box::new(lhs_mono.expr),
+                        method_name: fn_name_mono.clone(),
                         args: args_mono,
                     },
                     ..expr.clone()
                 };
 
-                let qualified = FullyQualified::new(&module, &fn_name_mono.value);
-
-                ctx.tast.add_monomorphized_fn(qualified, fn_info_mono);
+                let fn_def = fn_info_mono.native();
+                ctx.tast.add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
 
                 (mexpr, typ)
             } else {

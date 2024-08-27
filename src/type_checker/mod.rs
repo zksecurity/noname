@@ -36,7 +36,7 @@ where
     pub typ: Ty,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct FullyQualified {
     /// Set to `None` if the function is defined in the main module.
     pub module: Option<UserRepo>,
@@ -124,8 +124,18 @@ impl<B: Backend> TypeChecker<B> {
         self.node_types.insert(node_id, typ);
     }
 
+    pub fn add_monomorphized_method(&mut self, qualified: FullyQualified, method_name: &str, method: &FunctionDef) {
+        let struct_info = self.structs.get_mut(&qualified).expect("couldn't find the struct for storing the method");
+        struct_info.methods.insert(method_name.to_string(), method.clone());
+    }
+
     pub fn remove_fn(&mut self, qualified: &FullyQualified) {
         self.functions.remove(qualified);
+    }
+
+    pub fn remove_method(&mut self, qualified: &FullyQualified, method_name: &str) {
+        let struct_info = self.structs.get_mut(qualified).expect("couldn't find the struct for storing the method");
+        struct_info.methods.remove(method_name);
     }
 }
 
