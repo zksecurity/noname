@@ -8,6 +8,7 @@ use std::{
 
 use ark_ff::{Field, Zero};
 use serde::{Deserialize, Serialize};
+use num_traits::ToPrimitive;
 
 use crate::{
     cli::packages::UserRepo,
@@ -19,7 +20,7 @@ use crate::{
     syntax::{is_generic_parameter, is_type},
 };
 
-use super::{CustomType, Expr, ExprKind, ParserCtx, StructDef};
+use super::{CustomType, Expr, ExprKind, Op2, ParserCtx, StructDef};
 
 pub fn parse_type_declaration(
     ctx: &mut ParserCtx,
@@ -224,6 +225,40 @@ impl Symbolic {
         }
 
         generics
+    }
+
+    /// Parse from an expression node recursively.
+    pub fn parse(node: &Expr) -> Result<Self> {
+        match &node.kind {
+            ExprKind::BigUInt(n) => Ok(Symbolic::Concrete(n.to_u32().unwrap())),
+            ExprKind::Variable { module: _, name } => {
+                if is_generic_parameter(&name.value) {
+                    Ok(Symbolic::Generic(name.clone()))
+                } else {
+                    Ok(Symbolic::Constant(name.clone()))
+                }
+            },
+            ExprKind::BinaryOp { op, lhs, rhs, protected: _ } => {
+                // todo: do we need to take care of "protected"?
+                let lhs = Symbolic::parse(lhs)?;
+                let rhs = Symbolic::parse(rhs);
+
+                match op {
+                    Op2::Addition => Ok(Symbolic::Add(Box::new(lhs), Box::new(rhs?))),
+                    Op2::Multiplication => Ok(Symbolic::Mul(Box::new(lhs), Box::new(rhs?))),
+                    _ => Err(Error::new(
+                        "mast",
+                        ErrorKind::InvalidSymbolicSize,
+                        node.span,
+                    )),
+                }
+            }
+            _ => Err(Error::new(
+                "mast",
+                ErrorKind::InvalidSymbolicSize,
+                node.span,
+            )),
+        }
     }
 }
 
