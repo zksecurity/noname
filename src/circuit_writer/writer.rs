@@ -5,6 +5,7 @@ use kimchi::circuits::wires::Wire;
 use num_bigint::BigUint;
 use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
+use toml::value::Array;
 
 use crate::{
     backends::{kimchi::VestaField, Backend},
@@ -143,6 +144,47 @@ impl<B: Backend> CircuitWriter<B> {
 
                     let cst_var = Var::new_constant(ii.into(), var.span);
                     let var_info = VarInfo::new(cst_var, false, Some(TyKind::Field));
+                    self.add_local_var(fn_env, var.value.clone(), var_info);
+
+                    self.compile_block(fn_env, body)?;
+
+                    fn_env.pop();
+                }
+            }
+            StmtKind::IteratorLoop {
+                var,
+                iterator,
+                body,
+            } => {
+                let iterator_expr = self
+                    .compute_expr(fn_env, iterator)?
+                    .expect("array access on non-array");
+
+                let array_typ = self
+                    .expr_type(iterator)
+                    .cloned()
+                    .expect("cannot find type of array");
+
+                let (elem_type, array_len) = match array_typ {
+                    TyKind::Array(ty, array_len) => (ty, array_len),
+                    _ => panic!("expected array"),
+                };
+
+                // compute the size of each element in the array
+                let len = self.size_of(&elem_type);
+
+                for idx in 0..array_len {
+                    // compute the real index
+                    let idx = idx as usize;
+                    let start = idx * len;
+
+                    fn_env.nest();
+
+                    // add the variable to the inner enviroment corresponding
+                    // to iterator[idx]
+                    let indexed_var = iterator_expr.narrow(start, len).value(self, fn_env);
+                    let var_info =
+                        VarInfo::new(indexed_var.clone(), false, Some(*elem_type.clone()));
                     self.add_local_var(fn_env, var.value.clone(), var_info);
 
                     self.compile_block(fn_env, body)?;

@@ -610,6 +610,34 @@ impl<B: Backend> TypeChecker<B> {
                 // exit the scope
                 typed_fn_env.pop();
             }
+            StmtKind::IteratorLoop {
+                var,
+                iterator,
+                body,
+            } => {
+                // enter a new scope
+                typed_fn_env.nest();
+
+                // make sure that the iterator expression is an iterator,
+                // for now this means that the expression should have type `Array`
+                let iterator_typ = self.compute_type(iterator, typed_fn_env)?;
+                let iterator_typ =
+                    iterator_typ.expect("Could not compute type of iterator (TODO: better error)");
+
+                if let TyKind::Array(element_type, _len) = iterator_typ.typ {
+                    // the type of the variable is the type of the items of the iterator
+                    typed_fn_env
+                        .store_type(var.value.clone(), TypeInfo::new(*element_type, var.span))?;
+
+                    // check block
+                    self.check_block(typed_fn_env, body, None)?;
+
+                    // exit the scope
+                    typed_fn_env.pop();
+                } else {
+                    panic!("Iterator should be an array (TODO: better error)");
+                }
+            }
             StmtKind::Expr(expr) => {
                 // make sure the expression does not return any type
                 // (it's a statement expression, it should only work via side effect)

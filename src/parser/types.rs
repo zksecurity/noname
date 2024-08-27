@@ -870,6 +870,12 @@ impl Range {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ForLoopArgument {
+    Range(Range),
+    Iterator(Box<Expr>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub span: Span,
@@ -892,9 +898,69 @@ pub enum StmtKind {
         range: Range,
         body: Vec<Stmt>,
     },
+
+    // `for item in vec { <body> }`
+    IteratorLoop {
+        var: Ident,
+        iterator: Box<Expr>,
+        body: Vec<Stmt>,
+    },
 }
 
 impl Stmt {
+    /// Parse a numerical range in a for loop n..m
+    fn parse_for_range(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Range> {
+        let (start, start_span) = match tokens.bump(ctx) {
+            Some(Token {
+                kind: TokenKind::BigUInt(n),
+                span,
+            }) => {
+                let start: u32 = n
+                    .try_into()
+                    .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
+                (start, span)
+            }
+            _ => {
+                return Err(ctx.error(
+                    ErrorKind::ExpectedToken(TokenKind::BigUInt(num_bigint::BigUint::zero())),
+                    ctx.last_span(),
+                ))
+            }
+        };
+
+        // for i in 0..5 { ... }
+        //           ^^
+        tokens.bump_expected(ctx, TokenKind::DoubleDot)?;
+
+        // for i in 0..5 { ... }
+        //             ^
+        let (end, end_span) = match tokens.bump(ctx) {
+            Some(Token {
+                kind: TokenKind::BigUInt(n),
+                span,
+            }) => {
+                let end: u32 = n
+                    .try_into()
+                    .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
+                (end, span)
+            }
+            _ => {
+                return Err(ctx.error(
+                    ErrorKind::ExpectedToken(TokenKind::BigUInt(num_bigint::BigUint::zero())),
+                    ctx.last_span(),
+                ))
+            }
+        };
+
+        let range = Range {
+            start,
+            end,
+            span: start_span.merge_with(end_span),
+        };
+
+        Ok(range)
+    }
+
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         match tokens.peek() {
@@ -947,80 +1013,45 @@ impl Stmt {
                 })
             }
 
-            // for loop
+            // for loop, can be either a range or an iterator
             Some(Token {
                 kind: TokenKind::Keyword(Keyword::For),
                 span,
             }) => {
                 tokens.bump(ctx);
 
-                // for i in 0..5 { ... }
+                // for i in arg { ... }
                 //     ^
                 let var = Ident::parse(ctx, tokens)?;
 
-                // for i in 0..5 { ... }
+                // for i in arg { ... }
                 //       ^^
                 tokens.bump_expected(ctx, TokenKind::Keyword(Keyword::In))?;
 
-                // for i in 0..5 { ... }
+                // for i in arg { ... }
                 //          ^
-                let (start, start_span) = match tokens.bump(ctx) {
+                // here we decide if this for loop is over a range or is an iterator,
+                // if we see a number, we assume it's a for loop over range,
+                // otherwise it's an iterator
+                let argument: ForLoopArgument = match tokens.peek() {
                     Some(Token {
-                        kind: TokenKind::BigUInt(n),
-                        span,
-                    }) => {
-                        let start: u32 = n
-                            .try_into()
-                            .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
-                        (start, span)
-                    }
+                        kind: TokenKind::BigUInt(_),
+                        span: _,
+                    }) => match Self::parse_for_range(ctx, tokens) {
+                        Ok(range) => ForLoopArgument::Range(range),
+                        Err(e) => return Err(e),
+                    },
                     _ => {
-                        return Err(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
-                                num_bigint::BigUint::zero(),
-                            )),
-                            ctx.last_span(),
-                        ))
+                        let for_argument = Box::new(Expr::parse(ctx, tokens)?);
+                        ForLoopArgument::Iterator(for_argument)
                     }
                 };
 
-                // for i in 0..5 { ... }
-                //           ^^
-                tokens.bump_expected(ctx, TokenKind::DoubleDot)?;
-
-                // for i in 0..5 { ... }
-                //             ^
-                let (end, end_span) = match tokens.bump(ctx) {
-                    Some(Token {
-                        kind: TokenKind::BigUInt(n),
-                        span,
-                    }) => {
-                        let end: u32 = n
-                            .try_into()
-                            .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
-                        (end, span)
-                    }
-                    _ => {
-                        return Err(ctx.error(
-                            ErrorKind::ExpectedToken(TokenKind::BigUInt(
-                                num_bigint::BigUint::zero(),
-                            )),
-                            ctx.last_span(),
-                        ))
-                    }
-                };
-
-                let range = Range {
-                    start,
-                    end,
-                    span: start_span.merge_with(end_span),
-                };
-
-                // for i in 0..5 { ... }
+                // for i in arg { ... }
                 //               ^
                 tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
 
-                // for i in 0..5 { ... }
+                // for i in arg { ... }
                 //                 ^^^
                 let mut body = vec![];
 
@@ -1047,10 +1078,20 @@ impl Stmt {
                 }
 
                 //
-                Ok(Stmt {
-                    kind: StmtKind::ForLoop { var, range, body },
-                    span,
-                })
+                match argument {
+                    ForLoopArgument::Range(range) => Ok(Stmt {
+                        kind: StmtKind::ForLoop { var, range, body },
+                        span,
+                    }),
+                    ForLoopArgument::Iterator(iterator) => Ok(Stmt {
+                        kind: StmtKind::IteratorLoop {
+                            var,
+                            iterator,
+                            body,
+                        },
+                        span,
+                    }),
+                }
             }
 
             // if/else

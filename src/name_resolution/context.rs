@@ -192,6 +192,15 @@ impl NameResCtx {
                     self.resolve_stmt(stmt)?;
                 }
             }
+            StmtKind::IteratorLoop {
+                var: _,
+                iterator: _,
+                body,
+            } => {
+                for stmt in body {
+                    self.resolve_stmt(stmt)?;
+                }
+            }
         };
 
         Ok(())
