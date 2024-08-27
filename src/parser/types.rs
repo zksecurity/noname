@@ -364,7 +364,7 @@ impl Ty {
             }
             // Default the `constant` to false, as here has no context for const attribute.
             // For a function argument and it is with const attribute,
-            // the `constant` will be corrected to true by the `FnSig` parser.
+            // the `constant` will be corrected to true by the `FunctionDef::parse_args` parser.
             "Field" => TyKind::Field { constant: false },
             "Bool" => TyKind::Bool,
             _ => TyKind::Custom {
@@ -491,16 +491,7 @@ impl FnSig {
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         let (name, kind) = FuncOrMethod::parse(ctx, tokens)?;
 
-        let mut arguments = FunctionDef::parse_args(ctx, tokens, &kind)?;
-
-        // if it is with const attribute, then converts it to a constant field.
-        // this is because the parser doesn't know if a token has a corresponding attribute
-        // until it has parsed the whole token.
-        for arg in &mut arguments {
-            if arg.is_constant() {
-                arg.typ.kind = TyKind::Field { constant: true };
-            }
-        }
+        let arguments = FunctionDef::parse_args(ctx, tokens, &kind)?;
 
         // extract generic parameters from arguments
         let mut generics = GenericParameters::default();
@@ -1016,12 +1007,20 @@ impl FunctionDef {
                 }
             };
 
-            let arg = FnArg {
+            let mut arg = FnArg {
                 name: arg_name,
                 typ: arg_typ,
                 attribute,
                 span,
             };
+
+            // if it is with const attribute, then converts it to a constant field.
+            // this is because the parser doesn't know if a token has a corresponding attribute
+            // until it has parsed the whole token.
+            if arg.is_constant() {
+                arg.typ.kind = TyKind::Field { constant: true };
+            }
+
             args.push(arg);
 
             match separator.kind {
