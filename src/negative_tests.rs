@@ -129,19 +129,26 @@ fn test_generic_missing_parameter_arg() {
     ));
 }
 
-// #[test]
+#[test]
 fn test_generic_symbolic_size_mismatched() {
-    // tast should catch the type mismatch in tast phase
     let code = r#"
         fn gen(const LEN: Field) -> [Field; 2] {
             return [0; LEN];
         }
+
+        fn main(pub xx: Field) {
+            gen(3);
+        }
         "#;
 
-    let res = tast_pass(code).0;
+    // in theory, this can be caught by the tast phase as it can be checked symbolically.
+    // but we can't archive this until
+    // - both Array and GenericArray are abstracted into one type with symbolic size.
+    // - the `match_expected` and `same_as` functions are replaced by checking rules for different contexts.
+    let res = mast_pass(code).err();
 
     assert!(matches!(
-        res.unwrap_err().kind,
+        res.unwrap().kind,
         ErrorKind::ReturnTypeMismatch(..)
     ));
 }
