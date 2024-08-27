@@ -230,18 +230,7 @@ impl<B: Backend> CircuitWriter<B> {
         let FnArg { name, typ, .. } = arg;
 
         // get length
-        let len = match &typ.kind {
-            TyKind::Field { constant: false } => 1,
-            TyKind::Field { constant: true } => unreachable!(),
-            TyKind::Array(typ, len) => {
-                if !matches!(**typ, TyKind::Field { constant: false }) {
-                    unimplemented!();
-                }
-                *len as usize
-            }
-            TyKind::Bool => 1,
-            typ => self.size_of(typ),
-        };
+        let len = self.size_of(&typ.kind);
 
         // create the variable
         let var = handle_input(self, name.value.clone(), len, name.span);
