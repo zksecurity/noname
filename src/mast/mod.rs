@@ -938,12 +938,10 @@ pub fn monomorphize_stmt<B: Backend>(
     Ok(res)
 }
 
-/// Overall, the function call check process is as follows:
-/// 1. infer generic values from function args
-/// 2. evaluate generic return types using inferred values
-/// 3. evaluate function body using inferred values
-/// 4. type check the observed return and the inferred expected return (handled by check_body)
-/// 5. return an reconstructed FunctionDef AST
+/// Overall, the function call checking process is as follows:
+/// 1. resolve generic values from observed function args
+/// 2. propagate the resolved values within the function body
+/// 3. type check the observed return and the resolved expected return
 pub fn instantiate_fn_call<B: Backend>(
     ctx: &mut MastCtx<B>,
     fn_info: FnInfo<B>,
