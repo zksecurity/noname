@@ -154,6 +154,9 @@ pub enum ErrorKind {
     #[error("invalid range size, expected x..y with x and y integers in [0,2^32]")]
     InvalidRangeSize,
 
+    #[error("invalid iterator type, expected an array but found {0}")]
+    InvalidIteratorType(TyKind),
+
     #[error("invalid statement")]
     InvalidStatement,
 

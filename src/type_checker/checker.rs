@@ -668,19 +668,26 @@ impl<B: Backend> TypeChecker<B> {
                 let iterator_typ =
                     iterator_typ.expect("Could not compute type of iterator (TODO: better error)");
 
-                if let TyKind::Array(element_type, _len) = iterator_typ.typ {
-                    // the type of the variable is the type of the items of the iterator
-                    typed_fn_env
-                        .store_type(var.value.clone(), TypeInfo::new(*element_type, var.span))?;
+                // the type of the variable is the type of the items of the iterator
+                let element_type = match iterator_typ.typ {
+                    TyKind::Array(element_type, _len) => *element_type,
+                    TyKind::GenericSizedArray(element_type, _size) => *element_type,
+                    _ => {
+                        return Err(self.error(
+                            ErrorKind::InvalidIteratorType(iterator_typ.typ.clone()),
+                            iterator.span,
+                        ))
+                    }
+                };
 
-                    // check block
-                    self.check_block(typed_fn_env, body, None)?;
+                typed_fn_env
+                    .store_type(var.value.clone(), TypeInfo::new(element_type, var.span))?;
 
-                    // exit the scope
-                    typed_fn_env.pop();
-                } else {
-                    panic!("Iterator should be an array (TODO: better error)");
-                }
+                // check block
+                self.check_block(typed_fn_env, body, None)?;
+
+                // exit the scope
+                typed_fn_env.pop();
             }
             StmtKind::Expr(expr) => {
                 // make sure the expression does not return any type
