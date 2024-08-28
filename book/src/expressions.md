@@ -91,6 +91,34 @@ What we really need when we reach the assignment node is the following:
 - if the variable is mutable or not (it was defined with the `mut` keyword)
 - the range of circuit variables in the `Var.cvars` of `x`, that the `x.y.z` field access, or the `x[42]` array access, represents.
 
+## `VarOrRef` Overview
+
+The VarOrRef enum is used to represent either a variable or a reference to a variable within expressions. 
+Here is a concise overview:
+```
+pub enum VarOrRef<B: Backend> {
+    /// A variable.
+    Var(Var<B::Field, B::Var>),
+
+    /// A reference to a variable, potentially narrowing down to a range within it.
+    Ref {
+        var_name: String,
+        start: usize,
+        len: usize,
+    },
+}
+```
+
+`Var`: Represents a complete variable in the environment.
+
+`Ref`: Represents a reference to a variable, including:
+
+- `var_name`: The name of the variable.
+- `start`: The starting index of the slice or field.
+- `len`: The length of the slice or field.
+
+Every expression node in the AST is resolved as a VarOrRef. The reference variant is used primarily when dealing with mutable variables, allowing the system to access and mutate the exact slice or field within the original variable. This ensures accurate modification of the variable's state, maintaining the integrity of the mutable references.
+
 ### Circuit writer
 
 To implement this in the circuit writer, we follow a common practice of tracking **references**:
