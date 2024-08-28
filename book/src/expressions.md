@@ -117,7 +117,7 @@ pub enum VarOrRef<B: Backend> {
 - `start`: The starting index of the slice or field.
 - `len`: The length of the slice or field.
 
-Every expression node in the AST is resolved as a VarOrRef. The reference variant is used primarily when dealing with mutable variables, allowing the system to access and mutate the exact slice or field within the original variable. This ensures accurate modification of the variable's state, maintaining the integrity of the mutable references.
+Every expression node in the AST is resolved as a `VarOrRef`, an enum that represents either a variable, or a reference to a variable.  The sole reason to use a reference is when the variable is **mutable**, in which case you must be able to go to the list of variables present in the scope and mutate the correct one (so that if some logic tries to mutate it, it can). That's why, a `var_name` is stored in a reference. We also pass a `(start, len)` tuple to handle **mutable slices**. As we need to remember exactly where we are in the original array. As a slice is a narrowing of an array, we must not lose track of which array we were looking at originally (as this is what needs to be mutated). This ensures accurate modification of the variable's state, maintaining the integrity of the mutable references.
 
 ### Circuit writer
 
