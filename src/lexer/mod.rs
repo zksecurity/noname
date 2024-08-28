@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
-    syntax::is_identifier_or_type,
+    syntax::{is_generic_parameter, is_identifier_or_type},
 };
 
 use num_bigint::BigUint;
@@ -245,6 +245,8 @@ impl Token {
                             ));
                         }
                     }
+                } else if is_generic_parameter(&ident_or_number) {
+                    TokenKind::Identifier(ident_or_number)
                 } else if is_identifier_or_type(&ident_or_number) {
                     if ident_or_number.len() < 2 {
                         return Err(ctx.error(

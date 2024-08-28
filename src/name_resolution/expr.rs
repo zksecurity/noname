@@ -2,7 +2,7 @@ use crate::{
     cli::packages::UserRepo,
     error::Result,
     parser::{types::ModulePath, CustomType, Expr, ExprKind},
-    stdlib::{BUILTIN_FN_NAMES, QUALIFIED_BUILTINS},
+    stdlib::builtins::{BUILTIN_FN_NAMES, QUALIFIED_BUILTINS},
 };
 
 use super::context::NameResCtx;
@@ -21,7 +21,8 @@ impl NameResCtx {
                 fn_name,
                 args,
             } => {
-                if matches!(module, ModulePath::Local) && BUILTIN_FN_NAMES.contains(&fn_name.value)
+                if matches!(module, ModulePath::Local)
+                    && BUILTIN_FN_NAMES.contains(&fn_name.value.as_str())
                 {
                     // if it's a builtin, use `std::builtin`
                     *module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));
@@ -77,6 +78,10 @@ impl NameResCtx {
                 for expr in items {
                     self.resolve_expr(expr)?;
                 }
+            }
+            ExprKind::RepeatedArrayInit { item, size } => {
+                self.resolve_expr(item)?;
+                self.resolve_expr(size)?;
             }
             ExprKind::CustomTypeDeclaration {
                 custom: struct_name,
