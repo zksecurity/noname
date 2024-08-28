@@ -1274,57 +1274,41 @@ pub enum StmtKind {
 }
 
 impl Stmt {
-    /// Parse a numerical range in a for loop n..m
-    fn parse_for_range(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Range> {
-        let (start, start_span) = match tokens.bump(ctx) {
+    /// Parse the argument in the for loop
+    /// if can be either a numerical range n..m or an array.
+    fn parse_for_argument(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<ForLoopArgument> {
+        // for i in arg { ... }
+        //          ^
+        let start = Expr::parse(ctx, tokens)?;
+
+        // if the next token is DoubleDot, then it's a range
+        // otherwise just return the start expression as the iterator argument
+        match tokens.peek() {
             Some(Token {
-                kind: TokenKind::BigUInt(n),
-                span,
+                kind: TokenKind::DoubleDot,
+                ..
             }) => {
-                let start: u32 = n
-                    .try_into()
-                    .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
-                (start, span)
-            }
-            _ => {
-                return Err(ctx.error(
-                    ErrorKind::ExpectedToken(TokenKind::BigUInt(num_bigint::BigUint::zero())),
-                    ctx.last_span(),
-                ))
-            }
-        };
+                // for i in 0..5 { ... }
+                //           ^^
+                tokens.bump_expected(ctx, TokenKind::DoubleDot)?;
 
-        // for i in 0..5 { ... }
-        //           ^^
-        tokens.bump_expected(ctx, TokenKind::DoubleDot)?;
+                // for i in 0..5 { ... }
+                //             ^
+                let end = Expr::parse(ctx, tokens)?;
 
-        // for i in 0..5 { ... }
-        //             ^
-        let (end, end_span) = match tokens.bump(ctx) {
-            Some(Token {
-                kind: TokenKind::BigUInt(n),
-                span,
-            }) => {
-                let end: u32 = n
-                    .try_into()
-                    .map_err(|_e| ctx.error(ErrorKind::InvalidRangeSize, span))?;
-                (end, span)
+                let start_span = start.span;
+                let end_span = end.span;
+
+                let range = Range {
+                    start,
+                    end,
+                    span: start_span.merge_with(end_span),
+                };
+
+                Ok(ForLoopArgument::Range(range))
             }
-            _ => {
-                return Err(ctx.error(
-                    ErrorKind::ExpectedToken(TokenKind::BigUInt(num_bigint::BigUint::zero())),
-                    ctx.last_span(),
-                ))
-            }
-        };
-
-        let range = Range {
-            start,
-            end,
-            span: start_span.merge_with(end_span),
-        };
-
-        Ok(range)
+            _ => Ok(ForLoopArgument::Iterator(Box::new(start))),
+        }
     }
 
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
@@ -1394,26 +1378,7 @@ impl Stmt {
                 //       ^^
                 tokens.bump_expected(ctx, TokenKind::Keyword(Keyword::In))?;
 
-                // for i in arg { ... }
-                //          ^
-                let start = Expr::parse(ctx, tokens)?;
-
-                // for i in 0..5 { ... }
-                //           ^^
-                tokens.bump_expected(ctx, TokenKind::DoubleDot)?;
-
-                // for i in 0..5 { ... }
-                //             ^
-                let end = Expr::parse(ctx, tokens)?;
-
-                let start_span = start.span;
-                let end_span = end.span;
-
-                let range = Range {
-                    start,
-                    end,
-                    span: start_span.merge_with(end_span),
-                };
+                let argument = Self::parse_for_argument(ctx, tokens)?;
 
                 // for i in arg { ... }
                 //               ^

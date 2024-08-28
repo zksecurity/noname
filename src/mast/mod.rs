@@ -954,6 +954,37 @@ pub fn monomorphize_stmt<B: Backend>(
 
             Some((loop_stmt_mono, None))
         }
+        StmtKind::IteratorLoop { var, iterator, body } => {
+            // enter a new scope
+            mono_fn_env.nest();
+
+            let iterator_mono = monomorphize_expr(ctx, iterator, mono_fn_env)?;
+            let typ = iterator_mono.typ.as_ref().expect("expected a type");
+            let array_element_type = match typ {
+                TyKind::Array(t, _) => t,
+                _ => panic!("expected an array"),
+            };
+
+            mono_fn_env.store_type(
+                &var.value,
+                &MTypeInfo::new(&array_element_type, var.span, None),
+            )?;
+
+            let (stmts_mono, _) = monomorphize_block(ctx, mono_fn_env, body, None)?;
+            let loop_stmt_mono = Stmt {
+                kind: StmtKind::IteratorLoop {
+                    var: var.clone(),
+                    iterator: Box::new(iterator_mono.expr),
+                    body: stmts_mono,
+                },
+                span: stmt.span,
+            };
+
+            // exit the scope
+            mono_fn_env.pop();
+
+            Some((loop_stmt_mono, None))
+        }
         StmtKind::Expr(expr) => {
             let expr_mono = monomorphize_expr(ctx, expr, mono_fn_env)?;
             let stmt_mono = Stmt {
