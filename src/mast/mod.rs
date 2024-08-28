@@ -198,8 +198,10 @@ impl<B: Backend> MastCtx<B> {
         method_name: &str,
         fn_info: &FunctionDef,
     ) {
-        self.tast.add_monomorphized_method(struct_qualified.clone(), method_name, fn_info);
-        self.methods_to_delete.push((struct_qualified, old_method_name.to_string()));
+        self.tast
+            .add_monomorphized_method(struct_qualified.clone(), method_name, fn_info);
+        self.methods_to_delete
+            .push((struct_qualified, old_method_name.to_string()));
     }
 
     pub fn clear_generic_fns(&mut self) {
@@ -504,7 +506,8 @@ fn monomorphize_expr<B: Backend>(
                 };
 
                 let fn_def = fn_info_mono.native();
-                ctx.tast.add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
+                ctx.tast
+                    .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
 
                 (mexpr, typ)
             } else {

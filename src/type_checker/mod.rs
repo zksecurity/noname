@@ -124,9 +124,19 @@ impl<B: Backend> TypeChecker<B> {
         self.node_types.insert(node_id, typ);
     }
 
-    pub fn add_monomorphized_method(&mut self, qualified: FullyQualified, method_name: &str, method: &FunctionDef) {
-        let struct_info = self.structs.get_mut(&qualified).expect("couldn't find the struct for storing the method");
-        struct_info.methods.insert(method_name.to_string(), method.clone());
+    pub fn add_monomorphized_method(
+        &mut self,
+        qualified: FullyQualified,
+        method_name: &str,
+        method: &FunctionDef,
+    ) {
+        let struct_info = self
+            .structs
+            .get_mut(&qualified)
+            .expect("couldn't find the struct for storing the method");
+        struct_info
+            .methods
+            .insert(method_name.to_string(), method.clone());
     }
 
     pub fn remove_fn(&mut self, qualified: &FullyQualified) {
@@ -134,7 +144,10 @@ impl<B: Backend> TypeChecker<B> {
     }
 
     pub fn remove_method(&mut self, qualified: &FullyQualified, method_name: &str) {
-        let struct_info = self.structs.get_mut(qualified).expect("couldn't find the struct for storing the method");
+        let struct_info = self
+            .structs
+            .get_mut(qualified)
+            .expect("couldn't find the struct for storing the method");
         struct_info.methods.remove(method_name);
     }
 }
