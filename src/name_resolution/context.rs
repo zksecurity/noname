@@ -126,11 +126,10 @@ impl NameResCtx {
 
     fn resolve_typ_kind(&self, typ_kind: &mut TyKind) -> Result<()> {
         match typ_kind {
-            TyKind::Field => (),
+            TyKind::Field { .. } => (),
             TyKind::Custom { module, name: _ } => {
                 self.resolve(module, false)?;
             }
-            TyKind::BigInt => (),
             TyKind::Array(typ_kind, _) => self.resolve_typ_kind(typ_kind)?,
             TyKind::GenericSizedArray(typ_kind, _) => self.resolve_typ_kind(typ_kind)?,
             TyKind::Bool => (),

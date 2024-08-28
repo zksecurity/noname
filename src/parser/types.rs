@@ -7,6 +7,7 @@ use std::{
 };
 
 use ark_ff::{Field, Zero};
+use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -19,7 +20,7 @@ use crate::{
     syntax::{is_generic_parameter, is_type},
 };
 
-use super::{CustomType, Expr, ExprKind, ParserCtx, StructDef};
+use super::{CustomType, Expr, ExprKind, Op2, ParserCtx, StructDef};
 
 pub fn parse_type_declaration(
     ctx: &mut ParserCtx,
@@ -141,7 +142,7 @@ pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<(V
 }
 
 pub fn is_numeric(typ: &TyKind) -> bool {
-    matches!(typ, TyKind::Field | TyKind::BigInt)
+    matches!(typ, TyKind::Field { .. })
 }
 
 //~
@@ -225,20 +226,53 @@ impl Symbolic {
 
         generics
     }
+
+    /// Parse from an expression node recursively.
+    pub fn parse(node: &Expr) -> Result<Self> {
+        match &node.kind {
+            ExprKind::BigUInt(n) => Ok(Symbolic::Concrete(n.to_u32().unwrap())),
+            ExprKind::Variable { module: _, name } => {
+                if is_generic_parameter(&name.value) {
+                    Ok(Symbolic::Generic(name.clone()))
+                } else {
+                    Ok(Symbolic::Constant(name.clone()))
+                }
+            }
+            ExprKind::BinaryOp {
+                op,
+                lhs,
+                rhs,
+                protected: _,
+            } => {
+                let lhs = Symbolic::parse(lhs)?;
+                let rhs = Symbolic::parse(rhs);
+
+                match op {
+                    Op2::Addition => Ok(Symbolic::Add(Box::new(lhs), Box::new(rhs?))),
+                    Op2::Multiplication => Ok(Symbolic::Mul(Box::new(lhs), Box::new(rhs?))),
+                    _ => Err(Error::new(
+                        "mast",
+                        ErrorKind::InvalidSymbolicSize,
+                        node.span,
+                    )),
+                }
+            }
+            _ => Err(Error::new(
+                "mast",
+                ErrorKind::InvalidSymbolicSize,
+                node.span,
+            )),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum TyKind {
     /// The main primitive type. 'Nuf said.
-    // TODO: Field { constant: bool },
-    Field,
+    Field { constant: bool },
 
     /// Custom / user-defined types
     Custom { module: ModulePath, name: String },
-
-    /// This could be the same as Field, but we use this to also track the fact that it's a constant.
-    // TODO: get rid of this type tho no?
-    BigInt,
 
     /// An array of a fixed size.
     Array(Box<TyKind>, u32),
@@ -261,7 +295,7 @@ impl TyKind {
     /// A less strict checks when comparing with generic types.
     pub fn match_expected(&self, expected: &TyKind) -> bool {
         match (self, expected) {
-            (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => true,
+            (TyKind::Field { .. }, TyKind::Field { .. }) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs)
             }
@@ -284,7 +318,7 @@ impl TyKind {
     /// An exact match check, assuming there is no generic type.
     pub fn same_as(&self, other: &TyKind) -> bool {
         match (self, other) {
-            (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) => true,
+            (TyKind::Field { .. }, TyKind::Field { .. }) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.same_as(rhs)
             }
@@ -306,8 +340,7 @@ impl TyKind {
         let mut generics = HashSet::new();
 
         match self {
-            TyKind::Field => (),
-            TyKind::BigInt => (),
+            TyKind::Field { .. } => (),
             TyKind::Bool => (),
             TyKind::Custom { .. } => (),
             // e.g [[Field; N], 3]
@@ -344,8 +377,17 @@ impl Display for TyKind {
                 ),
                 ModulePath::Local => write!(f, "a `{}` struct", name),
             },
-            TyKind::Field => write!(f, "Field"),
-            TyKind::BigInt => write!(f, "BigInt"),
+            TyKind::Field { constant } => {
+                write!(
+                    f,
+                    "{}",
+                    if *constant {
+                        "a constant field element"
+                    } else {
+                        "a field element"
+                    }
+                )
+            }
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
             TyKind::GenericSizedArray(ty, size) => write!(f, "[{}; {}]", ty, size),
@@ -359,7 +401,10 @@ impl Ty {
             "Field" | "Bool" if !matches!(module, ModulePath::Local) => {
                 panic!("reserved types cannot be in a module (TODO: better error)")
             }
-            "Field" => TyKind::Field,
+            // Default the `constant` to false, as here has no context for const attribute.
+            // For a function argument and it is with const attribute,
+            // the `constant` will be corrected to true by the `FunctionDef::parse_args` parser.
+            "Field" => TyKind::Field { constant: false },
             "Bool" => TyKind::Bool,
             _ => TyKind::Custom {
                 module,
@@ -491,7 +536,7 @@ impl FnSig {
         let mut generics = GenericParameters::default();
         for arg in &arguments {
             match &arg.typ.kind {
-                TyKind::Field => {
+                TyKind::Field { .. } => {
                     // extract from const argument
                     if is_generic_parameter(&arg.name.value) && arg.is_constant() {
                         generics.add(arg.name.value.to_string());
@@ -1001,12 +1046,33 @@ impl FunctionDef {
                 }
             };
 
-            let arg = FnArg {
+            let mut arg = FnArg {
                 name: arg_name,
                 typ: arg_typ,
                 attribute,
                 span,
             };
+
+            // if it is with const attribute, then converts it to a constant field.
+            // this is because the parser doesn't know if a token has a corresponding attribute
+            // until it has parsed the whole token.
+            if arg.is_constant() {
+                match &mut arg.typ.kind {
+                    TyKind::Field { constant } => {
+                        *constant = true;
+                    }
+                    _ => {
+                        // for now we only allow constant fields
+                        return Err(ctx.error(
+                            ErrorKind::InvalidFunctionSignature(
+                                "only allowed to have constant fields",
+                            ),
+                            arg.span,
+                        ));
+                    }
+                }
+            }
+
             args.push(arg);
 
             match separator.kind {

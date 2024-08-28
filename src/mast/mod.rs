@@ -35,7 +35,7 @@ pub struct ExprMonoInfo {
 
 impl ExprMonoInfo {
     pub fn new(expr: Expr, typ: Option<TyKind>, value: Option<u32>) -> Self {
-        if value.is_some() && !matches!(typ, Some(TyKind::BigInt)) {
+        if value.is_some() && !matches!(typ, Some(TyKind::Field { constant: true })) {
             panic!("value can only be set for BigInt type");
         }
 
@@ -120,7 +120,7 @@ impl MonomorphizedFnEnv {
             .insert(ident.to_string(), (self.current_scope, type_info.clone()))
         {
             Some(_) => Err(Error::new(
-                "type-checker",
+                "mast",
                 ErrorKind::DuplicateDefinition(ident.to_string()),
                 type_info.span,
             )),
@@ -270,12 +270,12 @@ impl<B: Backend> Mast<B> {
     /// Returns the number of field elements contained in the given type.
     pub(crate) fn size_of(&self, typ: &TyKind) -> usize {
         match typ {
-            TyKind::Field => 1,
+            TyKind::Field { .. } => 1,
             TyKind::Custom { module, name } => {
                 let qualified = FullyQualified::new(module, name);
                 let struct_info = self
                     .struct_info(&qualified)
-                    .expect("bug in the type checker: cannot find struct info");
+                    .expect("bug in the mast: cannot find struct info");
 
                 let mut sum = 0;
 
@@ -285,7 +285,6 @@ impl<B: Backend> Mast<B> {
 
                 sum
             }
-            TyKind::BigInt => 1,
             TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
             TyKind::GenericSizedArray(_, _) => {
                 unreachable!("generic arrays should have been resolved")
@@ -606,7 +605,7 @@ fn monomorphize_expr<B: Backend>(
 
             let mexpr = expr.to_mast(ctx, &ExprKind::Negated(Box::new(inner_mono.expr)));
 
-            ExprMonoInfo::new(mexpr, Some(TyKind::Field), None)
+            ExprMonoInfo::new(mexpr, inner_mono.typ, None)
         }
 
         ExprKind::Not(inner) => {
@@ -621,7 +620,7 @@ fn monomorphize_expr<B: Backend>(
             let cst: u32 = inner.try_into().expect("biguint too large");
             let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(inner.clone()));
 
-            ExprMonoInfo::new(mexpr, Some(TyKind::BigInt), Some(cst))
+            ExprMonoInfo::new(mexpr, Some(TyKind::Field { constant: true }), Some(cst))
         }
 
         ExprKind::Bool(inner) => {
@@ -663,7 +662,7 @@ fn monomorphize_expr<B: Backend>(
                 let cst: u32 = bigint.clone().try_into().expect("biguint too large");
                 let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(bigint));
 
-                ExprMonoInfo::new(mexpr, Some(TyKind::BigInt), Some(cst))
+                ExprMonoInfo::new(mexpr, Some(TyKind::Field { constant: true }), Some(cst))
             } else {
                 // otherwise it's a local variable
                 let mexpr = expr.to_mast(
@@ -918,9 +917,9 @@ pub fn monomorphize_stmt<B: Backend>(
 
             mono_fn_env.store_type(
                 &var.value,
-                // because we don't unroll the loop in the monomorphized AST
-                // no constant value even if it's a BigInt
-                &MTypeInfo::new(&TyKind::BigInt, var.span, None),
+                // because we don't unroll the loop in the monomorphized AST,
+                // there is no constant value to propagate.
+                &MTypeInfo::new(&TyKind::Field { constant: true }, var.span, None),
             )?;
 
             let start_mono = monomorphize_expr(ctx, &range.start, mono_fn_env)?;
@@ -1024,7 +1023,10 @@ pub fn instantiate_fn_call<B: Backend>(
     // store the values for generic parameters in the env
     for gen in &fn_sig.generics.names() {
         let val = fn_sig.generics.get(gen);
-        mono_fn_env.store_type(gen, &MTypeInfo::new(&TyKind::BigInt, span, Some(val)))?;
+        mono_fn_env.store_type(
+            gen,
+            &MTypeInfo::new(&TyKind::Field { constant: true }, span, Some(val)),
+        )?;
     }
 
     // store the types of the arguments in the env

@@ -131,10 +131,44 @@ fn test_generic_missing_parameter_arg() {
 
 // #[test]
 fn test_generic_symbolic_size_mismatched() {
-    // tast should catch the type mismatch in tast phase
     let code = r#"
         fn gen(const LEN: Field) -> [Field; 2] {
             return [0; LEN];
+        }
+
+        fn main(pub xx: Field) {
+            gen(3);
+        }
+        "#;
+
+    // in theory, this can be caught by the tast phase as it can be checked symbolically.
+    // but we can't archive this until
+    // - both Array and GenericArray are abstracted into one type with symbolic size.
+    // - the `match_expected` and `same_as` functions are replaced by checking rules for different contexts.
+    let res = mast_pass(code).err();
+
+    assert!(matches!(
+        res.unwrap().kind,
+        ErrorKind::ReturnTypeMismatch(..)
+    ));
+}
+
+#[test]
+fn test_const_attr_mismatch() {
+    let code = r#"
+        struct House {
+            room_num: [Field; 2],
+        }
+
+        fn House.room(self, const idx: Field) -> Field {
+            return self.room_num[idx];
+        }
+
+        fn main(pub xx: Field) -> Field {
+            let house = House { room_num: [1, 2] };
+
+            // xx is not a constant
+            return house.room(xx);
         }
         "#;
 
@@ -142,7 +176,7 @@ fn test_generic_symbolic_size_mismatched() {
 
     assert!(matches!(
         res.unwrap_err().kind,
-        ErrorKind::ReturnTypeMismatch(..)
+        ErrorKind::ArgumentTypeMismatch(..)
     ));
 }
 

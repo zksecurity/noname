@@ -506,24 +506,6 @@ fn test_public_output_bool(#[case] backend: BackendKind) -> miette::Result<()> {
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
-fn test_generic_array_access(#[case] backend: BackendKind) -> miette::Result<()> {
-    let public_inputs = r#"{"xx":"1"}"#;
-    let private_inputs = r#"{}"#;
-
-    test_file(
-        "generic_array_access",
-        public_inputs,
-        private_inputs,
-        vec![],
-        backend,
-    )?;
-
-    Ok(())
-}
-
-#[rstest]
-#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
-#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_public_output_types(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "1", "yy": "2"}"#;
@@ -551,6 +533,24 @@ fn test_generic_repeated_array(#[case] backend: BackendKind) -> miette::Result<(
         public_inputs,
         private_inputs,
         vec!["1", "1", "1"],
+        backend,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_array_access(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"xx":"1"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_array_access",
+        public_inputs,
+        private_inputs,
+        vec![],
         backend,
     )?;
 

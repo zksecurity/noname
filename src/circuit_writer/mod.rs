@@ -104,7 +104,7 @@ impl<B: Backend> CircuitWriter<B> {
         let qualified = FullyQualified::local(var_name.to_string());
         if let Some(cst_info) = self.typed.const_info(&qualified) {
             let var = Var::new_constant_typ(cst_info, cst_info.typ.span);
-            return VarInfo::new(var, false, Some(TyKind::Field));
+            return VarInfo::new(var, false, Some(TyKind::Field { constant: true }));
         }
 
         // then check for local variables
@@ -230,17 +230,7 @@ impl<B: Backend> CircuitWriter<B> {
         let FnArg { name, typ, .. } = arg;
 
         // get length
-        let len = match &typ.kind {
-            TyKind::Field => 1,
-            TyKind::Array(typ, len) => {
-                if !matches!(**typ, TyKind::Field) {
-                    unimplemented!();
-                }
-                *len as usize
-            }
-            TyKind::Bool => 1,
-            typ => self.size_of(typ),
-        };
+        let len = self.size_of(&typ.kind);
 
         // create the variable
         let var = handle_input(self, name.value.clone(), len, name.span);

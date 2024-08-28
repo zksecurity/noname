@@ -219,7 +219,7 @@ impl<B: Backend> TypeChecker<B> {
                             ConstInfo {
                                 value: vec![cst.value],
                                 typ: Ty {
-                                    kind: TyKind::Field,
+                                    kind: TyKind::Field { constant: true },
                                     span: cst.span,
                                 },
                             },
@@ -345,7 +345,7 @@ impl<B: Backend> TypeChecker<B> {
                     for name in function.sig.generics.names() {
                         typed_fn_env.store_type(
                             name.to_string(),
-                            TypeInfo::new_cst(TyKind::Field, function.span),
+                            TypeInfo::new(TyKind::Field { constant: true }, function.span),
                         )?;
                     }
 
@@ -387,24 +387,15 @@ impl<B: Backend> TypeChecker<B> {
                         // store the args' type in the fn environment
                         let arg_typ = arg.typ.kind.clone();
 
-                        if arg.is_constant() {
-                            typed_fn_env.store_type(
-                                arg.name.value.clone(),
-                                TypeInfo::new_cst(arg_typ, arg.span),
-                            )?;
-                        } else {
-                            typed_fn_env.store_type(
-                                arg.name.value.clone(),
-                                TypeInfo::new(arg_typ, arg.span),
-                            )?;
-                        }
+                        typed_fn_env
+                            .store_type(arg.name.value.clone(), TypeInfo::new(arg_typ, arg.span))?;
                     }
 
                     // the output value returned by the main function is also a main_args with a special name (public_output)
                     if let Some(typ) = &function.sig.return_type {
                         if is_main {
                             match typ.kind {
-                                TyKind::Field
+                                TyKind::Field { constant: false }
                                 | TyKind::Custom { .. }
                                 | TyKind::Array(_, _)
                                 | TyKind::Bool => {
@@ -413,7 +404,7 @@ impl<B: Backend> TypeChecker<B> {
                                         TypeInfo::new_mut(typ.kind.clone(), typ.span),
                                     )?;
                                 }
-                                TyKind::BigInt => unreachable!(),
+                                TyKind::Field { constant: true } => unreachable!(),
                                 TyKind::GenericSizedArray(_, _) => unreachable!(),
                             }
                         }

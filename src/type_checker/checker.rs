@@ -287,10 +287,16 @@ impl<B: Backend> TypeChecker<B> {
                 if lhs_node.typ != rhs_node.typ
                     && (!is_numeric(&lhs_node.typ) || !is_numeric(&rhs_node.typ))
                 {
-                    return Err(self.error(
-                        ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
-                        expr.span,
-                    ));
+                    // only allow fields
+                    match (&lhs_node.typ, &rhs_node.typ) {
+                        (TyKind::Field { .. }, TyKind::Field { .. }) => (),
+                        _ => {
+                            return Err(self.error(
+                                ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
+                                expr.span,
+                            ))
+                        }
+                    }
                 }
 
                 let typ = match op {
@@ -309,14 +315,16 @@ impl<B: Backend> TypeChecker<B> {
 
             ExprKind::Negated(inner) => {
                 let inner_typ = self.compute_type(inner, typed_fn_env)?.unwrap();
-                if !matches!(inner_typ.typ, TyKind::Field | TyKind::BigInt) {
+                if !matches!(inner_typ.typ, TyKind::Field { .. }) {
                     return Err(self.error(
-                        ErrorKind::MismatchType(TyKind::Field, inner_typ.typ),
+                        // it can be either constant or not.
+                        // here we just default it to constant for error message.
+                        ErrorKind::MismatchType(TyKind::Field { constant: true }, inner_typ.typ),
                         expr.span,
                     ));
                 }
 
-                Some(ExprTyInfo::new_anon(TyKind::Field))
+                Some(ExprTyInfo::new_anon(inner_typ.typ))
             }
 
             ExprKind::Not(inner) => {
@@ -331,7 +339,7 @@ impl<B: Backend> TypeChecker<B> {
                 Some(ExprTyInfo::new_anon(TyKind::Bool))
             }
 
-            ExprKind::BigUInt(_) => Some(ExprTyInfo::new_anon(TyKind::BigInt)),
+            ExprKind::BigUInt(_) => Some(ExprTyInfo::new_anon(TyKind::Field { constant: true })),
 
             ExprKind::Bool(_) => Some(ExprTyInfo::new_anon(TyKind::Bool)),
 
@@ -355,25 +363,14 @@ impl<B: Backend> TypeChecker<B> {
                     // if it's a variable,
                     // check if it's a constant first
                     let typ = if let Some(cst) = self.constants.get(&qualified) {
-                        // if it's a field, we need to convert it to a bigint
-                        if matches!(cst.typ.kind, TyKind::Field) {
-                            TyKind::BigInt
-                        } else {
-                            cst.typ.kind.clone()
-                        }
+                        cst.typ.kind.clone()
                     } else {
                         // otherwise it's a local variable
                         // generic parameter is also checked as a local variable
-                        let typ = typed_fn_env
+                        typed_fn_env
                             .get_type(&name.value)
                             .ok_or_else(|| self.error(ErrorKind::UndefinedVariable, name.span))?
-                            .clone();
-                        // if it's a field, we need to convert it to a bigint
-                        if matches!(typ, TyKind::Field) {
-                            TyKind::BigInt
-                        } else {
-                            typ
-                        }
+                            .clone()
                     };
 
                     let res = ExprTyInfo::new_var(name.value.clone(), typ);
@@ -393,7 +390,7 @@ impl<B: Backend> TypeChecker<B> {
                 // check that expression is a bigint
                 let idx_typ = self.compute_type(idx, typed_fn_env)?;
                 match idx_typ.map(|t| t.typ) {
-                    Some(TyKind::BigInt) => (),
+                    Some(TyKind::Field { constant: true }) => (),
                     _ => return Err(self.error(ErrorKind::ExpectedConstant, expr.span)),
                 };
 
@@ -541,13 +538,10 @@ impl<B: Backend> TypeChecker<B> {
                     .expect("expected a typed size");
 
                 if is_numeric(&size_node.typ) {
-                    // todo: see if we can determine whether the size node is generic or not
-                    // use generic array to bypass the array check, as the size node might include generic parameters.
-                    // the mast phase will resolve the size node to a constant, and check the types.
+                    // use generic array as the size node might include generic parameters or constant vars
                     let res = ExprTyInfo::new_anon(TyKind::GenericSizedArray(
                         Box::new(item_node.typ),
-                        // mock up a symbolic size
-                        Symbolic::Generic(Ident::new("x".to_string(), size.span)),
+                        Symbolic::parse(size)?,
                     ));
                     Some(res)
                 } else {
@@ -641,9 +635,11 @@ impl<B: Backend> TypeChecker<B> {
                 typed_fn_env.nest();
                 typed_fn_env.start_forloop();
 
-                // create var (for now it's always a bigint)
-                typed_fn_env
-                    .store_type(var.value.clone(), TypeInfo::new(TyKind::BigInt, var.span))?;
+                // create var (for now it's always a constant)
+                typed_fn_env.store_type(
+                    var.value.clone(),
+                    TypeInfo::new(TyKind::Field { constant: true }, var.span),
+                )?;
 
                 let start_type = self.compute_type(&range.start, typed_fn_env)?.unwrap();
                 let end_type = self.compute_type(&range.end, typed_fn_env)?.unwrap();
@@ -730,6 +726,14 @@ impl<B: Backend> TypeChecker<B> {
 
         // compare argument types with the function signature
         for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
+            // when const attribute presented, the argument must be a constant
+            if sig_arg.is_constant() && !matches!(typ, TyKind::Field { constant: true }) {
+                return Err(self.error(
+                    ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
+                    span,
+                ));
+            }
+
             if !typ.match_expected(&sig_arg.typ.kind) {
                 return Err(self.error(
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),

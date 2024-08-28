@@ -14,9 +14,6 @@ pub struct TypeInfo {
     /// If the variable can be mutated or not.
     pub mutable: bool,
 
-    /// If the variable is a constant or not.
-    pub constant: bool,
-
     /// Some type information.
     pub typ: TyKind,
 
@@ -28,7 +25,6 @@ impl TypeInfo {
     pub fn new(typ: TyKind, span: Span) -> Self {
         Self {
             mutable: false,
-            constant: false,
             typ,
             span,
         }
@@ -37,13 +33,6 @@ impl TypeInfo {
     pub fn new_mut(typ: TyKind, span: Span) -> Self {
         Self {
             mutable: true,
-            ..Self::new(typ, span)
-        }
-    }
-
-    pub fn new_cst(typ: TyKind, span: Span) -> Self {
-        Self {
-            constant: true,
             ..Self::new(typ, span)
         }
     }
