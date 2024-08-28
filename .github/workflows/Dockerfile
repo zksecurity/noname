@@ -23,5 +23,8 @@ COPY snarkjs.sh /app/snarkjs.sh
 # Ensure the script has execution permissions
 RUN chmod +x /app/snarkjs.sh
 
+# Download the ptau file
+RUN wget https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_14.ptau -O /app/pot_bn254_final.ptau
+
 # Define the entry point to run the script
-CMD ["/app/snarkjs.sh", ".", "bn254", "--new"]
+CMD ["/app/snarkjs.sh", ".", "bn254"]
