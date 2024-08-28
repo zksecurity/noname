@@ -1,6 +1,6 @@
-fn zip(a1: [Field; 3], a2: [Field; 3]) -> [[Field; 2]; 3] {
-    let mut result = [[a1[0], a1[0]], [a1[0], a1[0]], [a1[0], a1[0]]];
-    for index in 0..3 {
+fn zip(a1: [Field; LEN], a2: [Field; LEN]) -> [[Field; 2]; LEN] {
+    let mut result = [[0; 2]; LEN];
+    for index in 0..LEN {
         result[index] = [a1[index], a2[index]];
     }
     return result;
