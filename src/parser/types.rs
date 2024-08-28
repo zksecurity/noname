@@ -1057,7 +1057,20 @@ impl FunctionDef {
             // this is because the parser doesn't know if a token has a corresponding attribute
             // until it has parsed the whole token.
             if arg.is_constant() {
-                arg.typ.kind = TyKind::Field { constant: true };
+                match &mut arg.typ.kind {
+                    TyKind::Field { constant } => {
+                        *constant = true;
+                    }
+                    _ => {
+                        // for now we only allow constant fields
+                        return Err(ctx.error(
+                            ErrorKind::InvalidFunctionSignature(
+                                "only allowed to have constant fields",
+                            ),
+                            arg.span,
+                        ));
+                    }
+                }
             }
 
             args.push(arg);
