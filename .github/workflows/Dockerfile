@@ -1,16 +1,18 @@
-# Install rust 1.65 for Circom
-FROM rust:1.65.0 as circom-instaler
+# Install rust for Noname
+FROM rust as noname-installer
 
-RUN git clone https://github.com/iden3/circom.git && \
-    cd circom && \
-    cargo build --release && \
-    cargo install --path circom
+# Install Noname CLI
+RUN cargo install --git https://www.github.com/zksecurity/noname
 
-# Install Node.js 16 and npm
-RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+# Install the latest Node.js and npm
+RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - \
     && apt-get install -y nodejs \
     && npm install -g snarkjs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Set up Git configuration (Needed to run noname new)
+RUN git config --global user.name "Test User" \
+    && git config --global user.email "testuser@example.com"
 
 # Set the working directory
 WORKDIR /app
@@ -22,4 +24,4 @@ COPY snarkjs.sh /app/snarkjs.sh
 RUN chmod +x /app/snarkjs.sh
 
 # Define the entry point to run the script
-CMD ["/app/snarkjs.sh", "/app", "bn128", "--new"]
+CMD ["/app/snarkjs.sh", ".", "bn254", "--new"]
