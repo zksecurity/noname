@@ -954,7 +954,11 @@ pub fn monomorphize_stmt<B: Backend>(
 
             Some((loop_stmt_mono, None))
         }
-        StmtKind::IteratorLoop { var, iterator, body } => {
+        StmtKind::IteratorLoop {
+            var,
+            iterator,
+            body,
+        } => {
             // enter a new scope
             mono_fn_env.nest();
 

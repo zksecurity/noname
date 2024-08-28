@@ -2,11 +2,11 @@ use educe::Educe;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
-    hash::{Hash, Hasher},
+    hash::Hash,
     str::FromStr,
 };
 
-use ark_ff::{Field, Zero};
+use ark_ff::Field;
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 

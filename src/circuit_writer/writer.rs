@@ -3,9 +3,7 @@ use std::fmt::{self, Display, Formatter};
 use ark_ff::{One, Zero};
 use kimchi::circuits::wires::Wire;
 use num_bigint::BigUint;
-use num_traits::Num as _;
 use serde::{Deserialize, Serialize};
-use toml::value::Array;
 
 use crate::{
     backends::{kimchi::VestaField, Backend},
