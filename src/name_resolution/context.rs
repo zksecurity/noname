@@ -195,9 +195,10 @@ impl NameResCtx {
             }
             StmtKind::IteratorLoop {
                 var: _,
-                iterator: _,
+                iterator,
                 body,
             } => {
+                self.resolve_expr(iterator)?;
                 for stmt in body {
                     self.resolve_stmt(stmt)?;
                 }
