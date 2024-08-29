@@ -292,50 +292,50 @@ pub enum TyKind {
 }
 
 impl TyKind {
-    // Compares two `TyKind` types to determine if they match based on the `ignore_constants` flag.
+    /// Compares two `TyKind` types to determine if they match based on the `no_generic_allowed` flag.
     ///
     /// # Parameters
     /// - `expected`: The expected `TyKind` type to compare against.
-    /// - `ignore_constants`: A flag indicating whether to ignore the `constant` field in `TyKind::Field` comparisons.
+    /// - `no_generic_allowed`: A flag indicating whether to disallow matching with generic types.
     ///
     /// # Returns
-    /// - `true` if the `self` and `expected` types match according to the rules defined and the `ignore_constants` flag.
+    /// - `true` if the `self` and `expected` types match according to the rules defined and the `no_generic_allowed` flag.
     /// - `false` otherwise.
     ///
     /// # Matching Rules
-    /// - If both types are `Field`, the function compares their `constant` fields unless `ignore_constants` is `true`.
+    /// - If both types are `Field`, the function considers them a match.
     /// - For `Array` types, it checks if both the size and element types match recursively.
+    /// - For `GenericSizedArray` types:
+    ///   - If `no_generic_allowed` is `true`, the function returns `false`.
+    ///   - If `no_generic_allowed` is `false`, the function compares the element types.
     /// - For `Custom` types, it compares the `module` and `name` fields for equality.
-    /// - For other types, it uses basic equality check
-    pub fn match_expected(&self, expected: &TyKind, ignore_constants: bool) -> bool {
+    /// - For other types, it uses a basic equality check.
+    pub fn match_expected(&self, expected: &TyKind, no_generic_allowed: bool) -> bool {
         match (self, expected) {
-            (TyKind::Field { constant: c1 }, TyKind::Field { constant: c2 }) => {
-                ignore_constants || c1 == c2
-            },
+            (TyKind::Field { .. }, TyKind::Field { .. }) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
-                lhs_size == rhs_size && lhs.match_expected(rhs, ignore_constants)
-            },
+                lhs_size == rhs_size && lhs.match_expected(rhs, no_generic_allowed)
+            }
+            (TyKind::GenericSizedArray(lhs, _), TyKind::GenericSizedArray(rhs, _))
+            | (TyKind::Array(lhs, _), TyKind::GenericSizedArray(rhs, _))
+            | (TyKind::GenericSizedArray(lhs, _), TyKind::Array(rhs, _)) => {
+                if no_generic_allowed {
+                    false
+                } else {
+                    lhs.match_expected(rhs, no_generic_allowed)
+                }
+            }
             (
                 TyKind::Custom { module, name },
                 TyKind::Custom {
                     module: expected_module,
                     name: expected_name,
                 },
-            ) => {
-                module == expected_module && name == expected_name
-            },
-            (TyKind::GenericSizedArray(lhs, _), TyKind::GenericSizedArray(rhs, _))
-            | (TyKind::Array(lhs, _), TyKind::GenericSizedArray(rhs, _))
-            | (TyKind::GenericSizedArray(lhs, _), TyKind::Array(rhs, _)) => {
-                lhs.match_expected(rhs, ignore_constants)
-            },
-            (TyKind::Bool, TyKind::Bool) => true,
+            ) => module == expected_module && name == expected_name,
+            (x, y) if x == y => true,
             _ => false,
         }
     }
-        
-    
-
     /// Recursively extract generic parameters from GenericArray type
     /// it should be able to extract generic parameter 'N' 'M' from [[Field; N], M]
     pub fn extract_generics(&self) -> HashSet<String> {
