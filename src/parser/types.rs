@@ -309,36 +309,32 @@ impl TyKind {
     /// - For other types, it uses basic equality check
     pub fn match_expected(&self, expected: &TyKind, ignore_constants: bool) -> bool {
         match (self, expected) {
-            // Always return true for Field types, considering ignore_constants
-            (TyKind::Field { .. }, TyKind::Field { .. }) => true,
-
-            // Array type comparison considering size and type
+            (TyKind::Field { constant: c1 }, TyKind::Field { constant: c2 }) => {
+                ignore_constants || c1 == c2
+            },
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
                 lhs_size == rhs_size && lhs.match_expected(rhs, ignore_constants)
-            }
-
-            // Handle generic arrays as well
-            (TyKind::GenericSizedArray(lhs, _), TyKind::GenericSizedArray(rhs, _))
-            | (TyKind::Array(lhs, _), TyKind::GenericSizedArray(rhs, _))
-            | (TyKind::GenericSizedArray(lhs, _), TyKind::Array(rhs, _)) => {
-                lhs.match_expected(rhs, ignore_constants)
-            }
-
-            // Custom type comparison by module and name
+            },
             (
                 TyKind::Custom { module, name },
                 TyKind::Custom {
                     module: expected_module,
                     name: expected_name,
                 },
-            ) => module == expected_module && name == expected_name,
-
-            // Fallback to basic equality check
-            (x, y) if x == y => true,
-
+            ) => {
+                module == expected_module && name == expected_name
+            },
+            (TyKind::GenericSizedArray(lhs, _), TyKind::GenericSizedArray(rhs, _))
+            | (TyKind::Array(lhs, _), TyKind::GenericSizedArray(rhs, _))
+            | (TyKind::GenericSizedArray(lhs, _), TyKind::Array(rhs, _)) => {
+                lhs.match_expected(rhs, ignore_constants)
+            },
+            (TyKind::Bool, TyKind::Bool) => true,
             _ => false,
         }
     }
+        
+    
 
     /// Recursively extract generic parameters from GenericArray type
     /// it should be able to extract generic parameter 'N' 'M' from [[Field; N], M]
