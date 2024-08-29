@@ -84,5 +84,5 @@ or you can test a full run with:
 $ noname test
 ```
 
-which will attempt to create a proof and verify it. See the [examples](#examples) section to see how to use it.
+which will attempt to create a proof and verify it. See the [examples](https://github.com/zksecurity/noname/tree/main/examples) folder to see how to use it.
 
