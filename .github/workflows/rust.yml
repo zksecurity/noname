@@ -63,7 +63,7 @@ jobs:
       #
 
       - name: Build Docker image
-        run: docker build -t snarkjs .github/workflows/
+        run: docker build -t snarkjs -f .github/workflows/Dockerfile .
 
       - name: Run Docker container
         run: docker run --rm snarkjs
