@@ -664,4 +664,3 @@ fn test_generic_iterator(#[case] backend: BackendKind) -> miette::Result<()> {
 
     Ok(())
 }
-
