@@ -179,7 +179,7 @@ impl<B: Backend> CircuitWriter<B> {
                 iterator,
                 body,
             } => {
-                let iterator_expr = self
+                let iterator_var = self
                     .compute_expr(fn_env, iterator)?
                     .expect("array access on non-array");
 
@@ -205,7 +205,7 @@ impl<B: Backend> CircuitWriter<B> {
 
                     // add the variable to the inner enviroment corresponding
                     // to iterator[idx]
-                    let indexed_var = iterator_expr.narrow(start, len).value(self, fn_env);
+                    let indexed_var = iterator_var.narrow(start, len).value(self, fn_env);
                     let var_info =
                         VarInfo::new(indexed_var.clone(), false, Some(*elem_type.clone()));
                     self.add_local_var(fn_env, var.value.clone(), var_info);

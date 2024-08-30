@@ -971,7 +971,7 @@ pub fn monomorphize_stmt<B: Backend>(
 
             mono_fn_env.store_type(
                 &var.value,
-                &MTypeInfo::new(&array_element_type, var.span, None),
+                &MTypeInfo::new(array_element_type, var.span, None),
             )?;
 
             let (stmts_mono, _) = monomorphize_block(ctx, mono_fn_env, body, None)?;
