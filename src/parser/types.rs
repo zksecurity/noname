@@ -292,35 +292,38 @@ pub enum TyKind {
 }
 
 impl TyKind {
-    /// A less strict checks when comparing with generic types.
-    pub fn match_expected(&self, expected: &TyKind) -> bool {
+    /// Compares two `TyKind` types to determine if they match based on the `no_generic_allowed` flag.
+    ///
+    /// # Parameters
+    /// - `expected`: The expected `TyKind` type to compare against.
+    /// - `no_generic_allowed`: A flag indicating whether to disallow matching with generic types.
+    ///
+    /// # Returns
+    /// - `true` if the `self` and `expected` types match according to the rules defined and the `no_generic_allowed` flag.
+    /// - `false` otherwise.
+    ///
+    /// # Matching Rules
+    /// - If both types are `Field`, the function considers them a match.
+    /// - For `Array` types, it checks if both the size and element types match recursively.
+    /// - For `GenericSizedArray` types:
+    ///   - If `no_generic_allowed` is `true`, the function returns `false`.
+    ///   - If `no_generic_allowed` is `false`, the function compares the element types.
+    /// - For `Custom` types, it compares the `module` and `name` fields for equality.
+    /// - For other types, it uses a basic equality check.
+    pub fn match_expected(&self, expected: &TyKind, no_generic_allowed: bool) -> bool {
         match (self, expected) {
             (TyKind::Field { .. }, TyKind::Field { .. }) => true,
             (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
-                lhs_size == rhs_size && lhs.match_expected(rhs)
+                lhs_size == rhs_size && lhs.match_expected(rhs, no_generic_allowed)
             }
-            // the checks on the generic arrays can be done in MAST
             (TyKind::GenericSizedArray(lhs, _), TyKind::GenericSizedArray(rhs, _))
             | (TyKind::Array(lhs, _), TyKind::GenericSizedArray(rhs, _))
-            | (TyKind::GenericSizedArray(lhs, _), TyKind::Array(rhs, _)) => lhs.match_expected(rhs),
-            (
-                TyKind::Custom { module, name },
-                TyKind::Custom {
-                    module: expected_module,
-                    name: expected_name,
-                },
-            ) => module == expected_module && name == expected_name,
-            (x, y) if x == y => true,
-            _ => false,
-        }
-    }
-
-    /// An exact match check, assuming there is no generic type.
-    pub fn same_as(&self, other: &TyKind) -> bool {
-        match (self, other) {
-            (TyKind::Field { .. }, TyKind::Field { .. }) => true,
-            (TyKind::Array(lhs, lhs_size), TyKind::Array(rhs, rhs_size)) => {
-                lhs_size == rhs_size && lhs.same_as(rhs)
+            | (TyKind::GenericSizedArray(lhs, _), TyKind::Array(rhs, _)) => {
+                if no_generic_allowed {
+                    false
+                } else {
+                    lhs.match_expected(rhs, no_generic_allowed)
+                }
             }
             (
                 TyKind::Custom { module, name },
@@ -333,7 +336,6 @@ impl TyKind {
             _ => false,
         }
     }
-
     /// Recursively extract generic parameters from GenericArray type
     /// it should be able to extract generic parameter 'N' 'M' from [[Field; N], M]
     pub fn extract_generics(&self) -> HashSet<String> {
