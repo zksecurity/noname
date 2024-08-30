@@ -269,3 +269,20 @@ fn test_array_bounds() {
         ErrorKind::ArrayIndexOutOfBounds(..)
     ));
 }
+
+#[test]
+fn test_iterator_type() {
+    let code: &str = r#"
+        fn main(pub xx: Field) {
+            for ii in xx {
+                assert_eq(ii, 3);
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::InvalidIteratorType(..)
+    ));
+}
