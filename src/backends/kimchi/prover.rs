@@ -239,9 +239,18 @@ mod tests {
     use kimchi::circuits::constraints::GateError;
 
     use crate::{
-        backends::kimchi::{KimchiVesta, VestaField},
+        backends::{
+            kimchi::{KimchiVesta, VestaField},
+            r1cs::arkworks::{
+                ASM_SNAPSHOT_TEST, ASM_SNAPSHOT_TEST_ADDITION, ASM_SNAPSHOT_TEST_BOOL,
+                ASM_SNAPSHOT_TEST_MULTIPLICATION, BOOLEAN_AND_OR, BOOLEAN_NOT, CONSTRAINT_FAILURE,
+                FIELD_ADDITION_SUBTRACTION, FIELD_MULTIPLICATION, SIMPLE_ADDITION,
+                TEST_BUILTIN_ASSERT_EQ_FALSE, TEST_BUILTIN_ASSERT_EQ_TRUE,
+                TEST_BUILTIN_ASSERT_FALSE, TEST_BUILTIN_ASSERT_TRUE, WITH_PUBLIC_OUTPUT_ARRAY,
+            },
+        },
         compiler::{compile, generate_witness, typecheck_next_file, Sources},
-        inputs::parse_inputs,
+        inputs::{parse_inputs, JsonInputs},
         type_checker::TypeChecker,
     };
 
@@ -358,6 +367,611 @@ mod tests {
             }
             _ => panic!("Expected incorrect generic gate error"),
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_kimchi_cs_is_satisfied() {
+        let code = SIMPLE_ADDITION;
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let _node_id = typecheck_next_file(
+            &mut tast,
+            None,
+            &mut sources,
+            "main.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta).unwrap();
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let inputs_public = parse_inputs(r#"{"public_input": "2"}"#).unwrap();
+        let inputs_private = parse_inputs(r#"{"private_input": "2"}"#).unwrap();
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            inputs_public,
+            inputs_private,
+        )
+        .unwrap();
+
+        prover_index
+            .index
+            .verify(
+                &generated_witness.all_witness.to_kimchi_witness(),
+                &generated_witness.full_public_inputs,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_kimchi_cs_is_satisfied_array() {
+        let code = WITH_PUBLIC_OUTPUT_ARRAY;
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let _node_id = typecheck_next_file(
+            &mut tast,
+            None,
+            &mut sources,
+            "main.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta).unwrap();
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let inputs_public = parse_inputs(r#"{"public_input": ["2", "5"]}"#).unwrap();
+        let inputs_private = parse_inputs(r#"{"private_input": ["8", "2"]}"#).unwrap();
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            inputs_public,
+            inputs_private,
+        )
+        .unwrap();
+
+        prover_index
+            .index
+            .verify(
+                &generated_witness.all_witness.to_kimchi_witness(),
+                &generated_witness.full_public_inputs,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_kimchi_constraint_failure() {
+        let code = CONSTRAINT_FAILURE;
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let _node_id = typecheck_next_file(
+            &mut tast,
+            None,
+            &mut sources,
+            "main.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta).unwrap();
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let inputs_public = parse_inputs(r#"{"public_input": "2"}"#).unwrap();
+        let inputs_private = parse_inputs(r#"{"private_input": "2"}"#).unwrap();
+
+        let result = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            inputs_public,
+            inputs_private,
+        );
+
+        assert!(
+            result.is_err(),
+            "Expected witness generation to fail, but it succeeded"
+        );
+    }
+
+    #[test]
+    fn test_kimchi_field_addition_subtraction() {
+        let code = FIELD_ADDITION_SUBTRACTION;
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let _node_id = typecheck_next_file(
+            &mut tast,
+            None,
+            &mut sources,
+            "main.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta).unwrap();
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let inputs_public = parse_inputs(r#"{"public_input": "5"}"#).unwrap();
+        let inputs_private = parse_inputs(r#"{"private_input": "3"}"#).unwrap();
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            inputs_public,
+            inputs_private,
+        )
+        .unwrap();
+
+        prover_index
+            .index
+            .verify(
+                &generated_witness.all_witness.to_kimchi_witness(),
+                &generated_witness.full_public_inputs,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_kimchi_field_multiplication() {
+        let code = FIELD_MULTIPLICATION;
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let _node_id = typecheck_next_file(
+            &mut tast,
+            None,
+            &mut sources,
+            "main.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta).unwrap();
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let inputs_public = parse_inputs(r#"{"public_input": "6"}"#).unwrap();
+        let inputs_private = parse_inputs(r#"{"private_input": "7"}"#).unwrap();
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            inputs_public,
+            inputs_private,
+        )
+        .unwrap();
+
+        prover_index
+            .index
+            .verify(
+                &generated_witness.all_witness.to_kimchi_witness(),
+                &generated_witness.full_public_inputs,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_kimchi_boolean_and_or() {
+        let code = BOOLEAN_AND_OR;
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let _node_id = typecheck_next_file(
+            &mut tast,
+            None,
+            &mut sources,
+            "main.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta).unwrap();
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let inputs_public = parse_inputs(r#"{"public_input": "1"}"#).unwrap();
+        let inputs_private = parse_inputs(r#"{"private_input": "0"}"#).unwrap();
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            inputs_public,
+            inputs_private,
+        )
+        .unwrap();
+
+        prover_index
+            .index
+            .verify(
+                &generated_witness.all_witness.to_kimchi_witness(),
+                &generated_witness.full_public_inputs,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_kimchi_boolean_not() {
+        let code = BOOLEAN_NOT;
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let _node_id = typecheck_next_file(
+            &mut tast,
+            None,
+            &mut sources,
+            "main.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta).unwrap();
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let inputs_public = parse_inputs(r#"{"public_input": "0"}"#).unwrap();
+        let inputs_private = parse_inputs(r#"{"private_input": "1"}"#).unwrap();
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            inputs_public,
+            inputs_private,
+        )
+        .unwrap();
+
+        prover_index
+            .index
+            .verify(
+                &generated_witness.all_witness.to_kimchi_witness(),
+                &generated_witness.full_public_inputs,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_builtin_assert_true() -> Result<(), Box<dyn std::error::Error>> {
+        let code = TEST_BUILTIN_ASSERT_TRUE;
+
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        typecheck_next_file(
+            &mut tast,
+            None,
+            &mut sources,
+            "inline_test.no".to_string(),
+            code.to_owned(),
+            0,
+        )?;
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes()?;
+
+        let inputs_private = r#"{"input": "1"}"#;
+        let json_private = parse_inputs(inputs_private)?;
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            JsonInputs::default(),
+            json_private,
+        )?;
+
+        // Handle the GateError by converting it to a string using the Debug trait
+        prover_index
+            .index
+            .verify(
+                &generated_witness.all_witness.to_kimchi_witness(),
+                &generated_witness.full_public_inputs,
+            )
+            .map_err(|err| Box::<dyn std::error::Error>::from(format!("{:?}", err)))?;
+
+        Ok(())
+    }
+
+    #[test]
+    #[should_panic(expected = "Looks like something went wrong in runtime")]
+    fn test_builtin_assert_false() {
+        let code = TEST_BUILTIN_ASSERT_FALSE;
+
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        typecheck_next_file(
+            &mut tast,
+            None,
+            &mut sources,
+            "inline_test.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta).unwrap();
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let inputs_private = r#"{"input": "1"}"#;
+        let json_private = parse_inputs(inputs_private).unwrap();
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            JsonInputs::default(),
+            json_private,
+        )
+        .unwrap();
+
+        prover_index
+            .index
+            .verify(
+                &generated_witness.all_witness.to_kimchi_witness(),
+                &generated_witness.full_public_inputs,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_builtin_assert_eq_true() {
+        let code = TEST_BUILTIN_ASSERT_EQ_TRUE;
+
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let this_module = None;
+        typecheck_next_file(
+            &mut tast,
+            this_module,
+            &mut sources,
+            "inline_test.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta).unwrap();
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let private_inputs = parse_inputs(r#"{"input": "1"}"#).unwrap();
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            JsonInputs::default(),
+            private_inputs,
+        )
+        .unwrap();
+
+        prover_index
+            .index
+            .verify(
+                &generated_witness.all_witness.to_kimchi_witness(),
+                &generated_witness.full_public_inputs,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Looks like something went wrong in constraint-generation")]
+    fn test_builtin_assert_eq_false() {
+        let code = TEST_BUILTIN_ASSERT_EQ_FALSE;
+
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let this_module = None;
+        typecheck_next_file(
+            &mut tast,
+            this_module,
+            &mut sources,
+            "inline_test.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta).unwrap();
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let public_inputs = parse_inputs(r#"{"input_value": "1"}"#).unwrap();
+        let private_inputs = parse_inputs(r#"{}"#).unwrap();
+
+        let generated_witness = generate_witness(
+            &prover_index.compiled_circuit,
+            &sources,
+            public_inputs,
+            private_inputs,
+        )
+        .unwrap();
+
+        prover_index
+            .index
+            .verify(
+                &generated_witness.all_witness.to_kimchi_witness(),
+                &generated_witness.full_public_inputs,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_asm_snapshot() -> miette::Result<()> {
+        let code = ASM_SNAPSHOT_TEST;
+
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let this_module = None;
+        let _node_id = typecheck_next_file(
+            &mut tast,
+            this_module,
+            &mut sources,
+            "inline_test_output.no".to_string(),
+            code.to_owned(),
+            0,
+        )
+        .unwrap();
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let asm_output = prover_index.asm(&sources, false);
+
+        let expected_asm_output = r#"@ noname.0.7.0
+
+DoubleGeneric<1>
+DoubleGeneric<1>
+DoubleGeneric<1,1,-1>
+DoubleGeneric<1,0,0,0,-2>
+DoubleGeneric<1,0,-1,0,6>
+DoubleGeneric<1,-1>
+(0,0) -> (5,0)
+(1,0) -> (2,1)
+(2,2) -> (3,0) -> (4,0)
+(4,2) -> (5,1)"#;
+
+        // Compare the generated ASM output with the expected one
+        assert_eq!(asm_output.trim(), expected_asm_output.trim());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_asm_snapshot_addition() -> miette::Result<()> {
+        let code = ASM_SNAPSHOT_TEST_ADDITION;
+
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let this_module = None;
+        typecheck_next_file(
+            &mut tast,
+            this_module,
+            &mut sources,
+            "inline_test.no".to_string(),
+            code.to_owned(),
+            0,
+        )?;
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let asm_output = prover_index.asm(&sources, false);
+
+        let expected_asm_output = r#"@ noname.0.7.0
+
+DoubleGeneric<1>
+DoubleGeneric<1>
+DoubleGeneric<1,1,-1>
+DoubleGeneric<1,-1>
+(0,0) -> (3,0)
+(1,0) -> (2,1)
+(2,2) -> (3,1)"#;
+
+        assert_eq!(asm_output.trim(), expected_asm_output.trim());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_asm_snapshot_multiplication() -> miette::Result<()> {
+        let code = ASM_SNAPSHOT_TEST_MULTIPLICATION;
+
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let this_module = None;
+        typecheck_next_file(
+            &mut tast,
+            this_module,
+            &mut sources,
+            "inline_test.no".to_string(),
+            code.to_owned(),
+            0,
+        )?;
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let asm_output = prover_index.asm(&sources, false);
+
+        let expected_asm_output = r#"@ noname.0.7.0
+
+DoubleGeneric<1>
+DoubleGeneric<1>
+DoubleGeneric<0,0,-1,1>
+DoubleGeneric<1,-1>
+(0,0) -> (3,0)
+(1,0) -> (2,1)
+(2,2) -> (3,1)"#;
+
+        assert_eq!(asm_output.trim(), expected_asm_output.trim());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_asm_snapshot_bool() -> miette::Result<()> {
+        let code = ASM_SNAPSHOT_TEST_BOOL;
+
+        let mut sources = Sources::new();
+        let mut tast = TypeChecker::new();
+        let this_module = None;
+        typecheck_next_file(
+            &mut tast,
+            this_module,
+            &mut sources,
+            "inline_test.no".to_string(),
+            code.to_owned(),
+            0,
+        )?;
+
+        let kimchi_vesta = KimchiVesta::new(false);
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+
+        let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
+
+        let asm_output = prover_index.asm(&sources, false);
+
+        let expected_asm_output = r#"@ noname.0.7.0
+
+DoubleGeneric<1>
+DoubleGeneric<1>
+DoubleGeneric<1,1>
+DoubleGeneric<1,1,-1>
+DoubleGeneric<0,0,-1,1>
+DoubleGeneric<1,-1>
+(0,0) -> (5,0)
+(1,0) -> (3,0)
+(2,1) -> (3,1)
+(3,2) -> (4,0) -> (4,1)
+(4,2) -> (5,1)"#;
+
+        assert_eq!(asm_output.trim(), expected_asm_output.trim());
 
         Ok(())
     }
