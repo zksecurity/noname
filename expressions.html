@@ -257,6 +257,29 @@ Not leaving us enough information to modify the variables of <code>x</code> in o
 <li>if the variable is mutable or not (it was defined with the <code>mut</code> keyword)</li>
 <li>the range of circuit variables in the <code>Var.cvars</code> of <code>x</code>, that the <code>x.y.z</code> field access, or the <code>x[42]</code> array access, represents.</li>
 </ul>
+<h2 id="varorref-overview"><a class="header" href="#varorref-overview"><code>VarOrRef</code> Overview</a></h2>
+<p>The VarOrRef enum is used to represent either a variable or a reference to a variable within expressions.
+Here is a concise overview:</p>
+<pre><code>pub enum VarOrRef&lt;B: Backend&gt; {
+    /// A variable.
+    Var(Var&lt;B::Field, B::Var&gt;),
+
+    /// A reference to a variable, potentially narrowing down to a range within it.
+    Ref {
+        var_name: String,
+        start: usize,
+        len: usize,
+    },
+}
+</code></pre>
+<p><code>Var</code>: Represents a complete variable in the environment.</p>
+<p><code>Ref</code>: Represents a reference to a variable, including:</p>
+<ul>
+<li><code>var_name</code>: The name of the variable.</li>
+<li><code>start</code>: The starting index of the slice or field.</li>
+<li><code>len</code>: The length of the slice or field.</li>
+</ul>
+<p>Every expression node in the AST is resolved as a <code>VarOrRef</code>, an enum that represents either a variable, or a reference to a variable.  The sole reason to use a reference is when the variable is <strong>mutable</strong>, in which case you must be able to go to the list of variables present in the scope and mutate the correct one (so that if some logic tries to mutate it, it can). That’s why, a <code>var_name</code> is stored in a reference. We also pass a <code>(start, len)</code> tuple to handle <strong>mutable slices</strong>. As we need to remember exactly where we are in the original array. As a slice is a narrowing of an array, we must not lose track of which array we were looking at originally (as this is what needs to be mutated). This ensures accurate modification of the variable’s state, maintaining the integrity of the mutable references.</p>
 <h3 id="circuit-writer"><a class="header" href="#circuit-writer">Circuit writer</a></h3>
 <p>To implement this in the circuit writer, we follow a common practice of tracking <strong>references</strong>:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
