@@ -269,3 +269,55 @@ fn test_array_bounds() {
         ErrorKind::ArrayIndexOutOfBounds(..)
     ));
 }
+
+#[test]
+fn test_iterator_type() {
+    let code: &str = r#"
+        fn main(pub xx: Field) {
+            for ii in xx {
+                assert_eq(ii, 3);
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::InvalidIteratorType(..)
+    ));
+}
+
+#[test]
+fn test_iterator_variable_immutable() {
+    let code: &str = r#"
+        fn main(pub arr: [Field; 3]) {
+            for elem in arr {
+                elem = 1;
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::AssignmentToImmutableVariable
+    ));
+}
+
+#[test]
+fn test_iterator_variable_redefinition() {
+    let code: &str = r#"
+        fn main(pub arr: [Field; 3]) {
+            let mut var = 5;
+            for var in arr {
+                assert_eq(var, 1);
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::DuplicateDefinition(..)
+    ));
+}

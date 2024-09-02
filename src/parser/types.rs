@@ -2,11 +2,11 @@ use educe::Educe;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
-    hash::{Hash, Hasher},
+    hash::Hash,
     str::FromStr,
 };
 
-use ark_ff::{Field, Zero};
+use ark_ff::Field;
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
@@ -1238,6 +1238,12 @@ pub struct Range {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ForLoopArgument {
+    Range(Range),
+    Iterator(Box<Expr>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub span: Span,
@@ -1260,9 +1266,53 @@ pub enum StmtKind {
         range: Range,
         body: Vec<Stmt>,
     },
+
+    // `for item in vec { <body> }`
+    IteratorLoop {
+        var: Ident,
+        iterator: Box<Expr>,
+        body: Vec<Stmt>,
+    },
 }
 
 impl Stmt {
+    /// Parse the argument in the for loop
+    /// if can be either a numerical range n..m or an array.
+    fn parse_for_argument(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<ForLoopArgument> {
+        // for i in arg { ... }
+        //          ^
+        let start = Expr::parse(ctx, tokens)?;
+
+        // if the next token is DoubleDot, then it's a range
+        // otherwise just return the start expression as the iterator argument
+        match tokens.peek() {
+            Some(Token {
+                kind: TokenKind::DoubleDot,
+                ..
+            }) => {
+                // for i in 0..5 { ... }
+                //           ^^
+                tokens.bump_expected(ctx, TokenKind::DoubleDot)?;
+
+                // for i in 0..5 { ... }
+                //             ^
+                let end = Expr::parse(ctx, tokens)?;
+
+                let start_span = start.span;
+                let end_span = end.span;
+
+                let range = Range {
+                    start,
+                    end,
+                    span: start_span.merge_with(end_span),
+                };
+
+                Ok(ForLoopArgument::Range(range))
+            }
+            _ => Ok(ForLoopArgument::Iterator(Box::new(start))),
+        }
+    }
+
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         match tokens.peek() {
@@ -1315,47 +1365,28 @@ impl Stmt {
                 })
             }
 
-            // for loop
+            // for loop, can be either a range or an iterator
             Some(Token {
                 kind: TokenKind::Keyword(Keyword::For),
                 span,
             }) => {
                 tokens.bump(ctx);
 
-                // for i in 0..5 { ... }
+                // for i in arg { ... }
                 //     ^
                 let var = Ident::parse(ctx, tokens)?;
 
-                // for i in 0..5 { ... }
+                // for i in arg { ... }
                 //       ^^
                 tokens.bump_expected(ctx, TokenKind::Keyword(Keyword::In))?;
 
-                // for i in 0..5 { ... }
-                //          ^
-                let start = Expr::parse(ctx, tokens)?;
+                let argument = Self::parse_for_argument(ctx, tokens)?;
 
-                // for i in 0..5 { ... }
-                //           ^^
-                tokens.bump_expected(ctx, TokenKind::DoubleDot)?;
-
-                // for i in 0..5 { ... }
-                //             ^
-                let end = Expr::parse(ctx, tokens)?;
-
-                let start_span = start.span;
-                let end_span = end.span;
-
-                let range = Range {
-                    start,
-                    end,
-                    span: start_span.merge_with(end_span),
-                };
-
-                // for i in 0..5 { ... }
+                // for i in arg { ... }
                 //               ^
                 tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
 
-                // for i in 0..5 { ... }
+                // for i in arg { ... }
                 //                 ^^^
                 let mut body = vec![];
 
@@ -1382,10 +1413,20 @@ impl Stmt {
                 }
 
                 //
-                Ok(Stmt {
-                    kind: StmtKind::ForLoop { var, range, body },
-                    span,
-                })
+                match argument {
+                    ForLoopArgument::Range(range) => Ok(Stmt {
+                        kind: StmtKind::ForLoop { var, range, body },
+                        span,
+                    }),
+                    ForLoopArgument::Iterator(iterator) => Ok(Stmt {
+                        kind: StmtKind::IteratorLoop {
+                            var,
+                            iterator,
+                            body,
+                        },
+                        span,
+                    }),
+                }
             }
 
             // if/else

@@ -1,0 +1,16 @@
+fn zip(a1: [Field; LEN], a2: [Field; LEN]) -> [[Field; 2]; LEN] {
+    let mut result = [[0; 2]; LEN];
+    for index in 0..LEN {
+        result[index] = [a1[index], a2[index]];
+    }
+    return result;
+}
+
+fn main(pub arr: [Field; 3]) -> Field {
+    let expected = [1, 2, 3];
+    for pair in zip(arr, expected) {
+        assert_eq(pair[0], pair[1]);
+    }
+
+    return arr[0];
+}
