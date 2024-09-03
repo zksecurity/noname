@@ -15,55 +15,50 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Check for changelog changes
-        id: changelog_check
+      - name: Parse latest version from changelog
+        id: parse_version
         run: |
-          # Get the latest tag
-          latest_tag=$(git describe --tags --abbrev=0)
-          # Get the commit hash of the latest tag
-          latest_commit=$(git rev-list -n 1 $latest_tag)
-          # Compare changelog file
-          if git diff --name-only $latest_commit HEAD | grep -q '^CHANGELOG.md$'; then
-            echo "CHANGELOG.md has been updated."
-            echo "::set-output name=needs_release::true"
-          else
-            echo "No changes in CHANGELOG.md."
+          # Extract the latest version from the changelog
+          latest_version=$(grep -oP '## \[\K[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | head -n 1)
+          echo "Latest version from changelog: $latest_version"
+          echo "::set-output name=latest_version::$latest_version"
+
+      - name: Get the latest release version
+        id: get_latest_release
+        run: |
+          latest_release=$(gh release list --limit 1 | grep -oP '^v\K[0-9]+\.[0-9]+\.[0-9]+')
+          echo "Latest release version: $latest_release"
+          echo "::set-output name=latest_release::$latest_release"
+
+      - name: Determine if a new release is needed
+        id: check_release
+        run: |
+          if [ "${{ steps.parse_version.outputs.latest_version }}" == "${{ steps.get_latest_release.outputs.latest_release }}" ]; then
+            echo "No new version to release."
             echo "::set-output name=needs_release::false"
+          else
+            echo "New version found. Release needed."
+            echo "::set-output name=needs_release::true"
           fi
 
-      - name: Generate New Version Tag
-        if: steps.changelog_check.outputs.needs_release == 'true'
-        id: generate_version_tag
-        run: |
-          # Get the latest version tag
-          latest_tag=$(git describe --tags --abbrev=0)
-          # Increment version number
-          major=$(echo $latest_tag | cut -d. -f1 | tr -d 'v')
-          minor=$(echo $latest_tag | cut -d. -f2)
-          patch=$(echo $latest_tag | cut -d. -f3)
-          new_patch=$((patch + 1))
-          new_version="v${major}.${minor}.${new_patch}"
-          echo "New version tag: $new_version"
-          echo "::set-output name=version_tag::$new_version"
-
-      - name: Build
-        if: steps.changelog_check.outputs.needs_release == 'true'
+      - name: Build the Project
+        if: steps.check_release.outputs.needs_release == 'true'
         run: cargo build --release
 
       - name: Install GitHub CLI
-        if: steps.changelog_check.outputs.needs_release == 'true'
+        if: steps.check_release.outputs.needs_release == 'true'
         run: sudo apt-get install gh
 
       - name: Authenticate GitHub CLI
-        if: steps.changelog_check.outputs.needs_release == 'true'
-        run: gh auth login --with-token < ${{ secrets.GITHUB_TOKEN }}
+        if: steps.check_release.outputs.needs_release == 'true'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
       - name: Create Release
-        if: steps.changelog_check.outputs.needs_release == 'true'
+        if: steps.check_release.outputs.needs_release == 'true'
         run: |
-          gh release create ${{ steps.generate_version_tag.outputs.version_tag }} target/release/noname --title "Release ${{ steps.generate_version_tag.outputs.version_tag }}"
-          
+          gh release create v${{ steps.parse_version.outputs.latest_version }} target/release/noname --title "Release v${{ steps.parse_version.outputs.latest_version }}"
+
       - name: Upload assets
-        if: steps.changelog_check.outputs.needs_release == 'true'
+        if: steps.check_release.outputs.needs_release == 'true'
         run: |
-          gh release upload ${{ steps.generate_version_tag.outputs.version_tag }} target/release/noname --clobber
+          gh release upload v${{ steps.parse_version.outputs.latest_version }} target/release/noname --clobber
