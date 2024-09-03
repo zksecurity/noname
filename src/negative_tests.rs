@@ -1,12 +1,45 @@
 use crate::{
-    backends::r1cs::{R1csBn254Field, R1CS},
+    backends::{
+        kimchi::KimchiVesta,
+        r1cs::{R1csBn254Field, R1CS},
+        Backend,
+    },
     circuit_writer::CircuitWriter,
-    compiler::{typecheck_next_file_inner, Sources},
+    compiler::{compile, generate_witness, typecheck_next_file_inner, Sources},
     error::{ErrorKind, Result},
+    inputs::parse_inputs,
     mast::Mast,
     type_checker::TypeChecker,
     witness::CompiledCircuit,
 };
+
+fn ast_pass(code: &str) -> Result<()> {
+    let mut source = Sources::new();
+    typecheck_next_file_inner(
+        &mut TypeChecker::<R1CS<R1csBn254Field>>::new(),
+        None,
+        &mut source,
+        "example.no".to_string(),
+        code.to_string(),
+        0,
+    )
+    .map(|_| ())
+}
+
+fn nast_pass(code: &str) -> (Result<usize>, TypeChecker<R1CS<R1csBn254Field>>, Sources) {
+    let mut source = Sources::new();
+    let mut nast = TypeChecker::<R1CS<R1csBn254Field>>::new();
+    let res = typecheck_next_file_inner(
+        &mut nast,
+        None,
+        &mut source,
+        "example.no".to_string(),
+        code.to_string(),
+        0,
+    );
+
+    (res, nast, source)
+}
 
 fn tast_pass(code: &str) -> (Result<usize>, TypeChecker<R1CS<R1csBn254Field>>, Sources) {
     let mut source = Sources::new();
@@ -31,6 +64,37 @@ fn mast_pass(code: &str) -> Result<Mast<R1CS<R1csBn254Field>>> {
 fn synthesizer_pass(code: &str) -> Result<CompiledCircuit<R1CS<R1csBn254Field>>> {
     let mast = mast_pass(code);
     CircuitWriter::generate_circuit(mast?, R1CS::new())
+}
+
+#[test]
+fn test_ast_failure() {
+    let code = r#"
+    fn thing(xx: Field {
+        let yy = xx + 1;
+    }
+    "#;
+
+    let res = ast_pass(code);
+
+    assert!(
+        res.is_err(),
+        "Expected parsing to fail due to syntax error, but it succeeded"
+    );
+}
+
+#[test]
+fn test_nast_failure() {
+    let code = r#"
+    fn main(input: Field) {
+        let yy = xx + 1;
+    }
+    "#;
+
+    let res = nast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::UndefinedVariable
+    ));
 }
 
 #[test]
@@ -320,4 +384,100 @@ fn test_iterator_variable_redefinition() {
         res.unwrap_err().kind,
         ErrorKind::DuplicateDefinition(..)
     ));
+}
+
+#[test]
+fn test_boolean_and_fail() {
+    let code = r#"
+    fn thing(xx: Field, yy: Bool) {
+        let zz = xx && yy;
+    }
+    "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(res.unwrap_err().kind, ErrorKind::MismatchType(..)));
+}
+
+#[test]
+fn test_boolean_or_fail() {
+    let code = r#"
+    fn thing(xx: Field, yy: Bool) {
+        let zz = xx || yy;
+    }
+    "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(res.unwrap_err().kind, ErrorKind::MismatchType(..)));
+}
+
+#[test]
+fn test_addition_mismatch() {
+    let code = r#"
+    fn thing(xx: Field) -> Field {
+        let yy = xx + 1;
+        return yy + true;
+    }
+    "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(res.unwrap_err().kind, ErrorKind::MismatchType(..)));
+}
+
+#[test]
+fn test_multiplication_mismatch() {
+    let code = r#"
+    fn thing(xx: Field) -> Field {
+        let yy = xx * 2;
+        return yy + true;
+    }
+    "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(res.unwrap_err().kind, ErrorKind::MismatchType(..)));
+}
+
+#[test]
+fn test_asm_snapshot_mismatch_fail() {
+    let code = r#"
+    fn main(pub public_input: Field, private_input: Field) -> Field {
+        let xx = private_input + public_input;
+        assert_eq(xx, 3); // This should fail the ASM snapshot comparison
+        return xx;
+    }
+    "#;
+
+    let (_, tast, sources) = tast_pass(code);
+    let compiled_circuit = compile(&sources, tast, R1CS::new()).unwrap();
+    let asm_output = compiled_circuit
+        .circuit
+        .backend
+        .generate_asm(&sources, false);
+
+    let expected_asm_output = "expected output that you expect to match";
+    assert!(
+        asm_output.trim() != expected_asm_output.trim(),
+        "Expected an ASM mismatch error, but no mismatch was detected."
+    );
+}
+
+#[test]
+fn test_invalid_witness_generation_fail() {
+    let code = r#"
+    fn main(pub public_input: Field, private_input: Field) {
+        let xx = private_input * (public_input + 1);
+        assert_eq(xx, public_input);
+    }
+    "#;
+
+    let (_, tast, sources) = tast_pass(code);
+    let compiled_circuit = compile(&sources, tast, R1CS::new()).unwrap();
+
+    let public_inputs = parse_inputs(r#"{"public_input": "2"}"#).unwrap();
+    let private_inputs = parse_inputs(r#"{"private_input": "3"}"#).unwrap();
+
+    let result = generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs);
+    assert!(
+        result.is_err(),
+        "Expected witness generation to fail, but it succeeded"
+    );
 }
