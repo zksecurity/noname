@@ -43,7 +43,8 @@ jobs:
       # 
 
       - name: Test with latest nextest release (faster than cargo test)
-        run: 
+        run: cargo nextest run --all-features --release
+
       #
       # Coding guidelines
       #
