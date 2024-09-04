@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/expr.rs`."><title>expr.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-492a78a4a87dcc01.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.82.0-nightly (a7399ba69 2024-08-31)" data-channel="nightly" data-search-js="search-a99f1315e7cc5121.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-921df33f47b8780c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/expr.rs`."><title>expr.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-fecee23daa4e8a6d.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (d6c8169c1 2024-09-03)" data-channel="nightly" data-search-js="search-a99f1315e7cc5121.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-921df33f47b8780c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -605,7 +605,56 @@
 <a href="#605" id="605">605</a>
 <a href="#606" id="606">606</a>
 <a href="#607" id="607">607</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::syntax::is_type;
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::syntax::{is_generic_parameter, is_type};
 <span class="kw">use crate</span>::{
     constants::Span,
     error::{ErrorKind, <span class="prelude-ty">Result</span>},
@@ -709,6 +758,9 @@
 
     <span class="doccomment">/// `[ ... ]`
     </span>ArrayDeclaration(Vec&lt;Expr&gt;),
+
+    <span class="doccomment">/// `[item; size]`
+    </span>RepeatedArrayInit { item: Box&lt;Expr&gt;, size: Box&lt;Expr&gt; },
 
     <span class="doccomment">/// `name { fields }`
     </span>CustomTypeDeclaration {
@@ -894,52 +946,93 @@
                 <span class="kw">let </span><span class="kw-2">mut </span>items = <span class="macro">vec!</span>[];
                 <span class="kw">let </span>last_span;
 
-                <span class="comment">// [1, 2];
+                <span class="comment">// check if if it's an array declaration with a default value
+                // [item; size];
                 //  ^^^^
-                </span><span class="kw">loop </span>{
-                    <span class="kw">let </span>token = tokens.peek();
+                </span><span class="kw">let </span>first_item = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
 
-                    <span class="comment">// [1, 2];
-                    //      ^
-                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(Token {
-                        kind: TokenKind::RightBracket,
-                        span,
-                    }) = token
-                    {
-                        last_span = span;
-                        tokens.bump(ctx);
-                        <span class="kw">break</span>;
-                    };
+                <span class="comment">// [item; size];
+                //      ^
+                </span><span class="kw">let </span>second_token = tokens.peek();
 
-                    <span class="comment">// [1, 2];
-                    //  ^
-                    </span><span class="kw">let </span>item = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
-                    items.push(item);
+                <span class="kw">match </span>second_token {
+                    <span class="comment">// case of default array declaration
+                    </span><span class="prelude-val">Some</span>(Token {
+                        kind: TokenKind::SemiColon,
+                        span: <span class="kw">_</span>,
+                    }) =&gt; {
+                        <span class="comment">// last_span = first_item.span;
+                        </span>tokens.bump(ctx);
 
-                    <span class="comment">// [1, 2];
-                    //   ^  ^
-                    </span><span class="kw">let </span>token = tokens.bump_err(ctx, ErrorKind::InvalidEndOfLine)<span class="question-mark">?</span>;
-                    <span class="kw">match </span><span class="kw-2">&amp;</span>token.kind {
-                        TokenKind::RightBracket =&gt; {
-                            last_span = token.span;
-                            <span class="kw">break</span>;
+                        <span class="comment">// [item; size];
+                        //        ^^^^
+                        </span><span class="kw">let </span>size = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+
+                        <span class="comment">// [item; size];
+                        //            ^
+                        </span>tokens.bump_expected(ctx, TokenKind::RightBracket)<span class="question-mark">?</span>;
+
+                        Expr::new(
+                            ctx,
+                            ExprKind::RepeatedArrayInit {
+                                item: Box::new(first_item),
+                                size: Box::new(size.clone()),
+                            },
+                            span.merge_with(size.span),
+                        )
+                    }
+                    <span class="comment">// otherwise fallback to concrete array declaration
+                    </span><span class="kw">_ </span>=&gt; {
+                        items.push(first_item);
+                        <span class="comment">// [1, 2];
+                        //  ^^^^
+                        </span><span class="kw">loop </span>{
+                            <span class="comment">// [1, 2];
+                            //   ^  ^
+                            </span><span class="kw">let </span>token = tokens.bump_err(ctx, ErrorKind::InvalidEndOfLine)<span class="question-mark">?</span>;
+                            <span class="kw">match </span><span class="kw-2">&amp;</span>token.kind {
+                                TokenKind::RightBracket =&gt; {
+                                    last_span = token.span;
+                                    <span class="kw">break</span>;
+                                }
+                                TokenKind::Comma =&gt; (),
+                                <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(ErrorKind::InvalidEndOfLine, token.span)),
+                            };
+
+                            <span class="kw">let </span>token = tokens.peek();
+
+                            <span class="comment">// [1, 2];
+                            //      ^
+                            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(Token {
+                                kind: TokenKind::RightBracket,
+                                span,
+                            }) = token
+                            {
+                                last_span = span;
+                                tokens.bump(ctx);
+                                <span class="kw">break</span>;
+                            };
+
+                            <span class="comment">// [1, 2];
+                            //  ^
+                            </span><span class="kw">let </span>item = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+                            items.push(item);
                         }
-                        TokenKind::Comma =&gt; (),
-                        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(ErrorKind::InvalidEndOfLine, token.span)),
-                    };
-                }
 
-                <span class="kw">if </span>items.is_empty() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(
-                        ctx.error(ErrorKind::UnexpectedError(<span class="string">"empty array declaration"</span>), span)
-                    );
-                }
+                        <span class="kw">if </span>items.is_empty() {
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(
+                                ErrorKind::UnexpectedError(<span class="string">"empty array declaration"</span>),
+                                span,
+                            ));
+                        }
 
-                Expr::new(
-                    ctx,
-                    ExprKind::ArrayDeclaration(items),
-                    span.merge_with(last_span),
-                )
+                        Expr::new(
+                            ctx,
+                            ExprKind::ArrayDeclaration(items),
+                            span.merge_with(last_span),
+                        )
+                    }
+                }
             }
 
             <span class="comment">// unrecognized pattern
@@ -1053,6 +1146,11 @@
             }) =&gt; {
                 <span class="kw">let </span>ident = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
                     ExprKind::Variable { module, name } =&gt; {
+                        <span class="comment">// probably generic on a for loop range
+                        </span><span class="kw">if </span>is_generic_parameter(<span class="kw-2">&amp;</span>name.value) {
+                            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="self">self</span>);
+                        }
+
                         <span class="comment">// probably an if condition
                         </span><span class="kw">if </span>!is_type(<span class="kw-2">&amp;</span>name.value) {
                             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="self">self</span>);

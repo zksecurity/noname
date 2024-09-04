@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["backends","circuit_writer","cli","compiler","constants","constraints","error","helpers","imports","inputs","lexer","name_resolution","parser","serialization","stdlib","syntax","type_checker","utils","var","witness"]};
+window.SIDEBAR_ITEMS = {"mod":["backends","circuit_writer","cli","compiler","constants","constraints","error","helpers","imports","inputs","lexer","mast","name_resolution","parser","serialization","stdlib","syntax","type_checker","utils","var","witness"]};

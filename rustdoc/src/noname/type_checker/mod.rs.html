@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-492a78a4a87dcc01.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.82.0-nightly (a7399ba69 2024-08-31)" data-channel="nightly" data-search-js="search-a99f1315e7cc5121.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-921df33f47b8780c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-fecee23daa4e8a6d.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (d6c8169c1 2024-09-03)" data-channel="nightly" data-search-js="search-a99f1315e7cc5121.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-921df33f47b8780c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -412,6 +412,22 @@
 <a href="#412" id="412">412</a>
 <a href="#413" id="413">413</a>
 <a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -425,7 +441,6 @@
         types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
         CustomType, Expr, StructDef,
     },
-    stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS},
 };
 
 <span class="kw">use </span>ark_ff::Field;
@@ -451,7 +466,7 @@
     <span class="kw">pub </span>typ: Ty,
 }
 
-<span class="attr">#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+<span class="attr">#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 </span><span class="kw">pub struct </span>FullyQualified {
     <span class="doccomment">/// Set to `None` if the function is defined in the main module.
     </span><span class="kw">pub </span>module: <span class="prelude-ty">Option</span>&lt;UserRepo&gt;,
@@ -496,6 +511,9 @@
     /// This can be used by the circuit-writer when it needs type information.
     </span><span class="comment">// TODO: I think we should get rid of this if we can
     </span>node_types: HashMap&lt;usize, TyKind&gt;,
+
+    <span class="doccomment">/// The last node id for the MAST phase to reference.
+    </span>node_id: usize,
 }
 
 <span class="kw">impl</span>&lt;B: Backend&gt; TypeChecker&lt;B&gt; {
@@ -520,29 +538,47 @@
         <span class="self">self</span>.constants.get(<span class="kw-2">&amp;</span>qualified)
     }
 
-    <span class="doccomment">/// Returns the number of field elements contained in the given type.
-    </span><span class="comment">// TODO: might want to memoize that at some point
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>size_of(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>TyKind) -&gt; usize {
-        <span class="kw">match </span>typ {
-            TyKind::Field =&gt; <span class="number">1</span>,
-            TyKind::Custom { module, name } =&gt; {
-                <span class="kw">let </span>qualified = FullyQualified::new(<span class="kw-2">&amp;</span>module, <span class="kw-2">&amp;</span>name);
-                <span class="kw">let </span>struct_info = <span class="self">self
-                    </span>.struct_info(<span class="kw-2">&amp;</span>qualified)
-                    .expect(<span class="string">"bug in the type checker: cannot find struct info"</span>);
+    <span class="kw">pub fn </span>last_node_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.node_id
+    }
 
-                <span class="kw">let </span><span class="kw-2">mut </span>sum = <span class="number">0</span>;
+    <span class="kw">pub fn </span>update_node_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, node_id: usize) {
+        <span class="self">self</span>.node_id = node_id;
+    }
 
-                <span class="kw">for </span>(<span class="kw">_</span>, t) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
-                    sum += <span class="self">self</span>.size_of(t);
-                }
+    <span class="kw">pub fn </span>add_monomorphized_fn(<span class="kw-2">&amp;mut </span><span class="self">self</span>, qualified: FullyQualified, fn_info: FnInfo&lt;B&gt;) {
+        <span class="self">self</span>.functions.insert(qualified, fn_info);
+    }
 
-                sum
-            }
-            TyKind::BigInt =&gt; <span class="number">1</span>,
-            TyKind::Array(typ, len) =&gt; (<span class="kw-2">*</span>len <span class="kw">as </span>usize) * <span class="self">self</span>.size_of(typ),
-            TyKind::Bool =&gt; <span class="number">1</span>,
-        }
+    <span class="kw">pub fn </span>add_monomorphized_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, node_id: usize, typ: TyKind) {
+        <span class="self">self</span>.node_types.insert(node_id, typ);
+    }
+
+    <span class="kw">pub fn </span>add_monomorphized_method(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        qualified: FullyQualified,
+        method_name: <span class="kw-2">&amp;</span>str,
+        method: <span class="kw-2">&amp;</span>FunctionDef,
+    ) {
+        <span class="kw">let </span>struct_info = <span class="self">self
+            </span>.structs
+            .get_mut(<span class="kw-2">&amp;</span>qualified)
+            .expect(<span class="string">"couldn't find the struct for storing the method"</span>);
+        struct_info
+            .methods
+            .insert(method_name.to_string(), method.clone());
+    }
+
+    <span class="kw">pub fn </span>remove_fn(<span class="kw-2">&amp;mut </span><span class="self">self</span>, qualified: <span class="kw-2">&amp;</span>FullyQualified) {
+        <span class="self">self</span>.functions.remove(qualified);
+    }
+
+    <span class="kw">pub fn </span>remove_method(<span class="kw-2">&amp;mut </span><span class="self">self</span>, qualified: <span class="kw-2">&amp;</span>FullyQualified, method_name: <span class="kw-2">&amp;</span>str) {
+        <span class="kw">let </span>struct_info = <span class="self">self
+            </span>.structs
+            .get_mut(qualified)
+            .expect(<span class="string">"couldn't find the struct for storing the method"</span>);
+        struct_info.methods.remove(method_name);
     }
 }
 
@@ -554,31 +590,22 @@
             structs: HashMap::new(),
             constants: HashMap::new(),
             node_types: HashMap::new(),
+            node_id: <span class="number">0</span>,
         };
 
-        <span class="comment">// initialize it with the builtins
-        </span><span class="kw">let </span>builtin_module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));
-        <span class="kw">for </span>fn_info <span class="kw">in </span>builtin_fns() {
-            <span class="kw">let </span>qualified = FullyQualified::new(<span class="kw-2">&amp;</span>builtin_module, <span class="kw-2">&amp;</span>fn_info.sig().name.value);
-            <span class="kw">if </span>type_checker
-                .functions
-                .insert(qualified, fn_info.clone())
-                .is_some()
-            {
-                <span class="macro">panic!</span>(<span class="string">"type-checker bug: global imports conflict"</span>);
-            }
-        }
-
         <span class="comment">// initialize it with the standard library
-        </span><span class="kw">let </span>crypto_module = ModulePath::Absolute(UserRepo::new(<span class="string">"std/crypto"</span>));
-        <span class="kw">for </span>fn_info <span class="kw">in </span>crypto_fns() {
-            <span class="kw">let </span>qualified = FullyQualified::new(<span class="kw-2">&amp;</span>crypto_module, <span class="kw-2">&amp;</span>fn_info.sig().name.value);
-            <span class="kw">if </span>type_checker
-                .functions
-                .insert(qualified, fn_info.clone())
-                .is_some()
-            {
-                <span class="macro">panic!</span>(<span class="string">"type-checker bug: global imports conflict"</span>);
+        </span><span class="kw">for </span>module_impl <span class="kw">in </span><span class="kw">crate</span>::stdlib::AllStdModules::all_std_modules() {
+            <span class="kw">let </span>module_path =
+                ModulePath::Absolute(UserRepo::new(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"std/{}"</span>, module_impl.get_name())));
+            <span class="kw">for </span>fn_info <span class="kw">in </span>module_impl.get_parsed_fns() {
+                <span class="kw">let </span>qualified = FullyQualified::new(<span class="kw-2">&amp;</span>module_path, <span class="kw-2">&amp;</span>fn_info.sig().name.value);
+                <span class="kw">if </span>type_checker
+                    .functions
+                    .insert(qualified, fn_info.clone())
+                    .is_some()
+                {
+                    <span class="macro">panic!</span>(<span class="string">"type-checker bug: global imports conflict"</span>);
+                }
             }
         }
 
@@ -622,7 +649,7 @@
                             ConstInfo {
                                 value: <span class="macro">vec!</span>[cst.value],
                                 typ: Ty {
-                                    kind: TyKind::Field,
+                                    kind: TyKind::Field { constant: <span class="bool-val">true </span>},
                                     span: cst.span,
                                 },
                             },
@@ -744,8 +771,21 @@
                         }
                     };
 
+                    <span class="comment">// store generic parameters as local vars in the fn_env
+                    </span><span class="kw">for </span>name <span class="kw">in </span>function.sig.generics.names() {
+                        typed_fn_env.store_type(
+                            name.to_string(),
+                            TypeInfo::new(TyKind::Field { constant: <span class="bool-val">true </span>}, function.span),
+                        )<span class="question-mark">?</span>;
+                    }
+
                     <span class="comment">// store variables and their types in the fn_env
                     </span><span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span>function.sig.arguments {
+                        <span class="comment">// skip const generic as they should be already stored
+                        </span><span class="kw">if </span>function.sig.generics.names().contains(<span class="kw-2">&amp;</span>arg.name.value) {
+                            <span class="kw">continue</span>;
+                        }
+
                         <span class="comment">// public_output is a reserved name,
                         // associated automatically to the public output of the main function
                         </span><span class="kw">if </span>RESERVED_ARGS.contains(<span class="kw-2">&amp;</span>arg.name.value.as_str()) {
@@ -777,24 +817,15 @@
                         <span class="comment">// store the args' type in the fn environment
                         </span><span class="kw">let </span>arg_typ = arg.typ.kind.clone();
 
-                        <span class="kw">if </span>arg.is_constant() {
-                            typed_fn_env.store_type(
-                                arg.name.value.clone(),
-                                TypeInfo::new_cst(arg_typ, arg.span),
-                            )<span class="question-mark">?</span>;
-                        } <span class="kw">else </span>{
-                            typed_fn_env.store_type(
-                                arg.name.value.clone(),
-                                TypeInfo::new(arg_typ, arg.span),
-                            )<span class="question-mark">?</span>;
-                        }
+                        typed_fn_env
+                            .store_type(arg.name.value.clone(), TypeInfo::new(arg_typ, arg.span))<span class="question-mark">?</span>;
                     }
 
                     <span class="comment">// the output value returned by the main function is also a main_args with a special name (public_output)
                     </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="kw-2">&amp;</span>function.sig.return_type {
                         <span class="kw">if </span>is_main {
                             <span class="kw">match </span>typ.kind {
-                                TyKind::Field
+                                TyKind::Field { constant: <span class="bool-val">false </span>}
                                 | TyKind::Custom { .. }
                                 | TyKind::Array(<span class="kw">_</span>, <span class="kw">_</span>)
                                 | TyKind::Bool =&gt; {
@@ -803,7 +834,8 @@
                                         TypeInfo::new_mut(typ.kind.clone(), typ.span),
                                     )<span class="question-mark">?</span>;
                                 }
-                                TyKind::BigInt =&gt; <span class="macro">unreachable!</span>(),
+                                TyKind::Field { constant: <span class="bool-val">true </span>} =&gt; <span class="macro">unreachable!</span>(),
+                                TyKind::GenericSizedArray(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
                             }
                         }
                     }

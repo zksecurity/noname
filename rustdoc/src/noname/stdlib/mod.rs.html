@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/stdlib/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-492a78a4a87dcc01.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.82.0-nightly (a7399ba69 2024-08-31)" data-channel="nightly" data-search-js="search-a99f1315e7cc5121.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-921df33f47b8780c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/stdlib/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-fecee23daa4e8a6d.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (d6c8169c1 2024-09-03)" data-channel="nightly" data-search-js="search-a99f1315e7cc5121.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-921df33f47b8780c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -78,250 +78,84 @@
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
 <a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
-<a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
-
-<span class="kw">use </span>ark_ff::One;
-<span class="kw">use </span>once_cell::sync::Lazy;
-
-<span class="kw">use crate</span>::{
+</pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
-    error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
+    error::Result,
     imports::FnKind,
     lexer::Token,
     parser::{
-        types::{FnSig, TyKind},
+        types::{FnSig, GenericParameters},
         ParserCtx,
     },
     type_checker::FnInfo,
-    var::{ConstOrCell, Var},
+    var::Var,
 };
 
+<span class="kw">pub mod </span>bits;
+<span class="kw">pub mod </span>builtins;
 <span class="kw">pub mod </span>crypto;
 
-<span class="comment">//
-// Builtins or utils (imported by default)
-// TODO: give a name that's useful for the user,
-//       not something descriptive internally like "builtins"
+<span class="kw">pub enum </span>AllStdModules {
+    Builtins,
+    Crypto,
+    Bits,
+}
 
-</span><span class="kw">pub const </span>QUALIFIED_BUILTINS: <span class="kw-2">&amp;</span>str = <span class="string">"std/builtins"</span>;
+<span class="kw">impl </span>AllStdModules {
+    <span class="kw">pub fn </span>all_std_modules() -&gt; Vec&lt;AllStdModules&gt; {
+        <span class="macro">vec!</span>[
+            AllStdModules::Builtins,
+            AllStdModules::Crypto,
+            AllStdModules::Bits,
+        ]
+    }
 
-<span class="kw">const </span>ASSERT_FN: <span class="kw-2">&amp;</span>str = <span class="string">"assert(condition: Bool)"</span>;
-<span class="kw">const </span>ASSERT_EQ_FN: <span class="kw-2">&amp;</span>str = <span class="string">"assert_eq(lhs: Field, rhs: Field)"</span>;
+    <span class="kw">pub fn </span>get_parsed_fns&lt;B: Backend&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;FnInfo&lt;B&gt;&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            AllStdModules::Builtins =&gt; builtins::BuiltinsLib::get_parsed_fns(),
+            AllStdModules::Crypto =&gt; crypto::CryptoLib::get_parsed_fns(),
+            AllStdModules::Bits =&gt; bits::BitsLib::get_parsed_fns(),
+        }
+    }
 
-<span class="doccomment">/// List of builtin function signatures.
-</span><span class="kw">pub const </span>BUILTIN_SIGS: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str] = <span class="kw-2">&amp;</span>[ASSERT_FN, ASSERT_EQ_FN];
+    <span class="kw">pub fn </span>get_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+        <span class="kw">match </span><span class="self">self </span>{
+            AllStdModules::Builtins =&gt; builtins::BuiltinsLib::MODULE,
+            AllStdModules::Crypto =&gt; crypto::CryptoLib::MODULE,
+            AllStdModules::Bits =&gt; bits::BitsLib::MODULE,
+        }
+    }
+}
 
-<span class="comment">// Unique set of builtin function names, derived from function signatures.
-</span><span class="kw">pub static </span>BUILTIN_FN_NAMES: Lazy&lt;HashSet&lt;String&gt;&gt; = Lazy::new(|| {
-    BUILTIN_SIGS
-        .iter()
-        .map(|s| {
+<span class="kw">type </span>FnInfoType&lt;B: Backend&gt; = <span class="kw">fn</span>(
+    <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
+    <span class="kw-2">&amp;</span>GenericParameters,
+    <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
+    Span,
+) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt;;
+
+<span class="kw">trait </span>Module {
+    <span class="doccomment">/// e.g. "crypto"
+    </span><span class="kw">const </span>MODULE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str;
+
+    <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;)&gt;;
+
+    <span class="kw">fn </span>get_parsed_fns&lt;B: Backend&gt;() -&gt; Vec&lt;FnInfo&lt;B&gt;&gt; {
+        <span class="kw">let </span>fns = <span class="self">Self</span>::get_fns();
+        <span class="kw">let </span><span class="kw-2">mut </span>res = Vec::with_capacity(fns.len());
+        <span class="kw">for </span>(code, fn_handle) <span class="kw">in </span>fns {
             <span class="kw">let </span>ctx = <span class="kw-2">&amp;mut </span>ParserCtx::default();
-            <span class="kw">let </span><span class="kw-2">mut </span>tokens = Token::parse(<span class="number">0</span>, s).unwrap();
+            <span class="comment">// TODO: we should try to point to real noname files here (not 0)
+            </span><span class="kw">let </span><span class="kw-2">mut </span>tokens = Token::parse(<span class="number">0</span>, code).unwrap();
             <span class="kw">let </span>sig = FnSig::parse(ctx, <span class="kw-2">&amp;mut </span>tokens).unwrap();
-            sig.name.value
-        })
-        .collect()
-});
-
-<span class="kw">pub fn </span>get_builtin_fn&lt;B: Backend&gt;(name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;FnInfo&lt;B&gt;&gt; {
-    <span class="kw">let </span>ctx = <span class="kw-2">&amp;mut </span>ParserCtx::default();
-    <span class="kw">let </span><span class="kw-2">mut </span>tokens = Token::parse(<span class="number">0</span>, name).unwrap();
-    <span class="kw">let </span>sig = FnSig::parse(ctx, <span class="kw-2">&amp;mut </span>tokens).unwrap();
-
-    <span class="kw">let </span>fn_handle = <span class="kw">match </span>name {
-        ASSERT_FN =&gt; assert,
-        ASSERT_EQ_FN =&gt; assert_eq,
-        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
-    };
-
-    <span class="prelude-val">Some</span>(FnInfo {
-        kind: FnKind::BuiltIn(sig, fn_handle),
-        span: Span::default(),
-    })
-}
-
-<span class="doccomment">/// a function returns builtin functions
-</span><span class="kw">pub fn </span>builtin_fns&lt;B: Backend&gt;() -&gt; Vec&lt;FnInfo&lt;B&gt;&gt; {
-    BUILTIN_SIGS
-        .iter()
-        .map(|sig| get_builtin_fn(sig).unwrap())
-        .collect()
-}
-
-<span class="doccomment">/// Asserts that two vars are equal.
-</span><span class="kw">fn </span>assert_eq&lt;B: Backend&gt;(
-    compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
-    vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
-    span: Span,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
-    <span class="comment">// we get two vars
-    </span><span class="macro">assert_eq!</span>(vars.len(), <span class="number">2</span>);
-    <span class="kw">let </span>lhs_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
-    <span class="kw">let </span>rhs_info = <span class="kw-2">&amp;</span>vars[<span class="number">1</span>];
-
-    <span class="comment">// they are both of type field
-    </span><span class="kw">if </span>!<span class="macro">matches!</span>(lhs_info.typ, <span class="prelude-val">Some</span>(TyKind::Field | TyKind::BigInt)) {
-        <span class="macro">panic!</span>(
-            <span class="string">"the lhs of assert_eq must be of type Field or BigInt. It was of type {:?}"</span>,
-            lhs_info.typ
-        );
+            res.push(FnInfo {
+                kind: FnKind::BuiltIn(sig, fn_handle),
+                span: Span::default(),
+            });
+        }
+        res
     }
-
-    <span class="kw">if </span>!<span class="macro">matches!</span>(rhs_info.typ, <span class="prelude-val">Some</span>(TyKind::Field | TyKind::BigInt)) {
-        <span class="macro">panic!</span>(
-            <span class="string">"the rhs of assert_eq must be of type Field or BigInt. It was of type {:?}"</span>,
-            rhs_info.typ
-        );
-    }
-
-    <span class="comment">// retrieve the values
-    </span><span class="kw">let </span>lhs_var = <span class="kw-2">&amp;</span>lhs_info.var;
-    <span class="macro">assert_eq!</span>(lhs_var.len(), <span class="number">1</span>);
-    <span class="kw">let </span>lhs_cvar = <span class="kw-2">&amp;</span>lhs_var[<span class="number">0</span>];
-
-    <span class="kw">let </span>rhs_var = <span class="kw-2">&amp;</span>rhs_info.var;
-    <span class="macro">assert_eq!</span>(rhs_var.len(), <span class="number">1</span>);
-    <span class="kw">let </span>rhs_cvar = <span class="kw-2">&amp;</span>rhs_var[<span class="number">0</span>];
-
-    <span class="kw">match </span>(lhs_cvar, rhs_cvar) {
-        <span class="comment">// two constants
-        </span>(ConstOrCell::Const(a), ConstOrCell::Const(b)) =&gt; {
-            <span class="kw">if </span>a != b {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                    <span class="string">"constraint-generation"</span>,
-                    ErrorKind::AssertionFailed,
-                    span,
-                ));
-            }
-        }
-
-        <span class="comment">// a const and a var
-        </span>(ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
-        | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) =&gt; {
-            compiler.backend.assert_eq_const(cvar, <span class="kw-2">*</span>cst, span)
-        }
-        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) =&gt; {
-            compiler.backend.assert_eq_var(lhs, rhs, span)
-        }
-    }
-
-    <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
-}
-
-<span class="doccomment">/// Asserts that a condition is true.
-</span><span class="kw">fn </span>assert&lt;B: Backend&gt;(
-    compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
-    vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
-    span: Span,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
-    <span class="comment">// we get a single var
-    </span><span class="macro">assert_eq!</span>(vars.len(), <span class="number">1</span>);
-
-    <span class="comment">// of type bool
-    </span><span class="kw">let </span>var_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
-    <span class="macro">assert!</span>(<span class="macro">matches!</span>(var_info.typ, <span class="prelude-val">Some</span>(TyKind::Bool)));
-
-    <span class="comment">// of only one field element
-    </span><span class="kw">let </span>var = <span class="kw-2">&amp;</span>var_info.var;
-    <span class="macro">assert_eq!</span>(var.len(), <span class="number">1</span>);
-    <span class="kw">let </span>cond = <span class="kw-2">&amp;</span>var[<span class="number">0</span>];
-
-    <span class="kw">match </span>cond {
-        ConstOrCell::Const(cst) =&gt; {
-            <span class="macro">assert!</span>(cst.is_one());
-        }
-        ConstOrCell::Cell(cvar) =&gt; {
-            <span class="kw">let </span>one = B::Field::one();
-            compiler.backend.assert_eq_const(cvar, one, span);
-        }
-    }
-
-    <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
 }
 </code></pre></div></section></main></body></html>

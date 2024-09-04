@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/checker.rs`."><title>checker.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-492a78a4a87dcc01.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.82.0-nightly (a7399ba69 2024-08-31)" data-channel="nightly" data-search-js="search-a99f1315e7cc5121.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-921df33f47b8780c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/checker.rs`."><title>checker.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-fecee23daa4e8a6d.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (d6c8169c1 2024-09-03)" data-channel="nightly" data-search-js="search-a99f1315e7cc5121.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-921df33f47b8780c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -694,6 +694,93 @@
 <a href="#694" id="694">694</a>
 <a href="#695" id="695">695</a>
 <a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -704,7 +791,7 @@
     error::{ErrorKind, <span class="prelude-ty">Result</span>},
     imports::FnKind,
     parser::{
-        types::{FnSig, FunctionDef, Stmt, StmtKind, Ty, TyKind},
+        types::{is_numeric, FnSig, FunctionDef, Ident, Stmt, StmtKind, Symbolic, Ty, TyKind},
         CustomType, Expr, ExprKind, Op2,
     },
     syntax::is_type,
@@ -727,6 +814,13 @@
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
             FnKind::BuiltIn(sig, <span class="kw">_</span>) =&gt; sig,
             FnKind::Native(func) =&gt; <span class="kw-2">&amp;</span>func.sig,
+        }
+    }
+
+    <span class="kw">pub fn </span>native(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>FunctionDef {
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
+            FnKind::Native(func) =&gt; func,
+            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected a native function"</span>),
         }
     }
 }
@@ -828,6 +922,11 @@
                 })<span class="question-mark">?</span>;
                 <span class="kw">let </span>fn_sig = fn_info.sig().clone();
 
+                <span class="comment">// check if generic is allowed
+                </span><span class="kw">if </span>fn_sig.require_monomorphization() &amp;&amp; typed_fn_env.is_in_forloop() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::GenericInForLoop, expr.span));
+                }
+
                 <span class="comment">// type check the function call
                 </span><span class="kw">let </span>method_call = <span class="bool-val">false</span>;
                 <span class="kw">let </span>res = <span class="self">self</span>.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)<span class="question-mark">?</span>;
@@ -865,6 +964,11 @@
                     ));
                 }
                 <span class="kw">let </span>method_type = method_type.unwrap();
+
+                <span class="comment">// check if generic is allowed
+                </span><span class="kw">if </span>method_type.sig.require_monomorphization() &amp;&amp; typed_fn_env.is_in_forloop() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::GenericInForLoop, expr.span));
+                }
 
                 <span class="comment">// type check the method call
                 </span><span class="kw">let </span>method_call = <span class="bool-val">true</span>;
@@ -944,7 +1048,7 @@
                 <span class="comment">// and is of the same type as the rhs
                 </span><span class="kw">let </span>rhs_typ = <span class="self">self</span>.compute_type(rhs, typed_fn_env)<span class="question-mark">?</span>.unwrap();
 
-                <span class="kw">if </span>!rhs_typ.typ.match_expected(<span class="kw-2">&amp;</span>lhs_node.typ) {
+                <span class="kw">if </span>!rhs_typ.typ.match_expected(<span class="kw-2">&amp;</span>lhs_node.typ, <span class="bool-val">false</span>) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                         ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_typ.typ.clone()),
                         expr.span,
@@ -962,10 +1066,13 @@
                     </span>.compute_type(rhs, typed_fn_env)<span class="question-mark">?
                     </span>.expect(<span class="string">"type-checker bug"</span>);
 
-                <span class="kw">if </span>lhs_node.typ != rhs_node.typ {
-                    <span class="comment">// only allow bigint mixed with field
+                <span class="comment">// generic parameter is assumed to be of numeric type
+                </span><span class="kw">if </span>lhs_node.typ != rhs_node.typ
+                    &amp;&amp; (!is_numeric(<span class="kw-2">&amp;</span>lhs_node.typ) || !is_numeric(<span class="kw-2">&amp;</span>rhs_node.typ))
+                {
+                    <span class="comment">// only allow fields
                     </span><span class="kw">match </span>(<span class="kw-2">&amp;</span>lhs_node.typ, <span class="kw-2">&amp;</span>rhs_node.typ) {
-                        (TyKind::BigInt, TyKind::Field) | (TyKind::Field, TyKind::BigInt) =&gt; (),
+                        (TyKind::Field { .. }, TyKind::Field { .. }) =&gt; (),
                         <span class="kw">_ </span>=&gt; {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                                 ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
@@ -991,14 +1098,16 @@
 
             ExprKind::Negated(inner) =&gt; {
                 <span class="kw">let </span>inner_typ = <span class="self">self</span>.compute_type(inner, typed_fn_env)<span class="question-mark">?</span>.unwrap();
-                <span class="kw">if </span>!<span class="macro">matches!</span>(inner_typ.typ, TyKind::Field | TyKind::BigInt) {
+                <span class="kw">if </span>!<span class="macro">matches!</span>(inner_typ.typ, TyKind::Field { .. }) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
-                        ErrorKind::MismatchType(TyKind::Field, inner_typ.typ),
+                        <span class="comment">// it can be either constant or not.
+                        // here we just default it to constant for error message.
+                        </span>ErrorKind::MismatchType(TyKind::Field { constant: <span class="bool-val">true </span>}, inner_typ.typ),
                         expr.span,
                     ));
                 }
 
-                <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(TyKind::Field))
+                <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(inner_typ.typ))
             }
 
             ExprKind::Not(inner) =&gt; {
@@ -1013,7 +1122,7 @@
                 <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(TyKind::Bool))
             }
 
-            ExprKind::BigUInt(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(TyKind::BigInt)),
+            ExprKind::BigUInt(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(TyKind::Field { constant: <span class="bool-val">true </span>})),
 
             ExprKind::Bool(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(TyKind::Bool)),
 
@@ -1037,24 +1146,14 @@
                     <span class="comment">// if it's a variable,
                     // check if it's a constant first
                     </span><span class="kw">let </span>typ = <span class="kw">if let </span><span class="prelude-val">Some</span>(cst) = <span class="self">self</span>.constants.get(<span class="kw-2">&amp;</span>qualified) {
-                        <span class="comment">// if it's a field, we need to convert it to a bigint
-                        </span><span class="kw">if </span><span class="macro">matches!</span>(cst.typ.kind, TyKind::Field) {
-                            TyKind::BigInt
-                        } <span class="kw">else </span>{
-                            cst.typ.kind.clone()
-                        }
+                        cst.typ.kind.clone()
                     } <span class="kw">else </span>{
                         <span class="comment">// otherwise it's a local variable
-                        </span><span class="kw">let </span>typ = typed_fn_env
+                        // generic parameter is also checked as a local variable
+                        </span>typed_fn_env
                             .get_type(<span class="kw-2">&amp;</span>name.value)
                             .ok_or_else(|| <span class="self">self</span>.error(ErrorKind::UndefinedVariable, name.span))<span class="question-mark">?
-                            </span>.clone();
-                        <span class="comment">// if it's a field, we need to convert it to a bigint
-                        </span><span class="kw">if </span><span class="macro">matches!</span>(typ, TyKind::Field) {
-                            TyKind::BigInt
-                        } <span class="kw">else </span>{
-                            typ
-                        }
+                            </span>.clone()
                     };
 
                     <span class="kw">let </span>res = ExprTyInfo::new_var(name.value.clone(), typ);
@@ -1067,20 +1166,21 @@
                 </span><span class="kw">let </span>typ = <span class="self">self</span>.compute_type(array, typed_fn_env)<span class="question-mark">?</span>.unwrap();
 
                 <span class="comment">// check that it is an array
-                </span><span class="kw">if </span>!<span class="macro">matches!</span>(typ.typ, TyKind::Array(..)) {
+                </span><span class="kw">if </span>!<span class="macro">matches!</span>(typ.typ, TyKind::Array(..) | TyKind::GenericSizedArray(..)) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::ArrayAccessOnNonArray, expr.span));
                 }
 
                 <span class="comment">// check that expression is a bigint
                 </span><span class="kw">let </span>idx_typ = <span class="self">self</span>.compute_type(idx, typed_fn_env)<span class="question-mark">?</span>;
                 <span class="kw">match </span>idx_typ.map(|t| t.typ) {
-                    <span class="prelude-val">Some</span>(TyKind::BigInt) =&gt; (),
+                    <span class="prelude-val">Some</span>(TyKind::Field { constant: <span class="bool-val">true </span>}) =&gt; (),
                     <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::ExpectedConstant, expr.span)),
                 };
 
                 <span class="comment">// get type of element
                 </span><span class="kw">let </span>el_typ = <span class="kw">match </span>typ.typ {
                     TyKind::Array(typkind, <span class="kw">_</span>) =&gt; <span class="kw-2">*</span>typkind,
+                    TyKind::GenericSizedArray(typkind, <span class="kw">_</span>) =&gt; <span class="kw-2">*</span>typkind,
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"not an array"</span>),
                 };
 
@@ -1099,7 +1199,7 @@
                         </span>.expect(<span class="string">"expected a value"</span>);
 
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(tykind) = <span class="kw-2">&amp;</span>tykind {
-                        <span class="kw">if </span>!tykind.same_as(<span class="kw-2">&amp;</span>item_typ.typ) {
+                        <span class="kw">if </span>!tykind.match_expected(<span class="kw-2">&amp;</span>item_typ.typ, <span class="bool-val">false</span>) {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                                 ErrorKind::MismatchType(tykind.clone(), item_typ.typ),
                                 expr.span,
@@ -1197,7 +1297,7 @@
                         </span>.compute_type(<span class="kw-2">&amp;</span>observed.<span class="number">1</span>, typed_fn_env)<span class="question-mark">?
                         </span>.expect(<span class="string">"expected a value (TODO: better error)"</span>);
 
-                    <span class="kw">if </span>!observed_typ.typ.match_expected(<span class="kw-2">&amp;</span>defined.<span class="number">1</span>) {
+                    <span class="kw">if </span>!observed_typ.typ.match_expected(<span class="kw-2">&amp;</span>defined.<span class="number">1</span>, <span class="bool-val">false</span>) {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                             ErrorKind::InvalidStructFieldType(defined.<span class="number">1</span>.clone(), observed_typ.typ),
                             expr.span,
@@ -1211,11 +1311,37 @@
                 });
                 <span class="prelude-val">Some</span>(res)
             }
+            ExprKind::RepeatedArrayInit { item, size } =&gt; {
+                <span class="kw">let </span>item_node = <span class="self">self
+                    </span>.compute_type(item, typed_fn_env)<span class="question-mark">?
+                    </span>.expect(<span class="string">"expected a typed item"</span>);
+
+                <span class="kw">let </span>size_node = <span class="self">self
+                    </span>.compute_type(size, typed_fn_env)<span class="question-mark">?
+                    </span>.expect(<span class="string">"expected a typed size"</span>);
+
+                <span class="kw">if </span>is_numeric(<span class="kw-2">&amp;</span>size_node.typ) {
+                    <span class="comment">// use generic array as the size node might include generic parameters or constant vars
+                    </span><span class="kw">let </span>res = ExprTyInfo::new_anon(TyKind::GenericSizedArray(
+                        Box::new(item_node.typ),
+                        Symbolic::parse(size)<span class="question-mark">?</span>,
+                    ));
+                    <span class="prelude-val">Some</span>(res)
+                } <span class="kw">else </span>{
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::InvalidArraySize, expr.span));
+                }
+            }
         };
 
         <span class="comment">// save the type of that expression in our typed global env
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="kw-2">&amp;</span>typ {
             <span class="self">self</span>.node_types.insert(expr.node_id, typ.typ.clone());
+        }
+
+        <span class="comment">// update last node id
+        // todo: probably better to pass the node id from nast
+        </span><span class="kw">if </span><span class="self">self</span>.node_id &lt; expr.node_id {
+            <span class="self">self</span>.node_id = expr.node_id;
         }
 
         <span class="comment">// return the type to the caller
@@ -1251,7 +1377,7 @@
                 <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::NoReturnExpected, stmts.last().unwrap().span))
             }
             (<span class="prelude-val">Some</span>(expected), <span class="prelude-val">Some</span>(observed)) =&gt; {
-                <span class="kw">if </span>!observed.match_expected(<span class="kw-2">&amp;</span>expected.kind) {
+                <span class="kw">if </span>!observed.match_expected(<span class="kw-2">&amp;</span>expected.kind, <span class="bool-val">false</span>) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                         ErrorKind::ReturnTypeMismatch(expected.kind.clone(), observed.clone()),
                         expected.span,
@@ -1290,15 +1416,55 @@
             StmtKind::ForLoop { var, range, body } =&gt; {
                 <span class="comment">// enter a new scope
                 </span>typed_fn_env.nest();
+                typed_fn_env.start_forloop();
 
-                <span class="comment">// create var (for now it's always a bigint)
-                </span>typed_fn_env
-                    .store_type(var.value.clone(), TypeInfo::new(TyKind::BigInt, var.span))<span class="question-mark">?</span>;
+                <span class="comment">// create var (for now it's always a constant)
+                </span>typed_fn_env.store_type(
+                    var.value.clone(),
+                    TypeInfo::new(TyKind::Field { constant: <span class="bool-val">true </span>}, var.span),
+                )<span class="question-mark">?</span>;
 
-                <span class="comment">// ensure start..end makes sense
-                </span><span class="kw">if </span>range.end &lt; range.start {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::InvalidRange, range.span));
+                <span class="kw">let </span>start_type = <span class="self">self</span>.compute_type(<span class="kw-2">&amp;</span>range.start, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">let </span>end_type = <span class="self">self</span>.compute_type(<span class="kw-2">&amp;</span>range.end, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                <span class="kw">if </span>!is_numeric(<span class="kw-2">&amp;</span>start_type.typ) || !is_numeric(<span class="kw-2">&amp;</span>end_type.typ) {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::InvalidRangeSize, range.span));
                 }
+
+                <span class="comment">// check block
+                </span><span class="self">self</span>.check_block(typed_fn_env, body, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+
+                <span class="comment">// exit the scope
+                </span>typed_fn_env.pop();
+                typed_fn_env.end_forloop();
+            }
+            StmtKind::IteratorLoop {
+                var,
+                iterator,
+                body,
+            } =&gt; {
+                <span class="comment">// enter a new scope
+                </span>typed_fn_env.nest();
+
+                <span class="comment">// make sure that the iterator expression is an iterator,
+                // for now this means that the expression should have type `Array`
+                </span><span class="kw">let </span>iterator_typ = <span class="self">self</span>.compute_type(iterator, typed_fn_env)<span class="question-mark">?</span>;
+                <span class="kw">let </span>iterator_typ =
+                    iterator_typ.expect(<span class="string">"Could not compute type of iterator (TODO: better error)"</span>);
+
+                <span class="comment">// the type of the variable is the type of the items of the iterator
+                </span><span class="kw">let </span>element_type = <span class="kw">match </span>iterator_typ.typ {
+                    TyKind::Array(element_type, _len) =&gt; <span class="kw-2">*</span>element_type,
+                    TyKind::GenericSizedArray(element_type, _size) =&gt; <span class="kw-2">*</span>element_type,
+                    <span class="kw">_ </span>=&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                            ErrorKind::InvalidIteratorType(iterator_typ.typ.clone()),
+                            iterator.span,
+                        ))
+                    }
+                };
+
+                typed_fn_env
+                    .store_type(var.value.clone(), TypeInfo::new(element_type, var.span))<span class="question-mark">?</span>;
 
                 <span class="comment">// check block
                 </span><span class="self">self</span>.check_block(typed_fn_env, body, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
@@ -1378,7 +1544,15 @@
 
         <span class="comment">// compare argument types with the function signature
         </span><span class="kw">for </span>(sig_arg, (typ, span)) <span class="kw">in </span>expected.iter().zip(observed) {
-            <span class="kw">if </span>!typ.match_expected(<span class="kw-2">&amp;</span>sig_arg.typ.kind) {
+            <span class="comment">// when const attribute presented, the argument must be a constant
+            </span><span class="kw">if </span>sig_arg.is_constant() &amp;&amp; !<span class="macro">matches!</span>(typ, TyKind::Field { constant: <span class="bool-val">true </span>}) {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                    ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
+                    span,
+                ));
+            }
+
+            <span class="kw">if </span>!typ.match_expected(<span class="kw-2">&amp;</span>sig_arg.typ.kind, <span class="bool-val">false</span>) {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                     ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                     span,
