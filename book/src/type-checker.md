@@ -78,4 +78,3 @@ more:
 * we should be able to create a new Environment whenever we parse a new function, so the functions/modules should be part of another (AvailableToAllScopes)
 * variables is something that has nothing to do with the "Type" Environment and should be moved elsewhere no? GateCreationEnv?
 * there needs to be a namespace in the typeinfo
-

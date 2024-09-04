@@ -1,0 +1,24 @@
+fn join(const LEN: Field, arr1: [Field; LLEN], arr2: [Field; RLEN]) -> [Field; LEN] {
+    let mut arr = [0; LEN];
+    for ii in 0..LLEN {
+        arr[ii] = arr1[ii];
+    }
+
+    for jj in 0..RLEN {
+        arr[jj + LLEN] = arr2[jj];
+    }
+
+    return arr;
+}
+
+fn main(pub xx: Field) {
+    let arr1 = [xx + 1, xx + 2];
+    let arr2 = [xx + 3, xx + 4];
+    
+    let arr = join(4, arr1, arr2);
+
+    assert_eq(arr[0], arr1[0]);
+    assert_eq(arr[1], arr1[1]);
+    assert_eq(arr[2], arr2[0]);
+    assert_eq(arr[3], arr2[1]);
+}

@@ -14,9 +14,6 @@ pub struct TypeInfo {
     /// If the variable can be mutated or not.
     pub mutable: bool,
 
-    /// If the variable is a constant or not.
-    pub constant: bool,
-
     /// Some type information.
     pub typ: TyKind,
 
@@ -28,7 +25,6 @@ impl TypeInfo {
     pub fn new(typ: TyKind, span: Span) -> Self {
         Self {
             mutable: false,
-            constant: false,
             typ,
             span,
         }
@@ -37,13 +33,6 @@ impl TypeInfo {
     pub fn new_mut(typ: TyKind, span: Span) -> Self {
         Self {
             mutable: true,
-            ..Self::new(typ, span)
-        }
-    }
-
-    pub fn new_cst(typ: TyKind, span: Span) -> Self {
-        Self {
-            constant: true,
             ..Self::new(typ, span)
         }
     }
@@ -60,6 +49,9 @@ pub struct TypedFnEnv {
     /// This needs to be garbage collected when we exit a scope.
     // TODO: there's an output_type field that's a reserved keyword?
     vars: HashMap<String, (usize, TypeInfo)>,
+
+    /// Whether it is in a for loop or not.
+    forloop: bool,
 }
 
 impl TypedFnEnv {
@@ -81,6 +73,21 @@ impl TypedFnEnv {
         let current_scope = self.current_scope;
         self.vars
             .retain(|_name, (scope, _type_info)| *scope <= current_scope);
+    }
+
+    /// Returns whether it is in a for loop.
+    pub fn is_in_forloop(&self) -> bool {
+        self.forloop
+    }
+
+    /// Flags it as in the for loop.
+    pub fn start_forloop(&mut self) {
+        self.forloop = true;
+    }
+
+    /// Flags it as not in the for loop.
+    pub fn end_forloop(&mut self) {
+        self.forloop = false;
     }
 
     /// Returns true if a scope is a prefix of our scope.

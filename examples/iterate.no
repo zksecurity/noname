@@ -17,9 +17,7 @@ fn House.room(self, const idx: Field) -> Room {
 
 fn House.windows(house: House) -> Field {
     let mut windows_count = 0;
-    // ideally: for room in house.rooms {
-    for room_idx in 0..2 {
-        let room = house.room(room_idx);
+    for room in house.rooms {
         // ideally: windows +=
         windows_count = windows_count + room.windows();
     }

@@ -9,6 +9,7 @@ use super::{KimchiCellVar, KimchiVesta, VestaField};
 use crate::backends::kimchi::NUM_REGISTERS;
 use crate::backends::Backend;
 
+use crate::parser::types::GenericParameters;
 use crate::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
     constants::Span,
@@ -19,6 +20,7 @@ use crate::{
 
 pub fn poseidon(
     compiler: &mut CircuitWriter<KimchiVesta>,
+    _generics: &GenericParameters,
     vars: &[VarInfo<VestaField, KimchiCellVar>],
     span: Span,
 ) -> Result<Option<Var<VestaField, KimchiCellVar>>> {
@@ -33,7 +35,7 @@ pub fn poseidon(
     // an array of length 2
     match &var_info.typ {
         Some(TyKind::Array(el_typ, 2)) => {
-            assert!(matches!(&**el_typ, TyKind::Field | TyKind::BigInt));
+            assert!(matches!(&**el_typ, TyKind::Field { .. }));
         }
         _ => panic!("wrong type for input to poseidon"),
     };

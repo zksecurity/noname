@@ -11,7 +11,6 @@ use crate::{
         types::{FuncOrMethod, FunctionDef, ModulePath, RootKind, Ty, TyKind},
         CustomType, Expr, StructDef,
     },
-    stdlib::{builtin_fns, crypto::crypto_fns, QUALIFIED_BUILTINS},
 };
 
 use ark_ff::Field;
@@ -37,7 +36,7 @@ where
     pub typ: Ty,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct FullyQualified {
     /// Set to `None` if the function is defined in the main module.
     pub module: Option<UserRepo>,
@@ -82,6 +81,9 @@ where
     /// This can be used by the circuit-writer when it needs type information.
     // TODO: I think we should get rid of this if we can
     node_types: HashMap<usize, TyKind>,
+
+    /// The last node id for the MAST phase to reference.
+    node_id: usize,
 }
 
 impl<B: Backend> TypeChecker<B> {
@@ -106,29 +108,47 @@ impl<B: Backend> TypeChecker<B> {
         self.constants.get(&qualified)
     }
 
-    /// Returns the number of field elements contained in the given type.
-    // TODO: might want to memoize that at some point
-    pub(crate) fn size_of(&self, typ: &TyKind) -> usize {
-        match typ {
-            TyKind::Field => 1,
-            TyKind::Custom { module, name } => {
-                let qualified = FullyQualified::new(&module, &name);
-                let struct_info = self
-                    .struct_info(&qualified)
-                    .expect("bug in the type checker: cannot find struct info");
+    pub fn last_node_id(&self) -> usize {
+        self.node_id
+    }
 
-                let mut sum = 0;
+    pub fn update_node_id(&mut self, node_id: usize) {
+        self.node_id = node_id;
+    }
 
-                for (_, t) in &struct_info.fields {
-                    sum += self.size_of(t);
-                }
+    pub fn add_monomorphized_fn(&mut self, qualified: FullyQualified, fn_info: FnInfo<B>) {
+        self.functions.insert(qualified, fn_info);
+    }
 
-                sum
-            }
-            TyKind::BigInt => 1,
-            TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
-            TyKind::Bool => 1,
-        }
+    pub fn add_monomorphized_type(&mut self, node_id: usize, typ: TyKind) {
+        self.node_types.insert(node_id, typ);
+    }
+
+    pub fn add_monomorphized_method(
+        &mut self,
+        qualified: FullyQualified,
+        method_name: &str,
+        method: &FunctionDef,
+    ) {
+        let struct_info = self
+            .structs
+            .get_mut(&qualified)
+            .expect("couldn't find the struct for storing the method");
+        struct_info
+            .methods
+            .insert(method_name.to_string(), method.clone());
+    }
+
+    pub fn remove_fn(&mut self, qualified: &FullyQualified) {
+        self.functions.remove(qualified);
+    }
+
+    pub fn remove_method(&mut self, qualified: &FullyQualified, method_name: &str) {
+        let struct_info = self
+            .structs
+            .get_mut(qualified)
+            .expect("couldn't find the struct for storing the method");
+        struct_info.methods.remove(method_name);
     }
 }
 
@@ -140,31 +160,22 @@ impl<B: Backend> TypeChecker<B> {
             structs: HashMap::new(),
             constants: HashMap::new(),
             node_types: HashMap::new(),
+            node_id: 0,
         };
 
-        // initialize it with the builtins
-        let builtin_module = ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS));
-        for fn_info in builtin_fns() {
-            let qualified = FullyQualified::new(&builtin_module, &fn_info.sig().name.value);
-            if type_checker
-                .functions
-                .insert(qualified, fn_info.clone())
-                .is_some()
-            {
-                panic!("type-checker bug: global imports conflict");
-            }
-        }
-
         // initialize it with the standard library
-        let crypto_module = ModulePath::Absolute(UserRepo::new("std/crypto"));
-        for fn_info in crypto_fns() {
-            let qualified = FullyQualified::new(&crypto_module, &fn_info.sig().name.value);
-            if type_checker
-                .functions
-                .insert(qualified, fn_info.clone())
-                .is_some()
-            {
-                panic!("type-checker bug: global imports conflict");
+        for module_impl in crate::stdlib::AllStdModules::all_std_modules() {
+            let module_path =
+                ModulePath::Absolute(UserRepo::new(&format!("std/{}", module_impl.get_name())));
+            for fn_info in module_impl.get_parsed_fns() {
+                let qualified = FullyQualified::new(&module_path, &fn_info.sig().name.value);
+                if type_checker
+                    .functions
+                    .insert(qualified, fn_info.clone())
+                    .is_some()
+                {
+                    panic!("type-checker bug: global imports conflict");
+                }
             }
         }
 
@@ -208,7 +219,7 @@ impl<B: Backend> TypeChecker<B> {
                             ConstInfo {
                                 value: vec![cst.value],
                                 typ: Ty {
-                                    kind: TyKind::Field,
+                                    kind: TyKind::Field { constant: true },
                                     span: cst.span,
                                 },
                             },
@@ -330,8 +341,21 @@ impl<B: Backend> TypeChecker<B> {
                         }
                     };
 
+                    // store generic parameters as local vars in the fn_env
+                    for name in function.sig.generics.names() {
+                        typed_fn_env.store_type(
+                            name.to_string(),
+                            TypeInfo::new(TyKind::Field { constant: true }, function.span),
+                        )?;
+                    }
+
                     // store variables and their types in the fn_env
                     for arg in &function.sig.arguments {
+                        // skip const generic as they should be already stored
+                        if function.sig.generics.names().contains(&arg.name.value) {
+                            continue;
+                        }
+
                         // public_output is a reserved name,
                         // associated automatically to the public output of the main function
                         if RESERVED_ARGS.contains(&arg.name.value.as_str()) {
@@ -363,24 +387,15 @@ impl<B: Backend> TypeChecker<B> {
                         // store the args' type in the fn environment
                         let arg_typ = arg.typ.kind.clone();
 
-                        if arg.is_constant() {
-                            typed_fn_env.store_type(
-                                arg.name.value.clone(),
-                                TypeInfo::new_cst(arg_typ, arg.span),
-                            )?;
-                        } else {
-                            typed_fn_env.store_type(
-                                arg.name.value.clone(),
-                                TypeInfo::new(arg_typ, arg.span),
-                            )?;
-                        }
+                        typed_fn_env
+                            .store_type(arg.name.value.clone(), TypeInfo::new(arg_typ, arg.span))?;
                     }
 
                     // the output value returned by the main function is also a main_args with a special name (public_output)
                     if let Some(typ) = &function.sig.return_type {
                         if is_main {
                             match typ.kind {
-                                TyKind::Field
+                                TyKind::Field { constant: false }
                                 | TyKind::Custom { .. }
                                 | TyKind::Array(_, _)
                                 | TyKind::Bool => {
@@ -389,7 +404,8 @@ impl<B: Backend> TypeChecker<B> {
                                         TypeInfo::new_mut(typ.kind.clone(), typ.span),
                                     )?;
                                 }
-                                TyKind::BigInt => unreachable!(),
+                                TyKind::Field { constant: true } => unreachable!(),
+                                TyKind::GenericSizedArray(_, _) => unreachable!(),
                             }
                         }
                     }

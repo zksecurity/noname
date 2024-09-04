@@ -7,7 +7,7 @@ use crate::{
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
     error::Result,
-    parser::types::{FnSig, FunctionDef},
+    parser::types::{FnSig, FunctionDef, GenericParameters},
     type_checker::{FnInfo, TypeChecker},
     var::Var,
 };
@@ -64,6 +64,7 @@ impl std::fmt::Debug for BuiltinModule {
 /// * `-> Result<Option<Var>>`: return a `Result` with an `Option` of a `Var`. This is because built-ins can return a variable, or they can return nothing. If they return nothing, then the `Option` will be `None`. If they return a variable, then the `Option` will be `Some(Var)`.
 pub type FnHandle<B: Backend> = fn(
     &mut CircuitWriter<B>,
+    &GenericParameters,
     &[VarInfo<B::Field, B::Var>],
     Span,
 ) -> Result<Option<Var<B::Field, B::Var>>>;
