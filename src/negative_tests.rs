@@ -321,3 +321,53 @@ fn test_iterator_variable_redefinition() {
         ErrorKind::DuplicateDefinition(..)
     ));
 }
+
+#[test]
+fn test_boolean_and_fail() {
+    let code = r#"
+    fn thing(xx: Field, yy: Bool) {
+        let zz = xx && yy;
+    }
+    "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(res.unwrap_err().kind, ErrorKind::MismatchType(..)));
+}
+
+#[test]
+fn test_boolean_or_fail() {
+    let code = r#"
+    fn thing(xx: Field, yy: Bool) {
+        let zz = xx || yy;
+    }
+    "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(res.unwrap_err().kind, ErrorKind::MismatchType(..)));
+}
+
+#[test]
+fn test_addition_mismatch() {
+    let code = r#"
+    fn thing(xx: Field) -> Field {
+        let yy = xx + 1;
+        return yy + true;
+    }
+    "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(res.unwrap_err().kind, ErrorKind::MismatchType(..)));
+}
+
+#[test]
+fn test_multiplication_mismatch() {
+    let code = r#"
+    fn thing(xx: Field) -> Field {
+        let yy = xx * 2;
+        return yy + true;
+    }
+    "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(res.unwrap_err().kind, ErrorKind::MismatchType(..)));
+}
