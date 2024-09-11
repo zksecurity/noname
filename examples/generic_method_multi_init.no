@@ -1,0 +1,18 @@
+struct Thing {
+    xx: Field,
+}
+
+fn Thing.gen(self, const LEN: Field) -> [Field; LEN] {
+    return [self.xx; LEN];
+}
+
+fn main(pub xx: Field, yy: Field) {
+    let thing1 = Thing { xx: xx };
+    let arr1 = thing1.gen(2);
+    let arr2 = thing1.gen(3); 
+    assert_eq(arr1[1], arr2[2]);
+
+    let thing2 = Thing { xx: yy };
+    let arr3 = thing2.gen(2);
+    assert_eq(arr3[1], arr2[2] + 1);
+}

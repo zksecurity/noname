@@ -130,11 +130,32 @@ pub enum ErrorKind {
     #[error("invalid array size, expected [_; x] with x in [0,2^32]")]
     InvalidArraySize,
 
+    #[error("only allow a single generic parameter for the size of an array argument")]
+    InvalidSymbolicSize,
+
+    #[error("invalid generic parameter, expected single uppercase letter, such as N, M, etc.")]
+    InvalidGenericParameter,
+
+    #[error("missing generic value: `{0}`")]
+    GenericValueExpected(String),
+
+    #[error("conflict generic values during binding for `{0}`: `{1}` and `{2}`")]
+    ConflictGenericValue(String, u32, u32),
+
+    #[error("unexpected generic parameter: `{0}`")]
+    UnexpectedGenericParameter(String),
+
+    #[error("calling generic functions in for loop is not allowed")]
+    GenericInForLoop,
+
     #[error("the value passed could not be converted to a field element")]
     InvalidField(String),
 
     #[error("invalid range size, expected x..y with x and y integers in [0,2^32]")]
     InvalidRangeSize,
+
+    #[error("invalid iterator type, expected an array but found {0}")]
+    InvalidIteratorType(TyKind),
 
     #[error("invalid statement")]
     InvalidStatement,
@@ -185,6 +206,9 @@ pub enum ErrorKind {
 
     #[error("cannot convert `{0}` to field element")]
     CannotConvertToField(String),
+
+    #[error("cannot convert `{0}` to {1}")]
+    CannotConvertFromField(String, String),
 
     #[error("a return value was expected by the function signature")]
     MissingReturn,
@@ -259,6 +283,9 @@ pub enum ErrorKind {
 
     #[error("only variables and arrays can be mutated")]
     InvalidAssignmentExpression,
+
+    #[error("unexpected assignment type. Expected: {0} and got {1}")]
+    AssignmentTypeMismatch(TyKind, TyKind),
 
     #[error("the main function must have at least one argument")]
     NoArgsInMain,
