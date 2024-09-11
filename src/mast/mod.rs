@@ -915,9 +915,7 @@ pub fn monomorphize_stmt<B: Backend>(
             let typ = rhs_mono.typ.as_ref().expect("expected a type");
 
             let type_info = if *mutable && matches!(typ, TyKind::Field { constant: true }) {
-                // shouldn't propagate the constant value to the mutable variable, even the rhs is a constant.
-                // so that the expression node won't be folded when monomorphizing the binary operations.
-                // the binary operation will fold the express node if both lhs and rhs hold constant values.
+                // mutable variable shouldn't be constant
                 let new_typ = &TyKind::Field { constant: false };
                 MTypeInfo::new(new_typ, lhs.span, None)
             } else {
