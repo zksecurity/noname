@@ -914,15 +914,12 @@ pub fn monomorphize_stmt<B: Backend>(
             let rhs_mono = monomorphize_expr(ctx, rhs, mono_fn_env)?;
             let typ = rhs_mono.typ.as_ref().expect("expected a type");
 
-            let type_info = if *mutable {
+            let type_info = if *mutable && matches!(typ, TyKind::Field { constant: true }) {
                 // shouldn't propagate the constant value to the mutable variable, even the rhs is a constant.
                 // so that the expression node won't be folded when monomorphizing the binary operations.
                 // the binary operation will fold the express node if both lhs and rhs hold constant values.
-                let new_typ = match typ {
-                    TyKind::Field { constant: true } => TyKind::Field { constant: false },
-                    _ => typ.clone(),
-                };
-                MTypeInfo::new(&new_typ, lhs.span, None)
+                let new_typ = &TyKind::Field { constant: false };
+                MTypeInfo::new(new_typ, lhs.span, None)
             } else {
                 MTypeInfo::new(typ, lhs.span, rhs_mono.constant)
             };
