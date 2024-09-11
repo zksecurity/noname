@@ -563,15 +563,33 @@ fn monomorphize_expr<B: Backend>(
                 | Op2::Multiplication
                 | Op2::Division
                 | Op2::BoolAnd
-                | Op2::BoolOr => lhs_mono.typ,
+                | Op2::BoolOr => lhs_mono.clone().typ,
             };
 
-            let cst = match (lhs_mono.constant, rhs_mono.constant) {
-                (Some(lhs), Some(rhs)) => match op {
-                    Op2::Addition => Some(lhs + rhs),
-                    Op2::Subtraction => Some(lhs - rhs),
-                    Op2::Multiplication => Some(lhs * rhs),
-                    Op2::Division => Some(lhs / rhs),
+            let ExprMonoInfo {
+                typ: lhs_typ,
+                constant: lhs_cst,
+                ..
+            } = lhs_mono;
+            let ExprMonoInfo {
+                typ: rhs_typ,
+                constant: rhs_cst,
+                ..
+            } = rhs_mono;
+
+            // check if the constant values can be folded
+            let cst = match (lhs_typ, rhs_typ) {
+                (
+                    Some(TyKind::Field { constant: true }),
+                    Some(TyKind::Field { constant: true }),
+                ) => match (lhs_cst, rhs_cst) {
+                    (Some(lhs), Some(rhs)) => match op {
+                        Op2::Addition => Some(lhs + rhs),
+                        Op2::Subtraction => Some(lhs - rhs),
+                        Op2::Multiplication => Some(lhs * rhs),
+                        Op2::Division => Some(lhs / rhs),
+                        _ => None,
+                    },
                     _ => None,
                 },
                 _ => None,
@@ -895,7 +913,19 @@ pub fn monomorphize_stmt<B: Backend>(
         StmtKind::Assign { mutable, lhs, rhs } => {
             let rhs_mono = monomorphize_expr(ctx, rhs, mono_fn_env)?;
             let typ = rhs_mono.typ.as_ref().expect("expected a type");
-            let type_info = MTypeInfo::new(typ, lhs.span, None);
+
+            let type_info = if *mutable {
+                // shouldn't propagate the constant value to the mutable variable, even the rhs is a constant.
+                // so that the expression node won't be folded when monomorphizing the binary operations.
+                // the binary operation will fold the express node if both lhs and rhs hold constant values.
+                let new_typ = match typ {
+                    TyKind::Field { constant: true } => TyKind::Field { constant: false },
+                    _ => typ.clone(),
+                };
+                MTypeInfo::new(&new_typ, lhs.span, None)
+            } else {
+                MTypeInfo::new(typ, lhs.span, rhs_mono.constant)
+            };
 
             // store the type of lhs in the env
             mono_fn_env.store_type(&lhs.value, &type_info)?;
