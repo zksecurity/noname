@@ -496,7 +496,7 @@ impl Backend for KimchiVesta {
         res.push_str(&crate::utils::noname_version());
 
         // public inputs
-        res.push_str(&format!("@ public inputs: {}\n", self.public_input_size));
+        res.push_str(&format!("@ public inputs: {}\n\n", self.public_input_size));
 
         // vars
         let mut vars: OrderedHashSet<VestaField> = OrderedHashSet::default();
