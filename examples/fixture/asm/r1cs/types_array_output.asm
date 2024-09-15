@@ -1,5 +1,5 @@
 @ noname.0.7.0
-@ public inputs: 2
+@ public inputs: 6
 
 2 * v_5 == (2 * v_5) * (1)
 2 * v_6 == (2 * v_6) * (1)

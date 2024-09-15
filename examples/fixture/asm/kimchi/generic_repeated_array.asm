@@ -1,5 +1,5 @@
 @ noname.0.7.0
-@ public inputs: 1
+@ public inputs: 4
 
 DoubleGeneric<1>
 DoubleGeneric<1>
