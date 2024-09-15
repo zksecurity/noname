@@ -468,8 +468,11 @@ where
         let mut res = String::new();
         res.push_str(&crate::utils::noname_version());
 
+        // add public outputs to public inputs
+        let num_public_inputs = self.public_inputs.len() + self.public_outputs.len();
+        
         // public inputs
-        res.push_str(&format!("@ public inputs: {}\n\n", self.public_inputs.len()));
+        res.push_str(&format!("@ public inputs: {}\n\n", num_public_inputs));
 
         for ((row, constraint), debug_info) in
             izip!(self.constraints.iter().enumerate(), &self.debug_info)
