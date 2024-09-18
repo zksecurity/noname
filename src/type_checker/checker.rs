@@ -541,7 +541,7 @@ impl<B: Backend> TypeChecker<B> {
                     // use generic array as the size node might include generic parameters or constant vars
                     let res = ExprTyInfo::new_anon(TyKind::GenericSizedArray(
                         Box::new(item_node.typ),
-                        Symbolic::parse(size)?,
+                        Symbolic::parse_expr(size)?,
                     ));
                     Some(res)
                 } else {

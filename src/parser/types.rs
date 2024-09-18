@@ -186,8 +186,9 @@ pub enum Symbolic {
     Constant(Ident),
     /// Generic parameter
     Generic(Ident),
-    Add(Box<Symbolic>, Box<Symbolic>),
-    Mul(Box<Symbolic>, Box<Symbolic>),
+    /// Binary operation with protected flag
+    Add(Box<Symbolic>, Box<Symbolic>, bool),
+    Mul(Box<Symbolic>, Box<Symbolic>, bool),
 }
 
 impl Display for Symbolic {
@@ -196,8 +197,20 @@ impl Display for Symbolic {
             Symbolic::Concrete(n) => write!(f, "{}", n),
             Symbolic::Constant(ident) => write!(f, "{}", ident.value),
             Symbolic::Generic(ident) => write!(f, "{}", ident.value),
-            Symbolic::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
-            Symbolic::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
+            Symbolic::Add(lhs, rhs, protected) => {
+                if *protected {
+                    write!(f, "({} + {})", lhs, rhs)
+                } else {
+                    write!(f, "{} + {}", lhs, rhs)
+                }
+            }
+            Symbolic::Mul(lhs, rhs, protected) => {
+                if *protected {
+                    write!(f, "({} * {})", lhs, rhs)
+                } else {
+                    write!(f, "{} * {}", lhs, rhs)
+                }
+            }
         }
     }
 }
@@ -218,7 +231,7 @@ impl Symbolic {
             Symbolic::Generic(ident) => {
                 generics.insert(ident.value.clone());
             }
-            Symbolic::Add(lhs, rhs) | Symbolic::Mul(lhs, rhs) => {
+            Symbolic::Add(lhs, rhs, _) | Symbolic::Mul(lhs, rhs, _) => {
                 generics.extend(lhs.extract_generics());
                 generics.extend(rhs.extract_generics());
             }
@@ -228,7 +241,7 @@ impl Symbolic {
     }
 
     /// Parse from an expression node recursively.
-    pub fn parse(node: &Expr) -> Result<Self> {
+    pub fn parse_expr(node: &Expr) -> Result<Self> {
         match &node.kind {
             ExprKind::BigUInt(n) => Ok(Symbolic::Concrete(n.to_u32().unwrap())),
             ExprKind::Variable { module: _, name } => {
@@ -244,12 +257,13 @@ impl Symbolic {
                 rhs,
                 protected: _,
             } => {
-                let lhs = Symbolic::parse(lhs)?;
-                let rhs = Symbolic::parse(rhs);
+                let lhs = Symbolic::parse_expr(lhs)?;
+                let rhs = Symbolic::parse_expr(rhs);
 
+                // no protected flags are needed, as this is based on expression nodes which already ordered the operations
                 match op {
-                    Op2::Addition => Ok(Symbolic::Add(Box::new(lhs), Box::new(rhs?))),
-                    Op2::Multiplication => Ok(Symbolic::Mul(Box::new(lhs), Box::new(rhs?))),
+                    Op2::Addition => Ok(Symbolic::Add(Box::new(lhs), Box::new(rhs?), false)),
+                    Op2::Multiplication => Ok(Symbolic::Mul(Box::new(lhs), Box::new(rhs?), false)),
                     _ => Err(Error::new(
                         "mast",
                         ErrorKind::InvalidSymbolicSize,
@@ -263,6 +277,85 @@ impl Symbolic {
                 node.span,
             )),
         }
+    }
+
+    /// Parse from tokens.
+    /// eg: 2 * (LEFT + 1)
+    /// Result: `Symbolic::Mul(2, Symbolic::Add(LEFT, 1))`
+    pub fn parse_token(
+        ctx: &mut ParserCtx,
+        tokens: &mut Tokens,
+        buff_token: Option<Token>,
+    ) -> Result<Symbolic> {
+        let token = if let Some(token) = buff_token {
+            token
+        } else {
+            tokens.bump(ctx).unwrap()
+        };
+        let span = token.span;
+
+        let lhs = match token.kind {
+            TokenKind::BigUInt(n) => Symbolic::Concrete(n.try_into().unwrap()),
+            TokenKind::Identifier(name) => {
+                if is_generic_parameter(&name) {
+                    Symbolic::Generic(Ident::new(name, span))
+                } else {
+                    Symbolic::Constant(Ident::new(name, span))
+                }
+            }
+            TokenKind::LeftParen => {
+                let mut sym = Symbolic::parse_token(ctx, tokens, None)?;
+                tokens.bump_expected(ctx, TokenKind::RightParen)?;
+
+                // marks it as the operations are protected
+                if let Symbolic::Add(_, _, protected) | Symbolic::Mul(_, _, protected) = &mut sym {
+                    *protected = true;
+                }
+
+                sym
+            }
+            _ => return Err(ctx.error(ErrorKind::InvalidToken, span)),
+        };
+
+        lhs.parse_rhs(ctx, tokens)
+    }
+
+    /// Parse the right-hand side.
+    pub fn parse_rhs(self, ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Symbolic> {
+        // lhs + rhs
+        //     ^
+        let lhs = match tokens.peek() {
+            Some(Token {
+                kind: TokenKind::Plus | TokenKind::Minus | TokenKind::Star,
+                span,
+            }) => {
+                let op = tokens.bump(ctx).unwrap();
+                let span = span.merge_with(op.span);
+
+                // lhs + rhs
+                //       ^^^
+                let rhs = Symbolic::parse_token(ctx, tokens, None)?;
+
+                match rhs {
+                    // if rhs is another binary operation, it should be protected
+                    Symbolic::Add(_, _, protected) | Symbolic::Mul(_, _, protected) => {
+                        if !protected {
+                            return Err(ctx.error(ErrorKind::MissingParenthesis, span));
+                        }
+                    }
+                    _ => (),
+                }
+
+                match op.kind {
+                    TokenKind::Plus => Symbolic::Add(Box::new(self), Box::new(rhs), false),
+                    TokenKind::Star => Symbolic::Mul(Box::new(self), Box::new(rhs), false),
+                    _ => return Err(ctx.error(ErrorKind::InvalidToken, span)),
+                }
+            }
+            _ => return Ok(self),
+        };
+
+        lhs.parse_rhs(ctx, tokens)
     }
 }
 
@@ -476,11 +569,12 @@ impl Ty {
 
                 // [type; size]
                 //            ^
-                let siz_second = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
+                let siz_second = tokens.peek().unwrap();
 
                 // return Array(ty, siz) if size is a number and right_paren is ]
                 match (&siz_first.kind, &siz_second.kind) {
                     (TokenKind::BigUInt(b), TokenKind::RightBracket) => {
+                        let siz_second = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
                         let siz: u32 = b
                             .try_into()
                             .map_err(|_e| ctx.error(ErrorKind::InvalidArraySize, siz_first.span))?;
@@ -491,24 +585,17 @@ impl Ty {
                             span,
                         })
                     }
-                    // [Field; nn]
-                    // [Field; NN]
-                    //         ^^^
-                    (TokenKind::Identifier(name), TokenKind::RightBracket) => {
-                        let siz = Ident::new(name.to_string(), siz_first.span);
-                        let span = span.merge_with(siz_second.span);
-                        let sym = if is_generic_parameter(name) {
-                            Symbolic::Generic(siz)
-                        } else {
-                            Symbolic::Constant(siz)
-                        };
+                    // [Field; NN * (2 + MM)]
+                    //         ^^^^^^^^^^^^^^
+                    _ => {
+                        let sym = Symbolic::parse_token(ctx, tokens, Some(siz_first))?;
+                        tokens.bump_expected(ctx, TokenKind::RightBracket)?;
 
                         Ok(Ty {
                             kind: TyKind::GenericSizedArray(Box::new(ty.kind), sym),
                             span,
                         })
                     }
-                    _ => Err(ctx.error(ErrorKind::InvalidSymbolicSize, siz_first.span)),
                 }
             }
 
