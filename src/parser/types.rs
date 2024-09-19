@@ -1260,17 +1260,10 @@ pub enum StmtKind {
     Return(Box<Expr>),
     Comment(String),
 
-    // `for var in 0..10 { <body> }`
+    // `for var in 0..10 { <body> }` or `for var in vec { <body> }`
     ForLoop {
         var: Ident,
-        range: Range,
-        body: Vec<Stmt>,
-    },
-
-    // `for item in vec { <body> }`
-    IteratorLoop {
-        var: Ident,
-        iterator: Box<Expr>,
+        argument: ForLoopArgument,
         body: Vec<Stmt>,
     },
 }
@@ -1411,22 +1404,14 @@ impl Stmt {
                     let statement = Stmt::parse(ctx, tokens)?;
                     body.push(statement);
                 }
-
-                //
-                match argument {
-                    ForLoopArgument::Range(range) => Ok(Stmt {
-                        kind: StmtKind::ForLoop { var, range, body },
-                        span,
-                    }),
-                    ForLoopArgument::Iterator(iterator) => Ok(Stmt {
-                        kind: StmtKind::IteratorLoop {
-                            var,
-                            iterator,
-                            body,
-                        },
-                        span,
-                    }),
-                }
+                Ok(Stmt {
+                    kind: StmtKind::ForLoop {
+                        var,
+                        argument,
+                        body,
+                    },
+                    span,
+                })
             }
 
             // if/else

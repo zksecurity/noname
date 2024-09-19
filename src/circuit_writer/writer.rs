@@ -13,7 +13,7 @@ use crate::{
     error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FunctionDef, Stmt, StmtKind, TyKind},
+        types::{ForLoopArgument, FunctionDef, Stmt, StmtKind, TyKind},
         Expr, ExprKind, Op2,
     },
     syntax::is_type,
@@ -136,83 +136,92 @@ impl<B: Backend> CircuitWriter<B> {
                 self.add_local_var(fn_env, lhs.value.clone(), var_info);
             }
 
-            StmtKind::ForLoop { var, range, body } => {
-                // compute the start and end of the range
-                let start_bg: BigUint = self
-                    .compute_expr(fn_env, &range.start)?
-                    .ok_or_else(|| {
-                        self.error(ErrorKind::CannotComputeExpression, range.start.span)
-                    })?
-                    .constant()
-                    .expect("expected constant")
-                    .into();
-                let start: u32 = start_bg
-                    .try_into()
-                    .map_err(|_| self.error(ErrorKind::InvalidRangeSize, range.start.span))?;
-
-                let end_bg: BigUint = self
-                    .compute_expr(fn_env, &range.end)?
-                    .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, range.end.span))?
-                    .constant()
-                    .expect("expected constant")
-                    .into();
-                let end: u32 = end_bg
-                    .try_into()
-                    .map_err(|_| self.error(ErrorKind::InvalidRangeSize, range.end.span))?;
-
-                // compute for the for loop block
-                for ii in start..end {
-                    fn_env.nest();
-
-                    let cst_var = Var::new_constant(ii.into(), var.span);
-                    let var_info =
-                        VarInfo::new(cst_var, false, Some(TyKind::Field { constant: true }));
-                    self.add_local_var(fn_env, var.value.clone(), var_info);
-
-                    self.compile_block(fn_env, body)?;
-
-                    fn_env.pop();
-                }
-            }
-            StmtKind::IteratorLoop {
+            StmtKind::ForLoop {
                 var,
-                iterator,
+                argument,
                 body,
             } => {
-                let iterator_var = self
-                    .compute_expr(fn_env, iterator)?
-                    .expect("array access on non-array");
+                match argument {
+                    ForLoopArgument::Range(range) => {
+                        // compute the start and end of the range
+                        let start_bg: BigUint = self
+                            .compute_expr(fn_env, &range.start)?
+                            .ok_or_else(|| {
+                                self.error(ErrorKind::CannotComputeExpression, range.start.span)
+                            })?
+                            .constant()
+                            .expect("expected constant")
+                            .into();
+                        let start: u32 = start_bg.try_into().map_err(|_| {
+                            self.error(ErrorKind::InvalidRangeSize, range.start.span)
+                        })?;
 
-                let array_typ = self
-                    .expr_type(iterator)
-                    .cloned()
-                    .expect("cannot find type of array");
+                        let end_bg: BigUint = self
+                            .compute_expr(fn_env, &range.end)?
+                            .ok_or_else(|| {
+                                self.error(ErrorKind::CannotComputeExpression, range.end.span)
+                            })?
+                            .constant()
+                            .expect("expected constant")
+                            .into();
+                        let end: u32 = end_bg
+                            .try_into()
+                            .map_err(|_| self.error(ErrorKind::InvalidRangeSize, range.end.span))?;
 
-                let (elem_type, array_len) = match array_typ {
-                    TyKind::Array(ty, array_len) => (ty, array_len),
-                    _ => panic!("expected array"),
-                };
+                        // compute for the for loop block
+                        for ii in start..end {
+                            fn_env.nest();
 
-                // compute the size of each element in the array
-                let len = self.size_of(&elem_type);
+                            let cst_var = Var::new_constant(ii.into(), var.span);
+                            let var_info = VarInfo::new(
+                                cst_var,
+                                false,
+                                Some(TyKind::Field { constant: true }),
+                            );
+                            self.add_local_var(fn_env, var.value.clone(), var_info);
 
-                for idx in 0..array_len {
-                    // compute the real index
-                    let idx = idx as usize;
-                    let start = idx * len;
+                            self.compile_block(fn_env, body)?;
 
-                    fn_env.nest();
+                            fn_env.pop();
+                        }
+                    }
+                    ForLoopArgument::Iterator(iterator) => {
+                        let iterator_var = self
+                            .compute_expr(fn_env, iterator)?
+                            .expect("array access on non-array");
 
-                    // add the variable to the inner enviroment corresponding
-                    // to iterator[idx]
-                    let indexed_var = iterator_var.narrow(start, len).value(self, fn_env);
-                    let var_info =
-                        VarInfo::new(indexed_var.clone(), false, Some(*elem_type.clone()));
-                    self.add_local_var(fn_env, var.value.clone(), var_info);
+                        let array_typ = self
+                            .expr_type(iterator)
+                            .cloned()
+                            .expect("cannot find type of array");
 
-                    self.compile_block(fn_env, body)?;
+                        let (elem_type, array_len) = match array_typ {
+                            TyKind::Array(ty, array_len) => (ty, array_len),
+                            _ => panic!("expected array"),
+                        };
 
-                    fn_env.pop();
+                        // compute the size of each element in the array
+                        let len = self.size_of(&elem_type);
+
+                        for idx in 0..array_len {
+                            // compute the real index
+                            let idx = idx as usize;
+                            let start = idx * len;
+
+                            fn_env.nest();
+
+                            // add the variable to the inner enviroment corresponding
+                            // to iterator[idx]
+                            let indexed_var = iterator_var.narrow(start, len).value(self, fn_env);
+                            let var_info =
+                                VarInfo::new(indexed_var.clone(), false, Some(*elem_type.clone()));
+                            self.add_local_var(fn_env, var.value.clone(), var_info);
+
+                            self.compile_block(fn_env, body)?;
+
+                            fn_env.pop();
+                        }
+                    }
                 }
             }
             StmtKind::Expr(expr) => {

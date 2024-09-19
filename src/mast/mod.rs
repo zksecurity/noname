@@ -7,7 +7,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FnArg, FnSig, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
+        types::{FnArg, FnSig, ForLoopArgument, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
         CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
     syntax::{is_generic_parameter, is_type},
@@ -911,74 +911,62 @@ pub fn monomorphize_stmt<B: Backend>(
 
             Some((stmt_mono, None))
         }
-        StmtKind::ForLoop { var, range, body } => {
+        StmtKind::ForLoop {
+            var,
+            argument,
+            body,
+        } => {
             // enter a new scope
             mono_fn_env.nest();
 
-            mono_fn_env.store_type(
-                &var.value,
-                // because we don't unroll the loop in the monomorphized AST,
-                // there is no constant value to propagate.
-                &MTypeInfo::new(&TyKind::Field { constant: true }, var.span, None),
-            )?;
+            let argument_mono = match argument {
+                ForLoopArgument::Range(range) => {
+                    mono_fn_env.store_type(
+                        &var.value,
+                        // because we don't unroll the loop in the monomorphized AST,
+                        // there is no constant value to propagate.
+                        &MTypeInfo::new(&TyKind::Field { constant: true }, var.span, None),
+                    )?;
 
-            let start_mono = monomorphize_expr(ctx, &range.start, mono_fn_env)?;
-            let end_mono = monomorphize_expr(ctx, &range.end, mono_fn_env)?;
+                    let start_mono = monomorphize_expr(ctx, &range.start, mono_fn_env)?;
+                    let end_mono = monomorphize_expr(ctx, &range.end, mono_fn_env)?;
 
-            if start_mono.constant.is_none() || end_mono.constant.is_none() {
-                return Err(error(ErrorKind::InvalidRangeSize, stmt.span));
-            }
+                    if start_mono.constant.is_none() || end_mono.constant.is_none() {
+                        return Err(error(ErrorKind::InvalidRangeSize, stmt.span));
+                    }
 
-            if start_mono.constant.unwrap() > end_mono.constant.unwrap() {
-                return Err(error(ErrorKind::InvalidRangeSize, stmt.span));
-            }
+                    if start_mono.constant.unwrap() > end_mono.constant.unwrap() {
+                        return Err(error(ErrorKind::InvalidRangeSize, stmt.span));
+                    }
 
-            let range_mono = Range {
-                start: start_mono.expr,
-                end: end_mono.expr,
-                span: range.span,
+                    let range_mono = Range {
+                        start: start_mono.expr,
+                        end: end_mono.expr,
+                        span: range.span,
+                    };
+                    ForLoopArgument::Range(range_mono)
+                }
+                ForLoopArgument::Iterator(iterator) => {
+                    let iterator_mono = monomorphize_expr(ctx, iterator, mono_fn_env)?;
+                    let typ = iterator_mono.typ.as_ref().expect("expected a type");
+                    let array_element_type = match typ {
+                        TyKind::Array(t, _) => t,
+                        _ => panic!("expected an array"),
+                    };
+
+                    mono_fn_env.store_type(
+                        &var.value,
+                        &MTypeInfo::new(array_element_type, var.span, None),
+                    )?;
+                    ForLoopArgument::Iterator(Box::new(iterator_mono.expr))
+                }
             };
 
             let (stmts_mono, _) = monomorphize_block(ctx, mono_fn_env, body, None)?;
             let loop_stmt_mono = Stmt {
                 kind: StmtKind::ForLoop {
                     var: var.clone(),
-                    range: range_mono,
-                    body: stmts_mono,
-                },
-                span: stmt.span,
-            };
-
-            // exit the scope
-            mono_fn_env.pop();
-
-            Some((loop_stmt_mono, None))
-        }
-        StmtKind::IteratorLoop {
-            var,
-            iterator,
-            body,
-        } => {
-            // enter a new scope
-            mono_fn_env.nest();
-
-            let iterator_mono = monomorphize_expr(ctx, iterator, mono_fn_env)?;
-            let typ = iterator_mono.typ.as_ref().expect("expected a type");
-            let array_element_type = match typ {
-                TyKind::Array(t, _) => t,
-                _ => panic!("expected an array"),
-            };
-
-            mono_fn_env.store_type(
-                &var.value,
-                &MTypeInfo::new(array_element_type, var.span, None),
-            )?;
-
-            let (stmts_mono, _) = monomorphize_block(ctx, mono_fn_env, body, None)?;
-            let loop_stmt_mono = Stmt {
-                kind: StmtKind::IteratorLoop {
-                    var: var.clone(),
-                    iterator: Box::new(iterator_mono.expr),
+                    argument: argument_mono,
                     body: stmts_mono,
                 },
                 span: stmt.span,
