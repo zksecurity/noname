@@ -150,7 +150,7 @@ where
     B: Backend,
 {
     tast: TypeChecker<B>,
-    in_generic_func: bool,
+    generic_func_scope: Option<usize>,
     // fully qualified function name
     functions_to_delete: Vec<FullyQualified>,
     // fully qualified struct name, method name
@@ -161,7 +161,7 @@ impl<B: Backend> MastCtx<B> {
     pub fn new(tast: TypeChecker<B>) -> Self {
         Self {
             tast,
-            in_generic_func: false,
+            generic_func_scope: Some(0),
             functions_to_delete: vec![],
             methods_to_delete: vec![],
         }
@@ -174,11 +174,11 @@ impl<B: Backend> MastCtx<B> {
     }
 
     pub fn start_monomorphize_func(&mut self) {
-        self.in_generic_func = true;
+        self.generic_func_scope = Some(self.generic_func_scope.unwrap() + 1);
     }
 
     pub fn finish_monomorphize_func(&mut self) {
-        self.in_generic_func = false;
+        self.generic_func_scope = Some(self.generic_func_scope.unwrap() - 1);
     }
 
     pub fn add_monomorphized_fn(
