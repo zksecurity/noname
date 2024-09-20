@@ -91,7 +91,11 @@ fn test_generic_const_for_loop() {
         "#;
 
     let res = tast_pass(code).0;
-    assert!(matches!(res.unwrap_err().kind, ErrorKind::GenericInForLoop));
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
 }
 
 #[test]
@@ -111,7 +115,10 @@ fn test_generic_array_for_loop() {
         "#;
 
     let res = tast_pass(code).0;
-    assert!(matches!(res.unwrap_err().kind, ErrorKind::GenericInForLoop));
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
 }
 
 #[test]

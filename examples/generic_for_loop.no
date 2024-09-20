@@ -11,6 +11,14 @@ fn join(const LEN: Field, arr1: [Field; LLEN], arr2: [Field; RLEN]) -> [Field; L
     return arr;
 }
 
+fn clone(const LEN: Field, val: Field) -> [Field; LEN] {
+    let mut arr = [0; LEN];
+    for idx in 0..LEN {
+        arr[idx] = val;
+    }
+    return arr;
+}
+
 fn main(pub xx: Field) {
     let arr1 = [xx + 1, xx + 2];
     let arr2 = [xx + 3, xx + 4];
@@ -21,4 +29,12 @@ fn main(pub xx: Field) {
     assert_eq(arr[1], arr1[1]);
     assert_eq(arr[2], arr2[0]);
     assert_eq(arr[3], arr2[1]);
+
+    // test that the generic function is callable within a for loop
+    let mut arr3 = [[0; 2]; 2];
+    for idx in 0..2 {
+        let cloned = clone(2, idx);
+        arr3[idx] = cloned;
+    }
+
 }
