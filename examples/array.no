@@ -4,8 +4,18 @@ fn init() -> [Field; size] { // array type can depends on constant var
     return [4; size]; // array init with constant var
 }
 
+fn init_concrete() -> [Field; 3] {
+    // as this function won't be monomorphized,
+    // this is to test this array is constructed as Array instead of GenericSizedArray.
+    let mut arr = [0; 3];
+    for idx in 0..3 {
+        arr[idx] = idx + 1;
+    }
+    return arr;
+}
+
 fn main(pub public_input: [Field; 2]) {
-    let xx = [1, 2, 3];
+    let xx = init_concrete();
 
     assert_eq(public_input[0], xx[0]);
     assert_eq(public_input[1], xx[1]);
