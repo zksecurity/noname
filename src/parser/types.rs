@@ -228,7 +228,7 @@ impl Symbolic {
     }
 
     /// Parse from an expression node recursively.
-    pub fn parse_expr(node: &Expr) -> Result<Self> {
+    pub fn parse(node: &Expr) -> Result<Self> {
         match &node.kind {
             ExprKind::BigUInt(n) => Ok(Symbolic::Concrete(n.to_u32().unwrap())),
             ExprKind::Variable { module: _, name } => {
@@ -244,8 +244,8 @@ impl Symbolic {
                 rhs,
                 protected: _,
             } => {
-                let lhs = Symbolic::parse_expr(lhs)?;
-                let rhs = Symbolic::parse_expr(rhs);
+                let lhs = Symbolic::parse(lhs)?;
+                let rhs = Symbolic::parse(rhs);
 
                 // no protected flags are needed, as this is based on expression nodes which already ordered the operations
                 match op {
@@ -487,7 +487,7 @@ impl Ty {
                         Ok(Ty {
                             kind: TyKind::GenericSizedArray(
                                 Box::new(ty.kind),
-                                Symbolic::parse_expr(&expr)?,
+                                Symbolic::parse(&expr)?,
                             ),
                             span,
                         })
