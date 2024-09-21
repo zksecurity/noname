@@ -230,8 +230,8 @@ impl Symbolic {
                 bigint.try_into().expect("biguint too large")
             }
             Symbolic::Generic(g) => mono_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
-            Symbolic::Add(a, b, _) => a.eval(mono_fn_env, tast) + b.eval(mono_fn_env, tast),
-            Symbolic::Mul(a, b, _) => a.eval(mono_fn_env, tast) * b.eval(mono_fn_env, tast),
+            Symbolic::Add(a, b) => a.eval(mono_fn_env, tast) + b.eval(mono_fn_env, tast),
+            Symbolic::Mul(a, b) => a.eval(mono_fn_env, tast) * b.eval(mono_fn_env, tast),
         }
     }
 }
