@@ -507,7 +507,6 @@ fn monomorphize_expr<B: Backend>(
             ctx.tast
                 .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
 
-
             // assume the function call won't return constant value
             ExprMonoInfo::new(mexpr, typ, None)
         }
