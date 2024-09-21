@@ -470,7 +470,7 @@ where
 
         // add public outputs to public inputs
         let num_public_inputs = self.public_inputs.len() + self.public_outputs.len();
-        
+
         // public inputs
         res.push_str(&format!("@ public inputs: {}\n\n", num_public_inputs));
 
