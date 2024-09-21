@@ -186,9 +186,8 @@ pub enum Symbolic {
     Constant(Ident),
     /// Generic parameter
     Generic(Ident),
-    /// Binary operation with protected flag
-    Add(Box<Symbolic>, Box<Symbolic>, bool),
-    Mul(Box<Symbolic>, Box<Symbolic>, bool),
+    Add(Box<Symbolic>, Box<Symbolic>),
+    Mul(Box<Symbolic>, Box<Symbolic>),
 }
 
 impl Display for Symbolic {
@@ -197,20 +196,8 @@ impl Display for Symbolic {
             Symbolic::Concrete(n) => write!(f, "{}", n),
             Symbolic::Constant(ident) => write!(f, "{}", ident.value),
             Symbolic::Generic(ident) => write!(f, "{}", ident.value),
-            Symbolic::Add(lhs, rhs, protected) => {
-                if *protected {
-                    write!(f, "({} + {})", lhs, rhs)
-                } else {
-                    write!(f, "{} + {}", lhs, rhs)
-                }
-            }
-            Symbolic::Mul(lhs, rhs, protected) => {
-                if *protected {
-                    write!(f, "({} * {})", lhs, rhs)
-                } else {
-                    write!(f, "{} * {}", lhs, rhs)
-                }
-            }
+            Symbolic::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
+            Symbolic::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
         }
     }
 }
@@ -231,7 +218,7 @@ impl Symbolic {
             Symbolic::Generic(ident) => {
                 generics.insert(ident.value.clone());
             }
-            Symbolic::Add(lhs, rhs, _) | Symbolic::Mul(lhs, rhs, _) => {
+            Symbolic::Add(lhs, rhs) | Symbolic::Mul(lhs, rhs) => {
                 generics.extend(lhs.extract_generics());
                 generics.extend(rhs.extract_generics());
             }
@@ -262,8 +249,8 @@ impl Symbolic {
 
                 // no protected flags are needed, as this is based on expression nodes which already ordered the operations
                 match op {
-                    Op2::Addition => Ok(Symbolic::Add(Box::new(lhs), Box::new(rhs?), false)),
-                    Op2::Multiplication => Ok(Symbolic::Mul(Box::new(lhs), Box::new(rhs?), false)),
+                    Op2::Addition => Ok(Symbolic::Add(Box::new(lhs), Box::new(rhs?))),
+                    Op2::Multiplication => Ok(Symbolic::Mul(Box::new(lhs), Box::new(rhs?))),
                     _ => Err(Error::new(
                         "mast",
                         ErrorKind::InvalidSymbolicSize,
