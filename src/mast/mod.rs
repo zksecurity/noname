@@ -188,8 +188,11 @@ impl<B: Backend> MastCtx<B> {
         new_qualified: FullyQualified,
         fn_info: FnInfo<B>,
     ) {
-        self.tast.add_monomorphized_fn(new_qualified, fn_info);
-        self.functions_to_delete.push(old_qualified);
+        self.tast
+            .add_monomorphized_fn(new_qualified.clone(), fn_info);
+        if new_qualified != old_qualified {
+            self.functions_to_delete.push(old_qualified);
+        }
     }
 
     pub fn add_monomorphized_method(
@@ -201,8 +204,11 @@ impl<B: Backend> MastCtx<B> {
     ) {
         self.tast
             .add_monomorphized_method(struct_qualified.clone(), method_name, fn_info);
-        self.methods_to_delete
-            .push((struct_qualified, old_method_name.to_string()));
+
+        if method_name != old_method_name {
+            self.methods_to_delete
+                .push((struct_qualified, old_method_name.to_string()));
+        }
     }
 
     pub fn clear_generic_fns(&mut self) {
