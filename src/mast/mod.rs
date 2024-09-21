@@ -411,29 +411,22 @@ fn monomorphize_expr<B: Backend>(
                 .to_owned();
 
             // monomorphize the function call
-            let (mexpr, typ) = if fn_info.sig().require_monomorphization() {
-                let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
-                let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
+            let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
 
-                let fn_name_mono = &fn_info_mono.sig().name;
-                let mexpr = Expr {
-                    kind: ExprKind::FnCall {
-                        module: module.clone(),
-                        fn_name: fn_name_mono.clone(),
-                        args: args_mono,
-                    },
-                    ..expr.clone()
-                };
-
-                let qualified = FullyQualified::new(module, &fn_name_mono.value);
-                ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
-
-                (mexpr, typ)
-            } else {
-                // otherwise, reuse the expression node and the computed type
-                (expr.clone(), ctx.tast.expr_type(expr).cloned())
+            let fn_name_mono = &fn_info_mono.sig().name;
+            let mexpr = Expr {
+                kind: ExprKind::FnCall {
+                    module: module.clone(),
+                    fn_name: fn_name_mono.clone(),
+                    args: args_mono,
+                },
+                ..expr.clone()
             };
+
+            let qualified = FullyQualified::new(module, &fn_name_mono.value);
+            ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
 
             // assume the function call won't return constant value
             ExprMonoInfo::new(mexpr, typ, None)
@@ -491,28 +484,22 @@ fn monomorphize_expr<B: Backend>(
             }
 
             // monomorphize the function call
-            let (mexpr, typ) = if fn_info.sig().require_monomorphization() {
-                let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
-                let fn_name_mono = &fn_info_mono.sig().name;
-                let mexpr = Expr {
-                    kind: ExprKind::MethodCall {
-                        lhs: Box::new(lhs_mono.expr),
-                        method_name: fn_name_mono.clone(),
-                        args: args_mono,
-                    },
-                    ..expr.clone()
-                };
-
-                let fn_def = fn_info_mono.native();
-                ctx.tast
-                    .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
-
-                (mexpr, typ)
-            } else {
-                // otherwise, reuse the expression node and the computed type
-                (expr.clone(), ctx.tast.expr_type(expr).cloned())
+            let fn_name_mono = &fn_info_mono.sig().name;
+            let mexpr = Expr {
+                kind: ExprKind::MethodCall {
+                    lhs: Box::new(lhs_mono.expr),
+                    method_name: fn_name_mono.clone(),
+                    args: args_mono,
+                },
+                ..expr.clone()
             };
+
+            let fn_def = fn_info_mono.native();
+            ctx.tast
+                .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
+
 
             // assume the function call won't return constant value
             ExprMonoInfo::new(mexpr, typ, None)
