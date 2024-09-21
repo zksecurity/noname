@@ -1,4 +1,5 @@
 use num_bigint::BigUint;
+use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
 use crate::{
@@ -553,8 +554,12 @@ fn monomorphize_expr<B: Backend>(
                 | Op2::BoolOr => lhs_mono.typ,
             };
 
-            let cst = match (lhs_mono.constant, rhs_mono.constant) {
-                (Some(lhs), Some(rhs)) => match op {
+            let ExprMonoInfo { expr: lhs_expr, .. } = lhs_mono;
+            let ExprMonoInfo { expr: rhs_expr, .. } = rhs_mono;
+
+            // fold constants
+            let cst = match (&lhs_expr.kind, &rhs_expr.kind) {
+                (ExprKind::BigUInt(lhs), ExprKind::BigUInt(rhs)) => match op {
                     Op2::Addition => Some(lhs + rhs),
                     Op2::Subtraction => Some(lhs - rhs),
                     Op2::Multiplication => Some(lhs * rhs),
@@ -566,9 +571,9 @@ fn monomorphize_expr<B: Backend>(
 
             match cst {
                 Some(v) => {
-                    let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(BigUint::from(v)));
+                    let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(v.clone()));
 
-                    ExprMonoInfo::new(mexpr, typ, Some(v))
+                    ExprMonoInfo::new(mexpr, typ, v.to_u32())
                 }
                 None => {
                     let mexpr = expr.to_mast(
@@ -576,8 +581,8 @@ fn monomorphize_expr<B: Backend>(
                         &ExprKind::BinaryOp {
                             op: op.clone(),
                             protected: *protected,
-                            lhs: Box::new(lhs_mono.expr),
-                            rhs: Box::new(rhs_mono.expr),
+                            lhs: Box::new(lhs_expr),
+                            rhs: Box::new(rhs_expr),
                         },
                     );
 
