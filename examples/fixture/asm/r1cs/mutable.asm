@@ -1,4 +1,5 @@
 @ noname.0.7.0
+@ public inputs: 0
 
 2 == (v_1) * (1)
 2 == (v_1) * (1)
