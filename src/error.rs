@@ -148,6 +148,9 @@ pub enum ErrorKind {
     #[error("calling generic functions in for loop is not allowed")]
     GenericInForLoop,
 
+    #[error("variable `{0}` is forbidden to be accessed in the for loop, likely due to a generic function call")]
+    VarAccessForbiddenInForLoop(String),
+
     #[error("the value passed could not be converted to a field element")]
     InvalidField(String),
 
