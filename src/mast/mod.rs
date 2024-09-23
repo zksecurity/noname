@@ -556,7 +556,7 @@ fn monomorphize_expr<B: Backend>(
                 | Op2::Multiplication
                 | Op2::Division
                 | Op2::BoolAnd
-                | Op2::BoolOr => lhs_mono.clone().typ,
+                | Op2::BoolOr => lhs_mono.typ,
             };
 
             let ExprMonoInfo { expr: lhs_expr, .. } = lhs_mono;
@@ -892,14 +892,7 @@ pub fn monomorphize_stmt<B: Backend>(
         StmtKind::Assign { mutable, lhs, rhs } => {
             let rhs_mono = monomorphize_expr(ctx, rhs, mono_fn_env)?;
             let typ = rhs_mono.typ.as_ref().expect("expected a type");
-
-            let type_info = if *mutable && matches!(typ, TyKind::Field { constant: true }) {
-                // mutable variable shouldn't be constant
-                let new_typ = &TyKind::Field { constant: false };
-                MTypeInfo::new(new_typ, lhs.span, None)
-            } else {
-                MTypeInfo::new(typ, lhs.span, rhs_mono.constant)
-            };
+            let type_info = MTypeInfo::new(typ, lhs.span, rhs_mono.constant);
 
             // store the type of lhs in the env
             mono_fn_env.store_type(&lhs.value, &type_info)?;
