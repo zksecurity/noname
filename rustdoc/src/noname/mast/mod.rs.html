@@ -2025,7 +2025,7 @@
         StmtKind::Assign { mutable, lhs, rhs } =&gt; {
             <span class="kw">let </span>rhs_mono = monomorphize_expr(ctx, rhs, mono_fn_env)<span class="question-mark">?</span>;
             <span class="kw">let </span>typ = rhs_mono.typ.as_ref().expect(<span class="string">"expected a type"</span>);
-            <span class="kw">let </span>type_info = MTypeInfo::new(typ, lhs.span, <span class="prelude-val">None</span>);
+            <span class="kw">let </span>type_info = MTypeInfo::new(typ, lhs.span, rhs_mono.constant);
 
             <span class="comment">// store the type of lhs in the env
             </span>mono_fn_env.store_type(<span class="kw-2">&amp;</span>lhs.value, <span class="kw-2">&amp;</span>type_info)<span class="question-mark">?</span>;
