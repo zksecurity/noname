@@ -11,9 +11,9 @@ fn join(const LEN: Field, arr1: [Field; LLEN], arr2: [Field; RLEN]) -> [Field; L
     return arr;
 }
 
-fn accumulate_mut(const LEN: Field) -> Field {
+fn accumulate_mut(const INIT: Field) -> Field {
     // shouldn't fold mutable variables as constants
-    let mut zz = LEN;
+    let mut zz = INIT;
     for ii in 0..3 {
         zz = zz + zz;
     }
@@ -31,6 +31,7 @@ fn main(pub xx: Field) {
     assert_eq(arr[2], arr2[0]);
     assert_eq(arr[3], arr2[1]);
 
-    let res = accumulate_mut(1);
+    let init_val = 1;
+    let res = accumulate_mut(init_val);
     assert_eq(res, 8);
 }
