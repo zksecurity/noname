@@ -12,7 +12,8 @@ fn join(const LEN: Field, arr1: [Field; LLEN], arr2: [Field; RLEN]) -> [Field; L
 }
 
 fn accumulate_mut(const INIT: Field) -> Field {
-    // shouldn't fold mutable variables as constants
+    // it shouldn't fold these variables, even they hold constant values
+    // it should only fold the generic vars
     let mut zz = INIT;
     for ii in 0..3 {
         zz = zz + zz;
