@@ -540,11 +540,18 @@ impl<B: Backend> TypeChecker<B> {
                     .expect("expected a typed size");
 
                 if is_numeric(&size_node.typ) {
-                    // use generic array as the size node might include generic parameters or constant vars
-                    let res = ExprTyInfo::new_anon(TyKind::GenericSizedArray(
-                        Box::new(item_node.typ),
-                        Symbolic::parse(size)?,
-                    ));
+                    let sym = Symbolic::parse(size)?;
+                    let res = if let Symbolic::Concrete(size) = sym {
+                        // if sym is a concrete variant, then just return concrete array type
+                        ExprTyInfo::new_anon(TyKind::Array(Box::new(item_node.typ), size))
+                    } else {
+                        // use generic array as the size node might include generic parameters or constant vars
+                        ExprTyInfo::new_anon(TyKind::GenericSizedArray(
+                            Box::new(item_node.typ),
+                            sym,
+                        ))
+                    };
+
                     Some(res)
                 } else {
                     return Err(self.error(ErrorKind::InvalidArraySize, expr.span));

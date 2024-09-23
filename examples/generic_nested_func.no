@@ -1,0 +1,17 @@
+fn nested_func(const LEN: Field) -> [Field; LEN] {
+    return [0; LEN];
+}
+
+fn mod_arr(val: Field) -> [Field; 3] {
+    // this generic function should be instantiated
+    let mut result = nested_func(3);
+    for idx in 0..3 {
+        result[idx] = val;
+    }
+    return result;
+}
+
+fn main(pub val: Field) -> [Field; 3] {
+    let result = mod_arr(val);
+    return result;
+}

@@ -1,0 +1,21 @@
+struct Thing {
+    xx: Field,
+}
+
+fn Thing.nested_func(const LEN: Field) -> [Field; LEN] {
+    return [0; LEN];
+}
+
+fn Thing.mod_arr(self) -> [Field; 3] {
+    // this generic function should be instantiated
+    let mut result = self.nested_func(3);
+    for idx in 0..3 {
+        result[idx] = self.xx;
+    }
+    return result;
+}
+
+fn main(pub val: Field) -> [Field; 3] {
+    let thing = Thing {xx: val};
+    return thing.mod_arr();
+}

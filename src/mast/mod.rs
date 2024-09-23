@@ -1,4 +1,5 @@
 use num_bigint::BigUint;
+use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
 use crate::{
@@ -150,7 +151,7 @@ where
     B: Backend,
 {
     tast: TypeChecker<B>,
-    in_generic_func: bool,
+    generic_func_scope: Option<usize>,
     // fully qualified function name
     functions_to_delete: Vec<FullyQualified>,
     // fully qualified struct name, method name
@@ -161,7 +162,7 @@ impl<B: Backend> MastCtx<B> {
     pub fn new(tast: TypeChecker<B>) -> Self {
         Self {
             tast,
-            in_generic_func: false,
+            generic_func_scope: Some(0),
             functions_to_delete: vec![],
             methods_to_delete: vec![],
         }
@@ -174,11 +175,11 @@ impl<B: Backend> MastCtx<B> {
     }
 
     pub fn start_monomorphize_func(&mut self) {
-        self.in_generic_func = true;
+        self.generic_func_scope = Some(self.generic_func_scope.unwrap() + 1);
     }
 
     pub fn finish_monomorphize_func(&mut self) {
-        self.in_generic_func = false;
+        self.generic_func_scope = Some(self.generic_func_scope.unwrap() - 1);
     }
 
     pub fn add_monomorphized_fn(
@@ -187,8 +188,11 @@ impl<B: Backend> MastCtx<B> {
         new_qualified: FullyQualified,
         fn_info: FnInfo<B>,
     ) {
-        self.tast.add_monomorphized_fn(new_qualified, fn_info);
-        self.functions_to_delete.push(old_qualified);
+        self.tast
+            .add_monomorphized_fn(new_qualified.clone(), fn_info);
+        if new_qualified != old_qualified {
+            self.functions_to_delete.push(old_qualified);
+        }
     }
 
     pub fn add_monomorphized_method(
@@ -200,8 +204,11 @@ impl<B: Backend> MastCtx<B> {
     ) {
         self.tast
             .add_monomorphized_method(struct_qualified.clone(), method_name, fn_info);
-        self.methods_to_delete
-            .push((struct_qualified, old_method_name.to_string()));
+
+        if method_name != old_method_name {
+            self.methods_to_delete
+                .push((struct_qualified, old_method_name.to_string()));
+        }
     }
 
     pub fn clear_generic_fns(&mut self) {
@@ -411,29 +418,22 @@ fn monomorphize_expr<B: Backend>(
                 .to_owned();
 
             // monomorphize the function call
-            let (mexpr, typ) = if fn_info.sig().require_monomorphization() {
-                let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
-                let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
+            let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
 
-                let fn_name_mono = &fn_info_mono.sig().name;
-                let mexpr = Expr {
-                    kind: ExprKind::FnCall {
-                        module: module.clone(),
-                        fn_name: fn_name_mono.clone(),
-                        args: args_mono,
-                    },
-                    ..expr.clone()
-                };
-
-                let qualified = FullyQualified::new(module, &fn_name_mono.value);
-                ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
-
-                (mexpr, typ)
-            } else {
-                // otherwise, reuse the expression node and the computed type
-                (expr.clone(), ctx.tast.expr_type(expr).cloned())
+            let fn_name_mono = &fn_info_mono.sig().name;
+            let mexpr = Expr {
+                kind: ExprKind::FnCall {
+                    module: module.clone(),
+                    fn_name: fn_name_mono.clone(),
+                    args: args_mono,
+                },
+                ..expr.clone()
             };
+
+            let qualified = FullyQualified::new(module, &fn_name_mono.value);
+            ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
 
             // assume the function call won't return constant value
             ExprMonoInfo::new(mexpr, typ, None)
@@ -491,28 +491,21 @@ fn monomorphize_expr<B: Backend>(
             }
 
             // monomorphize the function call
-            let (mexpr, typ) = if fn_info.sig().require_monomorphization() {
-                let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
-                let fn_name_mono = &fn_info_mono.sig().name;
-                let mexpr = Expr {
-                    kind: ExprKind::MethodCall {
-                        lhs: Box::new(lhs_mono.expr),
-                        method_name: fn_name_mono.clone(),
-                        args: args_mono,
-                    },
-                    ..expr.clone()
-                };
-
-                let fn_def = fn_info_mono.native();
-                ctx.tast
-                    .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
-
-                (mexpr, typ)
-            } else {
-                // otherwise, reuse the expression node and the computed type
-                (expr.clone(), ctx.tast.expr_type(expr).cloned())
+            let fn_name_mono = &fn_info_mono.sig().name;
+            let mexpr = Expr {
+                kind: ExprKind::MethodCall {
+                    lhs: Box::new(lhs_mono.expr),
+                    method_name: fn_name_mono.clone(),
+                    args: args_mono,
+                },
+                ..expr.clone()
             };
+
+            let fn_def = fn_info_mono.native();
+            ctx.tast
+                .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
 
             // assume the function call won't return constant value
             ExprMonoInfo::new(mexpr, typ, None)
@@ -566,8 +559,12 @@ fn monomorphize_expr<B: Backend>(
                 | Op2::BoolOr => lhs_mono.typ,
             };
 
-            let cst = match (lhs_mono.constant, rhs_mono.constant) {
-                (Some(lhs), Some(rhs)) => match op {
+            let ExprMonoInfo { expr: lhs_expr, .. } = lhs_mono;
+            let ExprMonoInfo { expr: rhs_expr, .. } = rhs_mono;
+
+            // fold constants
+            let cst = match (&lhs_expr.kind, &rhs_expr.kind) {
+                (ExprKind::BigUInt(lhs), ExprKind::BigUInt(rhs)) => match op {
                     Op2::Addition => Some(lhs + rhs),
                     Op2::Subtraction => Some(lhs - rhs),
                     Op2::Multiplication => Some(lhs * rhs),
@@ -579,9 +576,9 @@ fn monomorphize_expr<B: Backend>(
 
             match cst {
                 Some(v) => {
-                    let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(BigUint::from(v)));
+                    let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(v.clone()));
 
-                    ExprMonoInfo::new(mexpr, typ, Some(v))
+                    ExprMonoInfo::new(mexpr, typ, v.to_u32())
                 }
                 None => {
                     let mexpr = expr.to_mast(
@@ -589,8 +586,8 @@ fn monomorphize_expr<B: Backend>(
                         &ExprKind::BinaryOp {
                             op: op.clone(),
                             protected: *protected,
-                            lhs: Box::new(lhs_mono.expr),
-                            rhs: Box::new(rhs_mono.expr),
+                            lhs: Box::new(lhs_expr),
+                            rhs: Box::new(rhs_expr),
                         },
                     );
 
