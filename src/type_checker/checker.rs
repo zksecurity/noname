@@ -8,7 +8,9 @@ use crate::{
     error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{is_numeric, FnSig, FunctionDef, Ident, Stmt, StmtKind, Symbolic, Ty, TyKind},
+        types::{
+            is_numeric, FnSig, ForLoopArgument, FunctionDef, Stmt, StmtKind, Symbolic, Ty, TyKind,
+        },
         CustomType, Expr, ExprKind, Op2,
     },
     syntax::is_type,
@@ -630,22 +632,53 @@ impl<B: Backend> TypeChecker<B> {
                 // store the type of lhs in the env
                 typed_fn_env.store_type(lhs.value.clone(), type_info)?;
             }
-            StmtKind::ForLoop { var, range, body } => {
+            StmtKind::ForLoop {
+                var,
+                argument,
+                body,
+            } => {
                 // enter a new scope
                 typed_fn_env.nest();
-                typed_fn_env.start_forloop();
 
-                // create var (for now it's always a constant)
-                typed_fn_env.store_type(
-                    var.value.clone(),
-                    TypeInfo::new(TyKind::Field { constant: true }, var.span),
-                )?;
+                match argument {
+                    ForLoopArgument::Range(range) => {
+                        // create var (for now it's always a constant)
+                        typed_fn_env.store_type(
+                            var.value.clone(),
+                            TypeInfo::new(TyKind::Field { constant: true }, var.span),
+                        )?;
 
-                let start_type = self.compute_type(&range.start, typed_fn_env)?.unwrap();
-                let end_type = self.compute_type(&range.end, typed_fn_env)?.unwrap();
-                if !is_numeric(&start_type.typ) || !is_numeric(&end_type.typ) {
-                    return Err(self.error(ErrorKind::InvalidRangeSize, range.span));
+                        let start_type = self.compute_type(&range.start, typed_fn_env)?.unwrap();
+                        let end_type = self.compute_type(&range.end, typed_fn_env)?.unwrap();
+                        if !is_numeric(&start_type.typ) || !is_numeric(&end_type.typ) {
+                            return Err(self.error(ErrorKind::InvalidRangeSize, range.span));
+                        }
+                    }
+                    ForLoopArgument::Iterator(iterator) => {
+                        // make sure that the iterator expression is an iterator,
+                        // for now this means that the expression should have type `Array`
+                        let iterator_typ = self.compute_type(iterator, typed_fn_env)?;
+                        let iterator_typ = iterator_typ
+                            .expect("Could not compute type of iterator (TODO: better error)");
+
+                        // the type of the variable is the type of the items of the iterator
+                        let element_type = match iterator_typ.typ {
+                            TyKind::Array(element_type, _len) => *element_type,
+                            TyKind::GenericSizedArray(element_type, _size) => *element_type,
+                            _ => {
+                                return Err(self.error(
+                                    ErrorKind::InvalidIteratorType(iterator_typ.typ.clone()),
+                                    iterator.span,
+                                ))
+                            }
+                        };
+
+                        typed_fn_env
+                            .store_type(var.value.clone(), TypeInfo::new(element_type, var.span))?;
+                    }
                 }
+
+                typed_fn_env.start_forloop();
 
                 // check block
                 self.check_block(typed_fn_env, body, None)?;
@@ -653,41 +686,6 @@ impl<B: Backend> TypeChecker<B> {
                 // exit the scope
                 typed_fn_env.pop();
                 typed_fn_env.end_forloop();
-            }
-            StmtKind::IteratorLoop {
-                var,
-                iterator,
-                body,
-            } => {
-                // enter a new scope
-                typed_fn_env.nest();
-
-                // make sure that the iterator expression is an iterator,
-                // for now this means that the expression should have type `Array`
-                let iterator_typ = self.compute_type(iterator, typed_fn_env)?;
-                let iterator_typ =
-                    iterator_typ.expect("Could not compute type of iterator (TODO: better error)");
-
-                // the type of the variable is the type of the items of the iterator
-                let element_type = match iterator_typ.typ {
-                    TyKind::Array(element_type, _len) => *element_type,
-                    TyKind::GenericSizedArray(element_type, _size) => *element_type,
-                    _ => {
-                        return Err(self.error(
-                            ErrorKind::InvalidIteratorType(iterator_typ.typ.clone()),
-                            iterator.span,
-                        ))
-                    }
-                };
-
-                typed_fn_env
-                    .store_type(var.value.clone(), TypeInfo::new(element_type, var.span))?;
-
-                // check block
-                self.check_block(typed_fn_env, body, None)?;
-
-                // exit the scope
-                typed_fn_env.pop();
             }
             StmtKind::Expr(expr) => {
                 // make sure the expression does not return any type
