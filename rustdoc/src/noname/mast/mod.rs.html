@@ -1131,10 +1131,8 @@
 <a href="#1130" id="1130">1130</a>
 <a href="#1131" id="1131">1131</a>
 <a href="#1132" id="1132">1132</a>
-<a href="#1133" id="1133">1133</a>
-<a href="#1134" id="1134">1134</a>
-<a href="#1135" id="1135">1135</a>
-<a href="#1136" id="1136">1136</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
+<a href="#1133" id="1133">1133</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
+<span class="kw">use </span>num_traits::ToPrimitive;
 <span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -1286,7 +1284,7 @@
     </span>B: Backend,
 {
     tast: TypeChecker&lt;B&gt;,
-    in_generic_func: bool,
+    generic_func_scope: <span class="prelude-ty">Option</span>&lt;usize&gt;,
     <span class="comment">// fully qualified function name
     </span>functions_to_delete: Vec&lt;FullyQualified&gt;,
     <span class="comment">// fully qualified struct name, method name
@@ -1297,7 +1295,7 @@
     <span class="kw">pub fn </span>new(tast: TypeChecker&lt;B&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             tast,
-            in_generic_func: <span class="bool-val">false</span>,
+            generic_func_scope: <span class="prelude-val">Some</span>(<span class="number">0</span>),
             functions_to_delete: <span class="macro">vec!</span>[],
             methods_to_delete: <span class="macro">vec!</span>[],
         }
@@ -1310,11 +1308,11 @@
     }
 
     <span class="kw">pub fn </span>start_monomorphize_func(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.in_generic_func = <span class="bool-val">true</span>;
+        <span class="self">self</span>.generic_func_scope = <span class="prelude-val">Some</span>(<span class="self">self</span>.generic_func_scope.unwrap() + <span class="number">1</span>);
     }
 
     <span class="kw">pub fn </span>finish_monomorphize_func(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.in_generic_func = <span class="bool-val">false</span>;
+        <span class="self">self</span>.generic_func_scope = <span class="prelude-val">Some</span>(<span class="self">self</span>.generic_func_scope.unwrap() - <span class="number">1</span>);
     }
 
     <span class="kw">pub fn </span>add_monomorphized_fn(
@@ -1323,8 +1321,11 @@
         new_qualified: FullyQualified,
         fn_info: FnInfo&lt;B&gt;,
     ) {
-        <span class="self">self</span>.tast.add_monomorphized_fn(new_qualified, fn_info);
-        <span class="self">self</span>.functions_to_delete.push(old_qualified);
+        <span class="self">self</span>.tast
+            .add_monomorphized_fn(new_qualified.clone(), fn_info);
+        <span class="kw">if </span>new_qualified != old_qualified {
+            <span class="self">self</span>.functions_to_delete.push(old_qualified);
+        }
     }
 
     <span class="kw">pub fn </span>add_monomorphized_method(
@@ -1336,8 +1337,11 @@
     ) {
         <span class="self">self</span>.tast
             .add_monomorphized_method(struct_qualified.clone(), method_name, fn_info);
-        <span class="self">self</span>.methods_to_delete
-            .push((struct_qualified, old_method_name.to_string()));
+
+        <span class="kw">if </span>method_name != old_method_name {
+            <span class="self">self</span>.methods_to_delete
+                .push((struct_qualified, old_method_name.to_string()));
+        }
     }
 
     <span class="kw">pub fn </span>clear_generic_fns(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
@@ -1547,29 +1551,22 @@
                 .to_owned();
 
             <span class="comment">// monomorphize the function call
-            </span><span class="kw">let </span>(mexpr, typ) = <span class="kw">if </span>fn_info.sig().require_monomorphization() {
-                <span class="kw">let </span>(fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, <span class="kw-2">&amp;</span>observed, expr.span)<span class="question-mark">?</span>;
+            </span><span class="kw">let </span>(fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, <span class="kw-2">&amp;</span>observed, expr.span)<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
+            <span class="kw">let </span>args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
 
-                <span class="kw">let </span>fn_name_mono = <span class="kw-2">&amp;</span>fn_info_mono.sig().name;
-                <span class="kw">let </span>mexpr = Expr {
-                    kind: ExprKind::FnCall {
-                        module: module.clone(),
-                        fn_name: fn_name_mono.clone(),
-                        args: args_mono,
-                    },
-                    ..expr.clone()
-                };
-
-                <span class="kw">let </span>qualified = FullyQualified::new(module, <span class="kw-2">&amp;</span>fn_name_mono.value);
-                ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
-
-                (mexpr, typ)
-            } <span class="kw">else </span>{
-                <span class="comment">// otherwise, reuse the expression node and the computed type
-                </span>(expr.clone(), ctx.tast.expr_type(expr).cloned())
+            <span class="kw">let </span>fn_name_mono = <span class="kw-2">&amp;</span>fn_info_mono.sig().name;
+            <span class="kw">let </span>mexpr = Expr {
+                kind: ExprKind::FnCall {
+                    module: module.clone(),
+                    fn_name: fn_name_mono.clone(),
+                    args: args_mono,
+                },
+                ..expr.clone()
             };
+
+            <span class="kw">let </span>qualified = FullyQualified::new(module, <span class="kw-2">&amp;</span>fn_name_mono.value);
+            ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
 
             <span class="comment">// assume the function call won't return constant value
             </span>ExprMonoInfo::new(mexpr, typ, <span class="prelude-val">None</span>)
@@ -1627,28 +1624,21 @@
             }
 
             <span class="comment">// monomorphize the function call
-            </span><span class="kw">let </span>(mexpr, typ) = <span class="kw">if </span>fn_info.sig().require_monomorphization() {
-                <span class="kw">let </span>(fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, <span class="kw-2">&amp;</span>observed, expr.span)<span class="question-mark">?</span>;
+            </span><span class="kw">let </span>(fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, <span class="kw-2">&amp;</span>observed, expr.span)<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>fn_name_mono = <span class="kw-2">&amp;</span>fn_info_mono.sig().name;
-                <span class="kw">let </span>mexpr = Expr {
-                    kind: ExprKind::MethodCall {
-                        lhs: Box::new(lhs_mono.expr),
-                        method_name: fn_name_mono.clone(),
-                        args: args_mono,
-                    },
-                    ..expr.clone()
-                };
-
-                <span class="kw">let </span>fn_def = fn_info_mono.native();
-                ctx.tast
-                    .add_monomorphized_method(struct_qualified, <span class="kw-2">&amp;</span>fn_name_mono.value, fn_def);
-
-                (mexpr, typ)
-            } <span class="kw">else </span>{
-                <span class="comment">// otherwise, reuse the expression node and the computed type
-                </span>(expr.clone(), ctx.tast.expr_type(expr).cloned())
+            <span class="kw">let </span>fn_name_mono = <span class="kw-2">&amp;</span>fn_info_mono.sig().name;
+            <span class="kw">let </span>mexpr = Expr {
+                kind: ExprKind::MethodCall {
+                    lhs: Box::new(lhs_mono.expr),
+                    method_name: fn_name_mono.clone(),
+                    args: args_mono,
+                },
+                ..expr.clone()
             };
+
+            <span class="kw">let </span>fn_def = fn_info_mono.native();
+            ctx.tast
+                .add_monomorphized_method(struct_qualified, <span class="kw-2">&amp;</span>fn_name_mono.value, fn_def);
 
             <span class="comment">// assume the function call won't return constant value
             </span>ExprMonoInfo::new(mexpr, typ, <span class="prelude-val">None</span>)
@@ -1702,8 +1692,12 @@
                 | Op2::BoolOr =&gt; lhs_mono.typ,
             };
 
-            <span class="kw">let </span>cst = <span class="kw">match </span>(lhs_mono.constant, rhs_mono.constant) {
-                (<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) =&gt; <span class="kw">match </span>op {
+            <span class="kw">let </span>ExprMonoInfo { expr: lhs_expr, .. } = lhs_mono;
+            <span class="kw">let </span>ExprMonoInfo { expr: rhs_expr, .. } = rhs_mono;
+
+            <span class="comment">// fold constants
+            </span><span class="kw">let </span>cst = <span class="kw">match </span>(<span class="kw-2">&amp;</span>lhs_expr.kind, <span class="kw-2">&amp;</span>rhs_expr.kind) {
+                (ExprKind::BigUInt(lhs), ExprKind::BigUInt(rhs)) =&gt; <span class="kw">match </span>op {
                     Op2::Addition =&gt; <span class="prelude-val">Some</span>(lhs + rhs),
                     Op2::Subtraction =&gt; <span class="prelude-val">Some</span>(lhs - rhs),
                     Op2::Multiplication =&gt; <span class="prelude-val">Some</span>(lhs * rhs),
@@ -1715,9 +1709,9 @@
 
             <span class="kw">match </span>cst {
                 <span class="prelude-val">Some</span>(v) =&gt; {
-                    <span class="kw">let </span>mexpr = expr.to_mast(ctx, <span class="kw-2">&amp;</span>ExprKind::BigUInt(BigUint::from(v)));
+                    <span class="kw">let </span>mexpr = expr.to_mast(ctx, <span class="kw-2">&amp;</span>ExprKind::BigUInt(v.clone()));
 
-                    ExprMonoInfo::new(mexpr, typ, <span class="prelude-val">Some</span>(v))
+                    ExprMonoInfo::new(mexpr, typ, v.to_u32())
                 }
                 <span class="prelude-val">None </span>=&gt; {
                     <span class="kw">let </span>mexpr = expr.to_mast(
@@ -1725,8 +1719,8 @@
                         <span class="kw-2">&amp;</span>ExprKind::BinaryOp {
                             op: op.clone(),
                             protected: <span class="kw-2">*</span>protected,
-                            lhs: Box::new(lhs_mono.expr),
-                            rhs: Box::new(rhs_mono.expr),
+                            lhs: Box::new(lhs_expr),
+                            rhs: Box::new(rhs_expr),
                         },
                     );
 

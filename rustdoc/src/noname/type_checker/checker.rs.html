@@ -779,7 +779,14 @@
 <a href="#778" id="778">778</a>
 <a href="#779" id="779">779</a>
 <a href="#780" id="780">780</a>
-<a href="#781" id="781">781</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -1321,11 +1328,18 @@
                     </span>.expect(<span class="string">"expected a typed size"</span>);
 
                 <span class="kw">if </span>is_numeric(<span class="kw-2">&amp;</span>size_node.typ) {
-                    <span class="comment">// use generic array as the size node might include generic parameters or constant vars
-                    </span><span class="kw">let </span>res = ExprTyInfo::new_anon(TyKind::GenericSizedArray(
-                        Box::new(item_node.typ),
-                        Symbolic::parse(size)<span class="question-mark">?</span>,
-                    ));
+                    <span class="kw">let </span>sym = Symbolic::parse(size)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>res = <span class="kw">if let </span>Symbolic::Concrete(size) = sym {
+                        <span class="comment">// if sym is a concrete variant, then just return concrete array type
+                        </span>ExprTyInfo::new_anon(TyKind::Array(Box::new(item_node.typ), size))
+                    } <span class="kw">else </span>{
+                        <span class="comment">// use generic array as the size node might include generic parameters or constant vars
+                        </span>ExprTyInfo::new_anon(TyKind::GenericSizedArray(
+                            Box::new(item_node.typ),
+                            sym,
+                        ))
+                    };
+
                     <span class="prelude-val">Some</span>(res)
                 } <span class="kw">else </span>{
                     <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::InvalidArraySize, expr.span));

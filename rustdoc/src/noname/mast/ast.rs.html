@@ -19,7 +19,8 @@
 <a href="#18" id="18">18</a>
 <a href="#19" id="19">19</a>
 <a href="#20" id="20">20</a>
-<a href="#21" id="21">21</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#21" id="21">21</a>
+<a href="#22" id="22">22</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     backends::Backend,
     parser::{Expr, ExprKind},
 };
@@ -29,14 +30,15 @@
 <span class="kw">impl </span>Expr {
     <span class="doccomment">/// Convert an expression to another expression, with the same span and a regenerated node id.
     </span><span class="kw">pub fn </span>to_mast&lt;B: Backend&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>MastCtx&lt;B&gt;, kind: <span class="kw-2">&amp;</span>ExprKind) -&gt; Expr {
-        <span class="kw">if </span>!ctx.in_generic_func {
-            <span class="kw">return </span><span class="self">self</span>.clone();
-        }
-
-        Expr {
-            node_id: ctx.next_node_id(),
-            kind: kind.clone(),
-            ..<span class="self">self</span>.clone()
+        <span class="kw">match </span>ctx.generic_func_scope {
+            <span class="comment">// not in any generic function scope
+            </span><span class="prelude-val">Some</span>(<span class="number">0</span>) =&gt; <span class="self">self</span>.clone(),
+            <span class="comment">// in a generic function scope
+            </span><span class="kw">_ </span>=&gt; Expr {
+                node_id: ctx.next_node_id(),
+                kind: kind.clone(),
+                ..<span class="self">self</span>.clone()
+            },
         }
     }
 }
