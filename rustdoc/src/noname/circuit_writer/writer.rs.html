@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/writer.rs`."><title>writer.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9d5ec5f3536319c6.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (1d68e6dd1 2024-09-21)" data-channel="nightly" data-search-js="search-0cfde64e8ad3a7fe.js" data-settings-js="settings-7e3bb6c46e92e77c.js" ><script src="../../../static.files/storage-29b1d5a9048d38fe.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-59a36e46ca746814.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-40f72c9259523cb3.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/writer.rs`."><title>writer.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9d5ec5f3536319c6.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (6c6d21008 2024-09-22)" data-channel="nightly" data-search-js="search-0cfde64e8ad3a7fe.js" data-settings-js="settings-7e3bb6c46e92e77c.js" ><script src="../../../static.files/storage-29b1d5a9048d38fe.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-2a73ac97dd39bfde.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-40f72c9259523cb3.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -843,7 +843,16 @@
 <a href="#842" id="842">842</a>
 <a href="#843" id="843">843</a>
 <a href="#844" id="844">844</a>
-<a href="#845" id="845">845</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
 
 <span class="kw">use </span>ark_ff::{One, Zero};
 <span class="kw">use </span>kimchi::circuits::wires::Wire;
@@ -858,7 +867,7 @@
     error::{ErrorKind, <span class="prelude-ty">Result</span>},
     imports::FnKind,
     parser::{
-        types::{FunctionDef, Stmt, StmtKind, TyKind},
+        types::{ForLoopArgument, FunctionDef, Stmt, StmtKind, TyKind},
         Expr, ExprKind, Op2,
     },
     syntax::is_type,
@@ -981,83 +990,92 @@
                 </span><span class="self">self</span>.add_local_var(fn_env, lhs.value.clone(), var_info);
             }
 
-            StmtKind::ForLoop { var, range, body } =&gt; {
-                <span class="comment">// compute the start and end of the range
-                </span><span class="kw">let </span>start_bg: BigUint = <span class="self">self
-                    </span>.compute_expr(fn_env, <span class="kw-2">&amp;</span>range.start)<span class="question-mark">?
-                    </span>.ok_or_else(|| {
-                        <span class="self">self</span>.error(ErrorKind::CannotComputeExpression, range.start.span)
-                    })<span class="question-mark">?
-                    </span>.constant()
-                    .expect(<span class="string">"expected constant"</span>)
-                    .into();
-                <span class="kw">let </span>start: u32 = start_bg
-                    .try_into()
-                    .map_err(|<span class="kw">_</span>| <span class="self">self</span>.error(ErrorKind::InvalidRangeSize, range.start.span))<span class="question-mark">?</span>;
-
-                <span class="kw">let </span>end_bg: BigUint = <span class="self">self
-                    </span>.compute_expr(fn_env, <span class="kw-2">&amp;</span>range.end)<span class="question-mark">?
-                    </span>.ok_or_else(|| <span class="self">self</span>.error(ErrorKind::CannotComputeExpression, range.end.span))<span class="question-mark">?
-                    </span>.constant()
-                    .expect(<span class="string">"expected constant"</span>)
-                    .into();
-                <span class="kw">let </span>end: u32 = end_bg
-                    .try_into()
-                    .map_err(|<span class="kw">_</span>| <span class="self">self</span>.error(ErrorKind::InvalidRangeSize, range.end.span))<span class="question-mark">?</span>;
-
-                <span class="comment">// compute for the for loop block
-                </span><span class="kw">for </span>ii <span class="kw">in </span>start..end {
-                    fn_env.nest();
-
-                    <span class="kw">let </span>cst_var = Var::new_constant(ii.into(), var.span);
-                    <span class="kw">let </span>var_info =
-                        VarInfo::new(cst_var, <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(TyKind::Field { constant: <span class="bool-val">true </span>}));
-                    <span class="self">self</span>.add_local_var(fn_env, var.value.clone(), var_info);
-
-                    <span class="self">self</span>.compile_block(fn_env, body)<span class="question-mark">?</span>;
-
-                    fn_env.pop();
-                }
-            }
-            StmtKind::IteratorLoop {
+            StmtKind::ForLoop {
                 var,
-                iterator,
+                argument,
                 body,
             } =&gt; {
-                <span class="kw">let </span>iterator_var = <span class="self">self
-                    </span>.compute_expr(fn_env, iterator)<span class="question-mark">?
-                    </span>.expect(<span class="string">"array access on non-array"</span>);
+                <span class="kw">match </span>argument {
+                    ForLoopArgument::Range(range) =&gt; {
+                        <span class="comment">// compute the start and end of the range
+                        </span><span class="kw">let </span>start_bg: BigUint = <span class="self">self
+                            </span>.compute_expr(fn_env, <span class="kw-2">&amp;</span>range.start)<span class="question-mark">?
+                            </span>.ok_or_else(|| {
+                                <span class="self">self</span>.error(ErrorKind::CannotComputeExpression, range.start.span)
+                            })<span class="question-mark">?
+                            </span>.constant()
+                            .expect(<span class="string">"expected constant"</span>)
+                            .into();
+                        <span class="kw">let </span>start: u32 = start_bg.try_into().map_err(|<span class="kw">_</span>| {
+                            <span class="self">self</span>.error(ErrorKind::InvalidRangeSize, range.start.span)
+                        })<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>array_typ = <span class="self">self
-                    </span>.expr_type(iterator)
-                    .cloned()
-                    .expect(<span class="string">"cannot find type of array"</span>);
+                        <span class="kw">let </span>end_bg: BigUint = <span class="self">self
+                            </span>.compute_expr(fn_env, <span class="kw-2">&amp;</span>range.end)<span class="question-mark">?
+                            </span>.ok_or_else(|| {
+                                <span class="self">self</span>.error(ErrorKind::CannotComputeExpression, range.end.span)
+                            })<span class="question-mark">?
+                            </span>.constant()
+                            .expect(<span class="string">"expected constant"</span>)
+                            .into();
+                        <span class="kw">let </span>end: u32 = end_bg
+                            .try_into()
+                            .map_err(|<span class="kw">_</span>| <span class="self">self</span>.error(ErrorKind::InvalidRangeSize, range.end.span))<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>(elem_type, array_len) = <span class="kw">match </span>array_typ {
-                    TyKind::Array(ty, array_len) =&gt; (ty, array_len),
-                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected array"</span>),
-                };
+                        <span class="comment">// compute for the for loop block
+                        </span><span class="kw">for </span>ii <span class="kw">in </span>start..end {
+                            fn_env.nest();
 
-                <span class="comment">// compute the size of each element in the array
-                </span><span class="kw">let </span>len = <span class="self">self</span>.size_of(<span class="kw-2">&amp;</span>elem_type);
+                            <span class="kw">let </span>cst_var = Var::new_constant(ii.into(), var.span);
+                            <span class="kw">let </span>var_info = VarInfo::new(
+                                cst_var,
+                                <span class="bool-val">false</span>,
+                                <span class="prelude-val">Some</span>(TyKind::Field { constant: <span class="bool-val">true </span>}),
+                            );
+                            <span class="self">self</span>.add_local_var(fn_env, var.value.clone(), var_info);
 
-                <span class="kw">for </span>idx <span class="kw">in </span><span class="number">0</span>..array_len {
-                    <span class="comment">// compute the real index
-                    </span><span class="kw">let </span>idx = idx <span class="kw">as </span>usize;
-                    <span class="kw">let </span>start = idx * len;
+                            <span class="self">self</span>.compile_block(fn_env, body)<span class="question-mark">?</span>;
 
-                    fn_env.nest();
+                            fn_env.pop();
+                        }
+                    }
+                    ForLoopArgument::Iterator(iterator) =&gt; {
+                        <span class="kw">let </span>iterator_var = <span class="self">self
+                            </span>.compute_expr(fn_env, iterator)<span class="question-mark">?
+                            </span>.expect(<span class="string">"array access on non-array"</span>);
 
-                    <span class="comment">// add the variable to the inner enviroment corresponding
-                    // to iterator[idx]
-                    </span><span class="kw">let </span>indexed_var = iterator_var.narrow(start, len).value(<span class="self">self</span>, fn_env);
-                    <span class="kw">let </span>var_info =
-                        VarInfo::new(indexed_var.clone(), <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(<span class="kw-2">*</span>elem_type.clone()));
-                    <span class="self">self</span>.add_local_var(fn_env, var.value.clone(), var_info);
+                        <span class="kw">let </span>array_typ = <span class="self">self
+                            </span>.expr_type(iterator)
+                            .cloned()
+                            .expect(<span class="string">"cannot find type of array"</span>);
 
-                    <span class="self">self</span>.compile_block(fn_env, body)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>(elem_type, array_len) = <span class="kw">match </span>array_typ {
+                            TyKind::Array(ty, array_len) =&gt; (ty, array_len),
+                            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected array"</span>),
+                        };
 
-                    fn_env.pop();
+                        <span class="comment">// compute the size of each element in the array
+                        </span><span class="kw">let </span>len = <span class="self">self</span>.size_of(<span class="kw-2">&amp;</span>elem_type);
+
+                        <span class="kw">for </span>idx <span class="kw">in </span><span class="number">0</span>..array_len {
+                            <span class="comment">// compute the real index
+                            </span><span class="kw">let </span>idx = idx <span class="kw">as </span>usize;
+                            <span class="kw">let </span>start = idx * len;
+
+                            fn_env.nest();
+
+                            <span class="comment">// add the variable to the inner enviroment corresponding
+                            // to iterator[idx]
+                            </span><span class="kw">let </span>indexed_var = iterator_var.narrow(start, len).value(<span class="self">self</span>, fn_env);
+                            <span class="kw">let </span>var_info =
+                                VarInfo::new(indexed_var.clone(), <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(<span class="kw-2">*</span>elem_type.clone()));
+                            <span class="self">self</span>.add_local_var(fn_env, var.value.clone(), var_info);
+
+                            <span class="self">self</span>.compile_block(fn_env, body)<span class="question-mark">?</span>;
+
+                            fn_env.pop();
+                        }
+                    }
                 }
             }
             StmtKind::Expr(expr) =&gt; {

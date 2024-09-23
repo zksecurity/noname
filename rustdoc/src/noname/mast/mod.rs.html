@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/mast/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9d5ec5f3536319c6.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (1d68e6dd1 2024-09-21)" data-channel="nightly" data-search-js="search-0cfde64e8ad3a7fe.js" data-settings-js="settings-7e3bb6c46e92e77c.js" ><script src="../../../static.files/storage-29b1d5a9048d38fe.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-59a36e46ca746814.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-40f72c9259523cb3.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/mast/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9d5ec5f3536319c6.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0-nightly (6c6d21008 2024-09-22)" data-channel="nightly" data-search-js="search-0cfde64e8ad3a7fe.js" data-settings-js="settings-7e3bb6c46e92e77c.js" ><script src="../../../static.files/storage-29b1d5a9048d38fe.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-2a73ac97dd39bfde.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-40f72c9259523cb3.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -1134,19 +1134,7 @@
 <a href="#1133" id="1133">1133</a>
 <a href="#1134" id="1134">1134</a>
 <a href="#1135" id="1135">1135</a>
-<a href="#1136" id="1136">1136</a>
-<a href="#1137" id="1137">1137</a>
-<a href="#1138" id="1138">1138</a>
-<a href="#1139" id="1139">1139</a>
-<a href="#1140" id="1140">1140</a>
-<a href="#1141" id="1141">1141</a>
-<a href="#1142" id="1142">1142</a>
-<a href="#1143" id="1143">1143</a>
-<a href="#1144" id="1144">1144</a>
-<a href="#1145" id="1145">1145</a>
-<a href="#1146" id="1146">1146</a>
-<a href="#1147" id="1147">1147</a>
-<a href="#1148" id="1148">1148</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
+<a href="#1136" id="1136">1136</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
@@ -1155,7 +1143,7 @@
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     imports::FnKind,
     parser::{
-        types::{FnArg, FnSig, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
+        types::{FnArg, FnSig, ForLoopArgument, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
         CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
     syntax::{is_generic_parameter, is_type},
@@ -2059,74 +2047,62 @@
 
             <span class="prelude-val">Some</span>((stmt_mono, <span class="prelude-val">None</span>))
         }
-        StmtKind::ForLoop { var, range, body } =&gt; {
+        StmtKind::ForLoop {
+            var,
+            argument,
+            body,
+        } =&gt; {
             <span class="comment">// enter a new scope
             </span>mono_fn_env.nest();
 
-            mono_fn_env.store_type(
-                <span class="kw-2">&amp;</span>var.value,
-                <span class="comment">// because we don't unroll the loop in the monomorphized AST,
-                // there is no constant value to propagate.
-                </span><span class="kw-2">&amp;</span>MTypeInfo::new(<span class="kw-2">&amp;</span>TyKind::Field { constant: <span class="bool-val">true </span>}, var.span, <span class="prelude-val">None</span>),
-            )<span class="question-mark">?</span>;
+            <span class="kw">let </span>argument_mono = <span class="kw">match </span>argument {
+                ForLoopArgument::Range(range) =&gt; {
+                    mono_fn_env.store_type(
+                        <span class="kw-2">&amp;</span>var.value,
+                        <span class="comment">// because we don't unroll the loop in the monomorphized AST,
+                        // there is no constant value to propagate.
+                        </span><span class="kw-2">&amp;</span>MTypeInfo::new(<span class="kw-2">&amp;</span>TyKind::Field { constant: <span class="bool-val">true </span>}, var.span, <span class="prelude-val">None</span>),
+                    )<span class="question-mark">?</span>;
 
-            <span class="kw">let </span>start_mono = monomorphize_expr(ctx, <span class="kw-2">&amp;</span>range.start, mono_fn_env)<span class="question-mark">?</span>;
-            <span class="kw">let </span>end_mono = monomorphize_expr(ctx, <span class="kw-2">&amp;</span>range.end, mono_fn_env)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>start_mono = monomorphize_expr(ctx, <span class="kw-2">&amp;</span>range.start, mono_fn_env)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>end_mono = monomorphize_expr(ctx, <span class="kw-2">&amp;</span>range.end, mono_fn_env)<span class="question-mark">?</span>;
 
-            <span class="kw">if </span>start_mono.constant.is_none() || end_mono.constant.is_none() {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(error(ErrorKind::InvalidRangeSize, stmt.span));
-            }
+                    <span class="kw">if </span>start_mono.constant.is_none() || end_mono.constant.is_none() {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(error(ErrorKind::InvalidRangeSize, stmt.span));
+                    }
 
-            <span class="kw">if </span>start_mono.constant.unwrap() &gt; end_mono.constant.unwrap() {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(error(ErrorKind::InvalidRangeSize, stmt.span));
-            }
+                    <span class="kw">if </span>start_mono.constant.unwrap() &gt; end_mono.constant.unwrap() {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(error(ErrorKind::InvalidRangeSize, stmt.span));
+                    }
 
-            <span class="kw">let </span>range_mono = Range {
-                start: start_mono.expr,
-                end: end_mono.expr,
-                span: range.span,
+                    <span class="kw">let </span>range_mono = Range {
+                        start: start_mono.expr,
+                        end: end_mono.expr,
+                        span: range.span,
+                    };
+                    ForLoopArgument::Range(range_mono)
+                }
+                ForLoopArgument::Iterator(iterator) =&gt; {
+                    <span class="kw">let </span>iterator_mono = monomorphize_expr(ctx, iterator, mono_fn_env)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>typ = iterator_mono.typ.as_ref().expect(<span class="string">"expected a type"</span>);
+                    <span class="kw">let </span>array_element_type = <span class="kw">match </span>typ {
+                        TyKind::Array(t, <span class="kw">_</span>) =&gt; t,
+                        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected an array"</span>),
+                    };
+
+                    mono_fn_env.store_type(
+                        <span class="kw-2">&amp;</span>var.value,
+                        <span class="kw-2">&amp;</span>MTypeInfo::new(array_element_type, var.span, <span class="prelude-val">None</span>),
+                    )<span class="question-mark">?</span>;
+                    ForLoopArgument::Iterator(Box::new(iterator_mono.expr))
+                }
             };
 
             <span class="kw">let </span>(stmts_mono, <span class="kw">_</span>) = monomorphize_block(ctx, mono_fn_env, body, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span>loop_stmt_mono = Stmt {
                 kind: StmtKind::ForLoop {
                     var: var.clone(),
-                    range: range_mono,
-                    body: stmts_mono,
-                },
-                span: stmt.span,
-            };
-
-            <span class="comment">// exit the scope
-            </span>mono_fn_env.pop();
-
-            <span class="prelude-val">Some</span>((loop_stmt_mono, <span class="prelude-val">None</span>))
-        }
-        StmtKind::IteratorLoop {
-            var,
-            iterator,
-            body,
-        } =&gt; {
-            <span class="comment">// enter a new scope
-            </span>mono_fn_env.nest();
-
-            <span class="kw">let </span>iterator_mono = monomorphize_expr(ctx, iterator, mono_fn_env)<span class="question-mark">?</span>;
-            <span class="kw">let </span>typ = iterator_mono.typ.as_ref().expect(<span class="string">"expected a type"</span>);
-            <span class="kw">let </span>array_element_type = <span class="kw">match </span>typ {
-                TyKind::Array(t, <span class="kw">_</span>) =&gt; t,
-                <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected an array"</span>),
-            };
-
-            mono_fn_env.store_type(
-                <span class="kw-2">&amp;</span>var.value,
-                <span class="kw-2">&amp;</span>MTypeInfo::new(array_element_type, var.span, <span class="prelude-val">None</span>),
-            )<span class="question-mark">?</span>;
-
-            <span class="kw">let </span>(stmts_mono, <span class="kw">_</span>) = monomorphize_block(ctx, mono_fn_env, body, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
-            <span class="kw">let </span>loop_stmt_mono = Stmt {
-                kind: StmtKind::IteratorLoop {
-                    var: var.clone(),
-                    iterator: Box::new(iterator_mono.expr),
+                    argument: argument_mono,
                     body: stmts_mono,
                 },
                 span: stmt.span,
