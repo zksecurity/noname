@@ -1,12 +1,26 @@
 use crate::{
     backends::r1cs::{R1csBn254Field, R1CS},
     circuit_writer::CircuitWriter,
-    compiler::{typecheck_next_file_inner, Sources},
+    compiler::{get_nast, typecheck_next_file_inner, Sources},
     error::{ErrorKind, Result},
     mast::Mast,
+    name_resolution::NAST,
     type_checker::TypeChecker,
     witness::CompiledCircuit,
 };
+
+fn nast_pass(code: &str) -> Result<(NAST<R1CS<R1csBn254Field>>, usize)> {
+    let mut source = Sources::new();
+    let res = get_nast(
+        None,
+        &mut source,
+        "example.no".to_string(),
+        code.to_string(),
+        0,
+    );
+
+    res
+}
 
 fn tast_pass(code: &str) -> (Result<usize>, TypeChecker<R1CS<R1csBn254Field>>, Sources) {
     let mut source = Sources::new();
@@ -370,4 +384,18 @@ fn test_multiplication_mismatch() {
 
     let res = tast_pass(code).0;
     assert!(matches!(res.unwrap_err().kind, ErrorKind::MismatchType(..)));
+}
+
+#[test]
+fn test_generic_missing_parenthesis() {
+    let code = r#"
+    fn init_arr(const LEFT: Field) -> [Field; 1 + LEFT * 2] {
+        let arr = [0; 1 + (LEFT * 2)];
+        return arr;
+    }
+    "#;
+
+    let res = nast_pass(code).err();
+    println!("{:?}", res);
+    assert!(matches!(res.unwrap().kind, ErrorKind::MissingParenthesis));
 }

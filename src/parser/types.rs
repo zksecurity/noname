@@ -247,6 +247,7 @@ impl Symbolic {
                 let lhs = Symbolic::parse(lhs)?;
                 let rhs = Symbolic::parse(rhs);
 
+                // no protected flags are needed, as this is based on expression nodes which already ordered the operations
                 match op {
                     Op2::Addition => Ok(Symbolic::Add(Box::new(lhs), Box::new(rhs?))),
                     Op2::Multiplication => Ok(Symbolic::Mul(Box::new(lhs), Box::new(rhs?))),
@@ -472,43 +473,25 @@ impl Ty {
 
                 // [type; size]
                 //         ^
-                let siz_first = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
-
-                // [type; size]
-                //            ^
-                let siz_second = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
-
-                // return Array(ty, siz) if size is a number and right_paren is ]
-                match (&siz_first.kind, &siz_second.kind) {
-                    (TokenKind::BigUInt(b), TokenKind::RightBracket) => {
-                        let siz: u32 = b
-                            .try_into()
-                            .map_err(|_e| ctx.error(ErrorKind::InvalidArraySize, siz_first.span))?;
-                        let span = span.merge_with(siz_second.span);
-
+                let expr = Expr::parse(ctx, tokens)?;
+                match expr.kind {
+                    ExprKind::BigUInt(n) => {
+                        tokens.bump_expected(ctx, TokenKind::RightBracket)?;
                         Ok(Ty {
-                            kind: TyKind::Array(Box::new(ty.kind), siz),
+                            kind: TyKind::Array(Box::new(ty.kind), n.try_into().unwrap()),
                             span,
                         })
                     }
-                    // [Field; nn]
-                    // [Field; NN]
-                    //         ^^^
-                    (TokenKind::Identifier(name), TokenKind::RightBracket) => {
-                        let siz = Ident::new(name.to_string(), siz_first.span);
-                        let span = span.merge_with(siz_second.span);
-                        let sym = if is_generic_parameter(name) {
-                            Symbolic::Generic(siz)
-                        } else {
-                            Symbolic::Constant(siz)
-                        };
-
+                    _ => {
+                        tokens.bump_expected(ctx, TokenKind::RightBracket)?;
                         Ok(Ty {
-                            kind: TyKind::GenericSizedArray(Box::new(ty.kind), sym),
+                            kind: TyKind::GenericSizedArray(
+                                Box::new(ty.kind),
+                                Symbolic::parse(&expr)?,
+                            ),
                             span,
                         })
                     }
-                    _ => Err(ctx.error(ErrorKind::InvalidSymbolicSize, siz_first.span)),
                 }
             }
 
@@ -1260,17 +1243,10 @@ pub enum StmtKind {
     Return(Box<Expr>),
     Comment(String),
 
-    // `for var in 0..10 { <body> }`
+    // `for var in 0..10 { <body> }` or `for var in vec { <body> }`
     ForLoop {
         var: Ident,
-        range: Range,
-        body: Vec<Stmt>,
-    },
-
-    // `for item in vec { <body> }`
-    IteratorLoop {
-        var: Ident,
-        iterator: Box<Expr>,
+        argument: ForLoopArgument,
         body: Vec<Stmt>,
     },
 }
@@ -1411,22 +1387,14 @@ impl Stmt {
                     let statement = Stmt::parse(ctx, tokens)?;
                     body.push(statement);
                 }
-
-                //
-                match argument {
-                    ForLoopArgument::Range(range) => Ok(Stmt {
-                        kind: StmtKind::ForLoop { var, range, body },
-                        span,
-                    }),
-                    ForLoopArgument::Iterator(iterator) => Ok(Stmt {
-                        kind: StmtKind::IteratorLoop {
-                            var,
-                            iterator,
-                            body,
-                        },
-                        span,
-                    }),
-                }
+                Ok(Stmt {
+                    kind: StmtKind::ForLoop {
+                        var,
+                        argument,
+                        body,
+                    },
+                    span,
+                })
             }
 
             // if/else

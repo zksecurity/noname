@@ -664,3 +664,39 @@ fn test_generic_iterator(#[case] backend: BackendKind) -> miette::Result<()> {
 
     Ok(())
 }
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_nested_func(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"val":"1"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_nested_func",
+        public_inputs,
+        private_inputs,
+        vec!["1", "1", "1"],
+        backend,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_nested_method(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"val":"1"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_nested_method",
+        public_inputs,
+        private_inputs,
+        vec!["1", "1", "1"],
+        backend,
+    )?;
+
+    Ok(())
+}

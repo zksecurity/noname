@@ -1,4 +1,5 @@
 @ noname.0.7.0
+@ public inputs: 1
 
 DoubleGeneric<1>
 DoubleGeneric<1,1,-1>
