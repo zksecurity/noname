@@ -892,7 +892,7 @@ pub fn monomorphize_stmt<B: Backend>(
         StmtKind::Assign { mutable, lhs, rhs } => {
             let rhs_mono = monomorphize_expr(ctx, rhs, mono_fn_env)?;
             let typ = rhs_mono.typ.as_ref().expect("expected a type");
-            let type_info = MTypeInfo::new(typ, lhs.span, None);
+            let type_info = MTypeInfo::new(typ, lhs.span, rhs_mono.constant);
 
             // store the type of lhs in the env
             mono_fn_env.store_type(&lhs.value, &type_info)?;
