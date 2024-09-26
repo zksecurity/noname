@@ -184,6 +184,8 @@ pub enum Symbolic {
     Concrete(u32),
     /// Point to a constant variable
     Constant(Ident),
+    /// Only allow Field Access for reading constant value from self struct
+    Expr(Expr),
     /// Generic parameter
     Generic(Ident),
     Add(Box<Symbolic>, Box<Symbolic>),
@@ -198,6 +200,13 @@ impl Display for Symbolic {
             Symbolic::Generic(ident) => write!(f, "{}", ident.value),
             Symbolic::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
             Symbolic::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
+            Symbolic::Expr(expr) => {
+                let field = match &expr.kind {
+                    ExprKind::FieldAccess { rhs, .. } => rhs,
+                    _ => unreachable!("only field access is allowed"),
+                };
+                write!(f, "self.{}", field.value)
+            },
         }
     }
 }
@@ -222,6 +231,7 @@ impl Symbolic {
                 generics.extend(lhs.extract_generics());
                 generics.extend(rhs.extract_generics());
             }
+            Symbolic::Expr(_) => (),
         }
 
         generics
@@ -257,6 +267,9 @@ impl Symbolic {
                         node.span,
                     )),
                 }
+            }
+            ExprKind::FieldAccess { .. } => {
+                Ok(Symbolic::Expr(node.clone()))
             }
             _ => Err(Error::new(
                 "mast",
@@ -605,11 +618,11 @@ impl FnSig {
                 }
                 // const NN: Field
                 _ => {
-                    let cst = observed_arg.constant;
+                    let cst = &observed_arg.constant;
                     if is_generic_parameter(sig_arg.name.value.as_str()) && cst.is_some() {
                         self.generics.assign(
                             &sig_arg.name.value,
-                            cst.unwrap(),
+                            cst.clone().expect("expected constant value").as_single(),
                             observed_arg.expr.span,
                         )?;
                     }

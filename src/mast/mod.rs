@@ -1,5 +1,6 @@
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
+use std::borrow::BorrowMut;
 use std::collections::HashMap;
 
 use crate::{
@@ -8,7 +9,9 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FnArg, FnSig, ForLoopArgument, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
+        types::{
+            FnArg, FnSig, ForLoopArgument, Ident, Range, Stmt, StmtKind, Symbolic, Ty, TyKind,
+        },
         CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
     syntax::{is_generic_parameter, is_type},
@@ -27,19 +30,67 @@ pub struct ExprMonoInfo {
     /// The generic types shouldn't be presented in this field.
     pub typ: Option<TyKind>,
 
-    // todo: see if we can do constant folding on the expression nodes.
-    // - it is possible to remove this field, as the constant value can be extracted from folded expression node
-    /// Numeric value of the expression
-    /// applicable to BigInt type
-    pub constant: Option<u32>,
+    /// Propagated constant value
+    /// - For BigUInt expression type, this corresponds the same inner value.
+    /// - For other expression types, this corresponds the propagated constant value.
+    /// The reason why we can't just fold all the constants to BigUInt expression node is because
+    /// there are cases where folding can't be done even though the expression node is a constant.
+    /// For example:
+    /// ```ignore
+    /// let mut var = 1;
+    /// for var idx in 0..10 {
+    ///    var = var + var;
+    /// }
+    /// ```
+    /// If the `var` is folded to a BigUInt expression node,
+    /// it won't represent the expression node with the same intension at the synthesizer phase,
+    /// as it loses the recursive nature of the expression node.
+    // todo: Note that in the above example, it won't correctly propagate the constant value for `var`,
+    // because the mast phase won't allow unrolling the for loop.
+    pub constant: Option<PropagatedConstant>,
+}
+
+#[derive(Debug, Clone)]
+pub enum PropagatedConstant {
+    Single(u32),
+    Array(Vec<PropagatedConstant>),
+    Custom(HashMap<Ident, PropagatedConstant>),
+}
+
+impl PropagatedConstant {
+    pub fn as_single(&self) -> u32 {
+        match self {
+            PropagatedConstant::Single(v) => *v,
+            _ => panic!("expected single value"),
+        }
+    }
+
+    pub fn as_array(&self) -> Vec<u32> {
+        match self {
+            PropagatedConstant::Array(v) => v.iter().map(|c| c.as_single()).collect(),
+            _ => panic!("expected array value"),
+        }
+    }
+
+    pub fn as_custom(&self) -> HashMap<Ident, u32> {
+        match self {
+            PropagatedConstant::Custom(v) => {
+                v.iter().map(|(k, c)| (k.clone(), c.as_single())).collect()
+            }
+            _ => panic!("expected custom value"),
+        }
+    }
+}
+
+/// impl From trait for single value
+impl From<u32> for PropagatedConstant {
+    fn from(v: u32) -> Self {
+        PropagatedConstant::Single(v)
+    }
 }
 
 impl ExprMonoInfo {
-    pub fn new(expr: Expr, typ: Option<TyKind>, value: Option<u32>) -> Self {
-        if value.is_some() && !matches!(typ, Some(TyKind::Field { constant: true })) {
-            panic!("value can only be set for BigInt type");
-        }
-
+    pub fn new(expr: Expr, typ: Option<TyKind>, value: Option<PropagatedConstant>) -> Self {
         Self {
             expr,
             typ,
@@ -66,18 +117,18 @@ pub struct MTypeInfo {
     pub typ: TyKind,
 
     /// Store constant value
-    pub value: Option<u32>,
+    pub constant: Option<PropagatedConstant>,
 
     /// The span of the variable declaration.
     pub span: Span,
 }
 
 impl MTypeInfo {
-    pub fn new(typ: &TyKind, span: Span, value: Option<u32>) -> Self {
+    pub fn new(typ: &TyKind, span: Span, value: Option<PropagatedConstant>) -> Self {
         Self {
             typ: typ.clone(),
             span,
-            value,
+            constant: value,
         }
     }
 }
@@ -225,20 +276,37 @@ impl<B: Backend> MastCtx<B> {
 
 impl Symbolic {
     /// Evaluate symbolic size to an integer.
-    pub fn eval<B: Backend>(&self, mono_fn_env: &MonomorphizedFnEnv, tast: &TypeChecker<B>) -> u32 {
+    pub fn eval<B: Backend>(&self, ctx: &mut MastCtx<B>, mono_fn_env: &MonomorphizedFnEnv) -> u32 {
         match self {
             Symbolic::Concrete(v) => *v,
             Symbolic::Constant(var) => {
                 let qualified = FullyQualified::local(var.value.clone());
-                let cst = tast.const_info(&qualified).expect("constant not found");
+                let cst = ctx.tast.const_info(&qualified).expect("constant not found");
 
                 // convert to u32
                 let bigint: BigUint = cst.value[0].into();
                 bigint.try_into().expect("biguint too large")
             }
-            Symbolic::Generic(g) => mono_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
-            Symbolic::Add(a, b) => a.eval(mono_fn_env, tast) + b.eval(mono_fn_env, tast),
-            Symbolic::Mul(a, b) => a.eval(mono_fn_env, tast) * b.eval(mono_fn_env, tast),
+            Symbolic::Generic(g) => mono_fn_env
+                .get_type_info(&g.value)
+                .unwrap()
+                .constant
+                .clone()
+                .unwrap()
+                .as_single(),
+            Symbolic::Add(a, b) => a.eval(ctx, mono_fn_env) + b.eval(ctx, mono_fn_env),
+            Symbolic::Mul(a, b) => a.eval(ctx, mono_fn_env) * b.eval(ctx, mono_fn_env),
+            Symbolic::Expr(expr) => {
+                // it shouldn't modify the context, but here is to adapt to the monomorphize_expr signature
+                let mut fn_env = mono_fn_env.clone();
+                let expr_mono = monomorphize_expr(ctx, expr, &mut fn_env).unwrap();
+
+                // only allow a single constant field
+                expr_mono
+                    .constant
+                    .expect("expected a propagated constant")
+                    .as_single()
+            }
         }
     }
 }
@@ -392,7 +460,12 @@ fn monomorphize_expr<B: Backend>(
                 },
             );
 
-            let cst = None;
+            // propagate the constant value
+            let cst = lhs_mono.constant.and_then(|c| match c {
+                PropagatedConstant::Custom(map) => map.get(rhs).cloned(),
+                _ => None,
+            });
+
             ExprMonoInfo::new(mexpr, typ, cst)
         }
 
@@ -418,7 +491,8 @@ fn monomorphize_expr<B: Backend>(
                 .to_owned();
 
             // monomorphize the function call
-            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+            let (fn_info_mono, typ, mono_info) =
+                instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
             let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
 
@@ -435,8 +509,8 @@ fn monomorphize_expr<B: Backend>(
             let qualified = FullyQualified::new(module, &fn_name_mono.value);
             ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
 
-            // assume the function call won't return constant value
-            ExprMonoInfo::new(mexpr, typ, None)
+            let cst = mono_info.and_then(|c| c.constant);
+            ExprMonoInfo::new(mexpr, typ, cst)
         }
 
         // `lhs.method_name(args)`
@@ -491,7 +565,8 @@ fn monomorphize_expr<B: Backend>(
             }
 
             // monomorphize the function call
-            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+            let (fn_info_mono, typ, mono_info) =
+                instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
             let fn_name_mono = &fn_info_mono.sig().name;
             let mexpr = Expr {
@@ -507,8 +582,9 @@ fn monomorphize_expr<B: Backend>(
             ctx.tast
                 .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
 
-            // assume the function call won't return constant value
-            ExprMonoInfo::new(mexpr, typ, None)
+            let cst = mono_info.and_then(|c| c.constant);
+
+            ExprMonoInfo::new(mexpr, typ, cst)
         }
 
         ExprKind::Assignment { lhs, rhs } => {
@@ -578,9 +654,10 @@ fn monomorphize_expr<B: Backend>(
                 Some(v) => {
                     let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(v.clone()));
 
-                    ExprMonoInfo::new(mexpr, typ, v.to_u32())
+                    ExprMonoInfo::new(mexpr, typ, Some(PropagatedConstant::from(v.to_u32().unwrap())))
                 }
-                None => {
+                // keep as is
+                _ => {
                     let mexpr = expr.to_mast(
                         ctx,
                         &ExprKind::BinaryOp {
@@ -617,7 +694,11 @@ fn monomorphize_expr<B: Backend>(
             let cst: u32 = inner.try_into().expect("biguint too large");
             let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(inner.clone()));
 
-            ExprMonoInfo::new(mexpr, Some(TyKind::Field { constant: true }), Some(cst))
+            ExprMonoInfo::new(
+                mexpr,
+                Some(TyKind::Field { constant: true }),
+                Some(PropagatedConstant::from(cst)),
+            )
         }
 
         ExprKind::Bool(inner) => {
@@ -633,10 +714,10 @@ fn monomorphize_expr<B: Backend>(
 
             let res = if is_generic_parameter(&name.value) {
                 let mtype = mono_fn_env.get_type_info(&name.value).unwrap();
-                let mexpr =
-                    expr.to_mast(ctx, &ExprKind::BigUInt(BigUint::from(mtype.value.unwrap())));
+                let cst = mtype.constant.clone().unwrap().as_single();
+                let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(BigUint::from(cst)));
 
-                ExprMonoInfo::new(mexpr, Some(mtype.typ.clone()), mtype.value)
+                ExprMonoInfo::new(mexpr, Some(mtype.typ.clone()), mtype.constant.clone())
             } else if is_type(&name.value) {
                 let mtype = TyKind::Custom {
                     module: module.clone(),
@@ -659,7 +740,11 @@ fn monomorphize_expr<B: Backend>(
                 let cst: u32 = bigint.clone().try_into().expect("biguint too large");
                 let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(bigint));
 
-                ExprMonoInfo::new(mexpr, Some(TyKind::Field { constant: true }), Some(cst))
+                ExprMonoInfo::new(
+                    mexpr,
+                    Some(TyKind::Field { constant: true }),
+                    Some(PropagatedConstant::from(cst)),
+                )
             } else {
                 // otherwise it's a local variable
                 let mexpr = expr.to_mast(
@@ -671,7 +756,7 @@ fn monomorphize_expr<B: Backend>(
                 );
 
                 let mtype = mono_fn_env.get_type_info(&name.value).unwrap().clone();
-                ExprMonoInfo::new(mexpr, Some(mtype.typ), mtype.value)
+                ExprMonoInfo::new(mexpr, Some(mtype.typ), mtype.constant)
             };
 
             res
@@ -794,16 +879,38 @@ fn monomorphize_expr<B: Backend>(
                     ));
                 }
 
-                fields_mono.push((ident, observed_mono.expr.clone()));
+                fields_mono.push((
+                    ident,
+                    observed_mono.expr.clone(),
+                    observed_mono.constant.clone(),
+                ));
             }
 
             let mexpr = expr.to_mast(
                 ctx,
                 &ExprKind::CustomTypeDeclaration {
                     custom: custom.clone(),
-                    fields: fields_mono,
+                    // extract a tuple of first two elements
+                    fields: fields_mono
+                        .iter()
+                        .map(|(a, b, _)| (a.clone(), b.clone()))
+                        .collect(),
                 },
             );
+
+            let cst_fields = {
+                let csts = HashMap::from_iter(
+                    fields_mono
+                        .into_iter()
+                        .filter(|(_, _, cst)| cst.is_some())
+                        .map(|(ident, _, cst)| (ident, cst.unwrap())),
+                );
+                if csts.is_empty() {
+                    None
+                } else {
+                    Some(PropagatedConstant::Custom(csts))
+                }
+            };
 
             ExprMonoInfo::new(
                 mexpr,
@@ -811,7 +918,7 @@ fn monomorphize_expr<B: Backend>(
                     module: module.clone(),
                     name: name.clone(),
                 }),
-                None,
+                cst_fields,
             )
         }
         ExprKind::RepeatedArrayInit { item, size } => {
@@ -828,7 +935,7 @@ fn monomorphize_expr<B: Backend>(
             );
 
             if let Some(cst) = size_mono.constant {
-                let arr_typ = TyKind::Array(Box::new(item_typ), cst);
+                let arr_typ = TyKind::Array(Box::new(item_typ), cst.as_single());
                 ExprMonoInfo::new(mexpr, Some(arr_typ), None)
             } else {
                 return Err(error(ErrorKind::InvalidArraySize, expr.span));
@@ -850,22 +957,29 @@ pub fn monomorphize_block<B: Backend>(
     mono_fn_env: &mut MonomorphizedFnEnv,
     stmts: &[Stmt],
     expected_return: Option<&Ty>,
-) -> Result<(Vec<Stmt>, Option<TyKind>)> {
+) -> Result<(Vec<Stmt>, Option<ExprMonoInfo>)> {
     mono_fn_env.nest();
 
-    let mut return_typ = None;
+    let mut ret_expr_mono = None;
 
     let mut stmts_mono = vec![];
 
     for stmt in stmts {
-        if let Some((stmt, ret_typ)) = monomorphize_stmt(ctx, mono_fn_env, stmt)? {
+        if let Some((stmt, expr_mono)) = monomorphize_stmt(ctx, mono_fn_env, stmt)? {
             stmts_mono.push(stmt);
 
-            if ret_typ.is_some() {
-                return_typ = ret_typ;
+            // only return stmt can return `ExprMonoInfo` which contains propagated constants
+            if expr_mono.is_some() {
+                ret_expr_mono = expr_mono;
             }
         }
     }
+
+    let return_typ = if let Some(expr_mono) = ret_expr_mono.clone() {
+        expr_mono.typ
+    } else {
+        None
+    };
 
     // check the return
     if let (Some(expected), Some(observed)) = (expected_return, return_typ.clone()) {
@@ -879,7 +993,7 @@ pub fn monomorphize_block<B: Backend>(
 
     mono_fn_env.pop();
 
-    Ok((stmts_mono, return_typ))
+    Ok((stmts_mono, ret_expr_mono))
 }
 
 /// Monomorphize a statement.
@@ -887,7 +1001,7 @@ pub fn monomorphize_stmt<B: Backend>(
     ctx: &mut MastCtx<B>,
     mono_fn_env: &mut MonomorphizedFnEnv,
     stmt: &Stmt,
-) -> Result<Option<(Stmt, Option<TyKind>)>> {
+) -> Result<Option<(Stmt, Option<ExprMonoInfo>)>> {
     let res = match &stmt.kind {
         StmtKind::Assign { mutable, lhs, rhs } => {
             let rhs_mono = monomorphize_expr(ctx, rhs, mono_fn_env)?;
@@ -932,7 +1046,9 @@ pub fn monomorphize_stmt<B: Backend>(
                         return Err(error(ErrorKind::InvalidRangeSize, stmt.span));
                     }
 
-                    if start_mono.constant.unwrap() > end_mono.constant.unwrap() {
+                    if start_mono.constant.unwrap().as_single()
+                        > end_mono.constant.unwrap().as_single()
+                    {
                         return Err(error(ErrorKind::InvalidRangeSize, stmt.span));
                     }
 
@@ -986,11 +1102,11 @@ pub fn monomorphize_stmt<B: Backend>(
         StmtKind::Return(res) => {
             let expr_mono = monomorphize_expr(ctx, res, mono_fn_env)?;
             let stmt_mono = Stmt {
-                kind: StmtKind::Return(Box::new(expr_mono.expr)),
+                kind: StmtKind::Return(Box::new(expr_mono.expr.clone())),
                 span: stmt.span,
             };
 
-            Some((stmt_mono, expr_mono.typ))
+            Some((stmt_mono, Some(expr_mono)))
         }
         StmtKind::Comment(_) => None,
     };
@@ -1007,7 +1123,7 @@ pub fn instantiate_fn_call<B: Backend>(
     fn_info: FnInfo<B>,
     args: &[ExprMonoInfo],
     span: Span,
-) -> Result<(FnInfo<B>, Option<TyKind>)> {
+) -> Result<(FnInfo<B>, Option<TyKind>, Option<ExprMonoInfo>)> {
     ctx.start_monomorphize_func();
 
     // resolve generic values
@@ -1045,7 +1161,11 @@ pub fn instantiate_fn_call<B: Backend>(
         let val = fn_sig.generics.get(gen);
         mono_fn_env.store_type(
             gen,
-            &MTypeInfo::new(&TyKind::Field { constant: true }, span, Some(val)),
+            &MTypeInfo::new(
+                &TyKind::Field { constant: true },
+                span,
+                Some(PropagatedConstant::from(val)),
+            ),
         )?;
     }
 
@@ -1061,7 +1181,7 @@ pub fn instantiate_fn_call<B: Backend>(
         let typ = mono_info.typ.as_ref().expect("expected a value");
         mono_fn_env.store_type(
             arg_name,
-            &MTypeInfo::new(typ, mono_info.expr.span, mono_info.constant),
+            &MTypeInfo::new(typ, mono_info.expr.span, mono_info.constant.clone()),
         )?;
     }
 
@@ -1084,7 +1204,7 @@ pub fn instantiate_fn_call<B: Backend>(
     let ret_typed = match &fn_sig.return_type {
         Some(ret_ty) => match &ret_ty.kind {
             TyKind::GenericSizedArray(typ, size) => {
-                let val = size.eval(mono_fn_env, &ctx.tast);
+                let val = size.eval(ctx.borrow_mut(), mono_fn_env);
                 let tykind = TyKind::Array(typ.clone(), val);
                 Some(Ty {
                     kind: tykind,
@@ -1104,29 +1224,36 @@ pub fn instantiate_fn_call<B: Backend>(
     };
 
     // construct the monomorphized function AST
-    let func_def = match fn_info.kind {
-        FnKind::BuiltIn(_, handle) => FnInfo {
-            kind: FnKind::BuiltIn(sig_typed, handle),
-            span: fn_info.span,
-        },
+    let (func_def, mono_info) = match fn_info.kind {
+        FnKind::BuiltIn(_, handle) => (
+            FnInfo {
+                kind: FnKind::BuiltIn(sig_typed, handle),
+                span: fn_info.span,
+            },
+            // todo: we will need to propagate the constant value from builtin function as well
+            None,
+        ),
         FnKind::Native(fn_def) => {
-            let (stmts_typed, _) =
+            let (stmts_typed, mono_info) =
                 monomorphize_block(ctx, mono_fn_env, &stmts, ret_typed.as_ref())?;
 
-            FnInfo {
-                kind: FnKind::Native(FunctionDef {
-                    sig: sig_typed,
-                    body: stmts_typed,
-                    span: fn_def.span,
-                }),
-                span: fn_info.span,
-            }
+            (
+                FnInfo {
+                    kind: FnKind::Native(FunctionDef {
+                        sig: sig_typed,
+                        body: stmts_typed,
+                        span: fn_def.span,
+                    }),
+                    span: fn_info.span,
+                },
+                mono_info,
+            )
         }
     };
 
     ctx.finish_monomorphize_func();
 
-    Ok((func_def, ret_typed.map(|t| t.kind)))
+    Ok((func_def, ret_typed.map(|t| t.kind), mono_info))
 }
 pub fn error(kind: ErrorKind, span: Span) -> Error {
     Error::new("mast", kind, span)

@@ -1,6 +1,8 @@
 struct Thing {
     xx: Field,
     yy: Field,
+    // todo: should allow const attribute in order to do proper type check 
+    cst: Field,
 }
 
 fn Thing.check(self) -> Field {
@@ -10,8 +12,17 @@ fn Thing.check(self) -> Field {
     return self.xx + self.yy;
 }
 
+fn Thing.to_array(self) -> [Field; self.cst] {
+    return [1; self.cst];
+}
+
 fn main(pub xx: Field) {
-    let thing = Thing { xx: xx, yy: xx + 1 };
+    let thing = Thing { xx: xx, yy: xx + 1, cst: 3 };
     let res = thing.check();
     assert_eq(res, 3);
+
+    let arr = thing.to_array();
+    for idx in 0..thing.cst {
+        assert_eq(arr[idx], xx);
+    }
 }
