@@ -654,7 +654,11 @@ fn monomorphize_expr<B: Backend>(
                 Some(v) => {
                     let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(v.clone()));
 
-                    ExprMonoInfo::new(mexpr, typ, Some(PropagatedConstant::from(v.to_u32().unwrap())))
+                    ExprMonoInfo::new(
+                        mexpr,
+                        typ,
+                        Some(PropagatedConstant::from(v.to_u32().unwrap())),
+                    )
                 }
                 // keep as is
                 _ => {

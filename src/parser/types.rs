@@ -206,7 +206,7 @@ impl Display for Symbolic {
                     _ => unreachable!("only field access is allowed"),
                 };
                 write!(f, "self.{}", field.value)
-            },
+            }
         }
     }
 }
@@ -268,9 +268,7 @@ impl Symbolic {
                     )),
                 }
             }
-            ExprKind::FieldAccess { .. } => {
-                Ok(Symbolic::Expr(node.clone()))
-            }
+            ExprKind::FieldAccess { .. } => Ok(Symbolic::Expr(node.clone())),
             _ => Err(Error::new(
                 "mast",
                 ErrorKind::InvalidSymbolicSize,
