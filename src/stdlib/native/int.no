@@ -1,0 +1,17 @@
+use std::bits;
+
+struct Uint8 {
+    // todo: maybe add a const attribute to Field to forbid reassignment
+    inner: Field,
+    bit_len: Field,
+}
+
+fn Uint8.new(val: Field) -> Uint8 {
+    // range check
+    let ignore_ = bits::to_bits(8, val);
+
+    return Uint8 {
+        inner: val,
+        bit_len: 8
+    };
+}

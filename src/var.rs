@@ -8,6 +8,7 @@ use crate::{
     circuit_writer::{CircuitWriter, FnEnv, VarInfo},
     constants::Span,
     error::Result,
+    helpers::PrettyField,
     type_checker::ConstInfo,
     witness::WitnessEnv,
 };
@@ -57,6 +58,22 @@ where
     // but does this make sense to all different backends? is it possible that some backend doesn't allow certain out of circuit calculations like this?
     NthBit(B::Var, usize),
 
+    /// Left shift the variable.
+    LeftShift(B::Var, usize),
+
+    /// Divide
+    // todo: refactor to use a argument wrapper to encapsulate its type, so that it can be either B::Var or B::Field
+    CstDivVar(B::Field, B::Var),
+    VarDivCst(B::Var, B::Field),
+    VarDivVar(B::Var, B::Var),
+    CstDivCst(B::Field, B::Field),
+
+    /// Modulo
+    VarModVar(B::Var, B::Var),
+    CstModVar(B::Field, B::Var),
+    VarModCst(B::Var, B::Field),
+    CstModCst(B::Field, B::Field),
+
     /// A public or private input to the function
     /// There's an index associated to a variable name, as the variable could be composed of several field elements.
     External(String, usize),
@@ -78,6 +95,15 @@ impl<B: Backend> std::fmt::Debug for Value<B> {
             Value::PublicOutput(..) => write!(f, "PublicOutput"),
             Value::Scale(..) => write!(f, "Scaling"),
             Value::NthBit(_, _) => write!(f, "NthBit"),
+            Value::LeftShift(_, _) => write!(f, "LeftShift"),
+            Value::CstDivVar(lhs, rhs) => write!(f, "CstDivVar({:?}, {:?})", lhs, rhs),
+            Value::VarDivCst(lhs, rhs) => write!(f, "{:?} / {:?}", lhs, rhs.pretty()),
+            Value::VarDivVar(lhs, rhs) => write!(f, "VarDivVar({:?}, {:?})", lhs, rhs),
+            Value::CstDivCst(lhs, rhs) => write!(f, "CstDivCst({:?}, {:?})", lhs, rhs),
+            Value::VarModVar(lhs, rhs) => write!(f, "VarModVar({:?}, {:?})", lhs, rhs),
+            Value::CstModVar(lhs, rhs) => write!(f, "CstModVar({:?}, {:?})", lhs, rhs),
+            Value::VarModCst(lhs, rhs) => write!(f, "{:?} % {:?}", lhs, rhs.pretty()),
+            Value::CstModCst(lhs, rhs) => write!(f, "CstModCst({:?}, {:?})", lhs, rhs),
         }
     }
 }

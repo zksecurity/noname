@@ -407,7 +407,10 @@ where
                     );
                     return Err(err);
                 } else {
-                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
+                    // todo: lift this restriction for now
+                    // this is due to the intermediate cell vars introduced by the hint builtins.
+                    // in order to get computed in symbolic value, it needs to introduce intermediate cell vars and pass them around even it is hint builtins.
+                    // panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
                 }
             }
         }

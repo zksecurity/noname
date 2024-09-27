@@ -1,0 +1,295 @@
+use std::bits;
+use std::builtins;
+use std::comparator;
+use std::int;
+
+struct Result {
+    sum: Field,
+    carry: Field,
+}
+
+// sum % 2**LEN with carry bit
+fn module_sum(const LEN: Field, lhs: Field, rhs: Field) -> Result {
+    // assumptions:
+    // 1. LEN has to be less than the size of fields lhs and rhs
+    //    otherwise the sum of lhs and rhs is always less than the max value of LEN bits.
+    // 2. the size of a b value have to be upper bounded by LEN
+
+    let one = 1;
+    let zero = 0;
+
+    // absolute sum
+    let abs_sum = lhs + rhs;
+
+    // one more bit for the carry
+    let carry_len = LEN + 1;
+
+    // convert the sum to bits
+    // this also does the range check for the assumption 2
+    let abs_bits = bits::to_bits(carry_len, abs_sum);
+
+    // extract the carry bit
+    let carry_bit = abs_bits[LEN];
+    let carry_num = if carry_bit { one } else { zero };
+
+    // calculate the module sum by removing contributions from carries
+    let mod_sum = abs_sum - (carry_num * bits::left_shift(1, LEN));
+
+    return Result {
+        sum: mod_sum,
+        carry: carry_num
+    };
+}
+
+// todo: encapsulate module_sum* functions into a single function, eg:
+// fn module_sum(const LEN: Field, elms: [Field; SIZE]) -> Result 
+// LEN is the number of bits of the modulo, SIZE is the number of elements
+// according to the math: a + b + c <= SIZE * (2**LEN - 1)
+// the number of carries can be determined by ceil(SIZE/2)
+fn module_sum_three (const LEN: Field, aa: Field, bb: Field, cc: Field) -> Result {
+    let one = 1;
+    let zero = 0;
+
+    // absolute sum
+    let abs_sum = (aa + bb) + cc;
+
+    // carry bits
+    let carry_len = LEN + 2;
+
+    // convert the sum to bits
+    let abs_bits = bits::to_bits(carry_len, abs_sum);
+
+    // extract the carry bit
+    let first_carry_num = if abs_bits[LEN] { one } else { zero };
+    let second_carry_num = if abs_bits[LEN + 1] { one } else { zero };
+
+    // total carry in sum
+    let total_carry_num = first_carry_num + (2 * second_carry_num);
+
+    // calculate the module sum by removing contributions from carries
+    let mod_sum = abs_sum - (total_carry_num * bits::left_shift(1, LEN));
+    
+    return Result {
+        sum: mod_sum,
+        carry: total_carry_num
+    };
+}
+
+fn add_limbs(const LEN: Field, aa: [Field; SIZE], bb: [Field; SIZE]) -> [Field; SIZE + 1] {
+    let mut out = [0; SIZE + 1];
+
+    let mut res = module_sum(LEN, aa[0], bb[0]);
+    out[0] = res.sum;
+
+    let mut carry = res.carry;
+
+    for ii in 1..SIZE {
+        res = module_sum_three(LEN, aa[ii], bb[ii], carry);
+        out[ii] = res.sum;
+        carry = res.carry;
+    }
+
+    out[SIZE] = carry;
+    return out;
+}
+
+fn mult_limbs_no_carry(const BITLEN: Field, lhs: [Field; REGLHS], rhs: [Field; REGRHS]) -> [Field; (REGLHS + REGRHS) - 1] {
+    let mut prod_val = [0; REGLHS + REGRHS];
+    for ii in 0..REGLHS {
+        for jj in 0..REGRHS {
+            prod_val[ii + jj] = prod_val[ii + jj] + (lhs[ii] * rhs[jj]);
+        }
+    }
+
+    let mut prod = [0; (REGLHS + REGRHS) - 1];
+    // is the value or prod[REGLHS + REGRHS] always 0?
+    for ii in 0..(REGLHS + REGRHS) - 1 {
+        prod[ii] = prod_val[ii];
+    }
+
+    // prove prod_val calculated correctly via polynomial convolution
+    // P_out(x) = P_lhs(x) * P_rhs(x)
+    // lhs[i] and rhs[j] are the coefficients of P_lhs(x) and P_rhs(x) respectively
+    // coefficients of P_out(x), which is out[i], are the convolution of lhs and rhs
+    let mut lhs_poly = [0; (REGLHS + REGRHS) - 1];
+    let mut rhs_poly = [0; (REGLHS + REGRHS) - 1];
+    let mut prod_poly = [0; (REGLHS + REGRHS) - 1];
+    for point in 0..(REGLHS + REGRHS) - 1 {
+        for limb_idx in 0..(REGLHS + REGRHS) - 1 {
+            prod_poly[point] = prod_poly[point] + (prod[limb_idx] * builtins::pow(point, limb_idx));
+        }
+        for limb_idx in 0..REGLHS {
+            lhs_poly[point] = lhs_poly[point] + (lhs[limb_idx] * builtins::pow(point, limb_idx));
+        }
+        for limb_idx in 0..REGRHS {
+            rhs_poly[point] = rhs_poly[point] + (rhs[limb_idx] * builtins::pow(point, limb_idx));
+        }
+    }
+
+    for ii in 0..(REGLHS + REGRHS) - 1 {
+        assert_eq(prod_poly[ii], lhs_poly[ii] * rhs_poly[ii]);
+    }
+
+    return prod;
+}
+
+fn split_fn(in_val: Field, const small_bitlen: Field, const big_bitlen: Field) -> [Field; 2] {
+    let small = builtins::mod(in_val, bits::left_shift(1, small_bitlen));
+
+    // right shift by small_bitlen to get the remaining bits
+    let right_shifted = builtins::div(in_val, bits::left_shift(1, small_bitlen));
+    let big = builtins::mod(right_shifted, bits::left_shift(1, big_bitlen));
+
+    return [small, big];
+}
+
+fn split_three_fn(in_val: Field, const small_bitlen: Field, const mid_bitlen: Field, const big_bitlen: Field) -> [Field; 3] {
+    let small = builtins::mod(in_val, bits::left_shift(1, small_bitlen));
+
+    // right shift by small_bitlen to get the remaining bits
+    let right_shifted_mid = builtins::div(in_val, bits::left_shift(1, small_bitlen));
+    let mid = builtins::mod(right_shifted_mid, bits::left_shift(1, mid_bitlen));
+
+    // right shift by small_bitlen + mid_bitlen to get the remaining bits
+    let right_shifted_big = builtins::div(in_val, bits::left_shift(1, small_bitlen + mid_bitlen));
+    let big = builtins::mod(right_shifted_big, bits::left_shift(1, big_bitlen));
+
+    return [small, mid, big];
+}
+
+fn long_to_short(const SHORTLEN: Field, long_ints: [Field; SIZE]) -> [Field; SIZE + 1] {
+    let zero = 0;
+    let mut short_ints = [0; SIZE + 1];
+
+    let mut split = [[0; 3]; SIZE];
+    for ii in 0..SIZE {
+        split[ii] = split_three_fn(long_ints[ii], SHORTLEN, SHORTLEN, SHORTLEN);
+    }
+
+    let mut carry = [0; SIZE];
+    short_ints[0] = split[0][0];
+
+    // todo: support const attribute inside scope, so it can instruct whether the return is constant field 
+    // then it can add a checking at synthesizer phase to check if the returned value is constant
+    // let size_bit_len = bits::bit_len(SIZE);
+    let size_bit_len = 2;
+
+    // Compute the short integers and carries
+    // each of long ints are split into 3 short ints
+    // then they align diagonally to compute the sum vertically
+    // the reason to align diagonally is to align with the bit magnitude in each long int
+    // each long int has left shifted SHORTLEN bits compared to the previous long int
+    // l0: s0, s1, s2
+    // l1:     s0, s1, s2
+    // l2:         s0, s1, s2
+    // assumption: no carry is possible in the highest order register
+    // for example, 
+    // a * b = l1, then l1.s3 won't have carry bits more than len(a) + len(b)
+    // !need a proof for this assumption
+
+    short_ints[0] = split[0][0];
+    let short_ints_1_sum = split_fn(split[0][1] + split[1][0], SHORTLEN, SHORTLEN);
+    short_ints[1] = short_ints_1_sum[0];
+    carry[1] = short_ints_1_sum[1];
+    
+    for ii in 2..SIZE {
+        // relatively, this is from the last long int
+        let l2_s0 = split[ii][0];
+        // relatively, this is from the middle long int
+        // todo: without branching, ii - 1 could overview the range when ii is 0
+        // todo: thus for now, enforce SIZE >= 3
+        let l1_s1 = if ii == 0 { zero } else { split[ii - 1][1] };
+        // relatively, this is from the first long int
+        let l0_s2 = if comparator::less_than(size_bit_len, ii, 2) { zero } else { split[ii - 2][2] };
+        let c_prev = carry[ii - 1];
+
+        // Compute sum and carry for indices less than SIZE
+        let sum = ((l2_s0 + l1_s1) + l0_s2) + c_prev;
+        let sum_and_carry = split_fn(sum, SHORTLEN, SHORTLEN);
+        short_ints[ii] = sum_and_carry[0];
+        carry[ii] = sum_and_carry[1];
+    }
+
+    // Compute the l2_s1 and l1_s2
+    let l2_s1 = if SIZE == 1 { split[0][1] } else { split[SIZE - 1][1] };
+    let l1_s2 = if comparator::less_than(size_bit_len, SIZE, 2) { zero } else { split[SIZE - 2][2] };
+
+    short_ints[SIZE] = (l2_s1 + l1_s2) + carry[SIZE - 1];
+
+    // range checks
+    for ii in 0..SIZE + 1 {
+        // todo: update the type checker to allow unused return value?
+        // or a wrapper function to simply do the range check without return?
+        let ignore = bits::to_bits(SHORTLEN, short_ints[ii]);
+    }
+
+    // prove the relationship between long ints and short ints
+    // the running carry should be the same as the last short int
+    let mut running_carry = [0; SIZE];
+    // this can be also seen as a right shift
+    running_carry[0] = builtins::div(long_ints[0] - short_ints[0], bits::left_shift(1, SHORTLEN));
+    // range check
+    let ignore = bits::to_bits(SHORTLEN + size_bit_len, running_carry[0]);
+    assert_eq(running_carry[0] * bits::left_shift(1, SHORTLEN), long_ints[0] - short_ints[0]);
+
+    for ii in 1..SIZE {
+        let remaining = (long_ints[ii] - short_ints[ii]) + running_carry[ii - 1];
+        running_carry[ii] = builtins::div(remaining, bits::left_shift(1, SHORTLEN));
+        builtins::log(SHORTLEN + size_bit_len);
+        builtins::log(remaining);
+        // range check
+        let ignore_ = bits::to_bits(SHORTLEN + size_bit_len, running_carry[ii]);
+        assert_eq(running_carry[ii] * bits::left_shift(1, SHORTLEN), remaining);
+    }
+
+    assert_eq(running_carry[SIZE - 1], short_ints[SIZE]);
+
+    return short_ints;
+}
+
+fn mult_limbs(const BITLEN: Field, lhs: [Field; SIZE], rhs: [Field; SIZE]) -> [Field; 2 * SIZE] {
+    let mut out = [0; 2 * SIZE];
+
+    let longs = mult_limbs_no_carry(BITLEN, lhs, rhs);
+    let shorts = long_to_short(BITLEN, longs);
+
+    return shorts;
+}
+
+fn uint8_to_fields(val: [int::Uint8; REGISTERS]) -> [Field; REGISTERS] {
+    let mut out = [0; REGISTERS];
+    for ii in 0..REGISTERS {
+        out[ii] = val[ii].inner;
+    }
+    return out;
+}
+
+fn uint8_add(lhs: [int::Uint8; REGISTERS], rhs: [int::Uint8; REGISTERS]) -> [int::Uint8; REGISTERS + 1] {
+    let mut res = [int::Uint8.new(0); REGISTERS + 1];
+    
+    let lhs_fields = uint8_to_fields(lhs);
+    let rhs_fields = uint8_to_fields(rhs);
+
+    let raw_res = add_limbs(8, lhs_fields, rhs_fields);
+
+    for ii in 0..REGISTERS + 1 {
+        res[ii] = int::Uint8.new(raw_res[ii]);
+    }
+
+    return res;
+}
+
+fn uint8_mult(lhs: [int::Uint8; REGISTERS], rhs: [int::Uint8; REGISTERS]) -> [int::Uint8; REGISTERS * 2] {
+    let mut res = [int::Uint8.new(0); REGISTERS * 2];
+    
+    let lhs_fields = uint8_to_fields(lhs);
+    let rhs_fields = uint8_to_fields(rhs);
+
+    let raw_res = mult_limbs(8, lhs_fields, rhs_fields);
+
+    for ii in 0..REGISTERS * 2 {
+        res[ii] = int::Uint8.new(raw_res[ii]);
+    }
+
+    return res;
+}
