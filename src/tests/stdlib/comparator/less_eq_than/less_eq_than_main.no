@@ -1,0 +1,6 @@
+use std::comparator;
+
+fn main(pub lhs: Field, rhs: Field) -> Bool {
+    let res = comparator::less_eq_than(2, lhs, rhs);
+    return res;
+}
