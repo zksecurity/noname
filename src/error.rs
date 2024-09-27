@@ -130,7 +130,7 @@ pub enum ErrorKind {
     #[error("invalid array size, expected [_; x] with x in [0,2^32]")]
     InvalidArraySize,
 
-    #[error("only allow a single generic parameter for the size of an array argument")]
+    #[error("Invalid expression in symbolic size")]
     InvalidSymbolicSize,
 
     #[error("invalid generic parameter, expected single uppercase letter, such as N, M, etc.")]
@@ -358,4 +358,7 @@ pub enum ErrorKind {
 
     #[error("invalid range, the end value can't be smaller than the start value")]
     InvalidRange,
+
+    #[error("division by zero")]
+    DivisionByZero,
 }
