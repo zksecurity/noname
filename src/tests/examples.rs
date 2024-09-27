@@ -13,6 +13,8 @@ use crate::{
     type_checker::TypeChecker,
 };
 
+use super::init_stdlib_dep;
+
 fn test_file(
     file_name: &str,
     public_inputs: &str,
@@ -36,6 +38,7 @@ fn test_file(
             // compile
             let mut sources = Sources::new();
             let mut tast = TypeChecker::new();
+            init_stdlib_dep(&mut sources, &mut tast);
             let this_module = None;
             let _node_id = typecheck_next_file(
                 &mut tast,
@@ -98,6 +101,7 @@ fn test_file(
             // compile
             let mut sources = Sources::new();
             let mut tast = TypeChecker::new();
+            init_stdlib_dep(&mut sources, &mut tast);
             let this_module = None;
             let _node_id = typecheck_next_file(
                 &mut tast,
