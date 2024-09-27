@@ -228,7 +228,7 @@ impl Symbolic {
             Symbolic::Sub(lhs, rhs) => {
                 generics.extend(lhs.extract_generics());
                 generics.extend(rhs.extract_generics());
-            },
+            }
         }
 
         generics

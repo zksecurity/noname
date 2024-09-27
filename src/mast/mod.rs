@@ -27,7 +27,7 @@ pub struct ExprMonoInfo {
     /// The generic types shouldn't be presented in this field.
     pub typ: Option<TyKind>,
 
-    /// Propagated constant value 
+    /// Propagated constant value
     /// - For BigUInt expression type, this corresponds the same inner value.
     /// - For constant field type, this corresponds the propagated constant value.
     /// The reason why we can't just fold all the constants to BigUInt expression node is because
@@ -39,7 +39,7 @@ pub struct ExprMonoInfo {
     ///    var = var + var;
     /// }
     /// ```
-    /// If the `var` is folded to a BigUInt expression node, 
+    /// If the `var` is folded to a BigUInt expression node,
     /// it won't represent the expression node with the same intension at the synthesizer phase,
     /// as it lose the recursive nature of the expression node.
     pub constant: Option<u32>,
@@ -201,7 +201,8 @@ impl<B: Backend> MastCtx<B> {
     ) {
         self.tast
             .add_monomorphized_fn(new_qualified.clone(), fn_info);
-        self.functions_instantiated.insert(new_qualified, old_qualified);
+        self.functions_instantiated
+            .insert(new_qualified, old_qualified);
     }
 
     pub fn add_monomorphized_method(
@@ -214,8 +215,10 @@ impl<B: Backend> MastCtx<B> {
         self.tast
             .add_monomorphized_method(struct_qualified.clone(), method_name, fn_info);
 
-        self.methods_instantiated
-            .insert((struct_qualified, method_name.to_string()), old_method_name.to_string());
+        self.methods_instantiated.insert(
+            (struct_qualified, method_name.to_string()),
+            old_method_name.to_string(),
+        );
     }
 
     pub fn clear_generic_fns(&mut self) {
@@ -437,7 +440,7 @@ fn monomorphize_expr<B: Backend>(
 
             // check if this function is already monomorphized
             if ctx.functions_instantiated.contains_key(&old_qualified) {
-                // todo: cache the propagated constant from instantiated function, 
+                // todo: cache the propagated constant from instantiated function,
                 // so it doesn't need to re-instantiate the function
                 let mexpr = Expr {
                     kind: ExprKind::FnCall {
@@ -448,8 +451,7 @@ fn monomorphize_expr<B: Backend>(
                     ..expr.clone()
                 };
                 ExprMonoInfo::new(mexpr, typ, None)
-            }
-            else {
+            } else {
                 let fn_name_mono = &fn_info_mono.sig().name;
                 let mexpr = Expr {
                     kind: ExprKind::FnCall {
@@ -459,10 +461,10 @@ fn monomorphize_expr<B: Backend>(
                     },
                     ..expr.clone()
                 };
-    
+
                 let qualified = FullyQualified::new(module, &fn_name_mono.value);
                 ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
-    
+
                 ExprMonoInfo::new(mexpr, typ, None)
             }
         }
@@ -522,8 +524,11 @@ fn monomorphize_expr<B: Backend>(
             let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
             // check if this function is already monomorphized
-            if ctx.methods_instantiated.contains_key(&(struct_qualified.clone(), method_name.value.clone())) {
-                // todo: cache the propagated constant from instantiated method, 
+            if ctx
+                .methods_instantiated
+                .contains_key(&(struct_qualified.clone(), method_name.value.clone()))
+            {
+                // todo: cache the propagated constant from instantiated method,
                 // so it doesn't need to re-instantiate the function
                 let mexpr = Expr {
                     kind: ExprKind::MethodCall {
@@ -534,8 +539,7 @@ fn monomorphize_expr<B: Backend>(
                     ..expr.clone()
                 };
                 ExprMonoInfo::new(mexpr, typ, None)
-            }
-            else {
+            } else {
                 let fn_name_mono = &fn_info_mono.sig().name;
                 let mexpr = Expr {
                     kind: ExprKind::MethodCall {
@@ -545,11 +549,11 @@ fn monomorphize_expr<B: Backend>(
                     },
                     ..expr.clone()
                 };
-    
+
                 let fn_def = fn_info_mono.native();
                 ctx.tast
                     .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
-    
+
                 ExprMonoInfo::new(mexpr, typ, None)
             }
         }
@@ -636,7 +640,7 @@ fn monomorphize_expr<B: Backend>(
                             ExprMonoInfo::new(mexpr, typ, None)
                         }
                     }
-                },
+                }
                 // not folding, but propagate the updated constant value
                 (_, _) if lhs_mono.constant.is_some() && rhs_mono.constant.is_some() => {
                     let lhs = lhs_mono.constant.unwrap();
@@ -660,7 +664,7 @@ fn monomorphize_expr<B: Backend>(
                     );
 
                     ExprMonoInfo::new(mexpr, typ, cst)
-                },
+                }
                 // keep as is
                 _ => {
                     let mexpr = expr.to_mast(
