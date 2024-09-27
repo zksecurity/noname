@@ -152,10 +152,10 @@ where
 {
     tast: TypeChecker<B>,
     generic_func_scope: Option<usize>,
-    // fully qualified function name
-    functions_to_delete: Vec<FullyQualified>,
-    // fully qualified struct name, method name
-    methods_to_delete: Vec<(FullyQualified, String)>,
+    // new fully qualified function name as the key, old fully qualified function name as the value
+    functions_instantiated: HashMap<FullyQualified, FullyQualified>,
+    // new method name as the key, old method name as the value
+    methods_instantiated: HashMap<(FullyQualified, String), String>,
 }
 
 impl<B: Backend> MastCtx<B> {
@@ -163,8 +163,8 @@ impl<B: Backend> MastCtx<B> {
         Self {
             tast,
             generic_func_scope: Some(0),
-            functions_to_delete: vec![],
-            methods_to_delete: vec![],
+            functions_instantiated: HashMap::new(),
+            methods_instantiated: HashMap::new(),
         }
     }
 
@@ -190,9 +190,7 @@ impl<B: Backend> MastCtx<B> {
     ) {
         self.tast
             .add_monomorphized_fn(new_qualified.clone(), fn_info);
-        if new_qualified != old_qualified {
-            self.functions_to_delete.push(old_qualified);
-        }
+        self.functions_instantiated.insert(new_qualified, old_qualified);
     }
 
     pub fn add_monomorphized_method(
@@ -205,20 +203,23 @@ impl<B: Backend> MastCtx<B> {
         self.tast
             .add_monomorphized_method(struct_qualified.clone(), method_name, fn_info);
 
-        if method_name != old_method_name {
-            self.methods_to_delete
-                .push((struct_qualified, old_method_name.to_string()));
-        }
+        self.methods_instantiated
+            .insert((struct_qualified, method_name.to_string()), old_method_name.to_string());
     }
 
     pub fn clear_generic_fns(&mut self) {
-        for qualified in &self.functions_to_delete {
-            self.tast.remove_fn(qualified);
+        for (new, old) in &self.functions_instantiated {
+            // don't remove the instantiated function with no generic arguments
+            if new != old {
+                self.tast.remove_fn(old);
+            }
         }
-        self.functions_to_delete.clear();
 
-        for (struct_qualified, method_name) in &self.methods_to_delete {
-            self.tast.remove_method(struct_qualified, method_name);
+        for ((struct_qualified, new), old) in &self.methods_instantiated {
+            // don't remove the instantiated method with no generic arguments
+            if new != old {
+                self.tast.remove_method(struct_qualified, old);
+            }
         }
     }
 }
@@ -422,21 +423,36 @@ fn monomorphize_expr<B: Backend>(
 
             let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
 
-            let fn_name_mono = &fn_info_mono.sig().name;
-            let mexpr = Expr {
-                kind: ExprKind::FnCall {
-                    module: module.clone(),
-                    fn_name: fn_name_mono.clone(),
-                    args: args_mono,
-                },
-                ..expr.clone()
-            };
-
-            let qualified = FullyQualified::new(module, &fn_name_mono.value);
-            ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
-
-            // assume the function call won't return constant value
-            ExprMonoInfo::new(mexpr, typ, None)
+            // check if this function is already monomorphized
+            if ctx.functions_instantiated.contains_key(&old_qualified) {
+                // todo: cache the propagated constant from instantiated function, 
+                // so it doesn't need to re-instantiate the function
+                let mexpr = Expr {
+                    kind: ExprKind::FnCall {
+                        module: module.clone(),
+                        fn_name: fn_name.clone(),
+                        args: args_mono,
+                    },
+                    ..expr.clone()
+                };
+                ExprMonoInfo::new(mexpr, typ, None)
+            }
+            else {
+                let fn_name_mono = &fn_info_mono.sig().name;
+                let mexpr = Expr {
+                    kind: ExprKind::FnCall {
+                        module: module.clone(),
+                        fn_name: fn_name_mono.clone(),
+                        args: args_mono,
+                    },
+                    ..expr.clone()
+                };
+    
+                let qualified = FullyQualified::new(module, &fn_name_mono.value);
+                ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
+    
+                ExprMonoInfo::new(mexpr, typ, None)
+            }
         }
 
         // `lhs.method_name(args)`
@@ -493,22 +509,37 @@ fn monomorphize_expr<B: Backend>(
             // monomorphize the function call
             let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
-            let fn_name_mono = &fn_info_mono.sig().name;
-            let mexpr = Expr {
-                kind: ExprKind::MethodCall {
-                    lhs: Box::new(lhs_mono.expr),
-                    method_name: fn_name_mono.clone(),
-                    args: args_mono,
-                },
-                ..expr.clone()
-            };
-
-            let fn_def = fn_info_mono.native();
-            ctx.tast
-                .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
-
-            // assume the function call won't return constant value
-            ExprMonoInfo::new(mexpr, typ, None)
+            // check if this function is already monomorphized
+            if ctx.methods_instantiated.contains_key(&(struct_qualified.clone(), method_name.value.clone())) {
+                // todo: cache the propagated constant from instantiated method, 
+                // so it doesn't need to re-instantiate the function
+                let mexpr = Expr {
+                    kind: ExprKind::MethodCall {
+                        lhs: Box::new(lhs_mono.expr),
+                        method_name: method_name.clone(),
+                        args: args_mono,
+                    },
+                    ..expr.clone()
+                };
+                ExprMonoInfo::new(mexpr, typ, None)
+            }
+            else {
+                let fn_name_mono = &fn_info_mono.sig().name;
+                let mexpr = Expr {
+                    kind: ExprKind::MethodCall {
+                        lhs: Box::new(lhs_mono.expr),
+                        method_name: fn_name_mono.clone(),
+                        args: args_mono,
+                    },
+                    ..expr.clone()
+                };
+    
+                let fn_def = fn_info_mono.native();
+                ctx.tast
+                    .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
+    
+                ExprMonoInfo::new(mexpr, typ, None)
+            }
         }
 
         ExprKind::Assignment { lhs, rhs } => {
