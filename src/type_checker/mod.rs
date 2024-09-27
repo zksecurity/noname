@@ -415,6 +415,7 @@ impl<B: Backend> TypeChecker<B> {
                         &mut typed_fn_env,
                         &function.body,
                         function.sig.return_type.as_ref(),
+                        true,
                     )?;
                 }
 
