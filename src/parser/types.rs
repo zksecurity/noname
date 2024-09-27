@@ -186,7 +186,9 @@ pub enum Symbolic {
     Constant(Ident),
     /// Generic parameter
     Generic(Ident),
+    /// Binary operation with protected flag
     Add(Box<Symbolic>, Box<Symbolic>),
+    Sub(Box<Symbolic>, Box<Symbolic>),
     Mul(Box<Symbolic>, Box<Symbolic>),
 }
 
@@ -197,6 +199,7 @@ impl Display for Symbolic {
             Symbolic::Constant(ident) => write!(f, "{}", ident.value),
             Symbolic::Generic(ident) => write!(f, "{}", ident.value),
             Symbolic::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
+            Symbolic::Sub(lhs, rhs) => write!(f, "{} - {}", lhs, rhs),
             Symbolic::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
         }
     }
@@ -222,6 +225,10 @@ impl Symbolic {
                 generics.extend(lhs.extract_generics());
                 generics.extend(rhs.extract_generics());
             }
+            Symbolic::Sub(lhs, rhs) => {
+                generics.extend(lhs.extract_generics());
+                generics.extend(rhs.extract_generics());
+            },
         }
 
         generics
@@ -250,6 +257,7 @@ impl Symbolic {
                 // no protected flags are needed, as this is based on expression nodes which already ordered the operations
                 match op {
                     Op2::Addition => Ok(Symbolic::Add(Box::new(lhs), Box::new(rhs?))),
+                    Op2::Subtraction => Ok(Symbolic::Sub(Box::new(lhs), Box::new(rhs?))),
                     Op2::Multiplication => Ok(Symbolic::Mul(Box::new(lhs), Box::new(rhs?))),
                     _ => Err(Error::new(
                         "mast",
@@ -520,30 +528,8 @@ impl FnSig {
         // extract generic parameters from arguments
         let mut generics = GenericParameters::default();
         for arg in &arguments {
-            match &arg.typ.kind {
-                TyKind::Field { .. } => {
-                    // extract from const argument
-                    if is_generic_parameter(&arg.name.value) && arg.is_constant() {
-                        generics.add(arg.name.value.to_string());
-                    }
-                }
-                TyKind::Array(ty, _) => {
-                    // recursively extract all generic parameters from the item type
-                    let extracted = ty.extract_generics();
-
-                    for name in extracted {
-                        generics.add(name);
-                    }
-                }
-                TyKind::GenericSizedArray(_, _) => {
-                    // recursively extract all generic parameters from the symbolic size
-                    let extracted = arg.typ.kind.extract_generics();
-
-                    for name in extracted {
-                        generics.add(name);
-                    }
-                }
-                _ => (),
+            for name in arg.extract_generic_names() {
+                generics.add(name);
             }
         }
 
@@ -862,6 +848,38 @@ impl FnArg {
             .as_ref()
             .map(|attr| attr.is_constant())
             .unwrap_or(false)
+    }
+
+    pub fn extract_generic_names(&self) -> HashSet<String> {
+        let mut generics = HashSet::new();
+
+        match &self.typ.kind {
+            TyKind::Field { .. } => {
+                // extract from const argument
+                if is_generic_parameter(&self.name.value) && self.is_constant() {
+                    generics.insert(self.name.value.to_string());
+                }
+            }
+            TyKind::Array(ty, _) => {
+                // recursively extract all generic parameters from the item type
+                let extracted = ty.extract_generics();
+
+                for name in extracted {
+                    generics.insert(name);
+                }
+            }
+            TyKind::GenericSizedArray(_, _) => {
+                // recursively extract all generic parameters from the symbolic size
+                let extracted = self.typ.kind.extract_generics();
+
+                for name in extracted {
+                    generics.insert(name);
+                }
+            }
+            _ => (),
+        }
+
+        generics
     }
 }
 
