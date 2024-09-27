@@ -27,10 +27,21 @@ pub struct ExprMonoInfo {
     /// The generic types shouldn't be presented in this field.
     pub typ: Option<TyKind>,
 
-    // todo: see if we can do constant folding on the expression nodes.
-    // - it is possible to remove this field, as the constant value can be extracted from folded expression node
-    /// Numeric value of the expression
-    /// applicable to BigInt type
+    /// Propagated constant value 
+    /// - For BigUInt expression type, this corresponds the same inner value.
+    /// - For constant field type, this corresponds the propagated constant value.
+    /// The reason why we can't just fold all the constants to BigUInt expression node is because
+    /// there are cases where folding can't be done even though the expression node is a constant.
+    /// For example:
+    /// ```
+    /// let mut var = 1;
+    /// for var idx in 0..10 {
+    ///    var = var + var;
+    /// }
+    /// ```
+    /// If the `var` is folded to a BigUInt expression node, 
+    /// it won't represent the expression node with the same intension at the synthesizer phase,
+    /// as it lose the recursive nature of the expression node.
     pub constant: Option<u32>,
 }
 
@@ -556,31 +567,70 @@ fn monomorphize_expr<B: Backend>(
                 | Op2::Multiplication
                 | Op2::Division
                 | Op2::BoolAnd
-                | Op2::BoolOr => lhs_mono.typ,
+                | Op2::BoolOr => lhs_mono.clone().typ,
             };
 
             let ExprMonoInfo { expr: lhs_expr, .. } = lhs_mono;
             let ExprMonoInfo { expr: rhs_expr, .. } = rhs_mono;
 
-            // fold constants
-            let cst = match (&lhs_expr.kind, &rhs_expr.kind) {
-                (ExprKind::BigUInt(lhs), ExprKind::BigUInt(rhs)) => match op {
-                    Op2::Addition => Some(lhs + rhs),
-                    Op2::Subtraction => Some(lhs - rhs),
-                    Op2::Multiplication => Some(lhs * rhs),
-                    Op2::Division => Some(lhs / rhs),
-                    _ => None,
+            match (&lhs_expr.kind, &rhs_expr.kind) {
+                // fold constants
+                (ExprKind::BigUInt(lhs), ExprKind::BigUInt(rhs)) => {
+                    let cst = match op {
+                        Op2::Addition => Some(lhs + rhs),
+                        Op2::Subtraction => Some(lhs - rhs),
+                        Op2::Multiplication => Some(lhs * rhs),
+                        Op2::Division => Some(lhs / rhs),
+                        _ => None,
+                    };
+
+                    match cst {
+                        // fold only if the operation is supported
+                        Some(cst) => {
+                            let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(cst.clone()));
+                            ExprMonoInfo::new(mexpr, typ, cst.to_u32())
+                        }
+                        None => {
+                            let mexpr = expr.to_mast(
+                                ctx,
+                                &ExprKind::BinaryOp {
+                                    op: op.clone(),
+                                    protected: *protected,
+                                    lhs: Box::new(lhs_expr),
+                                    rhs: Box::new(rhs_expr),
+                                },
+                            );
+
+                            ExprMonoInfo::new(mexpr, typ, None)
+                        }
+                    }
                 },
-                _ => None,
-            };
+                // not folding, but propagate the updated constant value
+                (_, _) if lhs_mono.constant.is_some() && rhs_mono.constant.is_some() => {
+                    let lhs = lhs_mono.constant.unwrap();
+                    let rhs = rhs_mono.constant.unwrap();
+                    let cst = match op {
+                        Op2::Addition => Some(lhs + rhs),
+                        Op2::Subtraction => Some(lhs - rhs),
+                        Op2::Multiplication => Some(lhs * rhs),
+                        Op2::Division => Some(lhs / rhs),
+                        _ => None,
+                    };
 
-            match cst {
-                Some(v) => {
-                    let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(v.clone()));
+                    let mexpr = expr.to_mast(
+                        ctx,
+                        &ExprKind::BinaryOp {
+                            op: op.clone(),
+                            protected: *protected,
+                            lhs: Box::new(lhs_expr),
+                            rhs: Box::new(rhs_expr),
+                        },
+                    );
 
-                    ExprMonoInfo::new(mexpr, typ, v.to_u32())
-                }
-                None => {
+                    ExprMonoInfo::new(mexpr, typ, cst)
+                },
+                // keep as is
+                _ => {
                     let mexpr = expr.to_mast(
                         ctx,
                         &ExprKind::BinaryOp {

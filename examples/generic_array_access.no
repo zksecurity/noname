@@ -1,5 +1,6 @@
 fn last(arr: [Field; LEN]) -> Field {
-    return arr[LEN - 1];
+    let last = LEN - 1;
+    return arr[last];
 }
 
 fn main(pub xx: Field) {
