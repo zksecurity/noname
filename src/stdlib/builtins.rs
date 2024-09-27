@@ -7,6 +7,7 @@ use crate::{
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
     error::{Error, ErrorKind, Result},
+    helpers::PrettyField,
     parser::types::{GenericParameters, TyKind},
     var::{ConstOrCell, Var},
 };
@@ -14,10 +15,13 @@ use crate::{
 use super::{FnInfoType, Module};
 
 pub const QUALIFIED_BUILTINS: &str = "std/builtins";
-pub const BUILTIN_FN_NAMES: [&str; 2] = ["assert", "assert_eq"];
+pub const BUILTIN_FN_NAMES: [&str; 3] = ["assert", "assert_eq", "log"];
 
 const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(lhs: Field, rhs: Field)";
+// todo: currently only supports a single field var
+// to support all the types, we can bypass the type check for this log function for now
+const LOG_FN: &str = "log(var: Field)";
 
 pub struct BuiltinsLib {}
 
@@ -25,7 +29,11 @@ impl Module for BuiltinsLib {
     const MODULE: &'static str = "builtins";
 
     fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>)> {
-        vec![(ASSERT_FN, assert_fn), (ASSERT_EQ_FN, assert_eq_fn)]
+        vec![
+            (ASSERT_FN, assert_fn),
+            (ASSERT_EQ_FN, assert_eq_fn),
+            (LOG_FN, log_fn),
+        ]
     }
 }
 
@@ -117,6 +125,33 @@ fn assert_fn<B: Backend>(
             let one = B::Field::one();
             compiler.backend.assert_eq_const(cvar, one, span);
         }
+    }
+
+    Ok(None)
+}
+
+/// Logging
+fn log_fn<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    generics: &GenericParameters,
+    vars: &[VarInfo<B::Field, B::Var>],
+    span: Span,
+) -> Result<Option<Var<B::Field, B::Var>>> {
+    println!("---log span: {:?}---", span);
+    for var in vars {
+        // typ
+        println!("typ: {:?}", var.typ);
+        // mutable
+        println!("mutable: {:?}", var.mutable);
+        // var
+        var.var.iter().for_each(|v| match v {
+            ConstOrCell::Const(cst) => {
+                println!("cst: {:?}", cst.pretty());
+            }
+            ConstOrCell::Cell(cvar) => {
+                println!("cvar: {:?}", cvar);
+            }
+        });
     }
 
     Ok(None)
