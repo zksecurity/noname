@@ -1,0 +1,8 @@
+use std::bigint;
+
+fn main(pub lhs: Field, rhs: Field) -> bigint::Result {
+    let mod_bits = 3;
+    let another_val = 3;
+    let res = bigint::module_sum_three(mod_bits, lhs, rhs, another_val);
+    return res;
+}
