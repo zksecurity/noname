@@ -766,13 +766,14 @@ impl<B: Backend> TypeChecker<B> {
 
         // compare argument types with the function signature
         for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
+            // todo: disable the constant for now until fixed https://github.com/zksecurity/noname/issues/192
             // when const attribute presented, the argument must be a constant
-            if sig_arg.is_constant() && !matches!(typ, TyKind::Field { constant: true }) {
-                return Err(self.error(
-                    ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
-                    span,
-                ));
-            }
+            // if sig_arg.is_constant() && !matches!(typ, TyKind::Field { constant: true }) {
+            //     return Err(self.error(
+            //         ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
+            //         span,
+            //     ));
+            // }
 
             if !typ.match_expected(&sig_arg.typ.kind, false) {
                 return Err(self.error(
