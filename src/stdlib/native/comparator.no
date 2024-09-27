@@ -1,0 +1,44 @@
+use std::bits;
+use std::int;
+
+// Instead of comparing bit by bit, we check the carry bit:
+// lhs + (1 << LEN) - rhs
+// proof:
+// lhs + (1 << LEN) will add a carry bit, valued 1, to the bit array representing lhs, 
+// resulted in a bit array of length LEN + 1, named as sum_bits.
+// if `lhs < rhs``, then `lhs - rhs < 0`, thus `(1 << LEN) + lhs - rhs < (1 << LEN)`
+// then, the carry bit of sum_bits is 0.
+// otherwise, the carry bit of sum_bits is 1.
+fn less_than(const LEN: Field, lhs: Field, rhs: Field) -> Bool {
+    let carry_bit_len = LEN + 1;
+
+    // 1 << LEN
+    let mut pow2 = 1;
+    for ii in 0..LEN {
+        pow2 = pow2 + pow2;
+    }
+
+    let sum = (pow2 + lhs) - rhs;
+    let sum_bit = bits::to_bits(carry_bit_len, sum);
+
+    // todo: modify the ife to allow literals
+    let b1 = false;
+    let b2 = true;
+    let res = if sum_bit[LEN] { b1 } else { b2 };
+
+    return res;
+}
+
+// Less than or equal to.
+// based on the proof of less_than():
+// adding 1 to the rhs, can upper bound by 1 for the lhs:
+// lhs < rhs + 1
+// is equivalent to
+// lhs <= rhs
+fn less_eq_than(const LEN: Field, lhs: Field, rhs: Field) -> Bool {
+    return less_than(LEN, lhs, rhs + 1);
+}
+
+fn uint8_less_than(lhs: int::Uint8, rhs: int::Uint8) -> Bool {
+    return less_than(8, lhs.inner, rhs.inner);
+}
