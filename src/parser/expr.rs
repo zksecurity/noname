@@ -33,7 +33,7 @@ use super::{
 //~ array_access ::= ident "[" expr "]"
 //~
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Expr {
     pub node_id: usize,
     pub kind: ExprKind,
@@ -51,7 +51,7 @@ impl Expr {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ExprKind {
     /// `lhs(args)`
     FnCall {
@@ -123,7 +123,7 @@ pub enum ExprKind {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Op2 {
     Addition,
     Subtraction,
