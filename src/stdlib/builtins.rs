@@ -137,21 +137,9 @@ fn log_fn<B: Backend>(
     vars: &[VarInfo<B::Field, B::Var>],
     span: Span,
 ) -> Result<Option<Var<B::Field, B::Var>>> {
-    println!("---log span: {:?}---", span);
     for var in vars {
-        // typ
-        println!("typ: {:?}", var.typ);
-        // mutable
-        println!("mutable: {:?}", var.mutable);
-        // var
-        var.var.iter().for_each(|v| match v {
-            ConstOrCell::Const(cst) => {
-                println!("cst: {:?}", cst.pretty());
-            }
-            ConstOrCell::Cell(cvar) => {
-                println!("cvar: {:?}", cvar);
-            }
-        });
+        // todo: will need to support string argument in order to customize msg
+        compiler.backend.log_var(var, "log".to_owned(), span);
     }
 
     Ok(None)

@@ -758,4 +758,13 @@ impl Backend for KimchiVesta {
 
         cvar
     }
+
+    fn log_var(
+        &mut self,
+        var: &crate::circuit_writer::VarInfo<Self::Field, Self::Var>,
+        msg: String,
+        span: Span,
+    ) {
+        todo!()
+    }
 }
