@@ -312,6 +312,18 @@ fn test_not_equal(#[case] backend: BackendKind) -> miette::Result<()> {
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_comparator(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"xx": "1"}"#;
+    let private_inputs = r#"{"yy": "2"}"#;
+
+    test_file("comparator", public_inputs, private_inputs, vec![], backend)?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_types(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "1", "yy": "2"}"#;
