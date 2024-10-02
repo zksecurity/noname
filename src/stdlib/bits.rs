@@ -28,7 +28,7 @@ impl Module for BitsLib {
     }
 }
 
-fn to_bits<B: Backend>(
+pub fn to_bits<B: Backend>(
     compiler: &mut CircuitWriter<B>,
     generics: &GenericParameters,
     vars: &[VarInfo<B::Field, B::Var>],

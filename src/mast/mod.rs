@@ -558,7 +558,8 @@ fn monomorphize_expr<B: Backend>(
                 | Op2::Division
                 | Op2::Modulus
                 | Op2::BoolAnd
-                | Op2::BoolOr => lhs_mono.typ,
+                | Op2::BoolOr 
+                | Op2::LeftShift => lhs_mono.clone().typ,
             };
 
             let ExprMonoInfo { expr: lhs_expr, .. } = lhs_mono;

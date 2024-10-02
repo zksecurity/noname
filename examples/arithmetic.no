@@ -19,4 +19,7 @@ fn main(pub public_input: Field, private_input: Field) {
     let div_var_res = xx / private_input;
     assert_eq(div_res, 2);
 
+    // left shift
+    let lf_res = xx << 2;
+    assert_eq(lf_res, 16);
 }

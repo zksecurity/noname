@@ -239,6 +239,33 @@ pub fn modulus<B: Backend>(
     }
 }
 
+/// Left shift operation
+pub fn left_shift<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    lhs: &ConstOrCell<B::Field, B::Var>,
+    rhs: &ConstOrCell<B::Field, B::Var>,
+    span: Span,
+) -> Var<B::Field, B::Var> {
+    // to constrain lhs * (1 << rhs) = res
+
+    match (lhs, rhs) {
+        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => {
+            // convert to bigint
+            let pow2 = B::Field::from(2u32).pow(rhs.into_repr());
+            let res = *lhs * pow2;
+            Var::new_constant(res, span)
+        }
+        (ConstOrCell::Cell(lhs_), ConstOrCell::Const(rhs_)) => {
+            let pow2 = B::Field::from(2u32).pow(rhs_.into_repr());
+            let res = compiler.backend.mul_const(lhs_, &pow2, span);
+            Var::new_var(res, span)
+        }
+        // todo: wrap rhs in a symbolic value
+        (ConstOrCell::Const(_), ConstOrCell::Cell(_)) => todo!(),
+        (ConstOrCell::Cell(_), ConstOrCell::Cell(_)) => todo!(),
+    }
+}
+
 /// This takes variables that can be anything, and returns a boolean
 // TODO: so perhaps it's not really relevant in this file?
 pub fn equal<B: Backend>(

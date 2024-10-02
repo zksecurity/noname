@@ -626,6 +626,7 @@ impl<B: Backend> CircuitWriter<B> {
                     // todo: refactor the input vars from Var to VarInfo, 
                     // which contain the type to provide the info about the bit length
                     Op2::LessThan => field::less_than(self, None, &lhs[0], &rhs[0], expr.span),
+                    Op2::LeftShift => field::left_shift(self, &lhs[0], &rhs[0], expr.span),
                     Op2::BoolAnd => boolean::and(self, &lhs[0], &rhs[0], expr.span),
                     Op2::BoolOr => boolean::or(self, &lhs[0], &rhs[0], expr.span),
                 };
