@@ -118,20 +118,20 @@ fn constrain_div_mod<B: Backend>(
     // until we refactor the backend to handle ConstOrCell or some kind of wrapper that encapsulate the different variable types
     // convert cst to var for easier handling
     let lhs = match lhs {
-        ConstOrCell::Const(lhs) => compiler.backend.add_constant(
-            Some("wrap a constant as var"),
-            *lhs,
-            span,
-        ),
+        ConstOrCell::Const(lhs) => {
+            compiler
+                .backend
+                .add_constant(Some("wrap a constant as var"), *lhs, span)
+        }
         ConstOrCell::Cell(lhs) => lhs.clone(),
     };
 
     let rhs = match rhs {
-        ConstOrCell::Const(rhs) => compiler.backend.add_constant(
-            Some("wrap a constant as var"),
-            *rhs,
-            span,
-        ),
+        ConstOrCell::Const(rhs) => {
+            compiler
+                .backend
+                .add_constant(Some("wrap a constant as var"), *rhs, span)
+        }
         ConstOrCell::Cell(rhs) => rhs.clone(),
     };
 
@@ -144,7 +144,13 @@ fn constrain_div_mod<B: Backend>(
     let rem_var = compiler.backend.new_internal_var(rem, span);
 
     // rem < rhs
-    let lt_rem = &less_than(compiler, None, &ConstOrCell::Cell(rem_var.clone()), &ConstOrCell::Cell(rhs.clone()), span)[0];
+    let lt_rem = &less_than(
+        compiler,
+        None,
+        &ConstOrCell::Cell(rem_var.clone()),
+        &ConstOrCell::Cell(rhs.clone()),
+        span,
+    )[0];
     let lt_rem = lt_rem.cvar().expect("expected a cell var");
     compiler.backend.assert_eq_const(lt_rem, one, span);
 
@@ -154,7 +160,9 @@ fn constrain_div_mod<B: Backend>(
 
     // cell representing the foundamental constraint
     let fc_var = compiler.backend.sub(&lhs_sub_q_mul_rhs, &rem_var, span);
-    compiler.backend.assert_eq_const(&fc_var, B::Field::zero(), span);
+    compiler
+        .backend
+        .assert_eq_const(&fc_var, B::Field::zero(), span);
 
     (rem_var, q_var)
 }
@@ -177,7 +185,9 @@ pub fn div<B: Backend>(
         _ => {
             let is_zero = is_zero_cell(compiler, rhs, span);
             let is_zero = is_zero[0].cvar().unwrap();
-            compiler.backend.assert_eq_const(is_zero, B::Field::zero(), span);
+            compiler
+                .backend
+                .assert_eq_const(is_zero, B::Field::zero(), span);
         }
     };
 
@@ -194,7 +204,7 @@ pub fn div<B: Backend>(
         _ => {
             let (_, q) = constrain_div_mod(compiler, lhs, rhs, span);
             Var::new_var(q, span)
-        },
+        }
     }
 }
 
@@ -470,9 +480,7 @@ pub fn less_than<B: Backend>(
 
     assert!(bit_len <= (bitlen_upper_bound));
 
-
     let carry_bit_len = bit_len + 1;
-
 
     // let pow2 = (1 << bit_len) as u32;
     // let pow2 = B::Field::from(pow2);
@@ -489,20 +497,20 @@ pub fn less_than<B: Backend>(
         (_, _) => {
             let pow2_lhs = match lhs {
                 // todo: we really should refactor the backend to handle ConstOrCell
-                ConstOrCell::Const(lhs) => compiler.backend.add_constant(
-                    Some("wrap a constant as var"),
-                    *lhs + pow2,
-                    span,
-                ),
+                ConstOrCell::Const(lhs) => {
+                    compiler
+                        .backend
+                        .add_constant(Some("wrap a constant as var"), *lhs + pow2, span)
+                }
                 ConstOrCell::Cell(lhs) => compiler.backend.add_const(lhs, &pow2, span),
             };
 
             let rhs = match rhs {
-                ConstOrCell::Const(rhs) => compiler.backend.add_constant(
-                    Some("wrap a constant as var"),
-                    *rhs,
-                    span,
-                ),
+                ConstOrCell::Const(rhs) => {
+                    compiler
+                        .backend
+                        .add_constant(Some("wrap a constant as var"), *rhs, span)
+                }
                 ConstOrCell::Cell(rhs) => rhs.clone(),
             };
 
@@ -522,15 +530,15 @@ pub fn less_than<B: Backend>(
             let sum_var = Var::new_var(sum, span);
             let sum_var = VarInfo::new(sum_var, false, Some(TyKind::Field { constant: false }));
 
-            let sum_bits = to_bits(compiler, &gens, &[cbl_var, sum_var], span).unwrap().unwrap();
+            let sum_bits = to_bits(compiler, &gens, &[cbl_var, sum_var], span)
+                .unwrap()
+                .unwrap();
             // convert to cell vars
             let sum_bits: Vec<_> = sum_bits.cvars.into_iter().collect();
 
             // if sum_bits[LEN] == 0, then lhs < rhs
             let res = &is_zero_cell(compiler, &sum_bits[bit_len], span)[0];
-            let res = res
-                .cvar()
-                .unwrap();
+            let res = res.cvar().unwrap();
             Var::new_var(res.clone(), span)
         }
     }

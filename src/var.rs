@@ -58,8 +58,8 @@ where
     NthBit(B::Var, usize),
 
     /// Divide
-    // todo: refactor to use a argument wrapper to encapsulate its own type, 
-    // so that a variant can have an argument to be either B::Var or B::Field 
+    // todo: refactor to use a argument wrapper to encapsulate its own type,
+    // so that a variant can have an argument to be either B::Var or B::Field
     CstDivVar(B::Field, B::Var),
     VarDivCst(B::Var, B::Field),
     VarDivVar(B::Var, B::Var),
