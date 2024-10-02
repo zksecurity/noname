@@ -57,6 +57,20 @@ where
     // but does this make sense to all different backends? is it possible that some backend doesn't allow certain out of circuit calculations like this?
     NthBit(B::Var, usize),
 
+    /// Divide
+    // todo: refactor to use a argument wrapper to encapsulate its own type, 
+    // so that a variant can have an argument to be either B::Var or B::Field 
+    CstDivVar(B::Field, B::Var),
+    VarDivCst(B::Var, B::Field),
+    VarDivVar(B::Var, B::Var),
+    CstDivCst(B::Field, B::Field),
+
+    /// Modulo
+    VarModVar(B::Var, B::Var),
+    CstModVar(B::Field, B::Var),
+    VarModCst(B::Var, B::Field),
+    CstModCst(B::Field, B::Field),
+
     /// A public or private input to the function
     /// There's an index associated to a variable name, as the variable could be composed of several field elements.
     External(String, usize),
@@ -78,6 +92,14 @@ impl<B: Backend> std::fmt::Debug for Value<B> {
             Value::PublicOutput(..) => write!(f, "PublicOutput"),
             Value::Scale(..) => write!(f, "Scaling"),
             Value::NthBit(_, _) => write!(f, "NthBit"),
+            Value::CstDivVar(_, _) => write!(f, "CstDivVar"),
+            Value::VarDivCst(_, _) => write!(f, "VarDivCst"),
+            Value::VarDivVar(_, _) => write!(f, "VarDivVar"),
+            Value::CstDivCst(_, _) => write!(f, "CstDivCst"),
+            Value::VarModVar(_, _) => write!(f, "VarModVar"),
+            Value::CstModVar(_, _) => write!(f, "CstModVar"),
+            Value::VarModCst(_, _) => write!(f, "VarModCst"),
+            Value::CstModCst(_, _) => write!(f, "CstModCst"),
         }
     }
 }

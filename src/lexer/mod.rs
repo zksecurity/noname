@@ -143,6 +143,7 @@ pub enum TokenKind {
     Minus,              // -
     RightArrow,         // ->
     Star,               // *
+    Percent,            // %
     Ampersand,          // &
     DoubleAmpersand,    // &&
     Pipe,               // |
@@ -184,6 +185,7 @@ impl Display for TokenKind {
             Minus => "`-`",
             RightArrow => "`->`",
             Star => "`*`",
+            Percent => "%",
             Ampersand => "`&`",
             DoubleAmpersand => "`&&`",
             Pipe => "`|`",
@@ -391,6 +393,9 @@ impl Token {
                 }
                 '*' => {
                     tokens.push(TokenKind::Star.new_token(ctx, 1));
+                }
+                '%' => {
+                    tokens.push(TokenKind::Percent.new_token(ctx, 1));
                 }
                 '&' => {
                     let next_c = chars.peek();

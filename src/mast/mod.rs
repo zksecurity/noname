@@ -556,6 +556,7 @@ fn monomorphize_expr<B: Backend>(
                 | Op2::Subtraction
                 | Op2::Multiplication
                 | Op2::Division
+                | Op2::Modulus
                 | Op2::BoolAnd
                 | Op2::BoolOr => lhs_mono.typ,
             };

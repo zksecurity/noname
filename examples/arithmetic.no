@@ -2,4 +2,21 @@ fn main(pub public_input: Field, private_input: Field) {
     let xx = private_input + public_input;
     let yy = private_input * public_input;
     assert_eq(xx, yy);
+
+    // modulus constant
+    let mod_res = (xx + yy) % 3;
+    assert_eq(mod_res, 2);
+
+    // modulus var
+    let mod_var_res = (xx + yy) % (private_input + 1);
+    assert_eq(mod_var_res, 2);
+
+    // divide constant
+    let div_res = xx / 2;
+    assert_eq(div_res, 2);
+
+    // divide var
+    let div_var_res = xx / private_input;
+    assert_eq(div_res, 2);
+
 }
