@@ -254,6 +254,121 @@ pub fn not_equal<B: Backend>(
     acc
 }
 
+/// Returns 1 if lhs < rhs, 0 otherwise
+pub fn less_than<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    bitlen: Option<usize>,
+    lhs: &ConstOrCell<B::Field, B::Var>,
+    rhs: &ConstOrCell<B::Field, B::Var>,
+    span: Span,
+) -> Var<B::Field, B::Var> {
+    let one = B::Field::one();
+    let zero = B::Field::zero();
+
+    // Instead of comparing bit by bit, we check the carry bit:
+    // lhs + (1 << LEN) - rhs
+    // proof:
+    // lhs + (1 << LEN) will add a carry bit, valued 1, to the bit array representing lhs,
+    // resulted in a bit array of length LEN + 1, named as sum_bits.
+    // if `lhs < rhs``, then `lhs - rhs < 0`, thus `(1 << LEN) + lhs - rhs < (1 << LEN)`
+    // then, the carry bit of sum_bits is 0.
+    // otherwise, the carry bit of sum_bits is 1.
+
+    /*
+    psuedo code:
+    let carry_bit_len = LEN + 1;
+
+    # 1 << LEN
+    let mut pow2 = 1;
+    for ii in 0..LEN {
+        pow2 = pow2 + pow2;
+    }
+
+    let sum = (pow2 + lhs) - rhs;
+    let sum_bit = bits::to_bits(carry_bit_len, sum);
+
+    let b1 = false;
+    let b2 = true;
+    let res = if sum_bit[LEN] { b1 } else { b2 };
+
+    */
+
+    let modulus_bits: usize = B::Field::modulus_biguint()
+        .bits()
+        .try_into()
+        .expect("can't determine the number of bits in the modulus");
+
+    let bitlen_upper_bound = modulus_bits - 2;
+    let bit_len = bitlen.unwrap_or(bitlen_upper_bound);
+
+    assert!(bit_len <= (bitlen_upper_bound));
+
+
+    let carry_bit_len = bit_len + 1;
+
+
+    // let pow2 = (1 << bit_len) as u32;
+    // let pow2 = B::Field::from(pow2);
+    let two = B::Field::from(2u32);
+    let pow2 = two.pow([bit_len as u64]);
+
+    // let pow2_lhs = compiler.backend.add_const(lhs, &pow2, span);
+    match (lhs, rhs) {
+        (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => {
+            let res = if lhs < rhs { one } else { zero };
+
+            Var::new_constant(res, span)
+        }
+        (_, _) => {
+            let pow2_lhs = match lhs {
+                // todo: we really should refactor the backend to handle ConstOrCell
+                ConstOrCell::Const(lhs) => compiler.backend.add_constant(
+                    Some("wrap a constant as var"),
+                    *lhs + pow2,
+                    span,
+                ),
+                ConstOrCell::Cell(lhs) => compiler.backend.add_const(lhs, &pow2, span),
+            };
+
+            let rhs = match rhs {
+                ConstOrCell::Const(rhs) => compiler.backend.add_constant(
+                    Some("wrap a constant as var"),
+                    *rhs,
+                    span,
+                ),
+                ConstOrCell::Cell(rhs) => rhs.clone(),
+            };
+
+            let sum = compiler.backend.sub(&pow2_lhs, &rhs, span);
+
+            // todo: this api call is kind of weird here, maybe these bulitin shouldn't get inputs from the `GenericParameters`
+            let generic_var_name = "LEN".to_string();
+            let mut gens = GenericParameters::default();
+            gens.add(generic_var_name.clone());
+            gens.assign(&generic_var_name, carry_bit_len as u32, span)
+                .unwrap();
+
+            // construct var info for sum
+            let cbl_var = Var::new_constant(B::Field::from(carry_bit_len as u32), span);
+            let cbl_var = VarInfo::new(cbl_var, false, Some(TyKind::Field { constant: true }));
+
+            let sum_var = Var::new_var(sum, span);
+            let sum_var = VarInfo::new(sum_var, false, Some(TyKind::Field { constant: false }));
+
+            let sum_bits = to_bits(compiler, &gens, &[cbl_var, sum_var], span).unwrap().unwrap();
+            // convert to cell vars
+            let sum_bits: Vec<_> = sum_bits.cvars.into_iter().collect();
+
+            // if sum_bits[LEN] == 0, then lhs < rhs
+            let res = &is_zero_cell(compiler, &sum_bits[bit_len], span)[0];
+            let res = res
+                .cvar()
+                .unwrap();
+            Var::new_var(res.clone(), span)
+        }
+    }
+}
+
 /// Returns 1 if var is zero, 0 otherwise
 fn is_zero_cell<B: Backend>(
     compiler: &mut CircuitWriter<B>,

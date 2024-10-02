@@ -549,8 +549,9 @@ fn monomorphize_expr<B: Backend>(
             let rhs_mono = monomorphize_expr(ctx, rhs, mono_fn_env)?;
 
             let typ = match op {
-                Op2::Equality => Some(TyKind::Bool),
-                Op2::Inequality => Some(TyKind::Bool),
+                Op2::Equality
+                | Op2::Inequality
+                | Op2::LessThan => Some(TyKind::Bool),
                 Op2::Addition
                 | Op2::Subtraction
                 | Op2::Multiplication
