@@ -418,36 +418,41 @@ fn monomorphize_expr<B: Backend>(
                 .expect("function not found")
                 .to_owned();
 
-            // monomorphize the function call
-            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
-
             let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
 
             // check if this function is already monomorphized
             if ctx.functions_instantiated.contains_key(&old_qualified) {
-                // todo: cache the propagated constant from instantiated function, 
-                // so it doesn't need to re-instantiate the function
-                let mexpr = Expr {
-                    kind: ExprKind::FnCall {
+                let mexpr = expr.to_mast(
+                    ctx,
+                    &ExprKind::FnCall {
                         module: module.clone(),
                         fn_name: fn_name.clone(),
                         args: args_mono,
                     },
-                    ..expr.clone()
-                };
+                );
+                let fn_info = ctx
+                    .tast
+                    .fn_info(&old_qualified)
+                    .expect("function not found")
+                    .to_owned();
+                let typ = fn_info.sig().return_type.clone().map(|t| t.kind);
+                
                 ExprMonoInfo::new(mexpr, typ, None)
             }
             else {
+                // monomorphize the function call
+                let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+                
                 let fn_name_mono = &fn_info_mono.sig().name;
-                let mexpr = Expr {
-                    kind: ExprKind::FnCall {
+                let mexpr = expr.to_mast(
+                    ctx,
+                    &ExprKind::FnCall {
                         module: module.clone(),
                         fn_name: fn_name_mono.clone(),
                         args: args_mono,
                     },
-                    ..expr.clone()
-                };
-    
+                );
+
                 let qualified = FullyQualified::new(module, &fn_name_mono.value);
                 ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
     
@@ -506,34 +511,41 @@ fn monomorphize_expr<B: Backend>(
                 args_mono.push(expr_mono.expr);
             }
 
-            // monomorphize the function call
-            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
-
             // check if this function is already monomorphized
-            if ctx.methods_instantiated.contains_key(&(struct_qualified.clone(), method_name.value.clone())) {
-                // todo: cache the propagated constant from instantiated method, 
-                // so it doesn't need to re-instantiate the function
-                let mexpr = Expr {
-                    kind: ExprKind::MethodCall {
+            if ctx
+                .methods_instantiated
+                .contains_key(&(struct_qualified.clone(), method_name.value.clone()))
+            {
+                let mexpr = expr.to_mast(
+                    ctx,
+                    &ExprKind::MethodCall {
                         lhs: Box::new(lhs_mono.expr),
                         method_name: method_name.clone(),
                         args: args_mono,
                     },
-                    ..expr.clone()
-                };
+                );
+                let fn_info = ctx
+                    .tast
+                    .fn_info(&struct_qualified)
+                    .expect("function not found")
+                    .to_owned();
+                let typ = fn_info.sig().return_type.clone().map(|t| t.kind);
                 ExprMonoInfo::new(mexpr, typ, None)
             }
             else {
+                // monomorphize the function call
+                let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+
                 let fn_name_mono = &fn_info_mono.sig().name;
-                let mexpr = Expr {
-                    kind: ExprKind::MethodCall {
+                let mexpr = expr.to_mast(
+                    ctx,
+                    &ExprKind::MethodCall {
                         lhs: Box::new(lhs_mono.expr),
                         method_name: fn_name_mono.clone(),
                         args: args_mono,
                     },
-                    ..expr.clone()
-                };
-    
+                );
+
                 let fn_def = fn_info_mono.native();
                 ctx.tast
                     .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
