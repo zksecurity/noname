@@ -158,6 +158,26 @@ impl<B: Backend> AST<B> {
                     });
                 }
 
+                // `hint fn calc() { }`
+                TokenKind::Keyword(Keyword::Hint) => {
+                    // expect fn token
+                    tokens.bump_expected(ctx, TokenKind::Keyword(Keyword::Fn))?;
+
+                    function_observed = true;
+
+                    let func = FunctionDef::parse_hint(ctx, &mut tokens)?;
+
+                    // expect ;, as the hint function is an empty function wired with a builtin.
+                    // todo: later these hint functions will be migrated from builtins to native functions
+                    // then it will expect a function block instead of ;
+                    tokens.bump_expected(ctx, TokenKind::SemiColon)?;
+
+                    ast.push(Root {
+                        kind: RootKind::FunctionDef(func),
+                        span: token.span,
+                    });
+                }
+
                 // `struct Foo { a: Field, b: Field }`
                 TokenKind::Keyword(Keyword::Struct) => {
                     let s = StructDef::parse(ctx, &mut tokens)?;
@@ -200,6 +220,7 @@ mod tests {
         let code = r#"main(pub public_input: [Fel; 3], private_input: [Fel; 3]) -> [Fel; 3] { return public_input; }"#;
         let tokens = &mut Token::parse(0, code).unwrap();
         let ctx = &mut ParserCtx::default();
+        let is_hint = false;
         let parsed = FunctionDef::parse(ctx, tokens).unwrap();
         println!("{:?}", parsed);
     }

@@ -739,6 +739,7 @@ impl Attribute {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionDef {
+    pub is_hint: bool,
     pub sig: FnSig,
     pub body: Vec<Stmt>,
     pub span: Span,
@@ -1161,7 +1162,33 @@ impl FunctionDef {
             ));
         }
 
-        let func = Self { sig, body, span };
+        let func = Self { sig, body, span, is_hint: false };
+
+        Ok(func)
+    }
+
+    /// Parse a hint function signature
+    pub fn parse_hint(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        // parse signature
+        let sig = FnSig::parse(ctx, tokens)?;
+        let span = sig.name.span;
+
+        // make sure that it doesn't shadow a builtin
+        if BUILTIN_FN_NAMES.contains(&sig.name.value.as_ref()) {
+            return Err(ctx.error(
+                ErrorKind::ShadowingBuiltIn(sig.name.value.clone()),
+                span,
+            ));
+        }
+
+        // for now the body is empty.
+        // this will be changed once the native hint is implemented.
+        let func = Self {
+            sig,
+            body: vec![],
+            span,
+            is_hint: true,
+        };
 
         Ok(func)
     }

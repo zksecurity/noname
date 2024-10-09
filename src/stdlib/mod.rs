@@ -72,6 +72,7 @@ trait Module {
             let sig = FnSig::parse(ctx, &mut tokens).unwrap();
             res.push(FnInfo {
                 kind: FnKind::BuiltIn(sig, fn_handle),
+                is_hint: false,
                 span: Span::default(),
             });
         }

@@ -25,6 +25,11 @@ where
     B: Backend,
 {
     pub kind: FnKind<B>,
+    // TODO: We will remove this once the native hint is supported
+    // This field is to indicate if a builtin function should be treated as a hint.
+    // instead of adding this flag to the FnKind::Builtin, we add this field to the FnInfo.
+    // Then this flag will only present in the FunctionDef.
+    pub is_hint: bool,
     pub span: Span,
 }
 
@@ -130,6 +135,7 @@ impl<B: Backend> TypeChecker<B> {
                 module,
                 fn_name,
                 args,
+                unsafe_attr,
             } => {
                 // retrieve the function signature
                 let qualified = FullyQualified::new(&module, &fn_name.value);
@@ -140,6 +146,16 @@ impl<B: Backend> TypeChecker<B> {
                     )
                 })?;
                 let fn_sig = fn_info.sig().clone();
+
+                // check if the function is a hint
+                if fn_info.is_hint && !unsafe_attr {
+                    return Err(self.error(ErrorKind::ExpectedUnsafeAttribute, expr.span));
+                }
+
+                // unsafe attribute should only be used on hints
+                if !fn_info.is_hint && *unsafe_attr {
+                    return Err(self.error(ErrorKind::UnexpectedUnsafeAttribute, expr.span));
+                }
 
                 // check if generic is allowed
                 if fn_sig.require_monomorphization() && typed_fn_env.is_in_forloop() {
