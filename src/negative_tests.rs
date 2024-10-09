@@ -1,5 +1,23 @@
 use crate::{
-    backends::{r1cs::{R1csBn254Field, R1CS}, Backend}, circuit_writer::{CircuitWriter, VarInfo}, compiler::{get_nast, typecheck_next_file_inner, Sources}, constants::Span, error::{ErrorKind, Result}, imports::FnKind, lexer::Token, mast::Mast, name_resolution::NAST, parser::{types::{FnSig, GenericParameters}, ParserCtx}, type_checker::{FnInfo, FullyQualified, TypeChecker}, var::Var, witness::CompiledCircuit
+    backends::{
+        r1cs::{R1csBn254Field, R1CS},
+        Backend,
+    },
+    circuit_writer::{CircuitWriter, VarInfo},
+    compiler::{get_nast, typecheck_next_file_inner, Sources},
+    constants::Span,
+    error::{ErrorKind, Result},
+    imports::FnKind,
+    lexer::Token,
+    mast::Mast,
+    name_resolution::NAST,
+    parser::{
+        types::{FnSig, GenericParameters},
+        ParserCtx,
+    },
+    type_checker::{FnInfo, FullyQualified, TypeChecker},
+    var::Var,
+    witness::CompiledCircuit,
 };
 
 type R1csBackend = R1CS<R1csBn254Field>;
@@ -444,7 +462,6 @@ fn test_hint_call_missing_unsafe() {
     }
     "#;
 
-    
     let res = test_hint_builtin_fn(&qualified, valid_code);
     assert!(res.is_ok());
 
@@ -457,7 +474,10 @@ fn test_hint_call_missing_unsafe() {
     "#;
 
     let res = test_hint_builtin_fn(&qualified, invalid_code);
-    assert!(matches!(res.unwrap_err().kind, ErrorKind::ExpectedUnsafeAttribute));
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::ExpectedUnsafeAttribute
+    ));
 }
 
 #[test]
@@ -473,5 +493,8 @@ fn test_nonhint_call_with_unsafe() {
     "#;
 
     let res = tast_pass(code).0;
-    assert!(matches!(res.unwrap_err().kind, ErrorKind::UnexpectedUnsafeAttribute));
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::UnexpectedUnsafeAttribute
+    ));
 }

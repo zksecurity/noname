@@ -104,7 +104,7 @@ impl StructDef {
 }
 
 // TODO: why is Default implemented here?
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct CustomType {
     pub module: ModulePath, // name resolution
     pub name: String,

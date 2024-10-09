@@ -386,12 +386,9 @@ impl Expr {
                 match &mut fn_call.kind {
                     ExprKind::FnCall { unsafe_attr, .. } => {
                         *unsafe_attr = true;
-                    },
+                    }
                     _ => {
-                        return Err(ctx.error(
-                            ErrorKind::InvalidExpression,
-                            fn_call.span,
-                        ));
+                        return Err(ctx.error(ErrorKind::InvalidExpression, fn_call.span));
                     }
                 };
 

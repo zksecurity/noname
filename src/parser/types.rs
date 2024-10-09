@@ -1162,7 +1162,12 @@ impl FunctionDef {
             ));
         }
 
-        let func = Self { sig, body, span, is_hint: false };
+        let func = Self {
+            sig,
+            body,
+            span,
+            is_hint: false,
+        };
 
         Ok(func)
     }
@@ -1175,10 +1180,7 @@ impl FunctionDef {
 
         // make sure that it doesn't shadow a builtin
         if BUILTIN_FN_NAMES.contains(&sig.name.value.as_ref()) {
-            return Err(ctx.error(
-                ErrorKind::ShadowingBuiltIn(sig.name.value.clone()),
-                span,
-            ));
+            return Err(ctx.error(ErrorKind::ShadowingBuiltIn(sig.name.value.clone()), span));
         }
 
         // for now the body is empty.
