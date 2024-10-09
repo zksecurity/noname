@@ -190,7 +190,8 @@ impl<B: Backend> MastCtx<B> {
     ) {
         self.tast
             .add_monomorphized_fn(new_qualified.clone(), fn_info);
-        self.functions_instantiated.insert(new_qualified, old_qualified);
+        self.functions_instantiated
+            .insert(new_qualified, old_qualified);
     }
 
     pub fn add_monomorphized_method(
@@ -203,8 +204,10 @@ impl<B: Backend> MastCtx<B> {
         self.tast
             .add_monomorphized_method(struct_qualified.clone(), method_name, fn_info);
 
-        self.methods_instantiated
-            .insert((struct_qualified, method_name.to_string()), old_method_name.to_string());
+        self.methods_instantiated.insert(
+            (struct_qualified, method_name.to_string()),
+            old_method_name.to_string(),
+        );
     }
 
     pub fn clear_generic_fns(&mut self) {
@@ -436,13 +439,12 @@ fn monomorphize_expr<B: Backend>(
                     .expect("function not found")
                     .to_owned();
                 let typ = fn_info.sig().return_type.clone().map(|t| t.kind);
-                
+
                 ExprMonoInfo::new(mexpr, typ, None)
-            }
-            else {
+            } else {
                 // monomorphize the function call
                 let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
-                
+
                 let fn_name_mono = &fn_info_mono.sig().name;
                 let mexpr = expr.to_mast(
                     ctx,
@@ -455,7 +457,7 @@ fn monomorphize_expr<B: Backend>(
 
                 let qualified = FullyQualified::new(module, &fn_name_mono.value);
                 ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
-    
+
                 ExprMonoInfo::new(mexpr, typ, None)
             }
         }
@@ -531,8 +533,7 @@ fn monomorphize_expr<B: Backend>(
                     .to_owned();
                 let typ = fn_info.sig().return_type.clone().map(|t| t.kind);
                 ExprMonoInfo::new(mexpr, typ, None)
-            }
-            else {
+            } else {
                 // monomorphize the function call
                 let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
@@ -549,7 +550,7 @@ fn monomorphize_expr<B: Backend>(
                 let fn_def = fn_info_mono.native();
                 ctx.tast
                     .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
-    
+
                 ExprMonoInfo::new(mexpr, typ, None)
             }
         }
