@@ -8,7 +8,9 @@ use crate::{
     error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
-        types::{FnArg, FnSig, ForLoopArgument, Range, Stmt, StmtKind, Symbolic, Ty, TyKind},
+        types::{
+            FnSig, ForLoopArgument, GenericParameters, Range, Stmt, StmtKind, Symbolic, Ty, TyKind,
+        },
         CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
     syntax::{is_generic_parameter, is_type},
@@ -144,6 +146,117 @@ impl MonomorphizedFnEnv {
     }
 }
 
+impl<B: Backend> FnInfo<B> {
+    /// Resolves the generic values based on observed arguments.
+    pub fn resolve_generic_signature(
+        &mut self,
+        observed_args: &[ExprMonoInfo],
+        ctx: &mut MastCtx<B>,
+    ) -> Result<FnSig> {
+        match self.kind {
+            FnKind::BuiltIn(ref mut sig, _) => {
+                sig.resolve_generic_values(observed_args, ctx)?;
+            }
+            FnKind::Native(ref mut func) => {
+                func.sig.resolve_generic_values(observed_args, ctx)?;
+            }
+        };
+
+        Ok(self.resolved_sig())
+    }
+
+    /// Returns the resolved signature of the function.
+    pub fn resolved_sig(&self) -> FnSig {
+        let fn_sig = self.sig();
+
+        let (ret_typed, fn_args_typed) = if let Some(resolved) = &fn_sig.generics.resolved_sig {
+            (resolved.return_type.clone(), resolved.arguments.clone())
+        } else {
+            (fn_sig.return_type.clone(), fn_sig.arguments.clone())
+        };
+
+        FnSig {
+            name: fn_sig.monomorphized_name(),
+            arguments: fn_args_typed,
+            return_type: ret_typed,
+            ..fn_sig.clone()
+        }
+    }
+}
+
+impl FnSig {
+    /// Recursively resolve a type based on generic values
+    pub fn resolve_type<B: Backend>(&self, typ: &TyKind, ctx: &mut MastCtx<B>) -> TyKind {
+        match typ {
+            TyKind::Array(ty, size) => TyKind::Array(Box::new(self.resolve_type(ty, ctx)), *size),
+            TyKind::GenericSizedArray(ty, sym) => {
+                let val = sym.eval(&self.generics, &ctx.tast);
+                TyKind::Array(Box::new(self.resolve_type(ty, ctx)), val)
+            }
+            _ => typ.clone(),
+        }
+    }
+
+    /// Resolve generic values for each generic parameter
+    pub fn resolve_generic_values<B: Backend>(
+        &mut self,
+        observed: &[ExprMonoInfo],
+        ctx: &mut MastCtx<B>,
+    ) -> Result<()> {
+        for (sig_arg, observed_arg) in self.arguments.clone().iter().zip(observed) {
+            let observed_ty = observed_arg.typ.clone().expect("expected type");
+            match (&sig_arg.typ.kind, &observed_ty) {
+                (TyKind::GenericSizedArray(_, _), TyKind::Array(_, _))
+                | (TyKind::Array(_, _), TyKind::Array(_, _)) => {
+                    self.resolve_generic_array(
+                        &sig_arg.typ.kind,
+                        &observed_ty,
+                        observed_arg.expr.span,
+                    )?;
+                }
+                // const NN: Field
+                _ => {
+                    let cst = observed_arg.constant;
+                    if is_generic_parameter(sig_arg.name.value.as_str()) && cst.is_some() {
+                        self.generics.assign(
+                            &sig_arg.name.value,
+                            cst.unwrap(),
+                            observed_arg.expr.span,
+                        )?;
+                    }
+                }
+            }
+        }
+
+        // resolve the argument types
+        let mut resolved_args = vec![];
+        for arg in &self.arguments {
+            let resolved_arg_typ = self.resolve_type(&arg.typ.kind, ctx);
+            let mut resolved_arg = arg.clone();
+            resolved_arg.typ = Ty {
+                kind: resolved_arg_typ,
+                span: arg.typ.span,
+            };
+            resolved_args.push(resolved_arg);
+        }
+
+        // resolve the return type
+        let mut return_type: Option<Ty> = None;
+        if let Some(ty) = &self.return_type {
+            let ret_typed = self.resolve_type(&ty.kind, ctx);
+            return_type = Some(Ty {
+                kind: ret_typed,
+                span: ty.span,
+            });
+        }
+
+        // store the resolved types in arguments and return
+        self.generics.resolve_sig(resolved_args, return_type);
+
+        Ok(())
+    }
+}
+
 /// A context to store the last node id for the monomorphized AST.
 #[derive(Debug)]
 pub struct MastCtx<B>
@@ -152,10 +265,10 @@ where
 {
     tast: TypeChecker<B>,
     generic_func_scope: Option<usize>,
-    // fully qualified function name
-    functions_to_delete: Vec<FullyQualified>,
-    // fully qualified struct name, method name
-    methods_to_delete: Vec<(FullyQualified, String)>,
+    // new fully qualified function name as the key, old fully qualified function name as the value
+    functions_instantiated: HashMap<FullyQualified, FullyQualified>,
+    // new method name as the key, old method name as the value
+    methods_instantiated: HashMap<(FullyQualified, String), String>,
 }
 
 impl<B: Backend> MastCtx<B> {
@@ -163,8 +276,8 @@ impl<B: Backend> MastCtx<B> {
         Self {
             tast,
             generic_func_scope: Some(0),
-            functions_to_delete: vec![],
-            methods_to_delete: vec![],
+            functions_instantiated: HashMap::new(),
+            methods_instantiated: HashMap::new(),
         }
     }
 
@@ -190,9 +303,8 @@ impl<B: Backend> MastCtx<B> {
     ) {
         self.tast
             .add_monomorphized_fn(new_qualified.clone(), fn_info);
-        if new_qualified != old_qualified {
-            self.functions_to_delete.push(old_qualified);
-        }
+        self.functions_instantiated
+            .insert(new_qualified, old_qualified);
     }
 
     pub fn add_monomorphized_method(
@@ -205,27 +317,32 @@ impl<B: Backend> MastCtx<B> {
         self.tast
             .add_monomorphized_method(struct_qualified.clone(), method_name, fn_info);
 
-        if method_name != old_method_name {
-            self.methods_to_delete
-                .push((struct_qualified, old_method_name.to_string()));
-        }
+        self.methods_instantiated.insert(
+            (struct_qualified, method_name.to_string()),
+            old_method_name.to_string(),
+        );
     }
 
     pub fn clear_generic_fns(&mut self) {
-        for qualified in &self.functions_to_delete {
-            self.tast.remove_fn(qualified);
+        for (new, old) in &self.functions_instantiated {
+            // don't remove the instantiated function with no generic arguments
+            if new != old {
+                self.tast.remove_fn(old);
+            }
         }
-        self.functions_to_delete.clear();
 
-        for (struct_qualified, method_name) in &self.methods_to_delete {
-            self.tast.remove_method(struct_qualified, method_name);
+        for ((struct_qualified, new), old) in &self.methods_instantiated {
+            // don't remove the instantiated method with no generic arguments
+            if new != old {
+                self.tast.remove_method(struct_qualified, old);
+            }
         }
     }
 }
 
 impl Symbolic {
     /// Evaluate symbolic size to an integer.
-    pub fn eval<B: Backend>(&self, mono_fn_env: &MonomorphizedFnEnv, tast: &TypeChecker<B>) -> u32 {
+    pub fn eval<B: Backend>(&self, gens: &GenericParameters, tast: &TypeChecker<B>) -> u32 {
         match self {
             Symbolic::Concrete(v) => *v,
             Symbolic::Constant(var) => {
@@ -236,9 +353,9 @@ impl Symbolic {
                 let bigint: BigUint = cst.value[0].into();
                 bigint.try_into().expect("biguint too large")
             }
-            Symbolic::Generic(g) => mono_fn_env.get_type_info(&g.value).unwrap().value.unwrap(),
-            Symbolic::Add(a, b) => a.eval(mono_fn_env, tast) + b.eval(mono_fn_env, tast),
-            Symbolic::Mul(a, b) => a.eval(mono_fn_env, tast) * b.eval(mono_fn_env, tast),
+            Symbolic::Generic(g) => gens.get(&g.value),
+            Symbolic::Add(a, b) => a.eval(gens, tast) + b.eval(gens, tast),
+            Symbolic::Mul(a, b) => a.eval(gens, tast) * b.eval(gens, tast),
         }
     }
 }
@@ -411,32 +528,54 @@ fn monomorphize_expr<B: Backend>(
 
             // retrieve the function signature
             let old_qualified = FullyQualified::new(module, &fn_name.value);
-            let fn_info = ctx
+            let mut fn_info = ctx
                 .tast
                 .fn_info(&old_qualified)
                 .expect("function not found")
                 .to_owned();
 
-            // monomorphize the function call
-            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
-
             let args_mono = observed.clone().into_iter().map(|e| e.expr).collect();
 
-            let fn_name_mono = &fn_info_mono.sig().name;
-            let mexpr = Expr {
-                kind: ExprKind::FnCall {
-                    module: module.clone(),
-                    fn_name: fn_name_mono.clone(),
-                    args: args_mono,
-                },
-                ..expr.clone()
-            };
+            let resolved_sig = fn_info.resolve_generic_signature(&observed, ctx)?;
 
-            let qualified = FullyQualified::new(module, &fn_name_mono.value);
-            ctx.add_monomorphized_fn(old_qualified, qualified, fn_info_mono);
+            let mono_qualified = FullyQualified::new(module, &resolved_sig.name.value);
 
-            // assume the function call won't return constant value
-            ExprMonoInfo::new(mexpr, typ, None)
+            // check if this function is already monomorphized
+            if ctx.functions_instantiated.contains_key(&mono_qualified) {
+                let mexpr = expr.to_mast(
+                    ctx,
+                    &ExprKind::FnCall {
+                        module: module.clone(),
+                        fn_name: resolved_sig.name,
+                        args: args_mono,
+                    },
+                );
+                let resolved_sig = &fn_info.sig().generics.resolved_sig;
+
+                let typ = resolved_sig
+                    .as_ref()
+                    .and_then(|sig| sig.return_type.clone().map(|t| t.kind));
+
+                ExprMonoInfo::new(mexpr, typ, None)
+            } else {
+                // monomorphize the function call
+                let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+
+                let fn_name_mono = &fn_info_mono.sig().name;
+                let mexpr = expr.to_mast(
+                    ctx,
+                    &ExprKind::FnCall {
+                        module: module.clone(),
+                        fn_name: fn_name_mono.clone(),
+                        args: args_mono,
+                    },
+                );
+
+                let new_qualified = FullyQualified::new(module, &fn_name_mono.value);
+                ctx.add_monomorphized_fn(old_qualified, new_qualified, fn_info_mono);
+
+                ExprMonoInfo::new(mexpr, typ, None)
+            }
         }
 
         // `lhs.method_name(args)`
@@ -470,7 +609,7 @@ fn monomorphize_expr<B: Backend>(
                 .expect("method not found on custom struct (TODO: better error)");
 
             let fn_kind = FnKind::Native(method_type.clone());
-            let fn_info = FnInfo {
+            let mut fn_info = FnInfo {
                 kind: fn_kind,
                 span: method_type.span,
             };
@@ -490,25 +629,43 @@ fn monomorphize_expr<B: Backend>(
                 args_mono.push(expr_mono.expr);
             }
 
-            // monomorphize the function call
-            let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
+            let resolved_sig = fn_info.resolve_generic_signature(&observed, ctx)?;
 
-            let fn_name_mono = &fn_info_mono.sig().name;
-            let mexpr = Expr {
-                kind: ExprKind::MethodCall {
-                    lhs: Box::new(lhs_mono.expr),
-                    method_name: fn_name_mono.clone(),
-                    args: args_mono,
-                },
-                ..expr.clone()
-            };
+            // check if this function is already monomorphized
+            if ctx
+                .methods_instantiated
+                .contains_key(&(struct_qualified.clone(), resolved_sig.name.value.clone()))
+            {
+                let mexpr = expr.to_mast(
+                    ctx,
+                    &ExprKind::MethodCall {
+                        lhs: Box::new(lhs_mono.expr),
+                        method_name: resolved_sig.name,
+                        args: args_mono,
+                    },
+                );
+                let typ = resolved_sig.return_type.clone().map(|t| t.kind);
+                ExprMonoInfo::new(mexpr, typ, None)
+            } else {
+                // monomorphize the function call
+                let (fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, &observed, expr.span)?;
 
-            let fn_def = fn_info_mono.native();
-            ctx.tast
-                .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
+                let fn_name_mono = &fn_info_mono.sig().name;
+                let mexpr = expr.to_mast(
+                    ctx,
+                    &ExprKind::MethodCall {
+                        lhs: Box::new(lhs_mono.expr),
+                        method_name: fn_name_mono.clone(),
+                        args: args_mono,
+                    },
+                );
 
-            // assume the function call won't return constant value
-            ExprMonoInfo::new(mexpr, typ, None)
+                let fn_def = fn_info_mono.native();
+                ctx.tast
+                    .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
+
+                ExprMonoInfo::new(mexpr, typ, None)
+            }
         }
 
         ExprKind::Assignment { lhs, rhs } => {
@@ -1010,21 +1167,7 @@ pub fn instantiate_fn_call<B: Backend>(
 ) -> Result<(FnInfo<B>, Option<TyKind>)> {
     ctx.start_monomorphize_func();
 
-    // resolve generic values
-    let (fn_sig, stmts) = match &fn_info.kind {
-        FnKind::BuiltIn(sig, _) => {
-            let mut sig = sig.clone();
-            sig.resolve_generic_values(args)?;
-
-            (sig, Vec::<Stmt>::new())
-        }
-        FnKind::Native(func) => {
-            let mut sig = func.sig.clone();
-            sig.resolve_generic_values(args)?;
-
-            (sig, func.body.clone())
-        }
-    };
+    let fn_sig = fn_info.sig();
 
     // canonicalize the arguments depending on method call or not
     let expected: Vec<_> = fn_sig.arguments.iter().collect();
@@ -1065,43 +1208,8 @@ pub fn instantiate_fn_call<B: Backend>(
         )?;
     }
 
-    // reconstruct FnArgs using the observed types
-    let fn_args_typed = expected
-        .iter()
-        .zip(args)
-        .map(|(arg, mono_info)| FnArg {
-            name: arg.name.clone(),
-            attribute: arg.attribute.clone(),
-            span: arg.span,
-            typ: Ty {
-                kind: mono_info.typ.clone().expect("expected a type"),
-                span: arg.typ.span,
-            },
-        })
-        .collect();
-
-    // evaluate return types using the resolved generic values
-    let ret_typed = match &fn_sig.return_type {
-        Some(ret_ty) => match &ret_ty.kind {
-            TyKind::GenericSizedArray(typ, size) => {
-                let val = size.eval(mono_fn_env, &ctx.tast);
-                let tykind = TyKind::Array(typ.clone(), val);
-                Some(Ty {
-                    kind: tykind,
-                    span: ret_ty.span,
-                })
-            }
-            _ => Some(ret_ty.clone()),
-        },
-        None => None,
-    };
-
-    let sig_typed = FnSig {
-        name: fn_sig.monomorphized_name(),
-        arguments: fn_args_typed,
-        return_type: ret_typed.clone(),
-        ..fn_sig
-    };
+    let sig_typed = fn_info.resolved_sig();
+    let ret_typed = sig_typed.return_type.clone();
 
     // construct the monomorphized function AST
     let func_def = match fn_info.kind {
@@ -1111,7 +1219,7 @@ pub fn instantiate_fn_call<B: Backend>(
         },
         FnKind::Native(fn_def) => {
             let (stmts_typed, _) =
-                monomorphize_block(ctx, mono_fn_env, &stmts, ret_typed.as_ref())?;
+                monomorphize_block(ctx, mono_fn_env, &fn_def.body, ret_typed.as_ref())?;
 
             FnInfo {
                 kind: FnKind::Native(FunctionDef {
