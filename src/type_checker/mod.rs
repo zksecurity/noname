@@ -312,9 +312,59 @@ impl<B: Backend> TypeChecker<B> {
                     }
 
                     // save the function in the typed global env
+
+                    if function.is_hint {
+                        // convert to builtin function
+                        let qualified = match &function.sig.kind {
+                            FuncOrMethod::Function(module) => {
+                                FullyQualified::new(module, &function.sig.name.value)
+                            }
+                            FuncOrMethod::Method(_) => unreachable!("methods are not supported"),
+                        };
+
+                        // this will override the builtin function in the global env
+                        let builtin_fn = self
+                            .functions
+                            .get(&qualified)
+                            .ok_or_else(|| {
+                                Error::new(
+                                    "type-checker",
+                                    ErrorKind::MissingHintMapping(qualified.name.clone()),
+                                    function.span,
+                                )
+                            })?
+                            .kind
+                            .clone();
+
+                        // check it is a builtin function
+                        let fn_handle = match builtin_fn {
+                            FnKind::BuiltIn(_, fn_handle) => fn_handle,
+                            _ => {
+                                return Err(Error::new(
+                                    "type-checker",
+                                    ErrorKind::UnexpectedError("expected builtin function"),
+                                    function.span,
+                                ))
+                            }
+                        };
+
+                        // override the builtin function as a hint function
+                        self.functions.insert(
+                            qualified,
+                            FnInfo {
+                                is_hint: true,
+                                kind: FnKind::BuiltIn(function.sig.clone(), fn_handle),
+                                span: function.span,
+                            },
+                        );
+
+                        continue;
+                    };
+
                     let fn_kind = FnKind::Native(function.clone());
                     let fn_info = FnInfo {
                         kind: fn_kind,
+                        is_hint: function.is_hint,
                         span: function.span,
                     };
 

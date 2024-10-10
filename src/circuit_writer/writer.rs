@@ -379,6 +379,7 @@ impl<B: Backend> CircuitWriter<B> {
                 module,
                 fn_name,
                 args,
+                ..
             } => {
                 // sanity check
                 if fn_name.value == "main" {

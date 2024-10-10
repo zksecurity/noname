@@ -44,6 +44,10 @@ pub enum Keyword {
     Use,
     /// A function
     Fn,
+    /// A hint function
+    Hint,
+    /// Attribute required for hint functions
+    Unsafe,
     /// New variable
     Let,
     /// Public input
@@ -75,6 +79,8 @@ impl Keyword {
         match s {
             "use" => Some(Self::Use),
             "fn" => Some(Self::Fn),
+            "hint" => Some(Self::Hint),
+            "unsafe" => Some(Self::Unsafe),
             "let" => Some(Self::Let),
             "pub" => Some(Self::Pub),
             "return" => Some(Self::Return),
@@ -97,6 +103,8 @@ impl Display for Keyword {
         let desc = match self {
             Self::Use => "use",
             Self::Fn => "fn",
+            Self::Hint => "hint",
+            Self::Unsafe => "unsafe",
             Self::Let => "let",
             Self::Pub => "pub",
             Self::Return => "return",
