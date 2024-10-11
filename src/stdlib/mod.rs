@@ -89,7 +89,7 @@ pub fn init_stdlib_dep<B: Backend>(
     node_id: usize,
 ) -> usize {
     // list the stdlib dependency in order
-    let libs = vec!["int", "bits", "comparator"];
+    let libs = vec!["bits", "int", "comparator"];
 
     let mut node_id = node_id;
 
