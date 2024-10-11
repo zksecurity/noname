@@ -21,9 +21,7 @@ impl Module for BitsLib {
     const MODULE: &'static str = "bits";
 
     fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>)> {
-        vec![
-            (NTH_BIT_FN, nth_bit),
-        ]
+        vec![(NTH_BIT_FN, nth_bit)]
     }
 }
 

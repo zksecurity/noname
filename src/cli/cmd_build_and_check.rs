@@ -19,8 +19,8 @@ use crate::{
 };
 
 use super::packages::{
-    download_stdlib, get_deps_of_package, is_lib,
-    validate_package_and_get_manifest, DependencyGraph, UserRepo,
+    download_stdlib, get_deps_of_package, is_lib, validate_package_and_get_manifest,
+    DependencyGraph, UserRepo,
 };
 
 const COMPILED_DIR: &str = "compiled";
