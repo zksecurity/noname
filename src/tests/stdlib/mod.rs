@@ -1,18 +1,9 @@
-mod bigint;
 mod comparator;
 
 use std::{path::Path, str::FromStr};
 
 use crate::{
-    backends::r1cs::{R1csBn254Field, R1CS},
-    circuit_writer::CircuitWriter,
-    compiler::{typecheck_next_file, Sources},
-    error::Result,
-    inputs::parse_inputs,
-    mast,
-    tests::init_stdlib_dep,
-    type_checker::TypeChecker,
-    witness::CompiledCircuit,
+    backends::r1cs::{R1csBn254Field, R1CS}, circuit_writer::CircuitWriter, compiler::{typecheck_next_file, Sources}, error::Result, inputs::parse_inputs, mast, stdlib::init_stdlib_dep, type_checker::TypeChecker, witness::CompiledCircuit
 };
 
 fn test_stdlib(
@@ -36,7 +27,8 @@ fn test_stdlib(
     // compile
     let mut sources = Sources::new();
     let mut tast = TypeChecker::new();
-    init_stdlib_dep(&mut sources, &mut tast);
+    let mut node_id = 0;
+    node_id = init_stdlib_dep(&mut sources, &mut tast, node_id);
 
     let this_module = None;
     let _node_id = typecheck_next_file(
@@ -45,7 +37,7 @@ fn test_stdlib(
         &mut sources,
         path.to_string(),
         code.clone(),
-        0,
+        node_id,
     )
     .unwrap();
 

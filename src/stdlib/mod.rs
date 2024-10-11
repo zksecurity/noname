@@ -1,17 +1,10 @@
 use crate::{
-    backends::Backend,
-    circuit_writer::{CircuitWriter, VarInfo},
-    constants::Span,
-    error::Result,
-    imports::FnKind,
-    lexer::Token,
-    parser::{
+    backends::Backend, circuit_writer::{CircuitWriter, VarInfo}, cli::packages::UserRepo, compiler::{typecheck_next_file, Sources}, constants::Span, error::Result, imports::FnKind, lexer::Token, parser::{
         types::{FnSig, GenericParameters},
         ParserCtx,
-    },
-    type_checker::FnInfo,
-    var::Var,
+    }, type_checker::{FnInfo, TypeChecker}, var::Var
 };
+use std::path::Path;
 
 pub mod bits;
 pub mod builtins;
@@ -78,4 +71,21 @@ trait Module {
         }
         res
     }
+}
+
+pub fn init_stdlib_dep<B: Backend>(sources: &mut Sources, tast: &mut TypeChecker<B>, node_id: usize) -> usize {
+    // list the stdlib dependency in order
+    let libs = vec!["int", "comparator"];
+
+    let mut node_id = node_id;
+
+    for lib in libs {
+        let module = UserRepo::new(&format!("std/{}", lib));
+        let prefix_stdlib = Path::new("src/stdlib/native/");
+        let code = std::fs::read_to_string(prefix_stdlib.join(format!("{lib}.no"))).unwrap();
+        node_id =
+            typecheck_next_file(tast, Some(module), sources, lib.to_string(), code, 0).unwrap();
+    }
+
+    node_id
 }
