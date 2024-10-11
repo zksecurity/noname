@@ -1,5 +1,4 @@
 use std::bits;
-use std::int;
 
 // Instead of comparing bit by bit, we check the carry bit:
 // lhs + (1 << LEN) - rhs
