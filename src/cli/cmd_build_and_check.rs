@@ -11,14 +11,16 @@ use crate::{
         r1cs::{snarkjs::SnarkjsExporter, R1CS},
         Backend, BackendField, BackendKind,
     },
-    cli::packages::path_to_package,
+    cli::packages::{path_to_package, path_to_stdlib},
     compiler::{compile, generate_witness, typecheck_next_file, Sources},
     inputs::{parse_inputs, JsonInputs},
+    stdlib::init_stdlib_dep,
     type_checker::TypeChecker,
 };
 
 use super::packages::{
-    get_deps_of_package, is_lib, validate_package_and_get_manifest, DependencyGraph, UserRepo,
+    download_stdlib, get_deps_of_package, is_lib,
+    validate_package_and_get_manifest, DependencyGraph, UserRepo,
 };
 
 const COMPILED_DIR: &str = "compiled";
@@ -137,6 +139,26 @@ pub fn cmd_check(args: CmdCheck) -> miette::Result<()> {
     Ok(())
 }
 
+fn add_stdlib<B: Backend>(
+    sources: &mut Sources,
+    tast: &mut TypeChecker<B>,
+    node_id: usize,
+) -> miette::Result<usize> {
+    let mut node_id = node_id;
+
+    // check if the release folder exists, otherwise download the latest release
+    // todo: check the latest version and compare it with the current version, to decide if download is needed
+    let stdlib_dir = path_to_stdlib();
+
+    if !stdlib_dir.exists() {
+        download_stdlib()?;
+    }
+
+    node_id = init_stdlib_dep(sources, tast, node_id, stdlib_dir.as_ref());
+
+    Ok(node_id)
+}
+
 fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, TypeChecker<B>)> {
     // find manifest
     let manifest = validate_package_and_get_manifest(&path, false)?;
@@ -160,6 +182,9 @@ fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, Type
     let mut node_id = 0;
 
     let mut tast = TypeChecker::new();
+
+    // adding stdlib
+    add_stdlib(&mut sources, &mut tast, node_id)?;
 
     for dep in dep_graph.from_leaves_to_roots() {
         let path = path_to_package(&dep);

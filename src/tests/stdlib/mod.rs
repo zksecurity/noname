@@ -36,7 +36,7 @@ fn test_stdlib(
     let mut sources = Sources::new();
     let mut tast = TypeChecker::new();
     let mut node_id = 0;
-    node_id = init_stdlib_dep(&mut sources, &mut tast, node_id);
+    node_id = init_stdlib_dep(&mut sources, &mut tast, node_id, "src/stdlib/native/");
 
     let this_module = None;
     let _node_id = typecheck_next_file(
