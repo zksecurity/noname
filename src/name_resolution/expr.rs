@@ -20,6 +20,7 @@ impl NameResCtx {
                 module,
                 fn_name,
                 args,
+                unsafe_attr: _,
             } => {
                 if matches!(module, ModulePath::Local)
                     && BUILTIN_FN_NAMES.contains(&fn_name.value.as_str())

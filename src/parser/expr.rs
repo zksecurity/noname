@@ -58,6 +58,7 @@ pub enum ExprKind {
         module: ModulePath,
         fn_name: Ident,
         args: Vec<Expr>,
+        unsafe_attr: bool,
     },
 
     /// `lhs.method_name(args)`
@@ -379,6 +380,21 @@ impl Expr {
                 }
             }
 
+            TokenKind::Keyword(Keyword::Unsafe) => {
+                let mut fn_call = Expr::parse(ctx, tokens)?;
+                // should be FnCall
+                match &mut fn_call.kind {
+                    ExprKind::FnCall { unsafe_attr, .. } => {
+                        *unsafe_attr = true;
+                    }
+                    _ => {
+                        return Err(ctx.error(ErrorKind::InvalidExpression, fn_call.span));
+                    }
+                };
+
+                fn_call
+            }
+
             // unrecognized pattern
             _ => {
                 return Err(ctx.error(ErrorKind::InvalidExpression, token.span));
@@ -576,6 +592,7 @@ impl Expr {
                         module,
                         fn_name,
                         args,
+                        unsafe_attr: false,
                     },
                     span,
                 )

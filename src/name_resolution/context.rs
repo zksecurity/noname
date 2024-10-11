@@ -66,7 +66,7 @@ impl NameResCtx {
     }
 
     pub(crate) fn resolve_fn_def(&self, fn_def: &mut FunctionDef) -> Result<()> {
-        let FunctionDef { sig, body, span: _ } = fn_def;
+        let FunctionDef { sig, body, .. } = fn_def;
 
         //
         // signature
