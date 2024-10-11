@@ -7,7 +7,11 @@ use crate::{
         kimchi::{KimchiVesta, VestaField},
         r1cs::R1CS,
         BackendKind,
-    }, compiler::{compile, typecheck_next_file, Sources}, inputs::{parse_inputs, ExtField}, stdlib::init_stdlib_dep, type_checker::TypeChecker
+    },
+    compiler::{compile, typecheck_next_file, Sources},
+    inputs::{parse_inputs, ExtField},
+    stdlib::init_stdlib_dep,
+    type_checker::TypeChecker,
 };
 
 fn test_file(

@@ -1,8 +1,18 @@
 use crate::{
-    backends::Backend, circuit_writer::{CircuitWriter, VarInfo}, cli::packages::UserRepo, compiler::{typecheck_next_file, Sources}, constants::Span, error::Result, imports::FnKind, lexer::Token, parser::{
+    backends::Backend,
+    circuit_writer::{CircuitWriter, VarInfo},
+    cli::packages::UserRepo,
+    compiler::{typecheck_next_file, Sources},
+    constants::Span,
+    error::Result,
+    imports::FnKind,
+    lexer::Token,
+    parser::{
         types::{FnSig, GenericParameters},
         ParserCtx,
-    }, type_checker::{FnInfo, TypeChecker}, var::Var
+    },
+    type_checker::{FnInfo, TypeChecker},
+    var::Var,
 };
 use std::path::Path;
 
@@ -73,9 +83,13 @@ trait Module {
     }
 }
 
-pub fn init_stdlib_dep<B: Backend>(sources: &mut Sources, tast: &mut TypeChecker<B>, node_id: usize) -> usize {
+pub fn init_stdlib_dep<B: Backend>(
+    sources: &mut Sources,
+    tast: &mut TypeChecker<B>,
+    node_id: usize,
+) -> usize {
     // list the stdlib dependency in order
-    let libs = vec!["int", "comparator"];
+    let libs = vec!["int", "bits", "comparator"];
 
     let mut node_id = node_id;
 

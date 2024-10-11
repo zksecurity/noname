@@ -3,7 +3,15 @@ mod comparator;
 use std::{path::Path, str::FromStr};
 
 use crate::{
-    backends::r1cs::{R1csBn254Field, R1CS}, circuit_writer::CircuitWriter, compiler::{typecheck_next_file, Sources}, error::Result, inputs::parse_inputs, mast, stdlib::init_stdlib_dep, type_checker::TypeChecker, witness::CompiledCircuit
+    backends::r1cs::{R1csBn254Field, R1CS},
+    circuit_writer::CircuitWriter,
+    compiler::{typecheck_next_file, Sources},
+    error::Result,
+    inputs::parse_inputs,
+    mast,
+    stdlib::init_stdlib_dep,
+    type_checker::TypeChecker,
+    witness::CompiledCircuit,
 };
 
 fn test_stdlib(

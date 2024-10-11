@@ -5,6 +5,6 @@ fn main(pub lhs: Field, rhs: Field) -> Bool {
     // todo bug: this also throws error "method call only work on custom types"
     let lhs_bigint = int::Uint8.new(lhs);
     let rhs_bigint = int::Uint8.new(rhs);
-    // let res = comparator::uint8_less_than(lhs_bigint, rhs_bigint);
-    return true;
+    let res = comparator::uint8_less_than(lhs_bigint, rhs_bigint);
+    return res;
 }

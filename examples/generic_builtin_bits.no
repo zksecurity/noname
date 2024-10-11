@@ -1,111 +1,21 @@
-// circom versions:
-// template Num2Bits(n) {
-//     signal input in;
-//     signal output out[n];
-//     var lc1=0;
-
-//     var e2=1;
-//     for (var i = 0; i<n; i++) {
-//         out[i] <-- (in >> i) & 1;
-//         out[i] * (out[i] -1 ) === 0;
-//         lc1 += out[i] * e2;
-//         e2 = e2+e2;
-//     }
-
-//     lc1 === in;
-// }
-
-// template Bits2Num(n) {
-//     signal input in[n];
-//     signal output out;
-//     var lc1=0;
-
-//     var e2 = 1;
-//     for (var i = 0; i<n; i++) {
-//         lc1 += in[i] * e2;
-//         e2 = e2 + e2;
-//     }
-
-//     lc1 ==> out;
-// }
-
 use std::bits;
-
-// obviously writing this in native is much simpler than the builtin version
-fn to_bits(const LEN: Field, value: Field) -> [Bool; LEN] {
-    let mut bits = [false; LEN];
-    let mut lc1 = 0;
-    let mut e2 = 1;
-
-    let one = 1;
-    let zero = 0;
-
-    for index in 0..LEN {
-        // maybe add a unconstrained / unsafe attribute before bits::nth_bit, such that:
-        // bits[index] = unsafe bits::nth_bit(value, index);
-        // here we need to ensure the related variables are constrained:
-        // 1. value: constrained to be equal with the sum of bits, which involves the index as well
-        // 2. index: a cell index in bits
-        // 3. bits: the output bits
-        // beyond the notation purpose, what security measures can we take to help guide this unsafe operation?
-        // one idea is to rely on this unsafe attribute to check if it is non-deterministic when constraining the bits[index]
-        // eg.
-        // - bits::nth_bit(value, index) is non-deterministic
-        // - a metadata can be added to the var of the bits as non-deterministic
-        // - when CS trying to constrain the non-deterministic var, 
-        //   it will raise an error if the var is not marked unsafe via the attribute unsafe
-        // thus, it seems we also need to add the attribute to the builtin function signature
-        // eg. `unsafe nth_bit(val: Field, const nth: Field) -> Bool`
-        // while the unsafe attribute in `bits[index] = unsafe bits::nth_bit(value, index);`
-        // is for the users to acknowledge they are responsible for having additional constraints.
-        // This approach makes it explicit whether an expression is non-deterministic at the first place.
-        // On the other hand, circom lang determines whether it is non-deterministic by folding the arithmetic operation.
-
-        bits[index] = bits::nth_bit(value, index);
-        // nth_bit is a hint function, and it doesn't constraint the value of the bits as boolean, 
-        // although its return type is boolean.
-        // can we make the arithmetic operation compatible with boolean?
-        // or just make a stdlib to convert boolean to Field while adding the constraint?
-        let bit_num = if bits[index] {one} else {zero};
-        assert_eq(bit_num * (bit_num - 1), 0);
-
-        lc1 = lc1 + if bits[index] {e2} else {zero};
-        e2 = e2 + e2;
-    }
-    assert_eq(lc1, value);
-    return bits;
-}
-
-fn from_bits(bits: [Bool; LEN]) -> Field {
-    let mut lc1 = 0;
-    let mut e2 = 1;
-    let zero = 0;
-
-    for index in 0..LEN {
-        lc1 = lc1 + if bits[index] {e2} else {zero};
-        e2 = e2 + e2;
-    }
-    return lc1;
-}
 
 fn main(pub xx: Field) {
     // calculate on a cell var
-    let bits = to_bits(3, xx);
+    let bits = bits::to_bits(3, xx);
     assert(!bits[0]);
     assert(bits[1]);
     assert(!bits[2]);
 
-    let val = from_bits(bits);
+    let val = bits::from_bits(bits);
     assert_eq(val, xx);
 
     // calculate on a constant
-    let cst_bits = to_bits(3, 2);
+    let cst_bits = bits::to_bits(3, 2);
     assert(!cst_bits[0]);
     assert(cst_bits[1]);
     assert(!cst_bits[2]);
 
-    let cst = from_bits(cst_bits);
+    let cst = bits::from_bits(cst_bits);
     assert_eq(cst, xx);
 }
-
-// ^ the asm diffs originated from the fact that the builtin version stored constant as cell vars.

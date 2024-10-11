@@ -1,7 +1,7 @@
 use std::vec;
 
 use ark_ff::One;
-use kimchi::o1_utils::FieldHelpers;
+use kimchi::{o1_utils::FieldHelpers, turshi::helper::CairoFieldHelpers};
 
 use crate::{
     backends::Backend,
@@ -17,6 +17,7 @@ use super::{FnInfoType, Module};
 
 const TO_BITS_FN: &str = "to_bits(const LEN: Field, val: Field) -> [Bool; LEN]";
 const FROM_BITS_FN: &str = "from_bits(bits: [Bool; LEN]) -> Field";
+const NTH_BIT_FN: &str = "nth_bit(val: Field, const nth: Field) -> Field";
 
 pub struct BitsLib {}
 
@@ -24,7 +25,11 @@ impl Module for BitsLib {
     const MODULE: &'static str = "bits";
 
     fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>)> {
-        vec![(TO_BITS_FN, to_bits), (FROM_BITS_FN, from_bits)]
+        vec![
+            (TO_BITS_FN, to_bits),
+            (FROM_BITS_FN, from_bits),
+            (NTH_BIT_FN, nth_bit),
+        ]
     }
 }
 
@@ -163,4 +168,54 @@ fn from_bits<B: Backend>(
     let cvar = ConstOrCell::Cell(lc.unwrap());
 
     Ok(Some(Var::new_cvar(cvar, span)))
+}
+
+fn nth_bit<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    _generics: &GenericParameters,
+    vars: &[VarInfo<B::Field, B::Var>],
+    span: Span,
+) -> Result<Option<Var<B::Field, B::Var>>> {
+    // should be two input vars
+    assert_eq!(vars.len(), 2);
+
+    // these should be type checked already, unless it is called by other low level functions
+    // eg. builtins
+    let var_info = &vars[0];
+    let val = &var_info.var;
+    assert_eq!(val.len(), 1);
+
+    let var_info = &vars[1];
+    let nth = &var_info.var;
+    assert_eq!(nth.len(), 1);
+
+    let nth: usize = match &nth[0] {
+        ConstOrCell::Cell(_) => unreachable!("nth should be a constant"),
+        ConstOrCell::Const(cst) => cst.to_u64() as usize,
+    };
+
+    let val = match &val[0] {
+        ConstOrCell::Cell(cvar) => cvar.clone(),
+        ConstOrCell::Const(cst) => {
+            // directly return the nth bit without adding symbolic value as it doesn't depend on a cell var
+            let bit = cst.to_bits();
+            return Ok(Some(Var::new_cvar(
+                ConstOrCell::Const(B::Field::from(bit[nth])),
+                span,
+            )));
+        }
+    };
+
+    // create a cell var for the symbolic value representing the nth bit.
+    // it seems we will always have to create cell vars to allocate the symbolic values that involve non-deterministic calculations.
+    // it is non-deterministic because it involves non-deterministic arithmetic on a cell var.
+    let bit = compiler
+        .backend
+        .new_internal_var(Value::NthBit(val.clone(), nth), span);
+
+    // constrain it to be either 0 or 1
+    // bit * (bit - 1 ) === 0;
+    // boolean::check(compiler, &ConstOrCell::Cell(bit.clone()), span);
+
+    Ok(Some(Var::new(vec![ConstOrCell::Cell(bit)], span)))
 }
