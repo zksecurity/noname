@@ -1,6 +1,10 @@
 use std::comparator;
+use std::int;
 
 fn main(pub lhs: Field, rhs: Field) -> Bool {
-    let res = comparator::less_eq_than(2, lhs, rhs);
+    let lhs_u8 = int::Uint8.new(lhs);
+    let rhs_u8 = int::Uint8.new(rhs);
+
+    let res = lhs_u8.less_eq_than(rhs_u8);
     return res;
 }

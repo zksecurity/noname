@@ -1,7 +1,7 @@
 use std::bits;
+use std::comparator;
 
 struct Uint8 {
-    // todo: maybe add a const attribute to Field to forbid reassignment
     inner: Field,
     bit_len: Field,
 }
@@ -14,4 +14,12 @@ fn Uint8.new(val: Field) -> Uint8 {
         inner: val,
         bit_len: 8
     };
+}
+
+fn Uint8.less_than(self, rhs: Uint8) -> Bool {
+    return comparator::less_than(8, self.inner, rhs.inner);
+}
+
+fn Uint8.less_eq_than(self, rhs: Uint8) -> Bool {
+    return comparator::less_eq_than(8, self.inner, rhs.inner);
 }

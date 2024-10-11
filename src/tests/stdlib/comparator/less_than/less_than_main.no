@@ -2,9 +2,10 @@ use std::comparator;
 use std::int;
 
 fn main(pub lhs: Field, rhs: Field) -> Bool {
-    // todo bug: this also throws error "method call only work on custom types"
-    let lhs_bigint = int::Uint8.new(lhs);
-    let rhs_bigint = int::Uint8.new(rhs);
-    let res = comparator::uint8_less_than(lhs_bigint, rhs_bigint);
+    let lhs_u8 = int::Uint8.new(lhs);
+    let rhs_u8 = int::Uint8.new(rhs);
+
+    let res = lhs_u8.less_than(rhs_u8);
+
     return res;
 }

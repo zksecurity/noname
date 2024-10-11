@@ -38,7 +38,3 @@ fn less_than(const LEN: Field, lhs: Field, rhs: Field) -> Bool {
 fn less_eq_than(const LEN: Field, lhs: Field, rhs: Field) -> Bool {
     return less_than(LEN, lhs, rhs + 1);
 }
-
-fn uint8_less_than(lhs: int::Uint8, rhs: int::Uint8) -> Bool {
-    return less_than(8, lhs.inner, rhs.inner);
-}
