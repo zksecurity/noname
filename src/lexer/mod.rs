@@ -143,10 +143,13 @@ pub enum TokenKind {
     Minus,              // -
     RightArrow,         // ->
     Star,               // *
+    Percent,            // %
     Ampersand,          // &
     DoubleAmpersand,    // &&
     Pipe,               // |
     DoublePipe,         // ||
+    LeftShift,          // <<
+    RightShift,         // >>
     Exclamation,        // !
     Question,           // ?
                         //    Literal,               // "thing"
@@ -184,12 +187,15 @@ impl Display for TokenKind {
             Minus => "`-`",
             RightArrow => "`->`",
             Star => "`*`",
+            Percent => "%",
             Ampersand => "`&`",
             DoubleAmpersand => "`&&`",
             Pipe => "`|`",
             DoublePipe => "`||`",
             Exclamation => "`!`",
             Question => "`?`",
+            LeftShift => "`<<`",
+            RightShift => "`>>`",
             //            TokenType::Literal => "`\"something\"",
         };
 
@@ -363,10 +369,22 @@ impl Token {
                     }
                 }
                 '>' => {
-                    tokens.push(TokenKind::Greater.new_token(ctx, 1));
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'>')) {
+                        tokens.push(TokenKind::RightShift.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenKind::Greater.new_token(ctx, 1));
+                    }
                 }
                 '<' => {
-                    tokens.push(TokenKind::Less.new_token(ctx, 1));
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'<')) {
+                        tokens.push(TokenKind::LeftShift.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenKind::Less.new_token(ctx, 1));
+                    }
                 }
                 '=' => {
                     let next_c = chars.peek();
@@ -391,6 +409,9 @@ impl Token {
                 }
                 '*' => {
                     tokens.push(TokenKind::Star.new_token(ctx, 1));
+                }
+                '%' => {
+                    tokens.push(TokenKind::Percent.new_token(ctx, 1));
                 }
                 '&' => {
                     let next_c = chars.peek();

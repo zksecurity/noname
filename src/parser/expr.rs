@@ -129,8 +129,11 @@ pub enum Op2 {
     Subtraction,
     Multiplication,
     Division,
+    Modulus,
     Equality,
     Inequality,
+    LessThan,
+    LeftShift,
     BoolAnd,
     BoolOr,
 }
@@ -436,11 +439,14 @@ impl Expr {
                     | TokenKind::Minus
                     | TokenKind::Star
                     | TokenKind::Slash
+                    | TokenKind::Percent
                     | TokenKind::DoubleEqual
                     | TokenKind::NotEqual
+                    | TokenKind::Less
                     | TokenKind::DoubleAmpersand
                     | TokenKind::DoublePipe
-                    | TokenKind::Exclamation,
+                    | TokenKind::Exclamation
+                    | TokenKind::LeftShift,
                 ..
             }) => {
                 // lhs + rhs
@@ -450,8 +456,11 @@ impl Expr {
                     TokenKind::Minus => Op2::Subtraction,
                     TokenKind::Star => Op2::Multiplication,
                     TokenKind::Slash => Op2::Division,
+                    TokenKind::Percent => Op2::Modulus,
                     TokenKind::DoubleEqual => Op2::Equality,
                     TokenKind::NotEqual => Op2::Inequality,
+                    TokenKind::Less => Op2::LessThan,
+                    TokenKind::LeftShift => Op2::LeftShift,
                     TokenKind::DoubleAmpersand => Op2::BoolAnd,
                     TokenKind::DoublePipe => Op2::BoolOr,
                     _ => unreachable!(),

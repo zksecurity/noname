@@ -198,6 +198,70 @@ pub trait Backend: Clone {
 
                 Ok(res)
             }
+            Value::VarDivVar(dividend, divisor) => {
+                let dividend = self.compute_var(env, dividend)?.to_biguint();
+                let divisor = self.compute_var(env, divisor)?.to_biguint();
+                let res = Self::Field::from(dividend / divisor);
+
+                env.cached_values.insert(cache_key, res);
+                Ok(res)
+            }
+            Value::CstDivVar(dividend, divisor) => {
+                let divisor = self.compute_var(env, divisor)?;
+                let res = *dividend / divisor;
+                Ok(res)
+            }
+            Value::VarDivCst(dividend, divisor) => {
+                let dividend = self.compute_var(env, dividend)?;
+                // convert to bigint
+                let dividend = dividend.to_biguint();
+                let divisor = divisor.to_biguint();
+
+                let res = Self::Field::from(dividend / divisor);
+                env.cached_values.insert(cache_key, res);
+                Ok(res)
+            }
+            Value::CstDivCst(dividend, divisor) => {
+                let res = *dividend / *divisor;
+                env.cached_values.insert(cache_key, res);
+                Ok(res)
+            }
+            Value::VarModVar(dividend, divisor) => {
+                let dividend = self.compute_var(env, dividend)?;
+                let divisor = self.compute_var(env, divisor)?;
+                // convert to bigint
+                let dividend = dividend.to_biguint();
+                let divisor = divisor.to_biguint();
+                let res = Self::Field::from(dividend % divisor);
+
+                env.cached_values.insert(cache_key, res);
+                Ok(res)
+            }
+            Value::CstModVar(dividend, divisor) => {
+                let divisor = self.compute_var(env, divisor)?;
+                // convert to bigint
+                let dividend = dividend.to_biguint();
+                let divisor = divisor.to_biguint();
+                let res = Self::Field::from(dividend % divisor);
+                env.cached_values.insert(cache_key, res);
+                Ok(res)
+            }
+            Value::VarModCst(dividend, divisor) => {
+                let dividend = self.compute_var(env, dividend)?;
+                // convert to bigint
+                let dividend = dividend.to_biguint();
+                let divisor = divisor.to_biguint();
+                let res = Self::Field::from(dividend % divisor);
+                env.cached_values.insert(cache_key, res);
+                Ok(res)
+            }
+            Value::CstModCst(dividend, divisor) => {
+                let dividend = dividend.to_biguint();
+                let divisor = divisor.to_biguint();
+                let res = Self::Field::from(dividend % divisor);
+                env.cached_values.insert(cache_key, res);
+                Ok(res)
+            }
         }
     }
 
