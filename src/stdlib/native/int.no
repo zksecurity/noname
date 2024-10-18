@@ -1,6 +1,7 @@
 use std::bits;
 use std::comparator;
 
+// u8
 struct Uint8 {
     inner: Field,
     bit_len: Field,
@@ -18,10 +19,90 @@ fn Uint8.new(val: Field) -> Uint8 {
     };
 }
 
+// u16
+struct Uint16 {
+    inner: Field,
+    bit_len: Field,
+}
+
+fn Uint16.new(val: Field) -> Uint16 {
+    let bit_len = 16;
+
+    // range check
+    let ignore_ = bits::to_bits(bit_len, val);
+
+    return Uint16 {
+        inner: val,
+        bit_len: bit_len
+    };
+}
+
+// u32
+struct Uint32 {
+    inner: Field,
+    bit_len: Field,
+}
+
+fn Uint32.new(val: Field) -> Uint32 {
+    let bit_len = 32;
+
+    // range check
+    let ignore_ = bits::to_bits(bit_len, val);
+
+    return Uint32 {
+        inner: val,
+        bit_len: bit_len
+    };
+}
+
+// u64
+struct Uint64 {
+    inner: Field,
+    bit_len: Field,
+}
+
+fn Uint64.new(val: Field) -> Uint64 {
+    let bit_len = 64;
+
+    // range check
+    let ignore_ = bits::to_bits(bit_len, val);
+
+    return Uint64 {
+        inner: val,
+        bit_len: bit_len
+    };
+}
+
+// implement comparator
+
 fn Uint8.less_than(self, rhs: Uint8) -> Bool {
     return comparator::less_than(self.bit_len, self.inner, rhs.inner);
 }
 
 fn Uint8.less_eq_than(self, rhs: Uint8) -> Bool {
+    return comparator::less_eq_than(self.bit_len, self.inner, rhs.inner);
+}
+
+fn Uint16.less_than(self, rhs: Uint16) -> Bool {
+    return comparator::less_than(self.bit_len, self.inner, rhs.inner);
+}
+
+fn Uint16.less_eq_than(self, rhs: Uint16) -> Bool {
+    return comparator::less_eq_than(self.bit_len, self.inner, rhs.inner);
+}
+
+fn Uint32.less_than(self, rhs: Uint32) -> Bool {
+    return comparator::less_than(self.bit_len, self.inner, rhs.inner);
+}
+
+fn Uint32.less_eq_than(self, rhs: Uint32) -> Bool {
+    return comparator::less_eq_than(self.bit_len, self.inner, rhs.inner);
+}
+
+fn Uint64.less_than(self, rhs: Uint64) -> Bool {
+    return comparator::less_than(self.bit_len, self.inner, rhs.inner);
+}
+
+fn Uint64.less_eq_than(self, rhs: Uint64) -> Bool {
     return comparator::less_eq_than(self.bit_len, self.inner, rhs.inner);
 }
