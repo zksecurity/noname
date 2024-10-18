@@ -1067,8 +1067,6 @@ fn monomorphize_expr<B: Backend>(
                 }
             };
 
-            println!("custom type declaration: {:?}", cst_fields);
-
             ExprMonoInfo::new(
                 mexpr,
                 Some(TyKind::Custom {
