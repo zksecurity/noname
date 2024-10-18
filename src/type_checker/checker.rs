@@ -224,6 +224,7 @@ impl<B: Backend> TypeChecker<B> {
                     .compute_type(lhs, typed_fn_env)?
                     .expect("type-checker bug: lhs access on an empty var");
 
+                // todo: check and update the const field type for other cases
                 // lhs can be a local variable or a path to an array
                 let lhs_name = match &lhs.kind {
                     // `name = <rhs>`
@@ -288,6 +289,31 @@ impl<B: Backend> TypeChecker<B> {
                         ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_typ.typ.clone()),
                         expr.span,
                     ));
+                }
+
+                // update struct field type
+                if let ExprKind::FieldAccess {
+                    lhs,
+                    rhs: field_name,
+                } = &lhs.kind
+                {
+                    // get variable behind lhs
+                    let lhs_node = self
+                        .compute_type(lhs, typed_fn_env)?
+                        .expect("type-checker bug: lhs access on an empty var");
+
+                    // obtain the qualified name of the struct
+                    let (module, struct_name) = match lhs_node.typ {
+                        TyKind::Custom { module, name } => (module, name),
+                        _ => {
+                            return Err(
+                                self.error(ErrorKind::FieldAccessOnNonCustomStruct, lhs.span)
+                            )
+                        }
+                    };
+
+                    let qualified = FullyQualified::new(&module, &struct_name);
+                    self.update_struct_field(&qualified, &field_name.value, rhs_typ.typ);
                 }
 
                 None
@@ -537,6 +563,12 @@ impl<B: Backend> TypeChecker<B> {
                             ErrorKind::InvalidStructFieldType(defined.1.clone(), observed_typ.typ),
                             expr.span,
                         ));
+                    }
+
+                    // If the observed type is a Field type, then init that struct field as the observed type.
+                    // This is because the field type can be a constant or not, which needs to be propagated.
+                    if matches!(observed_typ.typ, TyKind::Field { .. }) {
+                        self.update_struct_field(&qualified, &defined.0, observed_typ.typ.clone());
                     }
                 }
 
