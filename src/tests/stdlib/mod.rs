@@ -16,17 +16,37 @@ use crate::{
 
 fn test_stdlib(
     path: &str,
-    asm_path: &str,
+    asm_path: Option<&str>,
+    public_inputs: &str,
+    private_inputs: &str,
+    expected_public_output: Vec<&str>,
+) -> Result<CompiledCircuit<R1CS<R1csBn254Field>>> {
+    let root = env!("CARGO_MANIFEST_DIR");
+    let prefix_path = Path::new(root).join("src/tests/stdlib");
+
+    // read noname file
+    let code = std::fs::read_to_string(prefix_path.clone().join(path)).unwrap();
+
+    let compiled_circuit = test_stdlib_code(
+        &code,
+        asm_path,
+        public_inputs,
+        private_inputs,
+        expected_public_output,
+    )?;
+
+    Ok(compiled_circuit)
+}
+
+fn test_stdlib_code(
+    code: &str,
+    asm_path: Option<&str>,
     public_inputs: &str,
     private_inputs: &str,
     expected_public_output: Vec<&str>,
 ) -> Result<CompiledCircuit<R1CS<R1csBn254Field>>> {
     let r1cs = R1CS::new();
     let root = env!("CARGO_MANIFEST_DIR");
-    let prefix_path = Path::new(root).join("src/tests/stdlib");
-
-    // read noname file
-    let code = std::fs::read_to_string(prefix_path.clone().join(path)).unwrap();
 
     // parse inputs
     let public_inputs = parse_inputs(public_inputs).unwrap();
@@ -43,8 +63,8 @@ fn test_stdlib(
         &mut tast,
         this_module,
         &mut sources,
-        path.to_string(),
-        code.clone(),
+        "test.no".to_string(),
+        code.to_string(),
         node_id,
     )
     .unwrap();
@@ -53,9 +73,8 @@ fn test_stdlib(
     let compiled_circuit = CircuitWriter::generate_circuit(mast, r1cs)?;
 
     // this should check the constraints
-    let generated_witness = compiled_circuit
-        .generate_witness(public_inputs.clone(), private_inputs.clone())
-        .unwrap();
+    let generated_witness =
+        compiled_circuit.generate_witness(public_inputs.clone(), private_inputs.clone())?;
 
     let expected_public_output = expected_public_output
         .iter()
@@ -76,9 +95,10 @@ fn test_stdlib(
     }
 
     // check the ASM
-    if compiled_circuit.circuit.backend.num_constraints() < 100 {
+    if asm_path.is_some() && compiled_circuit.circuit.backend.num_constraints() < 100 {
         let prefix_asm = Path::new(root).join("src/tests/stdlib/");
-        let expected_asm = std::fs::read_to_string(prefix_asm.clone().join(asm_path)).unwrap();
+        let expected_asm =
+            std::fs::read_to_string(prefix_asm.clone().join(asm_path.unwrap())).unwrap();
         let obtained_asm = compiled_circuit.asm(&Sources::new(), false);
 
         if obtained_asm != expected_asm {

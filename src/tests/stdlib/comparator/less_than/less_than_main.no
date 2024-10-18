@@ -1,11 +1,8 @@
 use std::comparator;
-use std::int;
 
 fn main(pub lhs: Field, rhs: Field) -> Bool {
-    let lhs_u8 = int::Uint8.new(lhs);
-    let rhs_u8 = int::Uint8.new(rhs);
-
-    let res = lhs_u8.less_than(rhs_u8);
+    let bit_len = 2;
+    let res = comparator::less_than(bit_len, lhs, rhs);
 
     return res;
 }
