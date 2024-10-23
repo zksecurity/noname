@@ -1,0 +1,7 @@
+use std::mimc;
+
+fn main(pub key: Field, values: [Field; 3]) -> Field {
+    let res = mimc::multi_mimc_7(91, values, key);
+
+    return res;
+}
