@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -591,7 +592,10 @@ impl<B: Backend> TypeChecker<B> {
                     let sym = Symbolic::parse(size)?;
                     let res = if let Symbolic::Concrete(size) = sym {
                         // if sym is a concrete variant, then just return concrete array type
-                        ExprTyInfo::new_anon(TyKind::Array(Box::new(item_node.typ), size))
+                        ExprTyInfo::new_anon(TyKind::Array(
+                            Box::new(item_node.typ),
+                            size.to_u32().expect("array size too large"),
+                        ))
                     } else {
                         // use generic array as the size node might include generic parameters or constant vars
                         ExprTyInfo::new_anon(TyKind::GenericSizedArray(
