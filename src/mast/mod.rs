@@ -433,8 +433,11 @@ pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
     let mut func_def = match &main_fn.kind {
         // `fn main() { ... }`
         FnKind::Native(function) => function.clone(),
-
-        _ => panic!("main function must be native"),
+        _ => Err(Error::new(
+            "Backend - Monomorphize",
+            ErrorKind::UnexpectedError("Main function must be native"),
+            Span::default(),
+        ))?,
     };
 
     // create a new typed fn environment to type check the function
@@ -484,7 +487,11 @@ fn monomorphize_expr<B: Backend>(
             // obtain the type of the field
             let (module, struct_name) = match lhs_mono.typ {
                 Some(TyKind::Custom { module, name }) => (module, name),
-                _ => panic!("field access must be done on a custom struct"),
+                _ => Err(Error::new(
+                    "Monomorphize Expr",
+                    ErrorKind::UnexpectedError("field access must be done on a custom struct"),
+                    expr.span,
+                ))?,
             };
 
             // get struct info
@@ -840,9 +847,15 @@ fn monomorphize_expr<B: Backend>(
             let id_mono = monomorphize_expr(ctx, idx, mono_fn_env)?;
 
             // get type of element
-            let el_typ = match array_mono.typ.unwrap() {
-                TyKind::Array(typkind, _) => Some(*typkind),
-                _ => panic!("not an array"),
+            let el_typ = match array_mono.typ {
+                Some(TyKind::Array(typkind, _)) => Some(*typkind),
+                _ => Err(Error::new(
+                    "Array Access",
+                    ErrorKind::UnexpectedError(
+                        "Attempting to access array when type is not an array",
+                    ),
+                    expr.span,
+                ))?,
             };
 
             let mexpr = expr.to_mast(
@@ -901,7 +914,13 @@ fn monomorphize_expr<B: Backend>(
 
             // make sure that the type of then_ and else_ match
             if then_mono.typ != else_mono.typ {
-                panic!("`if` branch and `else` branch must have matching types");
+                Err(Error::new(
+                    "If-Else Monomorphization",
+                    ErrorKind::UnexpectedError(
+                        "`if` branch and `else` branch must have matching types",
+                    ),
+                    expr.span,
+                ))?
             }
 
             let mexpr = expr.to_mast(
@@ -1102,15 +1121,20 @@ pub fn monomorphize_stmt<B: Backend>(
                 }
                 ForLoopArgument::Iterator(iterator) => {
                     let iterator_mono = monomorphize_expr(ctx, iterator, mono_fn_env)?;
-                    let typ = iterator_mono.typ.as_ref().expect("expected a type");
-                    let array_element_type = match typ {
-                        TyKind::Array(t, _) => t,
-                        _ => panic!("expected an array"),
+                    let array_element_type = match iterator_mono.typ {
+                        Some(TyKind::Array(t, _)) => t,
+                        _ => Err(Error::new(
+                            "Monomorphize Stmt - ForLoopArgument",
+                            ErrorKind::UnexpectedError(
+                                "Expected array while monomorphizing iterator's type",
+                            ),
+                            stmt.span,
+                        ))?,
                     };
 
                     mono_fn_env.store_type(
                         &var.value,
-                        &MTypeInfo::new(array_element_type, var.span, None),
+                        &MTypeInfo::new(&array_element_type, var.span, None),
                     )?;
                     ForLoopArgument::Iterator(Box::new(iterator_mono.expr))
                 }

@@ -41,15 +41,12 @@ pub enum ErrorKind {
         "Unexpected error: {0}. Please report this error on https://github.com/mimoo/noname/issues"
     )]
     UnexpectedError(&'static str),
-
     #[error("variable is not mutable. You must set the `mut` keyword to make it mutable")]
     AssignmentToImmutableVariable,
-
     #[error(
         "the dependency `{0}` does not appear to be listed in your manifest file `Noname.toml`"
     )]
     UnknownDependency(String),
-
     #[error("the function `{1}` does not exist in the module `{0}`")]
     UnknownExternalFn(String, String),
 
