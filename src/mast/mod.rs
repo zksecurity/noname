@@ -667,7 +667,14 @@ fn monomorphize_expr<B: Backend>(
                     },
                 );
 
-                let fn_def = fn_info_mono.native();
+                let fn_def = fn_info_mono.native().ok_or_else(|| {
+                    Error::new(
+                        "monomorphize-expr-MethodCall",
+                        ErrorKind::UnexpectedError("Function kind is not native"),
+                        fn_info_mono.span,
+                    )
+                })?;
+
                 ctx.tast
                     .add_monomorphized_method(struct_qualified, &fn_name_mono.value, fn_def);
 

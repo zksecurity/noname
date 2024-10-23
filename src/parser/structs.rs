@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     types::{Ident, ModulePath, Ty, TyKind},
-    ParserCtx,
+    Error, ParserCtx,
 };
 
 #[derive(Debug)]
@@ -116,13 +116,17 @@ impl CustomType {
         let ty_name = tokens.bump_ident(ctx, ErrorKind::InvalidType)?;
 
         if !is_type(&ty_name.value) {
-            panic!("type name should start with uppercase letter (TODO: better error");
+            Err(Error::new(
+                "parse",
+                ErrorKind::UnexpectedError("type name should start with uppercase letter"),
+                ty_name.span,
+            ))?
         }
 
         // make sure that this type is allowed
         if !matches!(
             Ty::reserved_types(ModulePath::Local, ty_name.clone()),
-            TyKind::Custom { .. }
+            Ok(TyKind::Custom { .. })
         ) {
             return Err(ctx.error(ErrorKind::ReservedType(ty_name.value), ty_name.span));
         }

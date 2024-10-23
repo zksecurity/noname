@@ -10,7 +10,7 @@ use crate::{
     circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
     constants::Span,
     constraints::{boolean, field},
-    error::{ErrorKind, Result},
+    error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
         types::{ForLoopArgument, FunctionDef, Stmt, StmtKind, TyKind},
@@ -197,7 +197,11 @@ impl<B: Backend> CircuitWriter<B> {
 
                         let (elem_type, array_len) = match array_typ {
                             TyKind::Array(ty, array_len) => (ty, array_len),
-                            _ => panic!("expected array"),
+                            _ => Err(Error::new(
+                                "compile-stmt",
+                                ErrorKind::UnexpectedError("expected array"),
+                                stmt.span,
+                            ))?,
                         };
 
                         // compute the size of each element in the array
@@ -354,7 +358,7 @@ impl<B: Backend> CircuitWriter<B> {
                     match r {
                         ConstOrCell::Cell(c) => returned_cells.push(c.clone()),
                         ConstOrCell::Const(_) => {
-                            return Err(self.error(ErrorKind::ConstantInOutput, returned.span))
+                            Err(self.error(ErrorKind::ConstantInOutput, returned.span))?
                         }
                     }
                 }
@@ -382,7 +386,7 @@ impl<B: Backend> CircuitWriter<B> {
             } => {
                 // sanity check
                 if fn_name.value == "main" {
-                    return Err(self.error(ErrorKind::RecursiveMain, expr.span));
+                    Err(self.error(ErrorKind::RecursiveMain, expr.span))?
                 }
 
                 // retrieve the function in the env
@@ -451,9 +455,13 @@ impl<B: Backend> CircuitWriter<B> {
 
                 let (module, self_struct) = match lhs_struct {
                     TyKind::Custom { module, name } => (module, name),
-                    _ => {
-                        panic!("could not figure out struct implementing that method call")
-                    }
+                    _ => Err(Error::new(
+                        "compute-expr",
+                        ErrorKind::UnexpectedError(
+                            "could not figure out struct implementing that method call",
+                        ),
+                        lhs.span,
+                    ))?,
                 };
 
                 let qualified = FullyQualified::new(module, self_struct);
@@ -595,7 +603,11 @@ impl<B: Backend> CircuitWriter<B> {
 
                 // replace the left with the right
                 match lhs {
-                    VarOrRef::Var(_) => panic!("can't reassign this non-mutable variable"),
+                    VarOrRef::Var(_) => Err(Error::new(
+                        "compute-expr",
+                        ErrorKind::UnexpectedError("can't reassign this non-mutable variable"),
+                        expr.span,
+                    ))?,
                     VarOrRef::Ref {
                         var_name,
                         start,
@@ -716,7 +728,11 @@ impl<B: Backend> CircuitWriter<B> {
                         }
                         ty
                     }
-                    _ => panic!("expected array"),
+                    _ => Err(Error::new(
+                        "compute-expr",
+                        ErrorKind::UnexpectedError("expected array"),
+                        expr.span,
+                    ))?,
                 };
 
                 // compute the size of each element in the array

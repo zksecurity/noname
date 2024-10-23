@@ -16,7 +16,7 @@ use crate::{
     syntax::is_type,
 };
 
-use super::{FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
+use super::{Error, FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
 
 /// Keeps track of the signature of a user-defined function.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,10 +36,10 @@ impl<B: Backend> FnInfo<B> {
         }
     }
 
-    pub fn native(&self) -> &FunctionDef {
+    pub fn native(&self) -> Option<&FunctionDef> {
         match &self.kind {
-            FnKind::Native(func) => func,
-            _ => panic!("expected a native function"),
+            FnKind::Native(func) => Some(func),
+            _ => None,
         }
     }
 }
@@ -250,7 +250,11 @@ impl<B: Backend> TypeChecker<B> {
                             .var_name
                             .expect("anonymous lhs access cannot be mutated")
                     }
-                    _ => panic!("bad expression assignment (TODO: replace with error)"),
+                    _ => Err(Error::new(
+                        "compute-type",
+                        ErrorKind::UnexpectedError("bad expression assignment"),
+                        expr.span,
+                    ))?,
                 };
 
                 // check that the var exists locally
@@ -400,7 +404,11 @@ impl<B: Backend> TypeChecker<B> {
                 let el_typ = match typ.typ {
                     TyKind::Array(typkind, _) => *typkind,
                     TyKind::GenericSizedArray(typkind, _) => *typkind,
-                    _ => panic!("not an array"),
+                    _ => Err(Error::new(
+                        "compute-type",
+                        ErrorKind::UnexpectedError("not an array"),
+                        expr.span,
+                    ))?,
                 };
 
                 let res = ExprTyInfo::new(typ.var_name, el_typ);
@@ -587,7 +595,13 @@ impl<B: Backend> TypeChecker<B> {
 
         for stmt in stmts {
             if return_typ.is_some() {
-                panic!("early return detected: we don't allow that for now (TODO: return error");
+                Err(Error::new(
+                    "check-block",
+                    ErrorKind::UnexpectedError(
+                        "early return detected: we don't allow that for now",
+                    ),
+                    stmt.span,
+                ))?
             }
 
             return_typ = self.check_stmt(typed_fn_env, stmt)?;

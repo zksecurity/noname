@@ -38,7 +38,7 @@ pub enum ParsingError {
     ArraySizeMismatch(usize, usize),
     #[error("Incorrect struct fields count. {0} expected {1}, Got {2})")]
     StructFieldCountMismatch(String, usize, usize),
-    #[error("Failed to locate struct name `{0}` given as input")]
+    #[error("Compiler bug: failed to locate struct name `{0}` given as input")]
     MissingStructIdent(String),
     #[error("Failed to locate struct field name `{0}` in JSON input")]
     MissingStructFieldIdent(String),
@@ -141,9 +141,9 @@ impl<B: Backend> CompiledCircuit<B> {
                 // parse each field
                 let mut res = vec![];
                 for (field_name, field_ty) in fields {
-                    let value = map
-                        .remove(field_name)
-                        .ok_or_else(|| ParsingError::MissingStructFieldIdent(field_name.to_string()))?;
+                    let value = map.remove(field_name).ok_or_else(|| {
+                        ParsingError::MissingStructFieldIdent(field_name.to_string())
+                    })?;
                     let parsed = self.parse_single_input(value, field_ty)?;
                     res.extend(parsed);
                 }

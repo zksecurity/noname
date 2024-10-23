@@ -82,17 +82,13 @@ impl<B: Backend> CircuitWriter<B> {
         fn_env: &mut FnEnv<B::Field, B::Var>,
         var_name: String,
         var_info: VarInfo<B::Field, B::Var>,
-    ) {
+    ) -> Result<()> {
         // check for consts first
         let qualified = FullyQualified::local(var_name.clone());
         if let Some(_cst_info) = self.typed.const_info(&qualified) {
-            panic!(
-                "type checker bug: we already have a constant with the same name (`{var_name}`)!"
-            );
+            Err(Error::new("add-local-var", ErrorKind::UnexpectedError("type checker bug: we already have a constant with the same name (`{var_name}`)!"), Span::default()))?
         }
-
-        //
-        fn_env.add_local_var(var_name, var_info)
+        Ok(fn_env.add_local_var(var_name, var_info))
     }
 
     pub fn get_local_var(
@@ -172,7 +168,11 @@ impl<B: Backend> CircuitWriter<B> {
                         );
                     }
                 }
-                None => panic!("public arguments must have a pub attribute"),
+                None => Err(Error::new(
+                    "generate-circuit",
+                    ErrorKind::UnexpectedError("public arguments must have a pub attribute"),
+                    Span::default(),
+                ))?,
             }
             circuit_writer.handle_arg(arg, fn_env, CircuitWriter::add_public_inputs)?;
         }
@@ -247,7 +247,7 @@ impl<B: Backend> CircuitWriter<B> {
         // add argument variable to the ast env
         let mutable = false; // TODO: should we add a mut keyword in arguments as well?
         let var_info = VarInfo::new(var, mutable, Some(typ.kind.clone()));
-        self.add_local_var(fn_env, name.value.clone(), var_info);
+        self.add_local_var(fn_env, name.value.clone(), var_info)?;
 
         Ok(())
     }
