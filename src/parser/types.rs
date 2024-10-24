@@ -852,6 +852,38 @@ impl FnArg {
             .map(|attr| attr.is_constant())
             .unwrap_or(false)
     }
+
+    pub fn extract_generic_names(&self) -> HashSet<String> {
+        let mut generics = HashSet::new();
+
+        match &self.typ.kind {
+            TyKind::Field { .. } => {
+                // extract from const argument
+                if is_generic_parameter(&self.name.value) && self.is_constant() {
+                    generics.insert(self.name.value.to_string());
+                }
+            }
+            TyKind::Array(ty, _) => {
+                // recursively extract all generic parameters from the item type
+                let extracted = ty.extract_generics();
+
+                for name in extracted {
+                    generics.insert(name);
+                }
+            }
+            TyKind::GenericSizedArray(_, _) => {
+                // recursively extract all generic parameters from the symbolic size
+                let extracted = self.typ.kind.extract_generics();
+
+                for name in extracted {
+                    generics.insert(name);
+                }
+            }
+            _ => (),
+        }
+
+        generics
+    }
 }
 
 impl FuncOrMethod {

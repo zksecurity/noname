@@ -50,8 +50,11 @@ pub struct TypedFnEnv {
     // TODO: there's an output_type field that's a reserved keyword?
     vars: HashMap<String, (usize, TypeInfo)>,
 
-    /// Whether it is in a for loop or not.
-    forloop: bool,
+    /// The forloop scopes if it is within a for loop.
+    forloop_scopes: Vec<usize>,
+
+    /// Determines if forloop variables are allowed to be accessed.
+    forbid_forloop_scope: bool,
 }
 
 impl TypedFnEnv {
@@ -75,24 +78,46 @@ impl TypedFnEnv {
             .retain(|_name, (scope, _type_info)| *scope <= current_scope);
     }
 
+    pub fn forbid_forloop_scope(&mut self) {
+        self.forbid_forloop_scope = true;
+    }
+
+    pub fn allow_forloop_scope(&mut self) {
+        self.forbid_forloop_scope = false;
+    }
+
     /// Returns whether it is in a for loop.
     pub fn is_in_forloop(&self) -> bool {
-        self.forloop
+        if let Some(scope) = self.forloop_scopes.last() {
+            self.current_scope >= *scope
+        } else {
+            false
+        }
     }
 
-    /// Flags it as in the for loop.
+    /// Pushes a new for loop scope.
     pub fn start_forloop(&mut self) {
-        self.forloop = true;
+        self.forloop_scopes.push(self.current_scope);
     }
 
-    /// Flags it as not in the for loop.
+    /// Pop the last loop scope.
     pub fn end_forloop(&mut self) {
-        self.forloop = false;
+        self.forloop_scopes.pop();
     }
 
     /// Returns true if a scope is a prefix of our scope.
     pub fn is_in_scope(&self, prefix_scope: usize) -> bool {
         self.current_scope >= prefix_scope
+    }
+
+    pub fn is_forbidden(&self, scope: usize) -> bool {
+        let in_forbidden_scope = if let Some(forloop_scope) = self.forloop_scopes.first() {
+            scope >= *forloop_scope
+        } else {
+            false
+        };
+
+        self.forbid_forloop_scope && in_forbidden_scope
     }
 
     /// Stores type information about a local variable.
@@ -111,26 +136,36 @@ impl TypedFnEnv {
         }
     }
 
-    pub fn get_type(&self, ident: &str) -> Option<&TyKind> {
-        self.get_type_info(ident).map(|type_info| &type_info.typ)
+    pub fn get_type(&self, ident: &str) -> Result<Option<&TyKind>> {
+        Ok(self.get_type_info(ident)?.map(|type_info| &type_info.typ))
     }
 
-    pub fn mutable(&self, ident: &str) -> Option<bool> {
-        self.get_type_info(ident).map(|type_info| type_info.mutable)
+    pub fn mutable(&self, ident: &str) -> Result<Option<bool>> {
+        Ok(self
+            .get_type_info(ident)?
+            .map(|type_info| type_info.mutable))
     }
 
     /// Retrieves type information on a variable, given a name.
     /// If the variable is not in scope, return false.
     // TODO: return an error no?
-    pub fn get_type_info(&self, ident: &str) -> Option<&TypeInfo> {
+    pub fn get_type_info(&self, ident: &str) -> Result<Option<&TypeInfo>> {
         if let Some((scope, type_info)) = self.vars.get(ident) {
+            if self.is_forbidden(*scope) {
+                return Err(Error::new(
+                    "type-checker",
+                    ErrorKind::VarAccessForbiddenInForLoop(ident.to_string()),
+                    type_info.span,
+                ));
+            }
+
             if self.is_in_scope(*scope) {
-                Some(type_info)
+                Ok(Some(type_info))
             } else {
-                None
+                Ok(None)
             }
         } else {
-            None
+            Ok(None)
         }
     }
 }
