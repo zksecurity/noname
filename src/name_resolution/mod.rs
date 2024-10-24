@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 use crate::{
     backends::Backend,
     cli::packages::UserRepo,
@@ -10,10 +12,12 @@ use self::context::NameResCtx;
 mod context;
 mod expr;
 
+#[derive(Serialize)]
 pub struct NAST<B>
 where
     B: Backend,
 {
+    #[serde(bound(serialize = "AST<B>: Serialize"))]
     pub ast: AST<B>,
 }
 

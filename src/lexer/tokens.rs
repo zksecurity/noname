@@ -25,6 +25,12 @@ impl Tokens {
         }
     }
 
+    /// Don't use this function unless you're testing, it's going to be expensive otherwise.
+    pub fn as_vec(&self) -> Vec<Token> {
+        assert!(self.peeked.is_none());
+        self.inner.clone().into_iter().collect()
+    }
+
     /// Peeks into the next token without advancing the iterator.
     pub fn peek(&mut self) -> Option<Token> {
         // something in the peeked

@@ -88,6 +88,7 @@ pub fn init_stdlib_dep<B: Backend>(
     tast: &mut TypeChecker<B>,
     node_id: usize,
     path_prefix: &str,
+    server_mode: &mut Option<crate::server::ServerShim>,
 ) -> usize {
     // list the stdlib dependency in order
     let libs = vec!["bits", "comparator", "int"];
@@ -98,8 +99,16 @@ pub fn init_stdlib_dep<B: Backend>(
         let module = UserRepo::new(&format!("std/{}", lib));
         let prefix_stdlib = Path::new(path_prefix);
         let code = std::fs::read_to_string(prefix_stdlib.join(format!("{lib}.no"))).unwrap();
-        node_id =
-            typecheck_next_file(tast, Some(module), sources, lib.to_string(), code, 0).unwrap();
+        node_id = typecheck_next_file(
+            tast,
+            Some(module),
+            sources,
+            lib.to_string(),
+            code,
+            0,
+            server_mode,
+        )
+        .unwrap();
     }
 
     node_id

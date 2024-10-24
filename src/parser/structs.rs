@@ -12,7 +12,7 @@ use super::{
     ParserCtx,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct StructDef {
     //pub attribute: Attribute,
     pub module: ModulePath, // name resolution

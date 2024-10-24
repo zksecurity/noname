@@ -95,6 +95,7 @@ fn test_simple_module() -> miette::Result<()> {
         "liblib.no".to_string(),
         LIBLIB.to_string(),
         node_id,
+        &mut None,
     )?;
 
     // parse the lib
@@ -105,6 +106,7 @@ fn test_simple_module() -> miette::Result<()> {
         "lib.no".to_string(),
         LIB.to_string(),
         node_id,
+        &mut None,
     )?;
 
     // parse the main
@@ -115,13 +117,14 @@ fn test_simple_module() -> miette::Result<()> {
         "main.no".to_string(),
         MAIN.to_string(),
         node_id,
+        &mut None,
     )?;
 
     // backend
     let kimchi_vesta = KimchiVesta::new(false);
 
     // compile
-    compile(&sources, tast, kimchi_vesta)?;
+    compile(&sources, tast, kimchi_vesta, &mut None)?;
 
     Ok(())
 }

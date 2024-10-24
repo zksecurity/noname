@@ -104,6 +104,7 @@ pub fn compile_source_code<BF: BackendField>(
         "main.no".to_string(),
         code.to_string(),
         node_id,
+        &mut None,
     )
     .unwrap();
 

@@ -68,6 +68,10 @@ pub struct CmdBuild {
     /// Defaults to `verifier.nope`
     #[clap(long, value_parser)]
     verifier_params: Option<PathBuf>,
+
+    /// Run in server mode to help debug and understand the compiler passes.
+    #[clap(long)]
+    server_mode: bool,
 }
 
 pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
@@ -75,7 +79,17 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let (sources, prover_index, verifier_index) = build(&curr_dir, args.asm, args.debug)?;
+    // setup server in server mode
+    let (handle, mut server_mode) = if args.server_mode {
+        let (handle, shim) = crate::server::ServerShim::start_server();
+        (Some(handle), Some(shim))
+    } else {
+        (None, None)
+    };
+
+    // build
+    let (sources, prover_index, verifier_index) =
+        build(&curr_dir, args.asm, args.debug, &mut server_mode)?;
 
     // create COMPILED_DIR
     let compiled_path = curr_dir.join(COMPILED_DIR);
@@ -116,6 +130,9 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
 
     println!("successfully built");
 
+    // server mode
+    handle.map(|h| h.join().unwrap());
+
     //
     Ok(())
 }
@@ -133,7 +150,7 @@ pub fn cmd_check(args: CmdCheck) -> miette::Result<()> {
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
     // produce all TASTs and stop here
-    produce_all_asts::<KimchiVesta>(&curr_dir)?;
+    produce_all_asts::<KimchiVesta>(&curr_dir, &mut None)?;
 
     println!("all good!");
     Ok(())
@@ -143,6 +160,7 @@ fn add_stdlib<B: Backend>(
     sources: &mut Sources,
     tast: &mut TypeChecker<B>,
     node_id: usize,
+    server_mode: &mut Option<crate::server::ServerShim>,
 ) -> miette::Result<usize> {
     let mut node_id = node_id;
 
@@ -154,12 +172,15 @@ fn add_stdlib<B: Backend>(
         download_stdlib()?;
     }
 
-    node_id = init_stdlib_dep(sources, tast, node_id, stdlib_dir.as_ref());
+    node_id = init_stdlib_dep(sources, tast, node_id, stdlib_dir.as_ref(), server_mode);
 
     Ok(node_id)
 }
 
-fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, TypeChecker<B>)> {
+fn produce_all_asts<B: Backend>(
+    path: &PathBuf,
+    server_mode: &mut Option<crate::server::ServerShim>,
+) -> miette::Result<(Sources, TypeChecker<B>)> {
     // find manifest
     let manifest = validate_package_and_get_manifest(&path, false)?;
 
@@ -184,7 +205,7 @@ fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, Type
     let mut tast = TypeChecker::new();
 
     // adding stdlib
-    add_stdlib(&mut sources, &mut tast, node_id)?;
+    add_stdlib(&mut sources, &mut tast, node_id, server_mode)?;
 
     for dep in dep_graph.from_leaves_to_roots() {
         let path = path_to_package(&dep);
@@ -202,6 +223,7 @@ fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, Type
             lib_file_str.clone(),
             code,
             node_id,
+            server_mode,
         )?;
     }
 
@@ -229,6 +251,7 @@ fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, Type
         file_path.to_string(),
         code,
         node_id,
+        server_mode,
     )?;
 
     Ok((sources, tast))
@@ -238,15 +261,16 @@ pub fn build(
     curr_dir: &PathBuf,
     asm: bool,
     debug: bool,
+    server_mode: &mut Option<crate::server::ServerShim>,
 ) -> miette::Result<(Sources, ProverIndex, VerifierIndex)> {
     // produce all TASTs
-    let (sources, tast) = produce_all_asts(curr_dir)?;
+    let (sources, tast) = produce_all_asts(curr_dir, server_mode)?;
 
     // produce indexes
     let double_generic_gate_optimization = false;
 
     let kimchi_vesta = KimchiVesta::new(double_generic_gate_optimization);
-    let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+    let compiled_circuit = compile(&sources, tast, kimchi_vesta, server_mode)?;
 
     if asm {
         println!("{}", compiled_circuit.asm(&sources, debug));
@@ -307,7 +331,7 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         BackendKind::KimchiVesta(_) => {
             let (tast, sources) = typecheck_file(&args.path)?;
             let kimchi_vesta = KimchiVesta::new(args.double);
-            let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+            let compiled_circuit = compile(&sources, tast, kimchi_vesta, &mut None)?;
 
             let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
             println!("successfully compiled");
@@ -399,9 +423,9 @@ where
     F: BackendField,
 {
     // Assuming `curr_dir`, `public_inputs`, and `private_inputs` are available in the scope
-    let (sources, tast) = produce_all_asts(curr_dir)?;
+    let (sources, tast) = produce_all_asts(curr_dir, &mut None)?;
 
-    let compiled_circuit = compile(&sources, tast, r1cs)?;
+    let compiled_circuit = compile(&sources, tast, r1cs, &mut None)?;
 
     let generated_witness =
         generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
@@ -434,7 +458,7 @@ where
 {
     let (tast, sources) = typecheck_file(path)?;
 
-    let compiled_circuit = compile(&sources, tast, r1cs)?;
+    let compiled_circuit = compile(&sources, tast, r1cs, &mut None)?;
 
     generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
 
@@ -452,7 +476,15 @@ fn typecheck_file<B: Backend>(path: &PathBuf) -> miette::Result<(TypeChecker<B>,
 
     let mut sources = Sources::new();
     let mut tast = TypeChecker::<B>::new();
-    let _node_id = typecheck_next_file(&mut tast, None, &mut sources, path.to_string(), code, 0)?;
+    let _node_id = typecheck_next_file(
+        &mut tast,
+        None,
+        &mut sources,
+        path.to_string(),
+        code,
+        0,
+        &mut None,
+    )?;
 
     Ok((tast, sources))
 }
