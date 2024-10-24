@@ -276,7 +276,7 @@ pub fn download_from_github(dep: &UserRepo) -> Result<()> {
 
 pub fn download_stdlib() -> Result<()> {
     // Hardcoded repository details and target branch
-    let repo_owner = "katat";
+    let repo_owner = "zksecurity";
     let repo_name = "noname";
     let target_branch = "release";
     let repo_url = format!(
