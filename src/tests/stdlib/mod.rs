@@ -1,4 +1,5 @@
 mod comparator;
+mod mimc;
 
 use std::{path::Path, str::FromStr};
 

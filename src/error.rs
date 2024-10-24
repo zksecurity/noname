@@ -140,7 +140,7 @@ pub enum ErrorKind {
     GenericValueExpected(String),
 
     #[error("conflict generic values during binding for `{0}`: `{1}` and `{2}`")]
-    ConflictGenericValue(String, u32, u32),
+    ConflictGenericValue(String, String, String),
 
     #[error("unexpected generic parameter: `{0}`")]
     UnexpectedGenericParameter(String),
