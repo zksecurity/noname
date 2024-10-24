@@ -350,7 +350,10 @@
 <a href="#349" id="349">349</a>
 <a href="#350" id="350">350</a>
 <a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a></pre></div><pre class="rust"><code><span class="kw">use </span>miette::Diagnostic;
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a></pre></div><pre class="rust"><code><span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
 <span class="kw">use crate</span>::{
@@ -499,6 +502,9 @@
 
     <span class="attr">#[error(<span class="string">"calling generic functions in for loop is not allowed"</span>)]
     </span>GenericInForLoop,
+
+    <span class="attr">#[error(<span class="string">"variable `{0}` is forbidden to be accessed in the for loop, likely due to a generic function call"</span>)]
+    </span>VarAccessForbiddenInForLoop(String),
 
     <span class="attr">#[error(<span class="string">"the value passed could not be converted to a field element"</span>)]
     </span>InvalidField(String),

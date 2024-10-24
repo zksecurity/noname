@@ -134,7 +134,42 @@
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the context (or environment) that gets created when type checking a function.
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the context (or environment) that gets created when type checking a function.
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -186,8 +221,11 @@
     </span><span class="comment">// TODO: there's an output_type field that's a reserved keyword?
     </span>vars: HashMap&lt;String, (usize, TypeInfo)&gt;,
 
-    <span class="doccomment">/// Whether it is in a for loop or not.
-    </span>forloop: bool,
+    <span class="doccomment">/// The forloop scopes if it is within a for loop.
+    </span>forloop_scopes: Vec&lt;usize&gt;,
+
+    <span class="doccomment">/// Determines if forloop variables are allowed to be accessed.
+    </span>forbid_forloop_scope: bool,
 }
 
 <span class="kw">impl </span>TypedFnEnv {
@@ -211,24 +249,46 @@
             .retain(|_name, (scope, _type_info)| <span class="kw-2">*</span>scope &lt;= current_scope);
     }
 
+    <span class="kw">pub fn </span>forbid_forloop_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.forbid_forloop_scope = <span class="bool-val">true</span>;
+    }
+
+    <span class="kw">pub fn </span>allow_forloop_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.forbid_forloop_scope = <span class="bool-val">false</span>;
+    }
+
     <span class="doccomment">/// Returns whether it is in a for loop.
     </span><span class="kw">pub fn </span>is_in_forloop(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.forloop
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(scope) = <span class="self">self</span>.forloop_scopes.last() {
+            <span class="self">self</span>.current_scope &gt;= <span class="kw-2">*</span>scope
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>}
     }
 
-    <span class="doccomment">/// Flags it as in the for loop.
+    <span class="doccomment">/// Pushes a new for loop scope.
     </span><span class="kw">pub fn </span>start_forloop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.forloop = <span class="bool-val">true</span>;
+        <span class="self">self</span>.forloop_scopes.push(<span class="self">self</span>.current_scope);
     }
 
-    <span class="doccomment">/// Flags it as not in the for loop.
+    <span class="doccomment">/// Pop the last loop scope.
     </span><span class="kw">pub fn </span>end_forloop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.forloop = <span class="bool-val">false</span>;
+        <span class="self">self</span>.forloop_scopes.pop();
     }
 
     <span class="doccomment">/// Returns true if a scope is a prefix of our scope.
     </span><span class="kw">pub fn </span>is_in_scope(<span class="kw-2">&amp;</span><span class="self">self</span>, prefix_scope: usize) -&gt; bool {
         <span class="self">self</span>.current_scope &gt;= prefix_scope
+    }
+
+    <span class="kw">pub fn </span>is_forbidden(<span class="kw-2">&amp;</span><span class="self">self</span>, scope: usize) -&gt; bool {
+        <span class="kw">let </span>in_forbidden_scope = <span class="kw">if let </span><span class="prelude-val">Some</span>(forloop_scope) = <span class="self">self</span>.forloop_scopes.first() {
+            scope &gt;= <span class="kw-2">*</span>forloop_scope
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>};
+
+        <span class="self">self</span>.forbid_forloop_scope &amp;&amp; in_forbidden_scope
     }
 
     <span class="doccomment">/// Stores type information about a local variable.
@@ -247,27 +307,37 @@
         }
     }
 
-    <span class="kw">pub fn </span>get_type(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TyKind&gt; {
-        <span class="self">self</span>.get_type_info(ident).map(|type_info| <span class="kw-2">&amp;</span>type_info.typ)
+    <span class="kw">pub fn </span>get_type(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TyKind&gt;&gt; {
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.get_type_info(ident)<span class="question-mark">?</span>.map(|type_info| <span class="kw-2">&amp;</span>type_info.typ))
     }
 
-    <span class="kw">pub fn </span>mutable(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;bool&gt; {
-        <span class="self">self</span>.get_type_info(ident).map(|type_info| type_info.mutable)
+    <span class="kw">pub fn </span>mutable(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;bool&gt;&gt; {
+        <span class="prelude-val">Ok</span>(<span class="self">self
+            </span>.get_type_info(ident)<span class="question-mark">?
+            </span>.map(|type_info| type_info.mutable))
     }
 
     <span class="doccomment">/// Retrieves type information on a variable, given a name.
     /// If the variable is not in scope, return false.
     </span><span class="comment">// TODO: return an error no?
-    </span><span class="kw">pub fn </span>get_type_info(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TypeInfo&gt; {
+    </span><span class="kw">pub fn </span>get_type_info(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TypeInfo&gt;&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>((scope, type_info)) = <span class="self">self</span>.vars.get(ident) {
+            <span class="kw">if </span><span class="self">self</span>.is_forbidden(<span class="kw-2">*</span>scope) {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                    <span class="string">"type-checker"</span>,
+                    ErrorKind::VarAccessForbiddenInForLoop(ident.to_string()),
+                    type_info.span,
+                ));
+            }
+
             <span class="kw">if </span><span class="self">self</span>.is_in_scope(<span class="kw-2">*</span>scope) {
-                <span class="prelude-val">Some</span>(type_info)
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(type_info))
             } <span class="kw">else </span>{
-                <span class="prelude-val">None
-            </span>}
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+            }
         } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>}
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+        }
     }
 }
 </code></pre></div></section></main></body></html>
