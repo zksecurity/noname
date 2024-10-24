@@ -90,7 +90,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded "><a href="literals.html"><strong aria-hidden="true">11.</strong> Literals and the const keyword</a></li><li class="chapter-item expanded "><a href="expressions.html"><strong aria-hidden="true">12.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="modules.html"><strong aria-hidden="true">13.</strong> Modules</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">14.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">15.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">16.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">17.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">18.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">19.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">20.</strong> Witness Generation</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Language</li><li class="chapter-item expanded "><a href="basics.html"><strong aria-hidden="true">2.</strong> Basics</a></li><li class="chapter-item expanded affix "><li class="part-title">Compiler Internals</li><li class="chapter-item expanded "><a href="compilation.html"><strong aria-hidden="true">3.</strong> Compilation</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">4.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="spans.html"><strong aria-hidden="true">5.</strong> Spans</a></li><li class="chapter-item expanded "><a href="paths.html"><strong aria-hidden="true">6.</strong> Paths</a></li><li class="chapter-item expanded "><a href="type-checker.html"><strong aria-hidden="true">7.</strong> Type Checker</a></li><li class="chapter-item expanded "><a href="asm.html"><strong aria-hidden="true">8.</strong> Noname ASM</a></li><li class="chapter-item expanded "><a href="structs.html"><strong aria-hidden="true">9.</strong> Structs</a></li><li class="chapter-item expanded "><a href="methods.html"><strong aria-hidden="true">10.</strong> Methods</a></li><li class="chapter-item expanded "><a href="literals.html"><strong aria-hidden="true">11.</strong> Literals and the const keyword</a></li><li class="chapter-item expanded "><a href="expressions.html"><strong aria-hidden="true">12.</strong> Expressions</a></li><li class="chapter-item expanded "><a href="modules.html"><strong aria-hidden="true">13.</strong> Modules</a></li><li class="chapter-item expanded affix "><li class="part-title">Circuit Generation</li><li class="chapter-item expanded "><a href="cellvar.html"><strong aria-hidden="true">14.</strong> CellVars</a></li><li class="chapter-item expanded "><a href="var.html"><strong aria-hidden="true">15.</strong> Vars</a></li><li class="chapter-item expanded "><a href="constants.html"><strong aria-hidden="true">16.</strong> Constants</a></li><li class="chapter-item expanded "><a href="functions.html"><strong aria-hidden="true">17.</strong> Functions</a></li><li class="chapter-item expanded "><a href="scope.html"><strong aria-hidden="true">18.</strong> Scope</a></li><li class="chapter-item expanded affix "><li class="part-title">Proof Creation</li><li class="chapter-item expanded "><a href="public-outputs.html"><strong aria-hidden="true">19.</strong> Public Outputs</a></li><li class="chapter-item expanded "><a href="witness-generation.html"><strong aria-hidden="true">20.</strong> Witness Generation</a></li><li class="chapter-item expanded affix "><li class="part-title">RFCs</li><li class="chapter-item expanded "><a href="rfc/rfc-0-generic-parameters.html"><strong aria-hidden="true">21.</strong> RFC-0 Generic Parameters</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -1721,6 +1721,366 @@ These instructions are stored as two different fields:</p>
 </li>
 <li>Once the row is created, it is checked for correctness by checking what gate was used in the row. Note that this is only true for the generic gate, as we trust built-in gadgets to produce correct values. For example, <code>assert(x, 2)</code> will be checked because it is using the generic gate, but <code>let y = poseidon(x)</code> won’t be because we trust the poseidon gate to be correct (and if there is a bug there, kimchi will still catch it).</li>
 </ol>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="rfc-0-generic-sized-arrays-in-function-signatures"><a class="header" href="#rfc-0-generic-sized-arrays-in-function-signatures">RFC-0: Generic-sized arrays in function signatures</a></h1>
+<h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
+<p>This RFC proposes to support const generics in noname. The generic parameters can be resolved from the observed arguments, such as constants, arrays, or structs. This improves reusability and modularity of the code. It is a prerequisite for supporting generic array with symbolic size.</p>
+<h2 id="code-examples"><a class="header" href="#code-examples">Code Examples</a></h2>
+<p>Here is a few previews of how the generic parameters can be used, and what features it would unlock.</p>
+<p>Allow functions to create array with symbolic size:</p>
+<pre><pre class="playground"><code class="language-rust">// the return type is determined by the generic arguments
+// so `init_arr` can be used to create arrays with different sizes
+fn init_arr(const LEN: Field) -&gt; [Field; LEN] {
+    let arr = [0; LEN];
+    return arr;
+}
+
+
+fn main() -&gt; [Field; 3] {
+    let arr = init_arr(3);
+    return arr;
+}</code></pre></pre>
+<p>Resolving the generic values from the observed array argument:</p>
+<pre><pre class="playground"><code class="language-rust">fn last(arr: [Field; LEN]) -&gt; Field {
+    // use generic parameter LEN to form dynamic expressions in the function scope
+    return arr[LEN - 1];
+}
+
+fn main() -&gt; Field {
+    let arr = [1, 2, 3, 4, 5];
+    // generic parameter LEN can be resolved from the array size of argument `arr`
+    return last(arr);
+}
+</code></pre></pre>
+<h2 id="builtin-examples"><a class="header" href="#builtin-examples">Builtin Examples</a></h2>
+<p>Given the following function signatures for builtin functions:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn to_bits(const LEN: Field, val: Field) -&gt; [Field; LEN]
+fn from_bits(bits: [Bool; LEN]) -&gt; Field
+<span class="boring">}</span></code></pre></pre>
+<p>Calling the builtin functions in native code:</p>
+<pre><pre class="playground"><code class="language-rust">use std::bits;
+
+const num_bits = 8;
+
+fn main() {
+    let val1 = 101;
+    // `num_bits` will be assigned to the generic parameter `LEN` in the return type
+    // then the type of `bits` will be monomorphized to [Bool; 8]
+    let bits = bits::to_bits(num_bits, val); 
+    // the value of `LEN` can be determined from the size of `bits` during monomorphization
+    // so the builtin function knows how many bits to convert
+    let val2 = bits::from_bits(bits); 
+    assert_eq(val1, val2);
+}</code></pre></pre>
+<p>The values for the generic parameters will be passed to the function via the <code>generics</code> argument:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn to_bits&lt;B: Backend&gt;(
+    compiler: &amp;mut CircuitWriter&lt;B&gt;,
+    generics: &amp;GenericParameters,
+    vars: &amp;[VarInfo&lt;B::Field, B::Var&gt;],
+    span: Span,
+) -&gt; Result&lt;Option&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
+    ...
+
+    // retrieve the generic values from the `generics` argument
+    let bitlen = generics.get("LEN") as usize;
+
+    ...
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Both the return type and returned vars can be checked outside of the builtin functions. The return type can be checked automatically in the same way as the native functions, the types of which are propagated and converged at certain point, at which error will be thrown if the types are not matched.</p>
+<p>The return vars can be checked by relying on the types. Each concrete type has a fixed number of vars. With the resolved return type of the builtin function, we can check if the size is matched. Additionally, we can check the values recursively with the type structure, but it might only limited to checking the boolean type which got obvious bound 0 or 1. So automatically checking if the actual return from a builtin is an area to be improved in the future.</p>
+<h2 id="monomorphization"><a class="header" href="#monomorphization">monomorphization</a></h2>
+<p>The resolving of the generic values can be done by observing the arguments passed to the function. Then it stores the resolved values in the relevant contexts for the following compiler pipeline to do type checking and circuit synthesizing. We call the process of resolving the generic values and type checking <em>Monomorphization</em>.</p>
+<p>The current pipeline of compiling noname code is:</p>
+<ol>
+<li>Parse the code into AST</li>
+<li>Convert the AST into NAST with naming resolution</li>
+<li>Convert the NAST into TAST with type metadata collection and type checking</li>
+<li>Circuit synthesizing TAST into an constraint system</li>
+</ol>
+<p>With generic parameters, the current TAST phase can’t handle the type checking anymore, because the generic parameters are unknown. For example, it can’t type check the array with symbolic size without resolving the values for the generic parameters.</p>
+<p>To extend the type checking to support generic parameters, we can add a MAST phase (Monomorphized AST), right after the TAST phase, to resolve the values of the generic parameters. The circuit synthesizer will rely on the MAST instead of the TAST to compile a circuit.</p>
+<p>Below is the diagram of the compiler pipeline with the MAST phase added:
+<img src="rfc//book/src/assets/compiler-pipeline.png" alt="pipeline" /></p>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>To support the generic syntax as shown in the examples above, we need to make changes to the AST Parser support generic syntax. Furthermore, because the generic parameters can’t be resolved at TAST phase, the some type checkings will be less strict and deferred to MAST phase.</p>
+<p>Here is a list of cases where the type checks can’t be done at TAST phase, as they need to resolve the generic values:</p>
+<ol>
+<li>Inconsistent sizes of arrays with same generic parameters</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust">fn gen(const LEN: Field) -&gt; [Field; LEN] {
+    return [0; LEN];
+}
+
+// expect same generic size
+fn comp(arr1: [Field; LEN], arr2: [Field; LEN]) {
+    for ii in 0..LEN {
+        assert_eq(arr1[ii], arr2[ii]);
+    }
+}
+
+fn main(pub xx: Field) {
+    let arr1 = gen(2);
+    let arr2 = gen(3);
+    // arrays with different sizes
+    comp(arr1, arr2); 
+}</code></pre></pre>
+<ol start="2">
+<li>Assignment type mismatched</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust">fn gen(const LEN: Field) -&gt; [Field; LEN] {
+    return [0; LEN];
+}
+
+fn main(pub xx: Field) {
+    let mut arr = [0; 3];
+    // arrays with different sizes
+    arr = gen(2);
+}</code></pre></pre>
+<ol start="3">
+<li>Custom type field mismatched</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust">struct Thing {
+    xx: [Field; 2],
+}
+
+fn gen(const LEN: Field) -&gt; [Field; LEN] {
+    return [0; LEN];
+}
+
+fn main(pub xx: Field) {
+    let arr = gen(3);
+    // array size mismatched
+    let thing = Thing { xx: arr };
+}</code></pre></pre>
+<ol start="4">
+<li>Array index out of bounds</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust">fn gen(const LEN: Field) -&gt; [Field; LEN] {
+    return [0; LEN];
+}
+fn main(pub xx: Field) {
+    let arr = gen(3);
+    // 3 is out of bounds
+    arr[3] = 1;
+}</code></pre></pre>
+<p>The newly added phase MAST will be responsible for resolving the generic values from the observed arguments. It includes type checking on the monomorphized types that are bypass in the TAST phase.</p>
+<h3 id="generic-syntax"><a class="header" href="#generic-syntax">Generic Syntax</a></h3>
+<p>This RFC proposes a simple generic syntax without the introduction of the common turbofish syntax, since we don’t need to resolve the generic parameters from the function arguments. Instead, the values of the generic parameters can be directly resolved by comparing values with the observed arguments.</p>
+<p>For example, with the turbofish, we could do something like:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn create_arr&lt;N&gt;(arr: [Field; N + 3]) -&gt; [Field; N + 3] {...}
+<span class="boring">}</span></code></pre></pre>
+<p>This is a rare case where the generic parameter can’t be trivially resolved from the observed arguments. To get it work without any advanced inference setups, it would require manually passing the value of <code>N</code> to the function via turbofish syntax, such as:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// a is then of type [Field, 6]
+let a = create_arr::&lt;3&gt;(arr);
+<span class="boring">}</span></code></pre></pre>
+<p>However, for most of the cases, the values for the generic parameters can be obtained simply by observing the arguments passed to the function. This RFC aims to keep the syntax simple and to be intuitive. Without the turbofish syntax, the generic syntax can be simplified like the following:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// the value of LEN equals to the argument passed in
+fn create_arr(const LEN: Field) -&gt; [typ; LEN]
+
+// if the argument is array, then the value of LEN equals to the size of the array
+fn last(arr: [typ; LEN]) -&gt; Field
+<span class="boring">}</span></code></pre></pre>
+<p>In the function scope, it might need to determine whether a variable is a generic parameter or not. We rules strings with at least 2 letters, which should be all capitalized, as generic parameters.</p>
+<h3 id="ast-parser"><a class="header" href="#ast-parser">AST Parser</a></h3>
+<p>Parser will need to collect the generic identifiers for the following constructions <code>FunctionDef</code>. It will add a new <code>TyKind</code>, the <code>GenericSizedArray(type, size)</code>. The size of <code>GenericSizedArray</code> is represented by a <code>Symbolic</code> value, which can contain generic parameters or concrete values.</p>
+<p>We add <code>generics</code> field to <code>FunctionDef</code>, which is a set of <code>GenericParameters</code> mapping between generic names and values.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>enum Symbolic {
+    Concrete(u32), // literal value
+    Generic(GenericParameters), // generic parameters
+    Constant(Ident), // pointing to a constant variable
+}
+
+GenericSizedArray {
+    ty: TyKind,
+    size: Symbolic,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Update <code>FunctionDef</code>:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct FunctionDef {
+    ...
+    // to add
+    pub generics: HashSet&lt;GenericIdentifier&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Example for a function with a generic parameter:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn create_arr(const LEN: Field) -&gt; [Field; LEN] {...}
+<span class="boring">}</span></code></pre></pre>
+<p>The parser should create the function definition like pseudo code below:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>FunctionDef{
+    FnSig = {
+        ...
+        generics = {"LEN": null},
+        FnArg = {
+            name: 'LEN', 
+        }
+        // Add / Mul / Generic / Concrete are variants of Symbolic enum
+        return_type: GenericSizedArray(Field, Generic("LEN"))
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>The TAST use these metadata of generic parameters for type checking the consistency of generic identifiers. In MAST phase, they will be useful for resolving the generic values from the observed arguments.</p>
+<h3 id="tast"><a class="header" href="#tast">TAST</a></h3>
+<p>The generic values are resolved from the observed arguments. If the generic parameters are declared, they should be used in the function body. We need to check if the generic parameters declared make senses.</p>
+<p><em>Type check generic parameters for functions</em></p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// shouldn't allow this, because the LEN should be defined in the function arguments
+fn foo(n: Field) -&gt; [Field; LEN] {...}
+
+// not allowed if no use of NN in the body
+fn foo(const NN: Field) {...} 
+fn foo(arr: [Field; NN]) {...} 
+<span class="boring">}</span></code></pre></pre>
+<p><em>Forbid generic function in for-loop</em></p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>for ii in 0..NN {
+    // any function takes the for loop var as its argument should be forbidden
+    fn_call(ii);
+}
+<span class="boring">}</span></code></pre></pre>
+<p>To allow generic functions in for-loop, we will need to take care of unrolling the loop and instantiating the function with the concrete value of the loop variable. This is not in the scope of this RFC.</p>
+<p><em>Forbid operations on symbolic value of arguments</em></p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// disallow arithmetic operations on the symbolic value of the function arguments,
+// such as NN * 2 in this case.
+// because it is challenging to resolve the value of NN.
+fn last(arr: [Field; NN * 2]) -&gt; Field {
+    return arr[NN - 1];
+}
+<span class="boring">}</span></code></pre></pre>
+<p><em>Defer type checks</em>
+Anything involves the generic parameters should be deferred to MAST phase. We need to defer the type checks for array with generic size.</p>
+<p>In MAST phase, the values of generic parameters can be resolved, so the symbolic values can be evaluated. Thus, all the types with generic parameters can be type checked, as the array sizes become concrete values.</p>
+<h3 id="mast"><a class="header" href="#mast">MAST</a></h3>
+<p>After the TAST phase, the MAST phase can resolve the generic values from the observed arguments by propagate the constant values through the main function AST.</p>
+<h3 id="resolving-algorithm"><a class="header" href="#resolving-algorithm">Resolving algorithm</a></h3>
+<p>The algorithm will need to handle the following two categories:</p>
+<ul>
+<li>Resolving from constant argument</li>
+<li>resolving from array argument</li>
+</ul>
+<p>Example of resolving constant arguments:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// constant generic
+// - the value of LEN can be resolved from an observed constant value propagated
+// - store the value in the function body scope
+fn gen_arr(const LEN: Field) -&gt; [Field; LEN] {
+    let arr = [Field; LEN];
+    return arr;
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Example of resolving from array arguments:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// First, here is a simple case.
+// - the LEN can be resolved from the array size of argument `arr` 
+// - store the value of N in the context
+fn last(arr: [Field; LEN]) -&gt; Field {
+    return arr[LEN - 1];
+}
+<span class="boring">}</span></code></pre></pre>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Then, here is a more challenging case that would require techniques like SMT to solve the unique values of the generic parameters.
+// Even LEN * 2 looks obvious to solve, solving it may need something like (computer algebra system) CAS in rust.
+// It is easy to evaluate the Symbolic values using the solved generic value. But the way around is difficult.
+fn last(arr: [Field; LEN * 2]) -&gt; Field {
+    return arr[LEN - 1];
+}
+<span class="boring">}</span></code></pre></pre>
+<p>In this RFC, we want to just enforce the syntax to be sufficient to support the simple cases. That is to disallow arithmetic operations among generic parameters for function arguments.</p>
+<p>To recap, here is the pseudo code for the resolving algorithm for function:</p>
+<ol>
+<li>Collect the observed arguments</li>
+<li>For each argument, resolve the generic values from the observed arguments</li>
+<li>For each statement, compute the type with the resolved generic values</li>
+<li>Type check the resolved type being returned with the expected return type</li>
+</ol>
+<h3 id="function-call-instantiation"><a class="header" href="#function-call-instantiation">Function Call Instantiation</a></h3>
+<p>The functions are defined as <code>FunctionDef</code>, which is an AST containing the signature and the body of the function. The body is a vector of statements, each of which is a tree of expression nodes. It is fine to have different function calls pointing to these functions’ original AST, when the content of these functions doesn’t change, and so are the expression nodes.</p>
+<p>However, when a function takes generic arguments, the actual arguments can result in different expression nodes. For example:</p>
+<pre><pre class="playground"><code class="language-rust">fn last(arr: [Field; LEN]) -&gt; Field {
+    return arr[LEN - 1];
+}
+
+fn main() {
+    let arr1 = [1, 2, 3, 4, 5];
+    let arr2 = [6, 7, 8, 9];
+
+    let last1 = last(arr1); // with LEN = 5
+    let last2 = last(arr2); // with LEN = 4
+}</code></pre></pre>
+<p>The monomorphized body of the function call for <code>last(arr1)</code> is <code>return arr[5 - 1]</code>, while the one for <code>last(arr2)</code> is <code>return arr[4 - 1]</code>. Therefore, we can’t have a single expression node representing both <code>arr[5 - 1]</code> and <code>arr[4 - 1]</code> expression nodes. These functions should be instantiated with new ASTs, which are monomorphized from the original ASTs. They will be regenerated with the generic parameters being resolved with concrete values. The two calls to <code>last</code> should point to two different monomorphized function instances.</p>
+<p>To ensure no conflicts in the node IDs being regenerated for these instantiated functions, the AST for the main function as an entry point will be regenerated. The monomorphized AST preserves the span information to point to the noname source code for the existing debugging feature.</p>
+<p>Same as before, these instantiated functions can be pointed by the expression nodes <code>ExprKind::FnCall</code>. With the support of generic parameters, we need to change the way of loading the function AST, as the current fully qualified name pattern doesn’t contain the information to differentiate the instantiated functions with different generic values.</p>
+<p>Thus we can generate the monomorphized function name, and use it to store the monomorphized function AST instead of the original function name. The new string pattern to store the monomorphized function AST can be:
+<code>fn_full_qualified_name#generic1=value1#generic2=value2</code></p>
+<p><em>Type checking</em>
+The instantiation of a generic function will resolve the generic types to be concrete types. Similar to the TAST phase, during the monomorphization of a function body, the computed concrete type can be propagated and compared with the return type of the function signature.</p>
+<p>The type check in this phase will always be in concrete type. Any unresolved generic type will fail the type check.</p>
+<h3 id="monomorphization-process"><a class="header" href="#monomorphization-process">Monomorphization Process</a></h3>
+<p>Here is an overview of the monomorphization process:</p>
+<ol>
+<li>
+<p>Propagates types in the same way the type checker was doing but also with constant values, which will be used to resolve the generic parameters.</p>
+</li>
+<li>
+<p>Along the way, it also propagates the AST nodes. When it is not part of a generic function, the node should remain the same. Otherwise, the node should be regenerated.</p>
+</li>
+<li>
+<p>Whenever it encounters a generic function call, it instantiates the function based on the arguments and store it as a new function with a monomorphized name, then walks through the instantiated function AST. The function call AST node will be modified with the monomorphized name while retaining the same node id and span.</p>
+</li>
+<li>
+<p>In the function instantiation process, all the AST nodes will be regenerated. This new AST will be stored under the monomorphized function name.</p>
+</li>
+<li>
+<p>After monomorphized a function, it should add the name of the original function to a list that records which function AST to delete at the end. We can’t not delete the original function AST immediately, because it might be called at different places.</p>
+</li>
+<li>
+<p>In each function block scope, it should type check the return types, by comparing the propagated return type and the defined return type. All these types should be in concrete form without generic parameters involved.</p>
+</li>
+<li>
+<p>At the end, it overrides the main function AST with the monomorphized version, and delete generic functions based on the list.</p>
+</li>
+</ol>
+<p>All the updates are done to the existing stores in the TAST.</p>
+<ul>
+<li>Instantiated functions are added to <code>HashMap&lt;FullyQualified, FnInfo&lt;B&gt;&gt;</code>.</li>
+<li>Types for Monomorphized nodes are stored in <code>HashMap&lt;usize, TyKind&gt;</code> (Keep in mind the store for node types <code>HashMap&lt;usize, TyKind&gt;</code> can also contain the node types for the deleted functions. We may need to figure out a way to safely delete the node types belonging to a deleted function)</li>
+<li>Generic functions should be delete from <code>HashMap&lt;FullyQualified, FnInfo&lt;B&gt;&gt;</code></li>
+</ul>
+<h3 id="circuit-synthesizer"><a class="header" href="#circuit-synthesizer">Circuit Synthesizer</a></h3>
+<p>Circuit synthesizer will rely on the monomorphized AST to compile the circuit. To synthesizer, the workflow will be the same as before, but with the monomorphized AST. It doesn’t need to be aware of the newly added support related to generics. The added MAST phase simplifies what needs to be done in the circuit synthesizer to support the generic features, in comparison to the alternative approach described in the following section.</p>
+<h2 id="alternative-approach"><a class="header" href="#alternative-approach">Alternative approach</a></h2>
+<p><a href="https://github.com/zksecurity/noname/pull/136">One alternative approach</a> to the monomorphization described above is to propagate the generic values directly in circuit writer, without the need to add the MAST phase.</p>
+<p>The circuit writer walks through the original AST via the <code>compile_expr</code> function. This function propagate the values from the main function argument and constants and compute the <code>VarOrRef</code> as an result. The <code>VarOrRef</code> doesn’t return the struture of the types being computed.</p>
+<p>In the process, when it needs to determine the structure of the type behind an expression node, it relies on the <code>size_of</code> function to determine the number of vars representing the type. The <code>size_of</code> relies on the node id of an expression to look up the type. This is not a problem when the types are concrete.</p>
+<p>When the type behind an expression node is generic, the way of looking up the size of a type via <code>size_of</code> is not applicable anymore, since the expression node can be of a generic type.</p>
+<p>To solve this problem, there should be a new way to determine the size of a type for an expression node without relyin on the node id. One way, described <code>ComputedExpr</code>, is to retain the structure of the type through the propagation in <code>compute_expr</code>. Instead of passing around the <code>VarOrRef</code>, the <code>compute_expr</code> returns <code>ComputedExpr</code> which contains both the structure of the type and the underlying variables <code>VarOrRef</code>.</p>
+<p>For example, when it is computing for the <code>ExprKind::ArrayAccess</code>, it can use the <code>ComputedExpr</code> of the <code>array</code> expression node to determine the size of the array, so as to do some bound checks for access index.</p>
+<p>This approach would require a significant refactor of the circuit writer’s compilation process. It would require changes to the assumptions from using <code>VarOrRef</code> to structured <code>ComputedExpr</code>. It would also need to rely on <code>ComputedExpr</code> to do some addtional checks instead of just relying on types. This would require quite a number of additional assumptions between the <code>ComputedExpr</code>, the actual types and generic parameters.</p>
+<p>Therefore, we thought the monomorphization approach is more straightforward and easier to maintain in a long run, considering the pipeline of the compiler.</p>
 
                     </main>
 
