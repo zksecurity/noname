@@ -240,6 +240,9 @@ pub enum ErrorKind {
     #[error("function `{0}` not present in scope (did you misspell it?)")]
     UndefinedFunction(String),
 
+    #[error("hint function `{0}` signature is missing its corresponding builtin function")]
+    MissingHintMapping(String),
+
     #[error("function name `{0}` is already in use by a variable present in the scope")]
     FunctionNameInUsebyVariable(String),
 
@@ -248,6 +251,12 @@ pub enum ErrorKind {
 
     #[error("attribute not recognized: `{0:?}`")]
     InvalidAttribute(AttributeKind),
+
+    #[error("unsafe attribute is needed to call a hint function. eg: `unsafe fn foo()`")]
+    ExpectedUnsafeAttribute,
+
+    #[error("unsafe attribute should only be applied to hint function calls")]
+    UnexpectedUnsafeAttribute,
 
     #[error("A return value is not used")]
     UnusedReturnValue,
