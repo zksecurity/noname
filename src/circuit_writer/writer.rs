@@ -133,7 +133,7 @@ impl<B: Backend> CircuitWriter<B> {
 
                 // store the new variable
                 // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
-                self.add_local_var(fn_env, lhs.value.clone(), var_info);
+                self.add_local_var(fn_env, lhs.value.clone(), var_info)?;
             }
 
             StmtKind::ForLoop {
@@ -178,7 +178,7 @@ impl<B: Backend> CircuitWriter<B> {
                                 false,
                                 Some(TyKind::Field { constant: true }),
                             );
-                            self.add_local_var(fn_env, var.value.clone(), var_info);
+                            self.add_local_var(fn_env, var.value.clone(), var_info)?;
 
                             self.compile_block(fn_env, body)?;
 
@@ -219,7 +219,7 @@ impl<B: Backend> CircuitWriter<B> {
                             let indexed_var = iterator_var.narrow(start, len).value(self, fn_env);
                             let var_info =
                                 VarInfo::new(indexed_var.clone(), false, Some(*elem_type.clone()));
-                            self.add_local_var(fn_env, var.value.clone(), var_info);
+                            self.add_local_var(fn_env, var.value.clone(), var_info)?;
 
                             self.compile_block(fn_env, body)?;
 
@@ -284,7 +284,7 @@ impl<B: Backend> CircuitWriter<B> {
         assert_eq!(function.sig.arguments.len(), args.len());
 
         for (name, var_info) in function.sig.arguments.iter().zip(args) {
-            self.add_local_var(fn_env, name.name.value.clone(), var_info);
+            self.add_local_var(fn_env, name.name.value.clone(), var_info)?;
         }
 
         // compile it and potentially return a return value

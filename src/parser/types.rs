@@ -452,10 +452,10 @@ impl Ty {
                     (ModulePath::Alias(maybe_module), name, span)
                 };
 
-                let ty_kind = Self::reserved_types(module, name);
+                let ty_kind = Self::reserved_types(module, name)?;
 
                 Ok(Self {
-                    kind: ty_kind?,
+                    kind: ty_kind,
                     span: token.span,
                 })
             }

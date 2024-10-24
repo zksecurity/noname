@@ -95,11 +95,11 @@ fn assert_eq_fn<B: Backend>(
         // two constants
         (ConstOrCell::Const(a), ConstOrCell::Const(b)) => {
             if a != b {
-                return Err(Error::new(
+                Err(Error::new(
                     "constraint-generation",
                     ErrorKind::AssertionFailed,
                     span,
-                ));
+                ))?
             }
         }
 
