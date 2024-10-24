@@ -105,7 +105,38 @@ fn test_generic_const_for_loop() {
         "#;
 
     let res = tast_pass(code).0;
-    assert!(matches!(res.unwrap_err().kind, ErrorKind::GenericInForLoop));
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
+fn test_generic_const_nested_for_loop() {
+    let code = r#"
+        // generic on const argument
+        fn gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+
+        fn loop() {
+            let mut arr = [0; 3];
+            for ii in 0..3 {
+                for jj in 0..3 {
+                    gen(ii);
+                }
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    println!("{:?}", res);
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
 }
 
 #[test]
@@ -125,7 +156,94 @@ fn test_generic_array_for_loop() {
         "#;
 
     let res = tast_pass(code).0;
-    assert!(matches!(res.unwrap_err().kind, ErrorKind::GenericInForLoop));
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
+fn test_generic_method_cst_for_loop() {
+    let code = r#"
+        struct Thing {
+            xx: Field,
+        }
+
+        // generic on const argument
+        fn Thing.gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+
+        fn loop() {
+            let thing = Thing { xx: 3 };
+            for ii in 0..3 {
+                thing.gen(ii);
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
+fn test_generic_method_array_for_loop() {
+    let code = r#"
+        struct Thing {
+            xx: Field,
+        }
+
+        // generic on array argument
+        fn Thing.gen(arr: [Field; LEN]) -> [Field; LEN] {
+            return arr;
+        }
+
+        fn loop() {
+            let thing = Thing { xx: 3 };
+            for ii in 0..3 {
+                thing.gen([0; ii]);
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
+fn test_generic_method_nested_for_loop() {
+    let code = r#"
+        struct Thing {
+            xx: Field,
+        }
+
+        // generic on array argument
+        fn Thing.gen(arr: [Field; LEN]) -> [Field; LEN] {
+            return arr;
+        }
+
+        fn loop() {
+            let thing = Thing { xx: 3 };
+            for ii in 0..3 {
+                for jj in 0..3 {
+                    thing.gen([0; ii]);
+                }
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
 }
 
 #[test]
@@ -143,7 +261,7 @@ fn test_generic_missing_parameter_arg() {
     ));
 }
 
-// #[test]
+#[test]
 fn test_generic_symbolic_size_mismatched() {
     let code = r#"
         fn gen(const LEN: Field) -> [Field; 2] {
@@ -155,10 +273,6 @@ fn test_generic_symbolic_size_mismatched() {
         }
         "#;
 
-    // in theory, this can be caught by the tast phase as it can be checked symbolically.
-    // but we can't archive this until
-    // - both Array and GenericArray are abstracted into one type with symbolic size.
-    // - the `match_expected` and `same_as` functions are replaced by checking rules for different contexts.
     let res = mast_pass(code).err();
 
     assert!(matches!(
