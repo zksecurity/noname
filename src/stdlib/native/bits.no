@@ -1,33 +1,5 @@
 hint fn nth_bit(value: Field, const nth: Field) -> Field;
 
-fn to_bits(const LEN: Field, value: Field) -> [Bool; LEN] {
-    let mut bits = [false; LEN];
-    let mut lc1 = 0;
-    let mut e2 = 1;
-
-    let one = 1;
-    let zero = 0;
-
-    // todo: ITE should allow literals
-    let true_val = true;
-    let false_val = false;
-
-    for index in 0..LEN {
-        let bit_num = unsafe nth_bit(value, index);
-        
-        // constrain the bit_num to be 0 or 1
-        assert_eq(bit_num * (bit_num - 1), 0);
-        
-        // convert the bit_num to boolean
-        bits[index] = if bit_num == 1 {true_val} else {false_val};
-
-        lc1 = lc1 + if bits[index] {e2} else {zero};
-        e2 = e2 + e2;
-    }
-    assert_eq(lc1, value);
-    return bits;
-}
-
 fn from_bits(bits: [Bool; LEN]) -> Field {
     let mut lc1 = 0;
     let mut e2 = 1;
@@ -38,4 +10,23 @@ fn from_bits(bits: [Bool; LEN]) -> Field {
         e2 = e2 + e2;
     }
     return lc1;
+}
+
+fn to_bits(const LEN: Field, value: Field) -> [Bool; LEN] {
+    let mut bits = [false; LEN];
+    let mut lc1 = 0;
+    let mut e2 = 1;
+
+    // todo: ITE should allow literals
+    let true_val = true;
+    let false_val = false;
+
+    for index in 0..LEN {
+        let bit_num = unsafe nth_bit(value, index);
+        
+        bits[index] = if bit_num == 1 {true_val} else {false_val};
+    }
+
+    assert_eq(from_bits(bits), value);
+    return bits;
 }
