@@ -199,7 +199,22 @@ impl<B: Backend> TypeChecker<B> {
 
                 // check if generic is allowed
                 if method_type.sig.require_monomorphization() && typed_fn_env.is_in_forloop() {
-                    return Err(self.error(ErrorKind::GenericInForLoop, expr.span));
+                    for (observed_arg, expected_arg) in
+                        args.iter().zip(method_type.sig.arguments.iter())
+                    {
+                        // check if the arg involves generic vars
+                        if !expected_arg.extract_generic_names().is_empty() {
+                            let mut forbidden_env = typed_fn_env.clone();
+                            forbidden_env.forbid_forloop_scope();
+
+                            // rewalk the observed arg expression
+                            // it should throw an error if the arg contains generic vars relating to the variables in the forloop scope
+                            self.compute_type(observed_arg, &mut forbidden_env)?;
+
+                            // release the forbidden flag
+                            forbidden_env.allow_forloop_scope();
+                        }
+                    }
                 }
 
                 // type check the method call

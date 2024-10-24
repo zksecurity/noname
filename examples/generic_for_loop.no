@@ -1,3 +1,15 @@
+struct Thing {
+    xx: Field,
+}
+
+fn Thing.clone(self, const LEN: Field) -> [Field; LEN] {
+    let mut arr = [0; LEN];
+    for idx in 0..LEN {
+        arr[idx] = self.xx;
+    }
+    return arr;
+}
+
 fn join(const LEN: Field, arr1: [Field; LLEN], arr2: [Field; RLEN]) -> [Field; LEN] {
     let mut arr = [0; LEN];
     for ii in 0..LLEN {
@@ -44,6 +56,13 @@ fn main(pub xx: Field) {
     let mut arr3 = [[0; 2]; 2];
     for idx in 0..2 {
         let cloned = clone(2, idx);
+        arr3[idx] = cloned;
+    }
+
+    // test that the generic method is callable within a for loop
+    let thing = Thing { xx: 5 };
+    for idx in 0..2 {
+        let cloned = thing.clone(2);
         arr3[idx] = cloned;
     }
 
