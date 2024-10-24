@@ -34,6 +34,14 @@ pub enum ParsingError {
 
     #[error("mismatch between expected argument format ({0}), and given argument in JSON (`{1}`)")]
     MismatchJsonArgument(TyKind, serde_json::Value),
+    #[error("Incorrect array size: Expected {0}, Got {1})")]
+    ArraySizeMismatch(usize, usize),
+    #[error("Incorrect struct fields count. {0} expected {1}, Got {2})")]
+    StructFieldCountMismatch(String, usize, usize),
+    #[error("Compiler bug: failed to locate struct name `{0}` given as input")]
+    MissingStructIdent(String),
+    #[error("Failed to locate struct field name `{0}` in JSON input")]
+    MissingStructFieldIdent(String),
 }
 
 //
@@ -93,7 +101,10 @@ impl<B: Backend> CompiledCircuit<B> {
 
             (TyKind::Array(el_typ, size), Value::Array(values)) => {
                 if values.len() != (*size as usize) {
-                    panic!("wrong size of array");
+                    Err(ParsingError::ArraySizeMismatch(
+                        values.len(),
+                        *size as usize,
+                    ))?
                 }
                 let mut res = vec![];
                 for value in values {
@@ -115,23 +126,24 @@ impl<B: Backend> CompiledCircuit<B> {
                 let struct_info = self
                     .circuit
                     .struct_info(&qualified)
-                    .expect("compiler bug: couldn't find struct given as input");
+                    .ok_or_else(|| ParsingError::MissingStructIdent(struct_name.to_string()))?;
                 let fields = &struct_info.fields;
 
                 // make sure that they're the same length
                 if fields.len() != map.len() {
-                    panic!("wrong number of fields in struct (TODO: better error)");
+                    Err(ParsingError::StructFieldCountMismatch(
+                        struct_info.name.to_string(),
+                        map.len(),
+                        fields.len(),
+                    ))?;
                 }
 
                 // parse each field
                 let mut res = vec![];
                 for (field_name, field_ty) in fields {
-                    let value = map
-                    .remove(field_name)
-                    .ok_or_else(|| {
-                        format!("couldn't find field `{field_name}` in given JSON input (TODO: better error)")
-                    })
-                    .unwrap();
+                    let value = map.remove(field_name).ok_or_else(|| {
+                        ParsingError::MissingStructFieldIdent(field_name.to_string())
+                    })?;
                     let parsed = self.parse_single_input(value, field_ty)?;
                     res.extend(parsed);
                 }

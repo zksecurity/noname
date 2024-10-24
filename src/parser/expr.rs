@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     types::{parse_fn_call_args, parse_type_declaration, Ident, ModulePath},
-    CustomType, ParserCtx,
+    CustomType, Error, ParserCtx,
 };
 
 //~
@@ -167,7 +167,11 @@ impl Expr {
                                 kind: TokenKind::Identifier(value),
                                 span,
                             }) => Ident::new(value, span),
-                            _ => panic!("cannot qualify a non-identifier"),
+                            _ => Err(Error::new(
+                                "parse indentifier",
+                                ErrorKind::UnexpectedError("cannot qualify a non-identifier"),
+                                span,
+                            ))?,
                         };
 
                         Expr::new(
@@ -240,7 +244,13 @@ impl Expr {
                         | ExprKind::FieldAccess { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {
-                    panic!("_then_ branch of ternary operator cannot be more than a variable")
+                    Err(Error::new(
+                        "parse - if keyword",
+                        ErrorKind::UnexpectedError(
+                            "_then_ branch of ternary operator cannot be more than a variable",
+                        ),
+                        span,
+                    ))?
                 }
 
                 // if cond { expr1 } else { expr2 }
@@ -267,7 +277,13 @@ impl Expr {
                         | ExprKind::FieldAccess { .. }
                         | ExprKind::ArrayAccess { .. }
                 ) {
-                    panic!("_else_ branch of ternary operator cannot be more than a variable")
+                    Err(Error::new(
+                        "parse - if keyword",
+                        ErrorKind::UnexpectedError(
+                            "_else_ branch of ternary operator cannot be more than a variable",
+                        ),
+                        span,
+                    ))?
                 }
 
                 // if cond { expr1 } else { expr2 }
@@ -547,7 +563,11 @@ impl Expr {
                     self.kind,
                     ExprKind::Variable { .. } | ExprKind::FieldAccess { .. }
                 ) {
-                    panic!("an array access can only follow a variable");
+                    Err(Error::new(
+                        "parse_rhs - left bracket",
+                        ErrorKind::UnexpectedError("an array access can only follow a variable"),
+                        self.span,
+                    ))?
                 }
 
                 // array[idx]
@@ -578,7 +598,11 @@ impl Expr {
                 // sanitize
                 let (module, fn_name) = match self.kind {
                     ExprKind::Variable { module, name } => (module, name),
-                    _ => panic!("invalid fn name"),
+                    _ => Err(Error::new(
+                        "parse rhs - LeftParen",
+                        ErrorKind::UnexpectedError("invalid function name"),
+                        self.span,
+                    ))?,
                 };
 
                 // parse the arguments

@@ -36,20 +36,18 @@ impl Error {
 /// The type of error.
 #[derive(Error, Diagnostic, Debug)]
 pub enum ErrorKind {
-    /// this error is for testing. You can use it when you want to quickly see in what file and what line of code the error is.
     #[error(
         "Unexpected error: {0}. Please report this error on https://github.com/mimoo/noname/issues"
     )]
     UnexpectedError(&'static str),
-
     #[error("variable is not mutable. You must set the `mut` keyword to make it mutable")]
     AssignmentToImmutableVariable,
-
+    #[error("the {0} of assert_eq must be of type Field or BigInt. It was of type {1}")]
+    AssertTypeMismatch(&'static str, TyKind),
     #[error(
         "the dependency `{0}` does not appear to be listed in your manifest file `Noname.toml`"
     )]
     UnknownDependency(String),
-
     #[error("the function `{1}` does not exist in the module `{0}`")]
     UnknownExternalFn(String, String),
 

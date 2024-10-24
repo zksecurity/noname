@@ -1,5 +1,6 @@
 use camino::Utf8PathBuf as PathBuf;
-use miette::{IntoDiagnostic, Result, WrapErr};
+use miette::{IntoDiagnostic, MietteError, Result, WrapErr};
+use std::io::{Error, ErrorKind};
 
 const MAIN_CONTENT: &str = r#"fn main(pub xx: Field, yy: Field) {
     let zz = yy + 1;
@@ -78,7 +79,7 @@ pub fn cmd_init(args: CmdInit) -> Result<()> {
 }
 
 fn mk(path: PathBuf, package_name: &str, is_lib: bool) -> Result<()> {
-    let user = get_git_user();
+    let user = get_git_user()?;
 
     let content = format!(
         r#"[package]
@@ -136,20 +137,21 @@ dependencies = []
     Ok(())
 }
 
-fn get_git_user() -> String {
+fn get_git_user() -> Result<String> {
     let output = std::process::Command::new("git")
         .arg("config")
         .arg("user.name")
         .output()
-        .expect("failed to execute git command");
+        .map_err(|e| MietteError::from(e))?;
 
     if !output.status.success() {
-        panic!("failed to get git user name");
+        let err = Error::new(ErrorKind::Other, "failed to get git username");
+        Err(MietteError::IoError(err))?
     }
 
     let output = String::from_utf8(output.stdout).expect("couldn't parse git output as utf8");
 
     let username = output.trim().to_owned();
 
-    username.replace(" ", "_").to_lowercase()
+    Ok(username.replace(" ", "_").to_lowercase())
 }
