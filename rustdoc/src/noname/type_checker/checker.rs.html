@@ -819,7 +819,23 @@
 <a href="#818" id="818">818</a>
 <a href="#819" id="819">819</a>
 <a href="#820" id="820">820</a>
-<a href="#821" id="821">821</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -846,6 +862,11 @@
     </span>B: Backend,
 {
     <span class="kw">pub </span>kind: FnKind&lt;B&gt;,
+    <span class="comment">// TODO: We will remove this once the native hint is supported
+    // This field is to indicate if a builtin function should be treated as a hint.
+    // instead of adding this flag to the FnKind::Builtin, we add this field to the FnInfo.
+    // Then this flag will only present in the FunctionDef.
+    </span><span class="kw">pub </span>is_hint: bool,
     <span class="kw">pub </span>span: Span,
 }
 
@@ -951,6 +972,7 @@
                 module,
                 fn_name,
                 args,
+                unsafe_attr,
             } =&gt; {
                 <span class="comment">// retrieve the function signature
                 </span><span class="kw">let </span>qualified = FullyQualified::new(<span class="kw-2">&amp;</span>module, <span class="kw-2">&amp;</span>fn_name.value);
@@ -961,6 +983,16 @@
                     )
                 })<span class="question-mark">?</span>;
                 <span class="kw">let </span>fn_sig = fn_info.sig().clone();
+
+                <span class="comment">// check if the function is a hint
+                </span><span class="kw">if </span>fn_info.is_hint &amp;&amp; !unsafe_attr {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::ExpectedUnsafeAttribute, expr.span));
+                }
+
+                <span class="comment">// unsafe attribute should only be used on hints
+                </span><span class="kw">if </span>!fn_info.is_hint &amp;&amp; <span class="kw-2">*</span>unsafe_attr {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::UnexpectedUnsafeAttribute, expr.span));
+                }
 
                 <span class="comment">// check if generic is allowed
                 </span><span class="kw">if </span>fn_sig.require_monomorphization() &amp;&amp; typed_fn_env.is_in_forloop() {

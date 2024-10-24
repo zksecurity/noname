@@ -654,7 +654,24 @@
 <a href="#653" id="653">653</a>
 <a href="#654" id="654">654</a>
 <a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::syntax::{is_generic_parameter, is_type};
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::syntax::{is_generic_parameter, is_type};
 <span class="kw">use crate</span>::{
     constants::Span,
     error::{ErrorKind, <span class="prelude-ty">Result</span>},
@@ -714,6 +731,7 @@
         module: ModulePath,
         fn_name: Ident,
         args: Vec&lt;Expr&gt;,
+        unsafe_attr: bool,
     },
 
     <span class="doccomment">/// `lhs.method_name(args)`
@@ -1035,6 +1053,21 @@
                 }
             }
 
+            TokenKind::Keyword(Keyword::Unsafe) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>fn_call = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+                <span class="comment">// should be FnCall
+                </span><span class="kw">match </span><span class="kw-2">&amp;mut </span>fn_call.kind {
+                    ExprKind::FnCall { unsafe_attr, .. } =&gt; {
+                        <span class="kw-2">*</span>unsafe_attr = <span class="bool-val">true</span>;
+                    }
+                    <span class="kw">_ </span>=&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(ErrorKind::InvalidExpression, fn_call.span));
+                    }
+                };
+
+                fn_call
+            }
+
             <span class="comment">// unrecognized pattern
             </span><span class="kw">_ </span>=&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(ErrorKind::InvalidExpression, token.span));
@@ -1232,6 +1265,7 @@
                         module,
                         fn_name,
                         args,
+                        unsafe_attr: <span class="bool-val">false</span>,
                     },
                     span,
                 )

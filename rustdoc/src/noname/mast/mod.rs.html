@@ -1239,7 +1239,14 @@
 <a href="#1238" id="1238">1238</a>
 <a href="#1239" id="1239">1239</a>
 <a href="#1240" id="1240">1240</a>
-<a href="#1241" id="1241">1241</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
+<a href="#1241" id="1241">1241</a>
+<a href="#1242" id="1242">1242</a>
+<a href="#1243" id="1243">1243</a>
+<a href="#1244" id="1244">1244</a>
+<a href="#1245" id="1245">1245</a>
+<a href="#1246" id="1246">1246</a>
+<a href="#1247" id="1247">1247</a>
+<a href="#1248" id="1248">1248</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>num_traits::ToPrimitive;
 <span class="kw">use </span>std::collections::HashMap;
 
@@ -1759,6 +1766,7 @@
             module,
             fn_name,
             args,
+            unsafe_attr,
         } =&gt; {
             <span class="comment">// compute the observed arguments types
             </span><span class="kw">let </span><span class="kw-2">mut </span>observed = Vec::with_capacity(args.len());
@@ -1789,6 +1797,7 @@
                         module: module.clone(),
                         fn_name: resolved_sig.name,
                         args: args_mono,
+                        unsafe_attr: <span class="kw-2">*</span>unsafe_attr,
                     },
                 );
                 <span class="kw">let </span>resolved_sig = <span class="kw-2">&amp;</span>fn_info.sig().generics.resolved_sig;
@@ -1809,6 +1818,7 @@
                         module: module.clone(),
                         fn_name: fn_name_mono.clone(),
                         args: args_mono,
+                        unsafe_attr: <span class="kw-2">*</span>unsafe_attr,
                     },
                 );
 
@@ -1852,6 +1862,7 @@
             <span class="kw">let </span>fn_kind = FnKind::Native(method_type.clone());
             <span class="kw">let </span><span class="kw-2">mut </span>fn_info = FnInfo {
                 kind: fn_kind,
+                is_hint: <span class="bool-val">false</span>,
                 span: method_type.span,
             };
 
@@ -2456,6 +2467,7 @@
     </span><span class="kw">let </span>func_def = <span class="kw">match </span>fn_info.kind {
         FnKind::BuiltIn(<span class="kw">_</span>, handle) =&gt; FnInfo {
             kind: FnKind::BuiltIn(sig_typed, handle),
+            is_hint: fn_info.is_hint,
             span: fn_info.span,
         },
         FnKind::Native(fn_def) =&gt; {
@@ -2467,7 +2479,9 @@
                     sig: sig_typed,
                     body: stmts_typed,
                     span: fn_def.span,
+                    is_hint: fn_def.is_hint,
                 }),
+                is_hint: fn_info.is_hint,
                 span: fn_info.span,
             }
         }

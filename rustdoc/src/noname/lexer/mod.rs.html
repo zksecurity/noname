@@ -474,7 +474,15 @@
 <a href="#473" id="473">473</a>
 <a href="#474" id="474">474</a>
 <a href="#475" id="475">475</a>
-<a href="#476" id="476">476</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
     constants::Span,
@@ -520,6 +528,10 @@
     </span>Use,
     <span class="doccomment">/// A function
     </span>Fn,
+    <span class="doccomment">/// A hint function
+    </span>Hint,
+    <span class="doccomment">/// Attribute required for hint functions
+    </span>Unsafe,
     <span class="doccomment">/// New variable
     </span>Let,
     <span class="doccomment">/// Public input
@@ -551,6 +563,8 @@
         <span class="kw">match </span>s {
             <span class="string">"use" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Use),
             <span class="string">"fn" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Fn),
+            <span class="string">"hint" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Hint),
+            <span class="string">"unsafe" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Unsafe),
             <span class="string">"let" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Let),
             <span class="string">"pub" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Pub),
             <span class="string">"return" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Return),
@@ -573,6 +587,8 @@
         <span class="kw">let </span>desc = <span class="kw">match </span><span class="self">self </span>{
             <span class="self">Self</span>::Use =&gt; <span class="string">"use"</span>,
             <span class="self">Self</span>::Fn =&gt; <span class="string">"fn"</span>,
+            <span class="self">Self</span>::Hint =&gt; <span class="string">"hint"</span>,
+            <span class="self">Self</span>::Unsafe =&gt; <span class="string">"unsafe"</span>,
             <span class="self">Self</span>::Let =&gt; <span class="string">"let"</span>,
             <span class="self">Self</span>::Pub =&gt; <span class="string">"pub"</span>,
             <span class="self">Self</span>::Return =&gt; <span class="string">"return"</span>,

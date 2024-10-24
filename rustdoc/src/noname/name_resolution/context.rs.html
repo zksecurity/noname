@@ -272,7 +272,7 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_fn_def(<span class="kw-2">&amp;</span><span class="self">self</span>, fn_def: <span class="kw-2">&amp;mut </span>FunctionDef) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>FunctionDef { sig, body, span: <span class="kw">_ </span>} = fn_def;
+        <span class="kw">let </span>FunctionDef { sig, body, .. } = fn_def;
 
         <span class="comment">//
         // signature

@@ -852,7 +852,8 @@
 <a href="#851" id="851">851</a>
 <a href="#852" id="852">852</a>
 <a href="#853" id="853">853</a>
-<a href="#854" id="854">854</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
 
 <span class="kw">use </span>ark_ff::{One, Zero};
 <span class="kw">use </span>kimchi::circuits::wires::Wire;
@@ -1233,6 +1234,7 @@
                 module,
                 fn_name,
                 args,
+                ..
             } =&gt; {
                 <span class="comment">// sanity check
                 </span><span class="kw">if </span>fn_name.value == <span class="string">"main" </span>{
