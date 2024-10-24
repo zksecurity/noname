@@ -33,7 +33,7 @@ pub fn cmd_prove(args: CmdProve) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let (sources, prover_index, verifier_index) = build(&curr_dir, false, args.debug)?;
+    let (sources, prover_index, verifier_index) = build(&curr_dir, false, args.debug, &mut None)?;
 
     // parse inputs
     let public_inputs = parse_inputs(&args.public_inputs).unwrap();
@@ -93,7 +93,7 @@ pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let (_sources, _prover_index, verifier_index) = build(&curr_dir, false, false)?;
+    let (_sources, _prover_index, verifier_index) = build(&curr_dir, false, false, &mut None)?;
 
     // parse inputs
     let mut public_inputs = parse_inputs(&args.public_inputs).unwrap();

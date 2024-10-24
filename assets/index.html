@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compiler State Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <h1 class="text-3xl font-bold mb-4">Compiler State</h1>
+        <div class="flex space-x-4">
+            <button id="resumeBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Resume
+            </button>
+            <span id="counter" class="text-gray-600">Counter: 0</span>
+        </div>
+        <div id="tabs" class="mt-4"></div>
+    </div>
+
+    <script>
+        const tabsContainer = document.getElementById('tabs');
+        const resumeBtn = document.getElementById('resumeBtn');
+        const counterSpan = document.getElementById('counter');
+        let counter = 1;
+
+        resumeBtn.addEventListener('click', () => {
+            fetch(`/resume/${counter}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    console.log(data); // Log success message from server
+                    fetchState();
+                    counter++;
+                    counterSpan.textContent = `Counter: ${counter}`;
+                })
+                .catch(error => {
+                    console.error('There has been a problem with your fetch operation:', error);
+                });
+        });
+
+        function fetchState() {
+            fetch(`/state/${counter}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    addTab(data.message.title, data.message.state);
+                })
+                .catch(error => {
+                    console.error('There has been a problem with your fetch operation:', error);
+                });
+        }
+
+        // Function to fetch initial state
+        function fetchInitialState() {
+            fetch('/states')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text(); // Expecting plain text response
+                })
+                .then(data => {
+                    counter = parseInt(data, 10) - 1;
+                    counterSpan.textContent = `Counter: ${counter}`;
+                    if (counter > 1) {
+                        fetchState();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching initial state:', error);
+                });
+        }
+
+        // Call fetchInitialState when the page loads
+        window.addEventListener('load', fetchInitialState);
+
+
+        function addTab(title, state) {
+            const tabId = `tab-${counter}`;
+
+            // Create tab button
+            const tabBtn = document.createElement('button');
+            tabBtn.id = `${tabId}-btn`;
+            tabBtn.classList.add('bg-gray-300', 'hover:bg-gray-400', 'text-gray-800', 'font-bold', 'py-2', 'px-4', 'rounded-l', 'mr-2');
+            tabBtn.textContent = title;
+            tabBtn.addEventListener('click', () => {
+                // Toggle tab content visibility
+                const tabContent = document.getElementById(tabId);
+                tabContent.classList.toggle('hidden');
+            });
+            tabsContainer.appendChild(tabBtn);
+
+            // Create tab content
+            const tabContent = document.createElement('div');
+            tabContent.id = tabId;
+            tabContent.classList.add('hidden', 'border', 'border-gray-300', 'rounded-r', 'p-4', 'bg-white');
+            tabContent.innerHTML = renderJson(JSON.parse(atob(state)));
+            tabsContainer.appendChild(tabContent);
+        }
+
+        function renderJson(json) {
+            if (typeof json !== 'object' || json === null) {
+                return `<span>${json}</span>`;
+            }
+
+            let html = '<ul>';
+            for (const key in json) {
+                html += `<li><span class="font-bold">${key}:</span> ${renderJson(json[key])}</li>`;
+            }
+            html += '</ul>';
+            return html;
+        }
+    </script>
+</body>
+
+</html>

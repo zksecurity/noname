@@ -38,7 +38,13 @@ fn test_file(
             let mut sources = Sources::new();
             let mut tast = TypeChecker::new();
             let mut node_id = 0;
-            node_id = init_stdlib_dep(&mut sources, &mut tast, node_id, "src/stdlib/native/");
+            node_id = init_stdlib_dep(
+                &mut sources,
+                &mut tast,
+                node_id,
+                "src/stdlib/native/",
+                &mut None,
+            );
             let this_module = None;
             let _node_id = typecheck_next_file(
                 &mut tast,
@@ -47,10 +53,11 @@ fn test_file(
                 file_name.to_string(),
                 code.clone(),
                 node_id,
+                &mut None,
             )
             .unwrap();
 
-            let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+            let compiled_circuit = compile(&sources, tast, kimchi_vesta, &mut None)?;
 
             let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes().unwrap();
 
@@ -102,7 +109,13 @@ fn test_file(
             let mut sources = Sources::new();
             let mut tast = TypeChecker::new();
             let mut node_id = 0;
-            node_id = init_stdlib_dep(&mut sources, &mut tast, node_id, "src/stdlib/native/");
+            node_id = init_stdlib_dep(
+                &mut sources,
+                &mut tast,
+                node_id,
+                "src/stdlib/native/",
+                &mut None,
+            );
             let this_module = None;
             let _node_id = typecheck_next_file(
                 &mut tast,
@@ -111,10 +124,11 @@ fn test_file(
                 file_name.to_string(),
                 code.clone(),
                 0,
+                &mut None,
             )
             .unwrap();
 
-            let compiled_circuit = compile(&sources, tast, r1cs)?;
+            let compiled_circuit = compile(&sources, tast, r1cs, &mut None)?;
 
             // this should check the constraints
             let generated_witness = compiled_circuit
