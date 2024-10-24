@@ -19,6 +19,16 @@ fn clone(const LEN: Field, val: Field) -> [Field; LEN] {
     return arr;
 }
 
+fn accumulate_mut(const INIT: Field) -> Field {
+    // it shouldn't fold these variables, even they hold constant values
+    // it should only fold the generic vars
+    let mut zz = INIT;
+    for ii in 0..3 {
+        zz = zz + zz;
+    }
+    return zz;
+}
+
 fn main(pub xx: Field) {
     let arr1 = [xx + 1, xx + 2];
     let arr2 = [xx + 3, xx + 4];
@@ -37,4 +47,7 @@ fn main(pub xx: Field) {
         arr3[idx] = cloned;
     }
 
+    let init_val = 1;
+    let res = accumulate_mut(init_val);
+    assert_eq(res, 8);
 }

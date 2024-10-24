@@ -7,7 +7,7 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     parser::{
-        types::{FnArg, FnSig, FuncOrMethod, ModulePath, Stmt, StmtKind, TyKind},
+        types::{FnArg, FnSig, ForLoopArgument, FuncOrMethod, ModulePath, Stmt, StmtKind, TyKind},
         ConstDef, CustomType, FunctionDef, StructDef, UsePath,
     },
 };
@@ -186,19 +186,15 @@ impl NameResCtx {
             StmtKind::Comment(_) => (),
             StmtKind::ForLoop {
                 var: _,
-                range: _,
+                argument,
                 body,
             } => {
-                for stmt in body {
-                    self.resolve_stmt(stmt)?;
+                // if the argument of the for loop is an iterator, resolve it
+                if let ForLoopArgument::Iterator(iterator) = argument {
+                    self.resolve_expr(iterator)?;
                 }
-            }
-            StmtKind::IteratorLoop {
-                var: _,
-                iterator,
-                body,
-            } => {
-                self.resolve_expr(iterator)?;
+
+                // resolve the body of the for loop
                 for stmt in body {
                     self.resolve_stmt(stmt)?;
                 }

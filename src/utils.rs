@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 pub fn noname_version() -> String {
-    format!("@ noname.{}\n\n", env!("CARGO_PKG_VERSION"))
+    format!("@ noname.{}\n", env!("CARGO_PKG_VERSION"))
 }
 
 pub fn display_source(

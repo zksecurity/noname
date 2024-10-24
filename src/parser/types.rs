@@ -247,6 +247,7 @@ impl Symbolic {
                 let lhs = Symbolic::parse(lhs)?;
                 let rhs = Symbolic::parse(rhs);
 
+                // no protected flags are needed, as this is based on expression nodes which already ordered the operations
                 match op {
                     Op2::Addition => Ok(Symbolic::Add(Box::new(lhs), Box::new(rhs?))),
                     Op2::Multiplication => Ok(Symbolic::Mul(Box::new(lhs), Box::new(rhs?))),
@@ -472,43 +473,25 @@ impl Ty {
 
                 // [type; size]
                 //         ^
-                let siz_first = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
-
-                // [type; size]
-                //            ^
-                let siz_second = tokens.bump_err(ctx, ErrorKind::InvalidToken)?;
-
-                // return Array(ty, siz) if size is a number and right_paren is ]
-                match (&siz_first.kind, &siz_second.kind) {
-                    (TokenKind::BigUInt(b), TokenKind::RightBracket) => {
-                        let siz: u32 = b
-                            .try_into()
-                            .map_err(|_e| ctx.error(ErrorKind::InvalidArraySize, siz_first.span))?;
-                        let span = span.merge_with(siz_second.span);
-
+                let expr = Expr::parse(ctx, tokens)?;
+                match expr.kind {
+                    ExprKind::BigUInt(n) => {
+                        tokens.bump_expected(ctx, TokenKind::RightBracket)?;
                         Ok(Ty {
-                            kind: TyKind::Array(Box::new(ty.kind), siz),
+                            kind: TyKind::Array(Box::new(ty.kind), n.try_into().unwrap()),
                             span,
                         })
                     }
-                    // [Field; nn]
-                    // [Field; NN]
-                    //         ^^^
-                    (TokenKind::Identifier(name), TokenKind::RightBracket) => {
-                        let siz = Ident::new(name.to_string(), siz_first.span);
-                        let span = span.merge_with(siz_second.span);
-                        let sym = if is_generic_parameter(name) {
-                            Symbolic::Generic(siz)
-                        } else {
-                            Symbolic::Constant(siz)
-                        };
-
+                    _ => {
+                        tokens.bump_expected(ctx, TokenKind::RightBracket)?;
                         Ok(Ty {
-                            kind: TyKind::GenericSizedArray(Box::new(ty.kind), sym),
+                            kind: TyKind::GenericSizedArray(
+                                Box::new(ty.kind),
+                                Symbolic::parse(&expr)?,
+                            ),
                             span,
                         })
                     }
-                    _ => Err(ctx.error(ErrorKind::InvalidSymbolicSize, siz_first.span)),
                 }
             }
 
@@ -576,7 +559,7 @@ impl FnSig {
     }
 
     /// Recursively assign values to the generic parameters based on observed Array type argument
-    fn resolve_generic_array(
+    pub fn resolve_generic_array(
         &mut self,
         sig_arg: &TyKind,
         observed: &TyKind,
@@ -602,36 +585,6 @@ impl FnSig {
                 self.resolve_generic_array(ty, observed_ty, span)?;
             }
             _ => (),
-        }
-
-        Ok(())
-    }
-
-    /// Resolve generic values for each generic parameter
-    pub fn resolve_generic_values(&mut self, observed: &[ExprMonoInfo]) -> Result<()> {
-        for (sig_arg, observed_arg) in self.arguments.clone().iter().zip(observed) {
-            let observed_ty = observed_arg.typ.clone().expect("expected type");
-            match (&sig_arg.typ.kind, &observed_ty) {
-                (TyKind::GenericSizedArray(_, _), TyKind::Array(_, _))
-                | (TyKind::Array(_, _), TyKind::Array(_, _)) => {
-                    self.resolve_generic_array(
-                        &sig_arg.typ.kind,
-                        &observed_ty,
-                        observed_arg.expr.span,
-                    )?;
-                }
-                // const NN: Field
-                _ => {
-                    let cst = observed_arg.constant;
-                    if is_generic_parameter(sig_arg.name.value.as_str()) && cst.is_some() {
-                        self.generics.assign(
-                            &sig_arg.name.value,
-                            cst.unwrap(),
-                            observed_arg.expr.span,
-                        )?;
-                    }
-                }
-            }
         }
 
         Ok(())
@@ -675,7 +628,7 @@ impl FnSig {
         let mut name = self.name.clone();
 
         if self.require_monomorphization() {
-            let mut generics = self.generics.0.iter().collect::<Vec<_>>();
+            let mut generics = self.generics.parameters.iter().collect::<Vec<_>>();
             generics.sort_by(|a, b| a.0.cmp(b.0));
 
             let generics = generics
@@ -778,23 +731,34 @@ impl Default for FuncOrMethod {
     }
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+/// Resolved types for a function signature
+pub struct ResolvedSig {
+    pub arguments: Vec<FnArg>,
+    pub return_type: Option<Ty>,
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct GenericParameters(HashMap<String, Option<u32>>);
+/// Generic parameters for a function signature
+pub struct GenericParameters {
+    pub parameters: HashMap<String, Option<u32>>,
+    pub resolved_sig: Option<ResolvedSig>,
+}
 
 impl GenericParameters {
     /// Return all generic parameter names
     pub fn names(&self) -> HashSet<String> {
-        self.0.keys().cloned().collect()
+        self.parameters.keys().cloned().collect()
     }
 
     /// Add an unbound generic parameter
     pub fn add(&mut self, name: String) {
-        self.0.insert(name, None);
+        self.parameters.insert(name, None);
     }
 
     /// Get the value of a generic parameter
     pub fn get(&self, name: &str) -> u32 {
-        self.0
+        self.parameters
             .get(name)
             .expect("generic parameter not found")
             .expect("generic value not assigned")
@@ -802,12 +766,12 @@ impl GenericParameters {
 
     /// Returns whether the generic parameters are empty
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.parameters.is_empty()
     }
 
     /// Bind a generic parameter to a value
     pub fn assign(&mut self, name: &String, value: u32, span: Span) -> Result<()> {
-        let existing = self.0.get(name);
+        let existing = self.parameters.get(name);
         match existing {
             Some(Some(v)) => {
                 if *v == value {
@@ -821,7 +785,7 @@ impl GenericParameters {
                 ))
             }
             Some(None) => {
-                self.0.insert(name.to_string(), Some(value));
+                self.parameters.insert(name.to_string(), Some(value));
                 Ok(())
             }
             None => Err(Error::new(
@@ -830,6 +794,13 @@ impl GenericParameters {
                 span,
             )),
         }
+    }
+
+    pub fn resolve_sig(&mut self, arguments: Vec<FnArg>, return_type: Option<Ty>) {
+        self.resolved_sig = Some(ResolvedSig {
+            arguments,
+            return_type,
+        });
     }
 }
 
@@ -1292,17 +1263,10 @@ pub enum StmtKind {
     Return(Box<Expr>),
     Comment(String),
 
-    // `for var in 0..10 { <body> }`
+    // `for var in 0..10 { <body> }` or `for var in vec { <body> }`
     ForLoop {
         var: Ident,
-        range: Range,
-        body: Vec<Stmt>,
-    },
-
-    // `for item in vec { <body> }`
-    IteratorLoop {
-        var: Ident,
-        iterator: Box<Expr>,
+        argument: ForLoopArgument,
         body: Vec<Stmt>,
     },
 }
@@ -1443,22 +1407,14 @@ impl Stmt {
                     let statement = Stmt::parse(ctx, tokens)?;
                     body.push(statement);
                 }
-
-                //
-                match argument {
-                    ForLoopArgument::Range(range) => Ok(Stmt {
-                        kind: StmtKind::ForLoop { var, range, body },
-                        span,
-                    }),
-                    ForLoopArgument::Iterator(iterator) => Ok(Stmt {
-                        kind: StmtKind::IteratorLoop {
-                            var,
-                            iterator,
-                            body,
-                        },
-                        span,
-                    }),
-                }
+                Ok(Stmt {
+                    kind: StmtKind::ForLoop {
+                        var,
+                        argument,
+                        body,
+                    },
+                    span,
+                })
             }
 
             // if/else

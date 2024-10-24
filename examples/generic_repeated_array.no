@@ -1,10 +1,10 @@
-fn init_arr(const LEFT: Field) -> [Field; LEFT] {
-    let arr = [0; LEFT];
+fn init_arr(const LEFT: Field) -> [Field; 1 + (LEFT * 2)] {
+    let arr = [0; 1 + (LEFT * 2)];
     return arr;
 }
 
 fn main(pub public_input: Field) -> [Field; 3] {
-    let mut arr = init_arr(3);
+    let mut arr = init_arr(1);
     for ii in 0..3 {
         arr[ii] = public_input;
     }

@@ -39,12 +39,38 @@ impl CellVar {
 
 impl<F: BackendField> BackendVar for LinearCombination<F> {}
 
+impl<F: BackendField> std::fmt::Debug for LinearCombination<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // format the linear combination as a single string
+        let mut lc = String::new();
+        for (i, (var, factor)) in self.terms.iter().enumerate() {
+            if i > 0 {
+                lc.push_str(" + ");
+            }
+
+            // format the factor
+            let factor = factor.pretty();
+            match factor.as_str() {
+                "1" => lc.push_str(&format!("v_{}", var.index)),
+                _ => lc.push_str(&format!("{} * v_{}", factor, var.index)),
+            }
+        }
+        // constant
+        if self.constant != F::zero() {
+            lc.push_str(&format!(" + {}", self.constant.pretty()));
+        }
+
+        // Write the formatted string to the formatter
+        write!(f, "{}", lc)
+    }
+}
+
 /// Linear combination of variables and constants.
 /// For example, the linear combination is represented as a * f_a + b * f_b + f_c
 /// f_a and f_b are the coefficients of a and b respectively.
 /// a and b are represented by CellVar.
 /// The constant f_c is represented by the constant field, will always multiply with the variable at index 0 which is always 1.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct LinearCombination<F>
 where
     F: BackendField,
@@ -467,6 +493,12 @@ where
 
         let mut res = String::new();
         res.push_str(&crate::utils::noname_version());
+
+        // add public outputs to public inputs
+        let num_public_inputs = self.public_inputs.len() + self.public_outputs.len();
+
+        // public inputs
+        res.push_str(&format!("@ public inputs: {}\n\n", num_public_inputs));
 
         for ((row, constraint), debug_info) in
             izip!(self.constraints.iter().enumerate(), &self.debug_info)
