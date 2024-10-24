@@ -1,0 +1,4 @@
+fn main(pub xx: Field, yy: Field) {
+    let res = xx < yy;
+    assert(res);
+}
