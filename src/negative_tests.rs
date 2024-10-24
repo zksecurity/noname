@@ -177,7 +177,7 @@ fn test_generic_missing_parameter_arg() {
     ));
 }
 
-// #[test]
+#[test]
 fn test_generic_symbolic_size_mismatched() {
     let code = r#"
         fn gen(const LEN: Field) -> [Field; 2] {
