@@ -99,6 +99,33 @@ fn test_generic_const_for_loop() {
 }
 
 #[test]
+fn test_generic_const_nested_for_loop() {
+    let code = r#"
+        // generic on const argument
+        fn gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+
+        fn loop() {
+            let mut arr = [0; 3];
+            for ii in 0..3 {
+                for jj in 0..3 {
+                    gen(ii);
+                }
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    println!("{:?}", res);
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
 fn test_generic_array_for_loop() {
     let code = r#"
         // generic on array argument

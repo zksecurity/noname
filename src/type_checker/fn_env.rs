@@ -50,8 +50,8 @@ pub struct TypedFnEnv {
     // TODO: there's an output_type field that's a reserved keyword?
     vars: HashMap<String, (usize, TypeInfo)>,
 
-    /// The forloop scope if it is within a for loop.
-    forloop_scope: Option<usize>,
+    /// The forloop scopes if it is within a for loop.
+    forloop_scopes: Vec<usize>,
 
     /// Determines if forloop variables are allowed to be accessed.
     forbid_forloop_scope: bool,
@@ -88,21 +88,21 @@ impl TypedFnEnv {
 
     /// Returns whether it is in a for loop.
     pub fn is_in_forloop(&self) -> bool {
-        if let Some(scope) = self.forloop_scope {
-            self.current_scope >= scope
+        if let Some(scope) = self.forloop_scopes.last() {
+            self.current_scope >= *scope
         } else {
             false
         }
     }
 
-    /// Flags it as in the for loop.
+    /// Pushes a new for loop scope.
     pub fn start_forloop(&mut self) {
-        self.forloop_scope = Some(self.current_scope);
+        self.forloop_scopes.push(self.current_scope);
     }
 
-    /// Flags it as not in the for loop.
+    /// Pop the last loop scope.
     pub fn end_forloop(&mut self) {
-        self.forloop_scope = None;
+        self.forloop_scopes.pop();
     }
 
     /// Returns true if a scope is a prefix of our scope.
@@ -111,8 +111,8 @@ impl TypedFnEnv {
     }
 
     pub fn is_forbidden(&self, scope: usize) -> bool {
-        let in_forbidden_scope = if let Some(forloop_scope) = self.forloop_scope {
-            scope >= forloop_scope
+        let in_forbidden_scope = if let Some(forloop_scope) = self.forloop_scopes.first() {
+            scope >= *forloop_scope
         } else {
             false
         };
