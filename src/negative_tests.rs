@@ -1,30 +1,41 @@
 use crate::{
-    backends::r1cs::{R1csBn254Field, R1CS},
-    circuit_writer::CircuitWriter,
+    backends::{
+        r1cs::{R1csBn254Field, R1CS},
+        Backend,
+    },
+    circuit_writer::{CircuitWriter, VarInfo},
     compiler::{get_nast, typecheck_next_file_inner, Sources},
+    constants::Span,
     error::{ErrorKind, Result},
+    imports::FnKind,
+    lexer::Token,
     mast::Mast,
     name_resolution::NAST,
-    type_checker::TypeChecker,
+    parser::{
+        types::{FnSig, GenericParameters},
+        ParserCtx,
+    },
+    type_checker::{FnInfo, FullyQualified, TypeChecker},
+    var::Var,
     witness::CompiledCircuit,
 };
 
-fn nast_pass(code: &str) -> Result<(NAST<R1CS<R1csBn254Field>>, usize)> {
+type R1csBackend = R1CS<R1csBn254Field>;
+
+fn nast_pass(code: &str) -> Result<(NAST<R1csBackend>, usize)> {
     let mut source = Sources::new();
-    let res = get_nast(
+    get_nast(
         None,
         &mut source,
         "example.no".to_string(),
         code.to_string(),
         0,
-    );
-
-    res
+    )
 }
 
-fn tast_pass(code: &str) -> (Result<usize>, TypeChecker<R1CS<R1csBn254Field>>, Sources) {
+fn tast_pass(code: &str) -> (Result<usize>, TypeChecker<R1csBackend>, Sources) {
     let mut source = Sources::new();
-    let mut tast = TypeChecker::<R1CS<R1csBn254Field>>::new();
+    let mut tast = TypeChecker::<R1csBackend>::new();
     let res = typecheck_next_file_inner(
         &mut tast,
         None,
@@ -37,12 +48,12 @@ fn tast_pass(code: &str) -> (Result<usize>, TypeChecker<R1CS<R1csBn254Field>>, S
     (res, tast, source)
 }
 
-fn mast_pass(code: &str) -> Result<Mast<R1CS<R1csBn254Field>>> {
+fn mast_pass(code: &str) -> Result<Mast<R1csBackend>> {
     let (_, tast, _) = tast_pass(code);
     crate::mast::monomorphize(tast)
 }
 
-fn synthesizer_pass(code: &str) -> Result<CompiledCircuit<R1CS<R1csBn254Field>>> {
+fn synthesizer_pass(code: &str) -> Result<CompiledCircuit<R1csBackend>> {
     let mast = mast_pass(code);
     CircuitWriter::generate_circuit(mast?, R1CS::new())
 }
@@ -105,7 +116,38 @@ fn test_generic_const_for_loop() {
         "#;
 
     let res = tast_pass(code).0;
-    assert!(matches!(res.unwrap_err().kind, ErrorKind::GenericInForLoop));
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
+fn test_generic_const_nested_for_loop() {
+    let code = r#"
+        // generic on const argument
+        fn gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+
+        fn loop() {
+            let mut arr = [0; 3];
+            for ii in 0..3 {
+                for jj in 0..3 {
+                    gen(ii);
+                }
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    println!("{:?}", res);
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
 }
 
 #[test]
@@ -125,7 +167,94 @@ fn test_generic_array_for_loop() {
         "#;
 
     let res = tast_pass(code).0;
-    assert!(matches!(res.unwrap_err().kind, ErrorKind::GenericInForLoop));
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
+fn test_generic_method_cst_for_loop() {
+    let code = r#"
+        struct Thing {
+            xx: Field,
+        }
+
+        // generic on const argument
+        fn Thing.gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+
+        fn loop() {
+            let thing = Thing { xx: 3 };
+            for ii in 0..3 {
+                thing.gen(ii);
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
+fn test_generic_method_array_for_loop() {
+    let code = r#"
+        struct Thing {
+            xx: Field,
+        }
+
+        // generic on array argument
+        fn Thing.gen(arr: [Field; LEN]) -> [Field; LEN] {
+            return arr;
+        }
+
+        fn loop() {
+            let thing = Thing { xx: 3 };
+            for ii in 0..3 {
+                thing.gen([0; ii]);
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
+fn test_generic_method_nested_for_loop() {
+    let code = r#"
+        struct Thing {
+            xx: Field,
+        }
+
+        // generic on array argument
+        fn Thing.gen(arr: [Field; LEN]) -> [Field; LEN] {
+            return arr;
+        }
+
+        fn loop() {
+            let thing = Thing { xx: 3 };
+            for ii in 0..3 {
+                for jj in 0..3 {
+                    thing.gen([0; ii]);
+                }
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
 }
 
 #[test]
@@ -143,7 +272,7 @@ fn test_generic_missing_parameter_arg() {
     ));
 }
 
-// #[test]
+#[test]
 fn test_generic_symbolic_size_mismatched() {
     let code = r#"
         fn gen(const LEN: Field) -> [Field; 2] {
@@ -155,10 +284,6 @@ fn test_generic_symbolic_size_mismatched() {
         }
         "#;
 
-    // in theory, this can be caught by the tast phase as it can be checked symbolically.
-    // but we can't archive this until
-    // - both Array and GenericArray are abstracted into one type with symbolic size.
-    // - the `match_expected` and `same_as` functions are replaced by checking rules for different contexts.
     let res = mast_pass(code).err();
 
     assert!(matches!(
@@ -396,6 +521,94 @@ fn test_generic_missing_parenthesis() {
     "#;
 
     let res = nast_pass(code).err();
-    println!("{:?}", res);
     assert!(matches!(res.unwrap().kind, ErrorKind::MissingParenthesis));
+}
+fn test_hint_builtin_fn(qualified: &FullyQualified, code: &str) -> Result<usize> {
+    let mut source = Sources::new();
+    let mut tast = TypeChecker::<R1csBackend>::new();
+    // mock a builtin function
+    let ctx = &mut ParserCtx::default();
+    let mut tokens = Token::parse(0, "calc(val: Field) -> Field;").unwrap();
+    let sig = FnSig::parse(ctx, &mut tokens).unwrap();
+
+    fn mocked_builtin_fn<B: Backend>(
+        _: &mut CircuitWriter<B>,
+        _: &GenericParameters,
+        _: &[VarInfo<B::Field, B::Var>],
+        _: Span,
+    ) -> Result<Option<Var<B::Field, B::Var>>> {
+        Ok(None)
+    }
+
+    let fn_info = FnInfo {
+        kind: FnKind::BuiltIn(sig, mocked_builtin_fn::<R1csBackend>),
+        is_hint: true,
+        span: Span::default(),
+    };
+
+    // add the mocked builtin function
+    // note that this should happen in the tast phase, instead of mast phase.
+    // currently this function is the only way to mock a builtin function.
+    tast.add_monomorphized_fn(qualified.clone(), fn_info);
+
+    typecheck_next_file_inner(
+        &mut tast,
+        None,
+        &mut source,
+        "example.no".to_string(),
+        code.to_string(),
+        0,
+    )
+}
+
+#[test]
+fn test_hint_call_missing_unsafe() {
+    let qualified = FullyQualified {
+        module: None,
+        name: "calc".to_string(),
+    };
+
+    let valid_code = r#"
+    hint fn calc(val: Field) -> Field;
+
+    fn main(pub xx: Field) {
+        let yy = unsafe calc(xx);
+    }
+    "#;
+
+    let res = test_hint_builtin_fn(&qualified, valid_code);
+    assert!(res.is_ok());
+
+    let invalid_code = r#"
+    hint fn calc(val: Field) -> Field;
+
+    fn main(pub xx: Field) {
+        let yy = calc(xx);
+    }
+    "#;
+
+    let res = test_hint_builtin_fn(&qualified, invalid_code);
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::ExpectedUnsafeAttribute
+    ));
+}
+
+#[test]
+fn test_nonhint_call_with_unsafe() {
+    let code = r#"
+    fn calc(val: Field) -> Field {
+        return val + 1;
+    }
+
+    fn main(pub xx: Field) {
+        let yy = unsafe calc(xx);
+    }
+    "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::UnexpectedUnsafeAttribute
+    ));
 }

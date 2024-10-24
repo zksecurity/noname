@@ -146,6 +146,9 @@ pub enum ErrorKind {
     #[error("calling generic functions in for loop is not allowed")]
     GenericInForLoop,
 
+    #[error("variable `{0}` is forbidden to be accessed in the for loop, likely due to a generic function call")]
+    VarAccessForbiddenInForLoop(String),
+
     #[error("the value passed could not be converted to a field element")]
     InvalidField(String),
 
@@ -235,6 +238,9 @@ pub enum ErrorKind {
     #[error("function `{0}` not present in scope (did you misspell it?)")]
     UndefinedFunction(String),
 
+    #[error("hint function `{0}` signature is missing its corresponding builtin function")]
+    MissingHintMapping(String),
+
     #[error("function name `{0}` is already in use by a variable present in the scope")]
     FunctionNameInUsebyVariable(String),
 
@@ -243,6 +249,12 @@ pub enum ErrorKind {
 
     #[error("attribute not recognized: `{0:?}`")]
     InvalidAttribute(AttributeKind),
+
+    #[error("unsafe attribute is needed to call a hint function. eg: `unsafe fn foo()`")]
+    ExpectedUnsafeAttribute,
+
+    #[error("unsafe attribute should only be applied to hint function calls")]
+    UnexpectedUnsafeAttribute,
 
     #[error("A return value is not used")]
     UnusedReturnValue,

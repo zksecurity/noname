@@ -25,6 +25,11 @@ where
     B: Backend,
 {
     pub kind: FnKind<B>,
+    // TODO: We will remove this once the native hint is supported
+    // This field is to indicate if a builtin function should be treated as a hint.
+    // instead of adding this flag to the FnKind::Builtin, we add this field to the FnInfo.
+    // Then this flag will only present in the FunctionDef.
+    pub is_hint: bool,
     pub span: Span,
 }
 
@@ -130,6 +135,7 @@ impl<B: Backend> TypeChecker<B> {
                 module,
                 fn_name,
                 args,
+                unsafe_attr,
             } => {
                 // retrieve the function signature
                 let qualified = FullyQualified::new(&module, &fn_name.value);
@@ -141,9 +147,32 @@ impl<B: Backend> TypeChecker<B> {
                 })?;
                 let fn_sig = fn_info.sig().clone();
 
+                // check if the function is a hint
+                if fn_info.is_hint && !unsafe_attr {
+                    return Err(self.error(ErrorKind::ExpectedUnsafeAttribute, expr.span));
+                }
+
+                // unsafe attribute should only be used on hints
+                if !fn_info.is_hint && *unsafe_attr {
+                    return Err(self.error(ErrorKind::UnexpectedUnsafeAttribute, expr.span));
+                }
+
                 // check if generic is allowed
                 if fn_sig.require_monomorphization() && typed_fn_env.is_in_forloop() {
-                    return Err(self.error(ErrorKind::GenericInForLoop, expr.span));
+                    for (observed_arg, expected_arg) in args.iter().zip(fn_sig.arguments.iter()) {
+                        // check if the arg involves generic vars
+                        if !expected_arg.extract_generic_names().is_empty() {
+                            let mut forbidden_env = typed_fn_env.clone();
+                            forbidden_env.forbid_forloop_scope();
+
+                            // rewalk the observed arg expression
+                            // it should throw an error if the arg contains generic vars relating to the variables in the forloop scope
+                            self.compute_type(observed_arg, &mut forbidden_env)?;
+
+                            // release the forbidden flag
+                            forbidden_env.allow_forloop_scope();
+                        }
+                    }
                 }
 
                 // type check the function call
@@ -186,7 +215,22 @@ impl<B: Backend> TypeChecker<B> {
 
                 // check if generic is allowed
                 if method_type.sig.require_monomorphization() && typed_fn_env.is_in_forloop() {
-                    return Err(self.error(ErrorKind::GenericInForLoop, expr.span));
+                    for (observed_arg, expected_arg) in
+                        args.iter().zip(method_type.sig.arguments.iter())
+                    {
+                        // check if the arg involves generic vars
+                        if !expected_arg.extract_generic_names().is_empty() {
+                            let mut forbidden_env = typed_fn_env.clone();
+                            forbidden_env.forbid_forloop_scope();
+
+                            // rewalk the observed arg expression
+                            // it should throw an error if the arg contains generic vars relating to the variables in the forloop scope
+                            self.compute_type(observed_arg, &mut forbidden_env)?;
+
+                            // release the forbidden flag
+                            forbidden_env.allow_forloop_scope();
+                        }
+                    }
                 }
 
                 // type check the method call
@@ -375,7 +419,7 @@ impl<B: Backend> TypeChecker<B> {
                         // otherwise it's a local variable
                         // generic parameter is also checked as a local variable
                         typed_fn_env
-                            .get_type(&name.value)
+                            .get_type(&name.value)?
                             .ok_or_else(|| self.error(ErrorKind::UndefinedVariable, name.span))?
                             .clone()
                     };
@@ -584,9 +628,12 @@ impl<B: Backend> TypeChecker<B> {
         typed_fn_env: &mut TypedFnEnv,
         stmts: &[Stmt],
         expected_return: Option<&Ty>,
+        new_scope: bool,
     ) -> Result<()> {
         // enter the scope
-        typed_fn_env.nest();
+        if new_scope {
+            typed_fn_env.nest();
+        }
 
         let mut return_typ = None;
 
@@ -621,7 +668,9 @@ impl<B: Backend> TypeChecker<B> {
         };
 
         // exit the scope
-        typed_fn_env.pop();
+        if new_scope {
+            typed_fn_env.pop();
+        }
 
         Ok(())
     }
@@ -698,7 +747,7 @@ impl<B: Backend> TypeChecker<B> {
                 typed_fn_env.start_forloop();
 
                 // check block
-                self.check_block(typed_fn_env, body, None)?;
+                self.check_block(typed_fn_env, body, None, false)?;
 
                 // exit the scope
                 typed_fn_env.pop();
@@ -735,7 +784,7 @@ impl<B: Backend> TypeChecker<B> {
         span: Span,
     ) -> Result<Option<TyKind>> {
         // check if a function names is in use already by another variable
-        match typed_fn_env.get_type_info(&fn_sig.name.value) {
+        match typed_fn_env.get_type_info(&fn_sig.name.value)? {
             Some(_) => {
                 return Err(self.error(
                     ErrorKind::FunctionNameInUsebyVariable(fn_sig.name.value),

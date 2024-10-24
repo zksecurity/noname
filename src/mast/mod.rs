@@ -525,6 +525,7 @@ fn monomorphize_expr<B: Backend>(
             module,
             fn_name,
             args,
+            unsafe_attr,
         } => {
             // compute the observed arguments types
             let mut observed = Vec::with_capacity(args.len());
@@ -555,6 +556,7 @@ fn monomorphize_expr<B: Backend>(
                         module: module.clone(),
                         fn_name: resolved_sig.name,
                         args: args_mono,
+                        unsafe_attr: *unsafe_attr,
                     },
                 );
                 let resolved_sig = &fn_info.sig().generics.resolved_sig;
@@ -575,6 +577,7 @@ fn monomorphize_expr<B: Backend>(
                         module: module.clone(),
                         fn_name: fn_name_mono.clone(),
                         args: args_mono,
+                        unsafe_attr: *unsafe_attr,
                     },
                 );
 
@@ -618,6 +621,7 @@ fn monomorphize_expr<B: Backend>(
             let fn_kind = FnKind::Native(method_type.clone());
             let mut fn_info = FnInfo {
                 kind: fn_kind,
+                is_hint: false,
                 span: method_type.span,
             };
 
@@ -1246,6 +1250,7 @@ pub fn instantiate_fn_call<B: Backend>(
     let func_def = match fn_info.kind {
         FnKind::BuiltIn(_, handle) => FnInfo {
             kind: FnKind::BuiltIn(sig_typed, handle),
+            is_hint: fn_info.is_hint,
             span: fn_info.span,
         },
         FnKind::Native(fn_def) => {
@@ -1257,7 +1262,9 @@ pub fn instantiate_fn_call<B: Backend>(
                     sig: sig_typed,
                     body: stmts_typed,
                     span: fn_def.span,
+                    is_hint: fn_def.is_hint,
                 }),
+                is_hint: fn_info.is_hint,
                 span: fn_info.span,
             }
         }

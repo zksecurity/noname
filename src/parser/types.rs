@@ -712,6 +712,7 @@ impl Attribute {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionDef {
+    pub is_hint: bool,
     pub sig: FnSig,
     pub body: Vec<Stmt>,
     pub span: Span,
@@ -853,6 +854,38 @@ impl FnArg {
             .as_ref()
             .map(|attr| attr.is_constant())
             .unwrap_or(false)
+    }
+
+    pub fn extract_generic_names(&self) -> HashSet<String> {
+        let mut generics = HashSet::new();
+
+        match &self.typ.kind {
+            TyKind::Field { .. } => {
+                // extract from const argument
+                if is_generic_parameter(&self.name.value) && self.is_constant() {
+                    generics.insert(self.name.value.to_string());
+                }
+            }
+            TyKind::Array(ty, _) => {
+                // recursively extract all generic parameters from the item type
+                let extracted = ty.extract_generics();
+
+                for name in extracted {
+                    generics.insert(name);
+                }
+            }
+            TyKind::GenericSizedArray(_, _) => {
+                // recursively extract all generic parameters from the symbolic size
+                let extracted = self.typ.kind.extract_generics();
+
+                for name in extracted {
+                    generics.insert(name);
+                }
+            }
+            _ => (),
+        }
+
+        generics
     }
 }
 
@@ -1152,7 +1185,35 @@ impl FunctionDef {
             ));
         }
 
-        let func = Self { sig, body, span };
+        let func = Self {
+            sig,
+            body,
+            span,
+            is_hint: false,
+        };
+
+        Ok(func)
+    }
+
+    /// Parse a hint function signature
+    pub fn parse_hint(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        // parse signature
+        let sig = FnSig::parse(ctx, tokens)?;
+        let span = sig.name.span;
+
+        // make sure that it doesn't shadow a builtin
+        if BUILTIN_FN_NAMES.contains(&sig.name.value.as_ref()) {
+            return Err(ctx.error(ErrorKind::ShadowingBuiltIn(sig.name.value.clone()), span));
+        }
+
+        // for now the body is empty.
+        // this will be changed once the native hint is implemented.
+        let func = Self {
+            sig,
+            body: vec![],
+            span,
+            is_hint: true,
+        };
 
         Ok(func)
     }
