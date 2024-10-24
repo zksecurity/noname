@@ -20,6 +20,9 @@ pub mod bits;
 pub mod builtins;
 pub mod crypto;
 
+/// The directory under [NONAME_DIRECTORY] containing the native stdlib.
+pub const STDLIB_DIRECTORY: &str = "src/stdlib/native/";
+
 pub enum AllStdModules {
     Builtins,
     Crypto,
