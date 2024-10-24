@@ -15,3 +15,6 @@ pub const NONAME_DIRECTORY: &str = ".noname";
 
 /// The directory under [NONAME_DIRECTORY] containing all package-related files.
 pub const PACKAGE_DIRECTORY: &str = "packages";
+
+/// The directory under [NONAME_DIRECTORY] containing all the latest noname release.
+pub const RELEASE_DIRECTORY: &str = "release";

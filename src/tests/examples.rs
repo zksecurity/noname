@@ -10,6 +10,7 @@ use crate::{
     },
     compiler::{compile, typecheck_next_file, Sources},
     inputs::{parse_inputs, ExtField},
+    stdlib::{init_stdlib_dep, STDLIB_DIRECTORY},
     type_checker::TypeChecker,
 };
 
@@ -36,6 +37,8 @@ fn test_file(
             // compile
             let mut sources = Sources::new();
             let mut tast = TypeChecker::new();
+            let mut node_id = 0;
+            node_id = init_stdlib_dep(&mut sources, &mut tast, node_id, STDLIB_DIRECTORY);
             let this_module = None;
             let _node_id = typecheck_next_file(
                 &mut tast,
@@ -43,7 +46,7 @@ fn test_file(
                 &mut sources,
                 file_name.to_string(),
                 code.clone(),
-                0,
+                node_id,
             )
             .unwrap();
 
@@ -98,6 +101,8 @@ fn test_file(
             // compile
             let mut sources = Sources::new();
             let mut tast = TypeChecker::new();
+            let mut node_id = 0;
+            node_id = init_stdlib_dep(&mut sources, &mut tast, node_id, STDLIB_DIRECTORY);
             let this_module = None;
             let _node_id = typecheck_next_file(
                 &mut tast,

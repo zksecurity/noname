@@ -150,6 +150,29 @@ impl<B: Backend> TypeChecker<B> {
             .expect("couldn't find the struct for storing the method");
         struct_info.methods.remove(method_name);
     }
+
+    /// Update the type of a struct field.
+    /// When the assignment is done, we need to update the type of the field.
+    /// This is only for the case of updating field types to either a constant or a variable.
+    pub fn update_struct_field(
+        &mut self,
+        qualified: &FullyQualified,
+        field_name: &str,
+        typ: TyKind,
+    ) {
+        let struct_info = self
+            .structs
+            .get_mut(qualified)
+            .expect("couldn't find the struct for storing the method");
+
+        // update the field type
+        for field in struct_info.fields.iter_mut() {
+            if field.0 == field_name {
+                field.1 = typ;
+                return;
+            }
+        }
+    }
 }
 
 impl<B: Backend> TypeChecker<B> {

@@ -1,8 +1,7 @@
 use std::bits;
 
-// 010 = xx, where xx = 2
 fn main(pub xx: Field) {
-    // var
+    // calculate on a cell var
     let bits = bits::to_bits(3, xx);
     assert(!bits[0]);
     assert(bits[1]);
@@ -11,7 +10,7 @@ fn main(pub xx: Field) {
     let val = bits::from_bits(bits);
     assert_eq(val, xx);
 
-    // constant
+    // calculate on a constant
     let cst_bits = bits::to_bits(3, 2);
     assert(!cst_bits[0]);
     assert(cst_bits[1]);

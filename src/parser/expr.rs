@@ -545,9 +545,11 @@ impl Expr {
                 // sanity check
                 if !matches!(
                     self.kind,
-                    ExprKind::Variable { .. } | ExprKind::FieldAccess { .. }
+                    ExprKind::Variable { .. }
+                        | ExprKind::FieldAccess { .. }
+                        | ExprKind::ArrayAccess { .. }
                 ) {
-                    panic!("an array access can only follow a variable");
+                    panic!("an array access can only follow a variable or another array access");
                 }
 
                 // array[idx]
