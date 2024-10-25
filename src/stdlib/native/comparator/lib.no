@@ -1,26 +1,33 @@
 use std::bits;
 
-// Instead of comparing bit by bit, we check the carry bit:
-// lhs + (1 << LEN) - rhs
-// proof:
-// lhs + (1 << LEN) will add a carry bit, valued 1, to the bit array representing lhs, 
-// resulted in a bit array of length LEN + 1, named as sum_bits.
-// if `lhs < rhs``, then `lhs - rhs < 0`, thus `(1 << LEN) + lhs - rhs < (1 << LEN)`
-// then, the carry bit of sum_bits is 0.
-// otherwise, the carry bit of sum_bits is 1.
+/// Checks if `lhs` is less than `rhs` by evaluating the carry bit after addition and subtraction.
+/// 
+/// # Parameters
+/// - `LEN`: The assumped bit length of both `lhs` and `rhs`.
+/// - `lhs`: The left-hand side `Field` value to be compared.
+/// - `rhs`: The right-hand side `Field` value to be compared.
+///
+/// # Returns
+/// - `Bool`: `true` if `lhs` is less than `rhs`, otherwise `false`.
+///
+/// # Proof
+/// - Adding `pow2` to `lhs` ensures a carry bit is added to the result, creating a bit array of length `LEN + 1`.
+/// - If `lhs < rhs`, then `lhs - rhs < 0`, making `(1 << LEN) + lhs - rhs` less than `1 << LEN`, resulting in a carry bit of `0`.
+/// - Otherwise, the carry bit will be `1`.
+///
 fn less_than(const LEN: Field, lhs: Field, rhs: Field) -> Bool {
     let carry_bit_len = LEN + 1;
 
-    // 1 << LEN
+    // Calculate 2^LEN using bit shifts.
     let mut pow2 = 1;
     for ii in 0..LEN {
         pow2 = pow2 + pow2;
     }
 
+    // Calculate the adjusted sum to determine the carry bit.
     let sum = (pow2 + lhs) - rhs;
     let sum_bit = bits::to_bits(carry_bit_len, sum);
 
-    // todo: modify the ife to allow literals
     let b1 = false;
     let b2 = true;
     let res = if sum_bit[LEN] { b1 } else { b2 };
@@ -28,12 +35,20 @@ fn less_than(const LEN: Field, lhs: Field, rhs: Field) -> Bool {
     return res;
 }
 
-// Less than or equal to.
-// based on the proof of less_than():
-// adding 1 to the rhs, can upper bound by 1 for the lhs:
-// lhs < rhs + 1
-// is equivalent to
-// lhs <= rhs
+/// Checks if `lhs` is less than or equal to `rhs` using the `less_than` function.
+/// 
+/// # Parameters
+/// - `LEN`: The assumped bit length of both `lhs` and `rhs`.
+/// - `lhs`: The left-hand side `Field` value to be compared.
+/// - `rhs`: The right-hand side `Field` value to be compared.
+///
+/// # Returns
+/// - `Bool`: `true` if `lhs` is less than or equal to `rhs`, otherwise `false`.
+///
+/// # Proof
+/// By adding 1 to rhs can increase upper bound by 1 for the lhs.
+/// Thus, `lhs < lhs + 1` => `lhs <= rhs`.
+/// ```
 fn less_eq_than(const LEN: Field, lhs: Field, rhs: Field) -> Bool {
     return less_than(LEN, lhs, rhs + 1);
 }
