@@ -7,6 +7,8 @@ use camino::Utf8PathBuf as PathBuf;
 use miette::{Context, IntoDiagnostic, Result};
 use serde::{Deserialize, Serialize};
 
+use crate::stdlib::STDLIB_DIRECTORY;
+
 use super::{
     manifest::{read_manifest, Manifest},
     NONAME_DIRECTORY, PACKAGE_DIRECTORY, RELEASE_DIRECTORY,
@@ -248,7 +250,7 @@ pub(crate) fn path_to_stdlib() -> PathBuf {
         .expect("invalid UTF8 path");
     let noname_dir = home_dir.join(NONAME_DIRECTORY);
 
-    noname_dir.join(RELEASE_DIRECTORY).join("src/stdlib/native")
+    noname_dir.join(RELEASE_DIRECTORY).join(STDLIB_DIRECTORY)
 }
 
 /// download package from github
