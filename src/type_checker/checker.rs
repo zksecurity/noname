@@ -16,7 +16,7 @@ use crate::{
     syntax::is_type,
 };
 
-use super::{Error, FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
+use super::{FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
 
 /// Keeps track of the signature of a user-defined function.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -303,24 +303,26 @@ impl<B: Backend> TypeChecker<B> {
                 // check that the var exists locally
                 let lhs_info = typed_fn_env
                     .get_type_info(&lhs_name)
-                    .ok_or_else(|| {
-                        self.error(ErrorKind::UnexpectedError("variable not found"), expr.span)
+                    .or_else(|_| {
+                        Err(self.error(ErrorKind::UnexpectedError("variable not found"), expr.span))
                     })?
                     .clone();
 
                 // and is mutable
-                if !lhs_info.mutable {
-                    return Err(self.error(ErrorKind::AssignmentToImmutableVariable, expr.span));
+                if let Some(lhs_info) = lhs_info {
+                    if !lhs_info.mutable {
+                        Err(self.error(ErrorKind::AssignmentToImmutableVariable, expr.span))?;
+                    }
                 }
 
                 // and is of the same type as the rhs
                 let rhs_typ = self.compute_type(rhs, typed_fn_env)?.unwrap();
 
                 if !rhs_typ.typ.match_expected(&lhs_node.typ, false) {
-                    return Err(self.error(
+                    Err(self.error(
                         ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_typ.typ.clone()),
                         expr.span,
-                    ));
+                    ))?;
                 }
 
                 None
