@@ -29,15 +29,18 @@ fn select_element(arr: [[Field; WIDLEN]; ARRLEN], target_idx: Field) -> [Field; 
     let mut out = [0; WIDLEN];
 
     let selector_arr = selector(ARRLEN, target_idx);
+    let mut one_len_arr = [0; ARRLEN];
 
     for idx in 0..WIDLEN {
-        let mut one_len_arr = [0; ARRLEN];
         for jdx in 0..ARRLEN {
             one_len_arr[jdx] = arr[jdx][idx];
         }
         // there is only one element in the selector_arr that is 1
         // so the result is the element in one_len_arr that is at the same index as the 1 in selector_arr
         out[idx] = escalar_product(one_len_arr, selector_arr);
+
+        // reset one_len_arr
+        one_len_arr = [0; ARRLEN];
     }
     return out;
 }
