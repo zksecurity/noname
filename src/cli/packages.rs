@@ -278,7 +278,7 @@ pub fn download_stdlib() -> Result<()> {
     // Hardcoded repository details and target branch
     let repo_owner = "zksecurity";
     let repo_name = "noname";
-    let target_branch = "release";
+    let target_branch = "main";
     let repo_url = format!(
         "https://github.com/{owner}/{repo}.git",
         owner = repo_owner,
