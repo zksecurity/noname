@@ -1,0 +1,34 @@
+hint fn nth_bit(value: Field, const nth: Field) -> Field;
+
+// Convert a bit array to a Field
+fn from_bits(bits: [Bool; LEN]) -> Field {
+    let mut lc1 = 0;
+    let mut e2 = 1;
+    let zero = 0;
+
+    for index in 0..LEN {
+        lc1 = lc1 + if bits[index] {e2} else {zero};
+        e2 = e2 + e2;
+    }
+    return lc1;
+}
+
+// Convert a Field to a bit array
+fn to_bits(const LEN: Field, value: Field) -> [Bool; LEN] {
+    let mut bits = [false; LEN];
+    let mut lc1 = 0;
+    let mut e2 = 1;
+
+    // todo: ITE should allow literals
+    let true_val = true;
+    let false_val = false;
+
+    for index in 0..LEN {
+        let bit_num = unsafe nth_bit(value, index);
+        
+        bits[index] = if bit_num == 1 {true_val} else {false_val};
+    }
+
+    assert_eq(from_bits(bits), value);
+    return bits;
+}

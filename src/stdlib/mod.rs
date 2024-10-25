@@ -20,6 +20,9 @@ pub mod bits;
 pub mod builtins;
 pub mod crypto;
 
+/// The directory under [NONAME_DIRECTORY] containing the native stdlib.
+pub const STDLIB_DIRECTORY: &str = "src/stdlib/native/";
+
 pub enum AllStdModules {
     Builtins,
     Crypto,
@@ -97,7 +100,7 @@ pub fn init_stdlib_dep<B: Backend>(
     for lib in libs {
         let module = UserRepo::new(&format!("std/{}", lib));
         let prefix_stdlib = Path::new(path_prefix);
-        let code = std::fs::read_to_string(prefix_stdlib.join(format!("{lib}.no"))).unwrap();
+        let code = std::fs::read_to_string(prefix_stdlib.join(format!("{lib}/lib.no"))).unwrap();
         node_id =
             typecheck_next_file(tast, Some(module), sources, lib.to_string(), code, 0).unwrap();
     }
