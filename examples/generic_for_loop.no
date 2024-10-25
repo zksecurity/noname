@@ -1,3 +1,15 @@
+struct Thing {
+    xx: Field,
+}
+
+fn Thing.clone(self, const LEN: Field) -> [Field; LEN] {
+    let mut arr = [0; LEN];
+    for idx in 0..LEN {
+        arr[idx] = self.xx;
+    }
+    return arr;
+}
+
 fn join(const LEN: Field, arr1: [Field; LLEN], arr2: [Field; RLEN]) -> [Field; LEN] {
     let mut arr = [0; LEN];
     for ii in 0..LLEN {
@@ -8,6 +20,14 @@ fn join(const LEN: Field, arr1: [Field; LLEN], arr2: [Field; RLEN]) -> [Field; L
         arr[jj + LLEN] = arr2[jj];
     }
 
+    return arr;
+}
+
+fn clone(const LEN: Field, val: Field) -> [Field; LEN] {
+    let mut arr = [0; LEN];
+    for idx in 0..LEN {
+        arr[idx] = val;
+    }
     return arr;
 }
 
@@ -31,6 +51,20 @@ fn main(pub xx: Field) {
     assert_eq(arr[1], arr1[1]);
     assert_eq(arr[2], arr2[0]);
     assert_eq(arr[3], arr2[1]);
+
+    // test that the generic function is callable within a for loop
+    let mut arr3 = [[0; 2]; 2];
+    for idx in 0..2 {
+        let cloned = clone(2, idx);
+        arr3[idx] = cloned;
+    }
+
+    // test that the generic method is callable within a for loop
+    let thing = Thing { xx: 5 };
+    for idx in 0..2 {
+        let cloned = thing.clone(2);
+        arr3[idx] = cloned;
+    }
 
     let init_val = 1;
     let res = accumulate_mut(init_val);
