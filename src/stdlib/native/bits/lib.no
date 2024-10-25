@@ -1,5 +1,6 @@
 hint fn nth_bit(value: Field, const nth: Field) -> Field;
 
+// Convert a bit array to a Field
 fn from_bits(bits: [Bool; LEN]) -> Field {
     let mut lc1 = 0;
     let mut e2 = 1;
@@ -12,6 +13,7 @@ fn from_bits(bits: [Bool; LEN]) -> Field {
     return lc1;
 }
 
+// Convert a Field to a bit array
 fn to_bits(const LEN: Field, value: Field) -> [Bool; LEN] {
     let mut bits = [false; LEN];
     let mut lc1 = 0;
