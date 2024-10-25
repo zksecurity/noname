@@ -16,7 +16,7 @@ use crate::{
     syntax::is_type,
 };
 
-use super::{Error, FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
+use super::{FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
 
 /// Keeps track of the signature of a user-defined function.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -342,10 +342,10 @@ impl<B: Backend> TypeChecker<B> {
                     match (&lhs_node.typ, &rhs_node.typ) {
                         (TyKind::Field { .. }, TyKind::Field { .. }) => (),
                         _ => {
-                            return Err(self.error(
+                            Err(self.error(
                                 ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
                                 expr.span,
-                            ))
+                            ))?
                         }
                     }
                 }
