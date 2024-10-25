@@ -174,24 +174,37 @@ fn test_mimc(#[case] key: u32, #[case] val: u32, #[case] n_rounds: usize) -> Res
     Ok(())
 }
 
-// #[rstest]
-// #[case(0, vec![1, 2, 3], 91)]
-// fn test_multi_mimc(#[case] key: u32, #[case] values: Vec<u32>, #[case] n_rounds: usize) -> Result<()> {
-//     let public_inputs = format!(r#"{{"key": "{}"}}"#, key);
-//     let private_inputs = format!(r#"{{"values": {:?}}}"#, values);
+#[rstest]
+#[case(0, vec![1, 2, 3])]
+fn test_multi_mimc(
+    #[case] key: u32,
+    #[case] values: Vec<u32>,
+) -> Result<()> {
+    let k = fq_from_str(key.to_string().as_str());
+    let x = values
+        .iter()
+        .map(|v| fq_from_str(v.to_string().as_str()))
+        .collect();
 
-//     let k = fq_from_str(key.to_string().as_str());
-//     let x = values.iter().map(|v| fq_from_str(v.to_string().as_str())).collect();
+    let expected_output: BigUint = multi_mimc7(k, x, 91).into();
 
-//     let expected_output: BigUint = multi_mimc7(k, x, n_rounds).into();
+    let public_inputs = format!(r#"{{"key": "{}"}}"#, key);
+    // convert to ["1", "2", ...]
+    let private_inputs = format!(
+        r#"{{"values": {:?}}}"#,
+        values
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<String>>()
+    );
 
-//     test_stdlib(
-//         "mimc/multi_mimc_main.no",
-//         None,
-//         &public_inputs,
-//         &private_inputs,
-//         vec![&expected_output.to_string()],
-//     )?;
+    test_stdlib(
+        "mimc/multi_mimc_main.no",
+        None,
+        &public_inputs,
+        &private_inputs,
+        vec![&expected_output.to_string()],
+    )?;
 
-//     Ok(())
-// }
+    Ok(())
+}
