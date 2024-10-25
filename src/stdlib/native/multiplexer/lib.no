@@ -1,5 +1,6 @@
 use std::comparator;
 
+// multiply two vectors of the same length and return the accumulated sum
 fn escalar_product(lhs: [Field; LEN], rhs: [Field; LEN]) -> Field {
     let mut lc = 0;
     for idx in 0..LEN {
@@ -8,7 +9,8 @@ fn escalar_product(lhs: [Field; LEN], rhs: [Field; LEN]) -> Field {
     return lc;
 }
 
-fn selector(const LEN: Field, target_idx: Field) -> [Field; LEN] {
+// return a vector of length LEN with all zeros except for a one at the target_idx
+fn gen_selector_arr(const LEN: Field, target_idx: Field) -> [Field; LEN] {
     let mut out = [0; LEN];
     let mut lc = 0;
     let one = 1;
@@ -25,10 +27,11 @@ fn selector(const LEN: Field, target_idx: Field) -> [Field; LEN] {
     return out;
 }
 
+// select an array of arrays
 fn select_element(arr: [[Field; WIDLEN]; ARRLEN], target_idx: Field) -> [Field; WIDLEN] {
     let mut out = [0; WIDLEN];
 
-    let selector_arr = selector(ARRLEN, target_idx);
+    let selector_arr = gen_selector_arr(ARRLEN, target_idx);
     let mut one_len_arr = [0; ARRLEN];
 
     for idx in 0..WIDLEN {
