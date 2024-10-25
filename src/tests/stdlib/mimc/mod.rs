@@ -176,10 +176,7 @@ fn test_mimc(#[case] key: u32, #[case] val: u32, #[case] n_rounds: usize) -> Res
 
 #[rstest]
 #[case(0, vec![1, 2, 3])]
-fn test_multi_mimc(
-    #[case] key: u32,
-    #[case] values: Vec<u32>,
-) -> Result<()> {
+fn test_multi_mimc(#[case] key: u32, #[case] values: Vec<u32>) -> Result<()> {
     let k = fq_from_str(key.to_string().as_str());
     let x = values
         .iter()
