@@ -9,6 +9,10 @@ fi
 DIR_PATH=$1
 CURVE=$2
 
+# Init stdlib in .noname/release/src/stdlib instead of downloading
+echo "Overriding stdlib in .noname/release/src/stdlib..."
+mkdir -p ~/.noname/release/src/stdlib/ && cp -r /app/noname/src/stdlib/* ~/.noname/release/src/stdlib/
+
 # Ensure the circuit directory exists and is initialized
 echo "Initializing a new Noname package..."
 noname new --path circuit_noname
