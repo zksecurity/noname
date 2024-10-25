@@ -1,6 +1,24 @@
 use std::comparator;
 
-// multiply two vectors of the same length and return the accumulated sum
+/// Multiplies two vectors of the same length and returns the accumulated sum (dot product).
+///
+/// # Parameters
+/// - `lhs`: A vector (array) of `Field` elements.
+/// - `rhs`: A vector (array) of `Field` elements.
+///
+/// # Returns
+/// - `Field`: The accumulated sum resulting from the element-wise multiplication of `lhs` and `rhs`.
+///
+/// # Panics
+/// - The function assumes that `lhs` and `rhs` have the same length, `LEN`.
+///
+/// # Example
+/// ```
+/// let lhs = [1, 2, 3];
+/// let rhs = [4, 5, 6];
+/// let result = escalar_product(lhs, rhs);
+/// result should be 1*4 + 2*5 + 3*6 = 32
+/// ```
 fn escalar_product(lhs: [Field; LEN], rhs: [Field; LEN]) -> Field {
     let mut lc = 0;
     for idx in 0..LEN {
@@ -9,27 +27,65 @@ fn escalar_product(lhs: [Field; LEN], rhs: [Field; LEN]) -> Field {
     return lc;
 }
 
-// return a vector of length LEN with all zeros except for a one at the target_idx
+/// Generates a selector array of a given length `LEN` with all zeros except for a one at the specified `target_idx`.
+///
+/// # Parameters
+/// - `LEN`: The length of the output array.
+/// - `target_idx`: The index where the value should be 1. The rest of the array will be filled with zeros.
+///
+/// # Returns
+/// - `[Field; LEN]`: An array of length `LEN` where all elements are zero except for a single `1` at `target_idx`.
+///
+/// # Panics
+/// - This function asserts that there is exactly one `1` in the generated array, ensuring `target_idx` is within bounds.
+///
+/// # Example
+/// ```
+/// let selector = gen_selector_arr(5, 2);
+/// `selector` should be [0, 0, 1, 0, 0]
+/// ```
 fn gen_selector_arr(const LEN: Field, target_idx: Field) -> [Field; LEN] {
-    let mut out = [0; LEN];
+    let mut selector = [0; LEN];
     let mut lc = 0;
     let one = 1;
     let zero = 0;
 
     for idx in 0..LEN {
-        out[idx] = if idx == target_idx { one } else { zero };
-        lc = lc + out[idx];
+        selector[idx] = if idx == target_idx { one } else { zero };
+        lc = lc + selector[idx];
     }
 
-    // for ensuring there is one chosen in the range of LEN
+    // Ensures there is exactly one '1' in the range of LEN.
     assert(lc == 1);
 
-    return out;
+    return selector;
 }
 
-// select an array of arrays
+/// Selects an element from a 2D array based on a `target_idx` and returns a vector of length `WIDLEN`.
+///
+/// # Parameters
+/// - `arr`: A 2D array of dimensions `[ARRLEN][WIDLEN]` containing `Field` elements.
+/// - `target_idx`: The index that determines which row of `arr` to select.
+///
+/// # Returns
+/// - `[Field; WIDLEN]`: A vector representing the selected row from `arr`.
+///
+/// # Algorithm
+/// 1. Generate a selector array using `gen_selector_arr` that has a `1` at `target_idx` and `0`s elsewhere.
+/// 2. For each column index `idx` of the 2D array:
+///    - Extract the `idx`-th element from each row into a temporary array.
+///    - Use `escalar_product` with the temporary array and the selector array to `select` the value corresponding to `target_idx`.
+/// 3. Reset the temporary array for the next iteration.
+/// 4. Return the vector containing the selected row.
+///
+/// # Example
+/// ```
+/// let arr = [[1, 2], [3, 4], [5, 6]];
+/// let result = select_element(arr, 1);
+/// `result` should be [3, 4] as it selects the second row (index 1).
+/// ```
 fn select_element(arr: [[Field; WIDLEN]; ARRLEN], target_idx: Field) -> [Field; WIDLEN] {
-    let mut out = [0; WIDLEN];
+    let mut result = [0; WIDLEN];
 
     let selector_arr = gen_selector_arr(ARRLEN, target_idx);
     let mut one_len_arr = [0; ARRLEN];
@@ -38,12 +94,12 @@ fn select_element(arr: [[Field; WIDLEN]; ARRLEN], target_idx: Field) -> [Field; 
         for jdx in 0..ARRLEN {
             one_len_arr[jdx] = arr[jdx][idx];
         }
-        // there is only one element in the selector_arr that is 1
-        // so the result is the element in one_len_arr that is at the same index as the 1 in selector_arr
-        out[idx] = escalar_product(one_len_arr, selector_arr);
+        // Only one element in `selector_arr` is `1`, so the result is the element in `one_len_arr` 
+        // at the same index as the `1` in `selector_arr`.
+        result[idx] = escalar_product(one_len_arr, selector_arr);
 
-        // reset one_len_arr
+        // Reset the temporary array for the next column.
         one_len_arr = [0; ARRLEN];
     }
-    return out;
+    return result;
 }
