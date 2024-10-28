@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["NONAME_DIRECTORY","PACKAGE_DIRECTORY"],"mod":["cmd_build_and_check","cmd_new_and_init","cmd_prove_and_verify","manifest","packages"]};
+window.SIDEBAR_ITEMS = {"constant":["NONAME_DIRECTORY","PACKAGE_DIRECTORY","RELEASE_DIRECTORY"],"mod":["cmd_build_and_check","cmd_new_and_init","cmd_prove_and_verify","manifest","packages"]};

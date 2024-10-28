@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/mast/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-a5dc3bae.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (4f2f477fd 2024-10-23)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/mast/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/mast/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (df4ca44d3 2024-10-27)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/mast/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -1246,7 +1246,129 @@
 <a href="#1245" id="1245">1245</a>
 <a href="#1246" id="1246">1246</a>
 <a href="#1247" id="1247">1247</a>
-<a href="#1248" id="1248">1248</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
+<a href="#1248" id="1248">1248</a>
+<a href="#1249" id="1249">1249</a>
+<a href="#1250" id="1250">1250</a>
+<a href="#1251" id="1251">1251</a>
+<a href="#1252" id="1252">1252</a>
+<a href="#1253" id="1253">1253</a>
+<a href="#1254" id="1254">1254</a>
+<a href="#1255" id="1255">1255</a>
+<a href="#1256" id="1256">1256</a>
+<a href="#1257" id="1257">1257</a>
+<a href="#1258" id="1258">1258</a>
+<a href="#1259" id="1259">1259</a>
+<a href="#1260" id="1260">1260</a>
+<a href="#1261" id="1261">1261</a>
+<a href="#1262" id="1262">1262</a>
+<a href="#1263" id="1263">1263</a>
+<a href="#1264" id="1264">1264</a>
+<a href="#1265" id="1265">1265</a>
+<a href="#1266" id="1266">1266</a>
+<a href="#1267" id="1267">1267</a>
+<a href="#1268" id="1268">1268</a>
+<a href="#1269" id="1269">1269</a>
+<a href="#1270" id="1270">1270</a>
+<a href="#1271" id="1271">1271</a>
+<a href="#1272" id="1272">1272</a>
+<a href="#1273" id="1273">1273</a>
+<a href="#1274" id="1274">1274</a>
+<a href="#1275" id="1275">1275</a>
+<a href="#1276" id="1276">1276</a>
+<a href="#1277" id="1277">1277</a>
+<a href="#1278" id="1278">1278</a>
+<a href="#1279" id="1279">1279</a>
+<a href="#1280" id="1280">1280</a>
+<a href="#1281" id="1281">1281</a>
+<a href="#1282" id="1282">1282</a>
+<a href="#1283" id="1283">1283</a>
+<a href="#1284" id="1284">1284</a>
+<a href="#1285" id="1285">1285</a>
+<a href="#1286" id="1286">1286</a>
+<a href="#1287" id="1287">1287</a>
+<a href="#1288" id="1288">1288</a>
+<a href="#1289" id="1289">1289</a>
+<a href="#1290" id="1290">1290</a>
+<a href="#1291" id="1291">1291</a>
+<a href="#1292" id="1292">1292</a>
+<a href="#1293" id="1293">1293</a>
+<a href="#1294" id="1294">1294</a>
+<a href="#1295" id="1295">1295</a>
+<a href="#1296" id="1296">1296</a>
+<a href="#1297" id="1297">1297</a>
+<a href="#1298" id="1298">1298</a>
+<a href="#1299" id="1299">1299</a>
+<a href="#1300" id="1300">1300</a>
+<a href="#1301" id="1301">1301</a>
+<a href="#1302" id="1302">1302</a>
+<a href="#1303" id="1303">1303</a>
+<a href="#1304" id="1304">1304</a>
+<a href="#1305" id="1305">1305</a>
+<a href="#1306" id="1306">1306</a>
+<a href="#1307" id="1307">1307</a>
+<a href="#1308" id="1308">1308</a>
+<a href="#1309" id="1309">1309</a>
+<a href="#1310" id="1310">1310</a>
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a>
+<a href="#1313" id="1313">1313</a>
+<a href="#1314" id="1314">1314</a>
+<a href="#1315" id="1315">1315</a>
+<a href="#1316" id="1316">1316</a>
+<a href="#1317" id="1317">1317</a>
+<a href="#1318" id="1318">1318</a>
+<a href="#1319" id="1319">1319</a>
+<a href="#1320" id="1320">1320</a>
+<a href="#1321" id="1321">1321</a>
+<a href="#1322" id="1322">1322</a>
+<a href="#1323" id="1323">1323</a>
+<a href="#1324" id="1324">1324</a>
+<a href="#1325" id="1325">1325</a>
+<a href="#1326" id="1326">1326</a>
+<a href="#1327" id="1327">1327</a>
+<a href="#1328" id="1328">1328</a>
+<a href="#1329" id="1329">1329</a>
+<a href="#1330" id="1330">1330</a>
+<a href="#1331" id="1331">1331</a>
+<a href="#1332" id="1332">1332</a>
+<a href="#1333" id="1333">1333</a>
+<a href="#1334" id="1334">1334</a>
+<a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a>
+<a href="#1340" id="1340">1340</a>
+<a href="#1341" id="1341">1341</a>
+<a href="#1342" id="1342">1342</a>
+<a href="#1343" id="1343">1343</a>
+<a href="#1344" id="1344">1344</a>
+<a href="#1345" id="1345">1345</a>
+<a href="#1346" id="1346">1346</a>
+<a href="#1347" id="1347">1347</a>
+<a href="#1348" id="1348">1348</a>
+<a href="#1349" id="1349">1349</a>
+<a href="#1350" id="1350">1350</a>
+<a href="#1351" id="1351">1351</a>
+<a href="#1352" id="1352">1352</a>
+<a href="#1353" id="1353">1353</a>
+<a href="#1354" id="1354">1354</a>
+<a href="#1355" id="1355">1355</a>
+<a href="#1356" id="1356">1356</a>
+<a href="#1357" id="1357">1357</a>
+<a href="#1358" id="1358">1358</a>
+<a href="#1359" id="1359">1359</a>
+<a href="#1360" id="1360">1360</a>
+<a href="#1361" id="1361">1361</a>
+<a href="#1362" id="1362">1362</a>
+<a href="#1363" id="1363">1363</a>
+<a href="#1364" id="1364">1364</a>
+<a href="#1365" id="1365">1365</a>
+<a href="#1366" id="1366">1366</a>
+<a href="#1367" id="1367">1367</a>
+<a href="#1368" id="1368">1368</a>
+<a href="#1369" id="1369">1369</a>
+<a href="#1370" id="1370">1370</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>num_traits::ToPrimitive;
 <span class="kw">use </span>std::collections::HashMap;
 
@@ -1257,7 +1379,8 @@
     imports::FnKind,
     parser::{
         types::{
-            FnSig, ForLoopArgument, GenericParameters, Range, Stmt, StmtKind, Symbolic, Ty, TyKind,
+            FnSig, ForLoopArgument, GenericParameters, Ident, Range, Stmt, StmtKind, Symbolic, Ty,
+            TyKind,
         },
         CustomType, Expr, ExprKind, FunctionDef, Op2,
     },
@@ -1277,19 +1400,51 @@
     /// The generic types shouldn't be presented in this field.
     </span><span class="kw">pub </span>typ: <span class="prelude-ty">Option</span>&lt;TyKind&gt;,
 
-    <span class="comment">// todo: see if we can do constant folding on the expression nodes.
-    // - it is possible to remove this field, as the constant value can be extracted from folded expression node
-    </span><span class="doccomment">/// Numeric value of the expression
-    /// applicable to BigInt type
-    </span><span class="kw">pub </span>constant: <span class="prelude-ty">Option</span>&lt;u32&gt;,
+    <span class="doccomment">/// Propagated constant value
+    </span><span class="kw">pub </span>constant: <span class="prelude-ty">Option</span>&lt;PropagatedConstant&gt;,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub enum </span>PropagatedConstant {
+    Single(BigUint),
+    Array(Vec&lt;PropagatedConstant&gt;),
+    Custom(HashMap&lt;Ident, PropagatedConstant&gt;),
+}
+
+<span class="kw">impl </span>PropagatedConstant {
+    <span class="kw">pub fn </span>as_single(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BigUint {
+        <span class="kw">match </span><span class="self">self </span>{
+            PropagatedConstant::Single(v) =&gt; v.clone(),
+            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected single value"</span>),
+        }
+    }
+
+    <span class="kw">pub fn </span>as_array(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;BigUint&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            PropagatedConstant::Array(v) =&gt; v.iter().map(|c| c.as_single()).collect(),
+            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected array value"</span>),
+        }
+    }
+
+    <span class="kw">pub fn </span>as_custom(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashMap&lt;Ident, BigUint&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            PropagatedConstant::Custom(v) =&gt; {
+                v.iter().map(|(k, c)| (k.clone(), c.as_single())).collect()
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected custom value"</span>),
+        }
+    }
+}
+
+<span class="doccomment">/// impl From trait for single value
+</span><span class="kw">impl </span>From&lt;BigUint&gt; <span class="kw">for </span>PropagatedConstant {
+    <span class="kw">fn </span>from(v: BigUint) -&gt; <span class="self">Self </span>{
+        PropagatedConstant::Single(v)
+    }
 }
 
 <span class="kw">impl </span>ExprMonoInfo {
-    <span class="kw">pub fn </span>new(expr: Expr, typ: <span class="prelude-ty">Option</span>&lt;TyKind&gt;, value: <span class="prelude-ty">Option</span>&lt;u32&gt;) -&gt; <span class="self">Self </span>{
-        <span class="kw">if </span>value.is_some() &amp;&amp; !<span class="macro">matches!</span>(typ, <span class="prelude-val">Some</span>(TyKind::Field { constant: <span class="bool-val">true </span>})) {
-            <span class="macro">panic!</span>(<span class="string">"value can only be set for BigInt type"</span>);
-        }
-
+    <span class="kw">pub fn </span>new(expr: Expr, typ: <span class="prelude-ty">Option</span>&lt;TyKind&gt;, value: <span class="prelude-ty">Option</span>&lt;PropagatedConstant&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             expr,
             typ,
@@ -1316,18 +1471,18 @@
     </span><span class="kw">pub </span>typ: TyKind,
 
     <span class="doccomment">/// Store constant value
-    </span><span class="kw">pub </span>value: <span class="prelude-ty">Option</span>&lt;u32&gt;,
+    </span><span class="kw">pub </span>constant: <span class="prelude-ty">Option</span>&lt;PropagatedConstant&gt;,
 
     <span class="doccomment">/// The span of the variable declaration.
     </span><span class="kw">pub </span>span: Span,
 }
 
 <span class="kw">impl </span>MTypeInfo {
-    <span class="kw">pub fn </span>new(typ: <span class="kw-2">&amp;</span>TyKind, span: Span, value: <span class="prelude-ty">Option</span>&lt;u32&gt;) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new(typ: <span class="kw-2">&amp;</span>TyKind, span: Span, value: <span class="prelude-ty">Option</span>&lt;PropagatedConstant&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             typ: typ.clone(),
             span,
-            value,
+            constant: value,
         }
     }
 }
@@ -1439,7 +1594,10 @@
             TyKind::Array(ty, size) =&gt; TyKind::Array(Box::new(<span class="self">self</span>.resolve_type(ty, ctx)), <span class="kw-2">*</span>size),
             TyKind::GenericSizedArray(ty, sym) =&gt; {
                 <span class="kw">let </span>val = sym.eval(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, <span class="kw-2">&amp;</span>ctx.tast);
-                TyKind::Array(Box::new(<span class="self">self</span>.resolve_type(ty, ctx)), val)
+                TyKind::Array(
+                    Box::new(<span class="self">self</span>.resolve_type(ty, ctx)),
+                    val.to_u32().expect(<span class="string">"array size exceeded u32"</span>),
+                )
             }
             <span class="kw">_ </span>=&gt; typ.clone(),
         }
@@ -1464,11 +1622,11 @@
                 }
                 <span class="comment">// const NN: Field
                 </span><span class="kw">_ </span>=&gt; {
-                    <span class="kw">let </span>cst = observed_arg.constant;
+                    <span class="kw">let </span>cst = observed_arg.constant.clone();
                     <span class="kw">if </span>is_generic_parameter(sig_arg.name.value.as_str()) &amp;&amp; cst.is_some() {
                         <span class="self">self</span>.generics.assign(
                             <span class="kw-2">&amp;</span>sig_arg.name.value,
-                            cst.unwrap(),
+                            cst.unwrap().as_single(),
                             observed_arg.expr.span,
                         )<span class="question-mark">?</span>;
                     }
@@ -1517,6 +1675,10 @@
     </span>functions_instantiated: HashMap&lt;FullyQualified, FullyQualified&gt;,
     <span class="comment">// new method name as the key, old method name as the value
     </span>methods_instantiated: HashMap&lt;(FullyQualified, String), String&gt;,
+    <span class="comment">// cache for [PropagatedConstant] values from instantiated methods
+    </span>cst_method_cache: HashMap&lt;(FullyQualified, String), PropagatedConstant&gt;,
+    <span class="comment">// cache for [PropagatedConstant] values from instantiated functions
+    </span>cst_fn_cache: HashMap&lt;FullyQualified, PropagatedConstant&gt;,
 }
 
 <span class="kw">impl</span>&lt;B: Backend&gt; MastCtx&lt;B&gt; {
@@ -1526,6 +1688,8 @@
             generic_func_scope: <span class="prelude-val">Some</span>(<span class="number">0</span>),
             functions_instantiated: HashMap::new(),
             methods_instantiated: HashMap::new(),
+            cst_method_cache: HashMap::new(),
+            cst_fn_cache: HashMap::new(),
         }
     }
 
@@ -1590,9 +1754,9 @@
 
 <span class="kw">impl </span>Symbolic {
     <span class="doccomment">/// Evaluate symbolic size to an integer.
-    </span><span class="kw">pub fn </span>eval&lt;B: Backend&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, gens: <span class="kw-2">&amp;</span>GenericParameters, tast: <span class="kw-2">&amp;</span>TypeChecker&lt;B&gt;) -&gt; u32 {
+    </span><span class="kw">pub fn </span>eval&lt;B: Backend&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, gens: <span class="kw-2">&amp;</span>GenericParameters, tast: <span class="kw-2">&amp;</span>TypeChecker&lt;B&gt;) -&gt; BigUint {
         <span class="kw">match </span><span class="self">self </span>{
-            Symbolic::Concrete(v) =&gt; <span class="kw-2">*</span>v,
+            Symbolic::Concrete(v) =&gt; v.clone(),
             Symbolic::Constant(var) =&gt; {
                 <span class="kw">let </span>qualified = FullyQualified::local(var.value.clone());
                 <span class="kw">let </span>cst = tast.const_info(<span class="kw-2">&amp;</span>qualified).expect(<span class="string">"constant not found"</span>);
@@ -1757,7 +1921,12 @@
                 },
             );
 
-            <span class="kw">let </span>cst = <span class="prelude-val">None</span>;
+            <span class="comment">// propagate the constant value
+            </span><span class="kw">let </span>cst = lhs_mono.constant.and_then(|c| <span class="kw">match </span>c {
+                PropagatedConstant::Custom(map) =&gt; map.get(rhs).cloned(),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+            });
+
             ExprMonoInfo::new(mexpr, typ, cst)
         }
 
@@ -1806,10 +1975,19 @@
                     .as_ref()
                     .and_then(|sig| sig.return_type.clone().map(|t| t.kind));
 
-                ExprMonoInfo::new(mexpr, typ, <span class="prelude-val">None</span>)
+                <span class="comment">// retrieve the constant value from the cache
+                </span><span class="kw">let </span>cst = ctx.cst_fn_cache.get(<span class="kw-2">&amp;</span>mono_qualified).cloned();
+
+                ExprMonoInfo::new(mexpr, typ, cst)
             } <span class="kw">else </span>{
                 <span class="comment">// monomorphize the function call
-                </span><span class="kw">let </span>(fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, <span class="kw-2">&amp;</span>observed, expr.span)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>(fn_info_mono, typ, cst) =
+                    instantiate_fn_call(ctx, fn_info, <span class="kw-2">&amp;</span>observed, expr.span)<span class="question-mark">?</span>;
+
+                <span class="comment">// cache the constant value
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(cst) = cst.clone() {
+                    ctx.cst_fn_cache.insert(mono_qualified.clone(), cst);
+                }
 
                 <span class="kw">let </span>fn_name_mono = <span class="kw-2">&amp;</span>fn_info_mono.sig().name;
                 <span class="kw">let </span>mexpr = expr.to_mast(
@@ -1825,7 +2003,7 @@
                 <span class="kw">let </span>new_qualified = FullyQualified::new(module, <span class="kw-2">&amp;</span>fn_name_mono.value);
                 ctx.add_monomorphized_fn(old_qualified, new_qualified, fn_info_mono);
 
-                ExprMonoInfo::new(mexpr, typ, <span class="prelude-val">None</span>)
+                ExprMonoInfo::new(mexpr, typ, cst)
             }
         }
 
@@ -1897,10 +2075,23 @@
                     },
                 );
                 <span class="kw">let </span>typ = resolved_sig.return_type.clone().map(|t| t.kind);
-                ExprMonoInfo::new(mexpr, typ, <span class="prelude-val">None</span>)
+
+                <span class="comment">// retrieve the constant value from the cache
+                </span><span class="kw">let </span>cst = ctx
+                    .cst_method_cache
+                    .get(<span class="kw-2">&amp;</span>(struct_qualified.clone(), method_name.value.clone()))
+                    .cloned();
+
+                ExprMonoInfo::new(mexpr, typ, cst)
             } <span class="kw">else </span>{
                 <span class="comment">// monomorphize the function call
-                </span><span class="kw">let </span>(fn_info_mono, typ) = instantiate_fn_call(ctx, fn_info, <span class="kw-2">&amp;</span>observed, expr.span)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>(fn_info_mono, typ, cst) =
+                    instantiate_fn_call(ctx, fn_info, <span class="kw-2">&amp;</span>observed, expr.span)<span class="question-mark">?</span>;
+                <span class="comment">// cache the constant value
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(cst) = cst.clone() {
+                    ctx.cst_method_cache
+                        .insert((struct_qualified.clone(), method_name.value.clone()), cst);
+                }
 
                 <span class="kw">let </span>fn_name_mono = <span class="kw-2">&amp;</span>fn_info_mono.sig().name;
                 <span class="kw">let </span>mexpr = expr.to_mast(
@@ -1916,7 +2107,7 @@
                 ctx.tast
                     .add_monomorphized_method(struct_qualified, <span class="kw-2">&amp;</span>fn_name_mono.value, fn_def);
 
-                ExprMonoInfo::new(mexpr, typ, <span class="prelude-val">None</span>)
+                ExprMonoInfo::new(mexpr, typ, cst)
             }
         }
 
@@ -1987,9 +2178,10 @@
                 <span class="prelude-val">Some</span>(v) =&gt; {
                     <span class="kw">let </span>mexpr = expr.to_mast(ctx, <span class="kw-2">&amp;</span>ExprKind::BigUInt(v.clone()));
 
-                    ExprMonoInfo::new(mexpr, typ, v.to_u32())
+                    ExprMonoInfo::new(mexpr, typ, <span class="prelude-val">Some</span>(PropagatedConstant::from(v)))
                 }
-                <span class="prelude-val">None </span>=&gt; {
+                <span class="comment">// keep as is
+                </span><span class="kw">_ </span>=&gt; {
                     <span class="kw">let </span>mexpr = expr.to_mast(
                         ctx,
                         <span class="kw-2">&amp;</span>ExprKind::BinaryOp {
@@ -2023,10 +2215,13 @@
         }
 
         ExprKind::BigUInt(inner) =&gt; {
-            <span class="kw">let </span>cst: u32 = inner.try_into().expect(<span class="string">"biguint too large"</span>);
             <span class="kw">let </span>mexpr = expr.to_mast(ctx, <span class="kw-2">&amp;</span>ExprKind::BigUInt(inner.clone()));
 
-            ExprMonoInfo::new(mexpr, <span class="prelude-val">Some</span>(TyKind::Field { constant: <span class="bool-val">true </span>}), <span class="prelude-val">Some</span>(cst))
+            ExprMonoInfo::new(
+                mexpr,
+                <span class="prelude-val">Some</span>(TyKind::Field { constant: <span class="bool-val">true </span>}),
+                <span class="prelude-val">Some</span>(PropagatedConstant::from(inner.clone())),
+            )
         }
 
         ExprKind::Bool(inner) =&gt; {
@@ -2042,10 +2237,10 @@
 
             <span class="kw">let </span>res = <span class="kw">if </span>is_generic_parameter(<span class="kw-2">&amp;</span>name.value) {
                 <span class="kw">let </span>mtype = mono_fn_env.get_type_info(<span class="kw-2">&amp;</span>name.value).unwrap();
-                <span class="kw">let </span>mexpr =
-                    expr.to_mast(ctx, <span class="kw-2">&amp;</span>ExprKind::BigUInt(BigUint::from(mtype.value.unwrap())));
+                <span class="kw">let </span>cst = mtype.constant.clone().unwrap().as_single();
+                <span class="kw">let </span>mexpr = expr.to_mast(ctx, <span class="kw-2">&amp;</span>ExprKind::BigUInt(BigUint::from(cst)));
 
-                ExprMonoInfo::new(mexpr, <span class="prelude-val">Some</span>(mtype.typ.clone()), mtype.value)
+                ExprMonoInfo::new(mexpr, <span class="prelude-val">Some</span>(mtype.typ.clone()), mtype.constant.clone())
             } <span class="kw">else if </span>is_type(<span class="kw-2">&amp;</span>name.value) {
                 <span class="kw">let </span>mtype = TyKind::Custom {
                     module: module.clone(),
@@ -2065,10 +2260,13 @@
                 <span class="comment">// if it's a variable,
                 // check if it's a constant first
                 </span><span class="kw">let </span>bigint: BigUint = cst.value[<span class="number">0</span>].into();
-                <span class="kw">let </span>cst: u32 = bigint.clone().try_into().expect(<span class="string">"biguint too large"</span>);
-                <span class="kw">let </span>mexpr = expr.to_mast(ctx, <span class="kw-2">&amp;</span>ExprKind::BigUInt(bigint));
+                <span class="kw">let </span>mexpr = expr.to_mast(ctx, <span class="kw-2">&amp;</span>ExprKind::BigUInt(bigint.clone()));
 
-                ExprMonoInfo::new(mexpr, <span class="prelude-val">Some</span>(TyKind::Field { constant: <span class="bool-val">true </span>}), <span class="prelude-val">Some</span>(cst))
+                ExprMonoInfo::new(
+                    mexpr,
+                    <span class="prelude-val">Some</span>(TyKind::Field { constant: <span class="bool-val">true </span>}),
+                    <span class="prelude-val">Some</span>(PropagatedConstant::from(bigint)),
+                )
             } <span class="kw">else </span>{
                 <span class="comment">// otherwise it's a local variable
                 </span><span class="kw">let </span>mexpr = expr.to_mast(
@@ -2080,7 +2278,7 @@
                 );
 
                 <span class="kw">let </span>mtype = mono_fn_env.get_type_info(<span class="kw-2">&amp;</span>name.value).unwrap().clone();
-                ExprMonoInfo::new(mexpr, <span class="prelude-val">Some</span>(mtype.typ), mtype.value)
+                ExprMonoInfo::new(mexpr, <span class="prelude-val">Some</span>(mtype.typ), mtype.constant)
             };
 
             res
@@ -2203,16 +2401,38 @@
                     ));
                 }
 
-                fields_mono.push((ident, observed_mono.expr.clone()));
+                fields_mono.push((
+                    ident,
+                    observed_mono.expr.clone(),
+                    observed_mono.constant.clone(),
+                ));
             }
 
             <span class="kw">let </span>mexpr = expr.to_mast(
                 ctx,
                 <span class="kw-2">&amp;</span>ExprKind::CustomTypeDeclaration {
                     custom: custom.clone(),
-                    fields: fields_mono,
+                    <span class="comment">// extract a tuple of first two elements
+                    </span>fields: fields_mono
+                        .iter()
+                        .map(|(a, b, <span class="kw">_</span>)| (a.clone(), b.clone()))
+                        .collect(),
                 },
             );
+
+            <span class="kw">let </span>cst_fields = {
+                <span class="kw">let </span>csts = HashMap::from_iter(
+                    fields_mono
+                        .into_iter()
+                        .filter(|(<span class="kw">_</span>, <span class="kw">_</span>, cst)| cst.is_some())
+                        .map(|(ident, <span class="kw">_</span>, cst)| (ident, cst.unwrap())),
+                );
+                <span class="kw">if </span>csts.is_empty() {
+                    <span class="prelude-val">None
+                </span>} <span class="kw">else </span>{
+                    <span class="prelude-val">Some</span>(PropagatedConstant::Custom(csts))
+                }
+            };
 
             ExprMonoInfo::new(
                 mexpr,
@@ -2220,7 +2440,7 @@
                     module: module.clone(),
                     name: name.clone(),
                 }),
-                <span class="prelude-val">None</span>,
+                cst_fields,
             )
         }
         ExprKind::RepeatedArrayInit { item, size } =&gt; {
@@ -2237,7 +2457,10 @@
             );
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(cst) = size_mono.constant {
-                <span class="kw">let </span>arr_typ = TyKind::Array(Box::new(item_typ), cst);
+                <span class="kw">let </span>arr_typ = TyKind::Array(
+                    Box::new(item_typ),
+                    cst.as_single().to_u32().expect(<span class="string">"array size too large"</span>),
+                );
                 ExprMonoInfo::new(mexpr, <span class="prelude-val">Some</span>(arr_typ), <span class="prelude-val">None</span>)
             } <span class="kw">else </span>{
                 <span class="kw">return </span><span class="prelude-val">Err</span>(error(ErrorKind::InvalidArraySize, expr.span));
@@ -2259,22 +2482,29 @@
     mono_fn_env: <span class="kw-2">&amp;mut </span>MonomorphizedFnEnv,
     stmts: <span class="kw-2">&amp;</span>[Stmt],
     expected_return: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Ty&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;Stmt&gt;, <span class="prelude-ty">Option</span>&lt;TyKind&gt;)&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;Stmt&gt;, <span class="prelude-ty">Option</span>&lt;ExprMonoInfo&gt;)&gt; {
     mono_fn_env.nest();
 
-    <span class="kw">let </span><span class="kw-2">mut </span>return_typ = <span class="prelude-val">None</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>ret_expr_mono = <span class="prelude-val">None</span>;
 
     <span class="kw">let </span><span class="kw-2">mut </span>stmts_mono = <span class="macro">vec!</span>[];
 
     <span class="kw">for </span>stmt <span class="kw">in </span>stmts {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>((stmt, ret_typ)) = monomorphize_stmt(ctx, mono_fn_env, stmt)<span class="question-mark">? </span>{
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((stmt, expr_mono)) = monomorphize_stmt(ctx, mono_fn_env, stmt)<span class="question-mark">? </span>{
             stmts_mono.push(stmt);
 
-            <span class="kw">if </span>ret_typ.is_some() {
-                return_typ = ret_typ;
+            <span class="comment">// only return stmt can return `ExprMonoInfo` which contains propagated constants
+            </span><span class="kw">if </span>expr_mono.is_some() {
+                ret_expr_mono = expr_mono;
             }
         }
     }
+
+    <span class="kw">let </span>return_typ = <span class="kw">if let </span><span class="prelude-val">Some</span>(expr_mono) = ret_expr_mono.clone() {
+        expr_mono.typ
+    } <span class="kw">else </span>{
+        <span class="prelude-val">None
+    </span>};
 
     <span class="comment">// check the return
     </span><span class="kw">if let </span>(<span class="prelude-val">Some</span>(expected), <span class="prelude-val">Some</span>(observed)) = (expected_return, return_typ.clone()) {
@@ -2288,7 +2518,7 @@
 
     mono_fn_env.pop();
 
-    <span class="prelude-val">Ok</span>((stmts_mono, return_typ))
+    <span class="prelude-val">Ok</span>((stmts_mono, ret_expr_mono))
 }
 
 <span class="doccomment">/// Monomorphize a statement.
@@ -2296,7 +2526,7 @@
     ctx: <span class="kw-2">&amp;mut </span>MastCtx&lt;B&gt;,
     mono_fn_env: <span class="kw-2">&amp;mut </span>MonomorphizedFnEnv,
     stmt: <span class="kw-2">&amp;</span>Stmt,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(Stmt, <span class="prelude-ty">Option</span>&lt;TyKind&gt;)&gt;&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(Stmt, <span class="prelude-ty">Option</span>&lt;ExprMonoInfo&gt;)&gt;&gt; {
     <span class="kw">let </span>res = <span class="kw">match </span><span class="kw-2">&amp;</span>stmt.kind {
         StmtKind::Assign { mutable, lhs, rhs } =&gt; {
             <span class="kw">let </span>rhs_mono = monomorphize_expr(ctx, rhs, mono_fn_env)<span class="question-mark">?</span>;
@@ -2341,7 +2571,9 @@
                         <span class="kw">return </span><span class="prelude-val">Err</span>(error(ErrorKind::InvalidRangeSize, stmt.span));
                     }
 
-                    <span class="kw">if </span>start_mono.constant.unwrap() &gt; end_mono.constant.unwrap() {
+                    <span class="kw">if </span>start_mono.constant.unwrap().as_single()
+                        &gt; end_mono.constant.unwrap().as_single()
+                    {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(error(ErrorKind::InvalidRangeSize, stmt.span));
                     }
 
@@ -2395,11 +2627,11 @@
         StmtKind::Return(res) =&gt; {
             <span class="kw">let </span>expr_mono = monomorphize_expr(ctx, res, mono_fn_env)<span class="question-mark">?</span>;
             <span class="kw">let </span>stmt_mono = Stmt {
-                kind: StmtKind::Return(Box::new(expr_mono.expr)),
+                kind: StmtKind::Return(Box::new(expr_mono.expr.clone())),
                 span: stmt.span,
             };
 
-            <span class="prelude-val">Some</span>((stmt_mono, expr_mono.typ))
+            <span class="prelude-val">Some</span>((stmt_mono, <span class="prelude-val">Some</span>(expr_mono)))
         }
         StmtKind::Comment(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
     };
@@ -2416,7 +2648,7 @@
     fn_info: FnInfo&lt;B&gt;,
     args: <span class="kw-2">&amp;</span>[ExprMonoInfo],
     span: Span,
-) -&gt; <span class="prelude-ty">Result</span>&lt;(FnInfo&lt;B&gt;, <span class="prelude-ty">Option</span>&lt;TyKind&gt;)&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;(FnInfo&lt;B&gt;, <span class="prelude-ty">Option</span>&lt;TyKind&gt;, <span class="prelude-ty">Option</span>&lt;PropagatedConstant&gt;)&gt; {
     ctx.start_monomorphize_func();
 
     <span class="kw">let </span>fn_sig = fn_info.sig();
@@ -2440,7 +2672,11 @@
         <span class="kw">let </span>val = fn_sig.generics.get(gen);
         mono_fn_env.store_type(
             gen,
-            <span class="kw-2">&amp;</span>MTypeInfo::new(<span class="kw-2">&amp;</span>TyKind::Field { constant: <span class="bool-val">true </span>}, span, <span class="prelude-val">Some</span>(val)),
+            <span class="kw-2">&amp;</span>MTypeInfo::new(
+                <span class="kw-2">&amp;</span>TyKind::Field { constant: <span class="bool-val">true </span>},
+                span,
+                <span class="prelude-val">Some</span>(PropagatedConstant::from(val)),
+            ),
         )<span class="question-mark">?</span>;
     }
 
@@ -2456,7 +2692,7 @@
         <span class="kw">let </span>typ = mono_info.typ.as_ref().expect(<span class="string">"expected a value"</span>);
         mono_fn_env.store_type(
             arg_name,
-            <span class="kw-2">&amp;</span>MTypeInfo::new(typ, mono_info.expr.span, mono_info.constant),
+            <span class="kw-2">&amp;</span>MTypeInfo::new(typ, mono_info.expr.span, mono_info.constant.clone()),
         )<span class="question-mark">?</span>;
     }
 
@@ -2464,32 +2700,40 @@
     <span class="kw">let </span>ret_typed = sig_typed.return_type.clone();
 
     <span class="comment">// construct the monomorphized function AST
-    </span><span class="kw">let </span>func_def = <span class="kw">match </span>fn_info.kind {
-        FnKind::BuiltIn(<span class="kw">_</span>, handle) =&gt; FnInfo {
-            kind: FnKind::BuiltIn(sig_typed, handle),
-            is_hint: fn_info.is_hint,
-            span: fn_info.span,
-        },
+    </span><span class="kw">let </span>(func_def, mono_info) = <span class="kw">match </span>fn_info.kind {
+        FnKind::BuiltIn(<span class="kw">_</span>, handle) =&gt; (
+            FnInfo {
+                kind: FnKind::BuiltIn(sig_typed, handle),
+                ..fn_info
+            },
+            <span class="comment">// todo: we will need to propagate the constant value from builtin function as well
+            </span><span class="prelude-val">None</span>,
+        ),
         FnKind::Native(fn_def) =&gt; {
-            <span class="kw">let </span>(stmts_typed, <span class="kw">_</span>) =
+            <span class="kw">let </span>(stmts_typed, mono_info) =
                 monomorphize_block(ctx, mono_fn_env, <span class="kw-2">&amp;</span>fn_def.body, ret_typed.as_ref())<span class="question-mark">?</span>;
 
-            FnInfo {
-                kind: FnKind::Native(FunctionDef {
-                    sig: sig_typed,
-                    body: stmts_typed,
-                    span: fn_def.span,
-                    is_hint: fn_def.is_hint,
-                }),
-                is_hint: fn_info.is_hint,
-                span: fn_info.span,
-            }
+            (
+                FnInfo {
+                    kind: FnKind::Native(FunctionDef {
+                        sig: sig_typed,
+                        body: stmts_typed,
+                        span: fn_def.span,
+                        is_hint: fn_def.is_hint,
+                    }),
+                    is_hint: fn_info.is_hint,
+                    span: fn_info.span,
+                },
+                mono_info,
+            )
         }
     };
 
     ctx.finish_monomorphize_func();
 
-    <span class="prelude-val">Ok</span>((func_def, ret_typed.map(|t| t.kind)))
+    <span class="kw">let </span>cst = mono_info.and_then(|c| c.constant);
+
+    <span class="prelude-val">Ok</span>((func_def, ret_typed.map(|t| t.kind), cst))
 }
 <span class="kw">pub fn </span>error(kind: ErrorKind, span: Span) -&gt; Error {
     Error::new(<span class="string">"mast"</span>, kind, span)

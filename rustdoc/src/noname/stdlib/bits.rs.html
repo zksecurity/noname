@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/stdlib/bits.rs`."><title>bits.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-a5dc3bae.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (4f2f477fd 2024-10-23)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/stdlib/</div>bits.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/stdlib/bits.rs`."><title>bits.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (df4ca44d3 2024-10-27)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/stdlib/</div>bits.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -67,113 +67,14 @@
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
 <a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a>
-<a href="#70" id="70">70</a>
-<a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
-<a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#69" id="69">69</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
-<span class="kw">use </span>ark_ff::One;
-<span class="kw">use </span>kimchi::o1_utils::FieldHelpers;
+<span class="kw">use </span>kimchi::{o1_utils::FieldHelpers, turshi::helper::CairoFieldHelpers};
 
 <span class="kw">use crate</span>::{
     backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
-    constraints::boolean,
     error::Result,
     parser::types::GenericParameters,
     var::{ConstOrCell, Value, Var},
@@ -181,8 +82,7 @@
 
 <span class="kw">use super</span>::{FnInfoType, Module};
 
-<span class="kw">const </span>TO_BITS_FN: <span class="kw-2">&amp;</span>str = <span class="string">"to_bits(const LEN: Field, val: Field) -&gt; [Bool; LEN]"</span>;
-<span class="kw">const </span>FROM_BITS_FN: <span class="kw-2">&amp;</span>str = <span class="string">"from_bits(bits: [Bool; LEN]) -&gt; Field"</span>;
+<span class="kw">const </span>NTH_BIT_FN: <span class="kw-2">&amp;</span>str = <span class="string">"nth_bit(val: Field, const nth: Field) -&gt; Field"</span>;
 
 <span class="kw">pub struct </span>BitsLib {}
 
@@ -190,144 +90,50 @@
     <span class="kw">const </span>MODULE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">"bits"</span>;
 
     <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;)&gt; {
-        <span class="macro">vec!</span>[(TO_BITS_FN, to_bits), (FROM_BITS_FN, from_bits)]
+        <span class="macro">vec!</span>[(NTH_BIT_FN, nth_bit)]
     }
 }
 
-<span class="kw">fn </span>to_bits&lt;B: Backend&gt;(
+<span class="kw">fn </span>nth_bit&lt;B: Backend&gt;(
     compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
-    generics: <span class="kw-2">&amp;</span>GenericParameters,
+    _generics: <span class="kw-2">&amp;</span>GenericParameters,
     vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
     span: Span,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
     <span class="comment">// should be two input vars
     </span><span class="macro">assert_eq!</span>(vars.len(), <span class="number">2</span>);
 
-    <span class="comment">// but the better practice would be to retrieve the value from the generics
-    </span><span class="kw">let </span>bitlen = generics.get(<span class="string">"LEN"</span>) <span class="kw">as </span>usize;
+    <span class="comment">// these should be type checked already, unless it is called by other low level functions
+    // eg. builtins
+    </span><span class="kw">let </span>var_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
+    <span class="kw">let </span>val = <span class="kw-2">&amp;</span>var_info.var;
+    <span class="macro">assert_eq!</span>(val.len(), <span class="number">1</span>);
 
-    <span class="comment">// num should be greater than 0
-    </span><span class="macro">assert!</span>(bitlen &gt; <span class="number">0</span>);
+    <span class="kw">let </span>var_info = <span class="kw-2">&amp;</span>vars[<span class="number">1</span>];
+    <span class="kw">let </span>nth = <span class="kw-2">&amp;</span>var_info.var;
+    <span class="macro">assert_eq!</span>(nth.len(), <span class="number">1</span>);
 
-    <span class="kw">let </span>modulus_bits: usize = B::Field::modulus_biguint()
-        .bits()
-        .try_into()
-        .expect(<span class="string">"modulus is too large"</span>);
+    <span class="kw">let </span>nth: usize = <span class="kw">match </span><span class="kw-2">&amp;</span>nth[<span class="number">0</span>] {
+        ConstOrCell::Cell(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"nth should be a constant"</span>),
+        ConstOrCell::Const(cst) =&gt; cst.to_u64() <span class="kw">as </span>usize,
+    };
 
-    <span class="macro">assert!</span>(bitlen &lt;= (modulus_bits - <span class="number">1</span>));
-
-    <span class="comment">// alternatively, it can be retrieved from the first var, but it is not recommended
-    // let num_var = &amp;vars[0];
-
-    // second var is the value to convert
-    </span><span class="kw">let </span>var_info = <span class="kw-2">&amp;</span>vars[<span class="number">1</span>];
-    <span class="kw">let </span>var = <span class="kw-2">&amp;</span>var_info.var;
-    <span class="macro">assert_eq!</span>(var.len(), <span class="number">1</span>);
-
-    <span class="kw">let </span>val = <span class="kw">match </span><span class="kw-2">&amp;</span>var[<span class="number">0</span>] {
+    <span class="kw">let </span>val = <span class="kw">match </span><span class="kw-2">&amp;</span>val[<span class="number">0</span>] {
         ConstOrCell::Cell(cvar) =&gt; cvar.clone(),
         ConstOrCell::Const(cst) =&gt; {
-            <span class="comment">// extract the first bitlen bits
-            </span><span class="kw">let </span>bits = cst
-                .to_bits()
-                .iter()
-                .take(bitlen)
-                .copied()
-                <span class="comment">// convert to ConstOrVar
-                </span>.map(|b| ConstOrCell::Const(B::Field::from(b)))
-                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(bits, span)));
+            <span class="comment">// directly return the nth bit without adding symbolic value as it doesn't depend on a cell var
+            </span><span class="kw">let </span>bit = cst.to_bits();
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_cvar(
+                ConstOrCell::Const(B::Field::from(bit[nth])),
+                span,
+            )));
         }
     };
 
-    <span class="comment">// convert value to bits
-    </span><span class="kw">let </span><span class="kw-2">mut </span>bits = Vec::with_capacity(bitlen);
-    <span class="kw">let </span><span class="kw-2">mut </span>e2 = B::Field::one();
-    <span class="kw">let </span><span class="kw-2">mut </span>lc: <span class="prelude-ty">Option</span>&lt;B::Var&gt; = <span class="prelude-val">None</span>;
+    <span class="kw">let </span>bit = compiler
+        .backend
+        .new_internal_var(Value::NthBit(val.clone(), nth), span);
 
-    <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..bitlen {
-        <span class="kw">let </span>bit = compiler
-            .backend
-            .new_internal_var(Value::NthBit(val.clone(), i), span);
-
-        <span class="comment">// constrain it to be either 0 or 1
-        // bits[i] * (bits[i] - 1 ) === 0;
-        </span>boolean::check(compiler, <span class="kw-2">&amp;</span>ConstOrCell::Cell(bit.clone()), span);
-
-        <span class="comment">// lc += bits[i] * e2;
-        </span><span class="kw">let </span>weighted_bit = compiler.backend.mul_const(<span class="kw-2">&amp;</span>bit, <span class="kw-2">&amp;</span>e2, span);
-        lc = <span class="kw">if </span>i == <span class="number">0 </span>{
-            <span class="prelude-val">Some</span>(weighted_bit)
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Some</span>(compiler.backend.add(<span class="kw-2">&amp;</span>lc.unwrap(), <span class="kw-2">&amp;</span>weighted_bit, span))
-        };
-
-        bits.push(bit.clone());
-        e2 = e2 + e2;
-    }
-
-    compiler.backend.assert_eq_var(<span class="kw-2">&amp;</span>val, <span class="kw-2">&amp;</span>lc.unwrap(), span);
-
-    <span class="kw">let </span>bits_cvars = bits.into_iter().map(ConstOrCell::Cell).collect();
-    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(bits_cvars, span)))
-}
-
-<span class="kw">fn </span>from_bits&lt;B: Backend&gt;(
-    compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
-    generics: <span class="kw-2">&amp;</span>GenericParameters,
-    vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
-    span: Span,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
-    <span class="comment">// only one input var
-    </span><span class="macro">assert_eq!</span>(vars.len(), <span class="number">1</span>);
-
-    <span class="kw">let </span>var_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
-    <span class="kw">let </span>bitlen = generics.get(<span class="string">"LEN"</span>) <span class="kw">as </span>usize;
-
-    <span class="kw">let </span>modulus_bits: usize = B::Field::modulus_biguint()
-        .bits()
-        .try_into()
-        .expect(<span class="string">"modulus is too large"</span>);
-
-    <span class="macro">assert!</span>(bitlen &lt;= (modulus_bits - <span class="number">1</span>));
-
-    <span class="kw">let </span>bits_vars: Vec&lt;<span class="kw">_</span>&gt; = var_info
-        .var
-        .cvars
-        .iter()
-        .map(|c| <span class="kw">match </span>c {
-            ConstOrCell::Cell(c) =&gt; c.clone(),
-            ConstOrCell::Const(cst) =&gt; {
-                <span class="comment">// use a cell var to represent the const for now
-                // later we will refactor the backend handle ConstOrCell arguments, so we don't have deal with this everywhere
-                </span>compiler
-                    .backend
-                    .add_constant(<span class="prelude-val">Some</span>(<span class="string">"converted constant"</span>), <span class="kw-2">*</span>cst, span)
-            }
-        })
-        .collect();
-
-    <span class="comment">// this might not be necessary since it should be checked in the type checker
-    </span><span class="macro">assert_eq!</span>(bitlen, bits_vars.len());
-
-    <span class="kw">let </span><span class="kw-2">mut </span>e2 = B::Field::one();
-    <span class="kw">let </span><span class="kw-2">mut </span>lc: <span class="prelude-ty">Option</span>&lt;B::Var&gt; = <span class="prelude-val">None</span>;
-
-    <span class="comment">// accumulate the contribution of each bit
-    </span><span class="kw">for </span>bit <span class="kw">in </span>bits_vars {
-        <span class="kw">let </span>weighted_bit = compiler.backend.mul_const(<span class="kw-2">&amp;</span>bit, <span class="kw-2">&amp;</span>e2, span);
-
-        lc = <span class="kw">match </span>lc {
-            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Some</span>(weighted_bit),
-            <span class="prelude-val">Some</span>(v) =&gt; <span class="prelude-val">Some</span>(compiler.backend.add(<span class="kw-2">&amp;</span>v, <span class="kw-2">&amp;</span>weighted_bit, span)),
-        };
-
-        e2 = e2 + e2;
-    }
-
-    <span class="kw">let </span>cvar = ConstOrCell::Cell(lc.unwrap());
-
-    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new_cvar(cvar, span)))
+    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(<span class="macro">vec!</span>[ConstOrCell::Cell(bit)], span)))
 }
 </code></pre></div></section></main></body></html>

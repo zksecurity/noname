@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/types.rs`."><title>types.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-a5dc3bae.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (4f2f477fd 2024-10-23)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/parser/</div>types.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/types.rs`."><title>types.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (df4ca44d3 2024-10-27)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/parser/</div>types.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -1629,7 +1629,18 @@
 <a href="#1628" id="1628">1628</a>
 <a href="#1629" id="1629">1629</a>
 <a href="#1630" id="1630">1630</a>
-<a href="#1631" id="1631">1631</a></pre></div><pre class="rust"><code><span class="kw">use </span>educe::Educe;
+<a href="#1631" id="1631">1631</a>
+<a href="#1632" id="1632">1632</a>
+<a href="#1633" id="1633">1633</a>
+<a href="#1634" id="1634">1634</a>
+<a href="#1635" id="1635">1635</a>
+<a href="#1636" id="1636">1636</a>
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a></pre></div><pre class="rust"><code><span class="kw">use </span>educe::Educe;
+<span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt::Display,
@@ -1638,7 +1649,7 @@
 };
 
 <span class="kw">use </span>ark_ff::Field;
-<span class="kw">use </span>num_traits::ToPrimitive;
+<span class="kw">use </span>num_traits::FromPrimitive;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use crate</span>::{
@@ -1646,7 +1657,6 @@
     constants::Span,
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     lexer::{Keyword, Token, TokenKind, Tokens},
-    mast::ExprMonoInfo,
     stdlib::builtins::BUILTIN_FN_NAMES,
     syntax::{is_generic_parameter, is_type},
 };
@@ -1812,7 +1822,7 @@
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 </span><span class="kw">pub enum </span>Symbolic {
     <span class="doccomment">/// A literal number
-    </span>Concrete(u32),
+    </span>Concrete(BigUint),
     <span class="doccomment">/// Point to a constant variable
     </span>Constant(Ident),
     <span class="doccomment">/// Generic parameter
@@ -1861,7 +1871,7 @@
     <span class="doccomment">/// Parse from an expression node recursively.
     </span><span class="kw">pub fn </span>parse(node: <span class="kw-2">&amp;</span>Expr) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span>node.kind {
-            ExprKind::BigUInt(n) =&gt; <span class="prelude-val">Ok</span>(Symbolic::Concrete(n.to_u32().unwrap())),
+            ExprKind::BigUInt(n) =&gt; <span class="prelude-val">Ok</span>(Symbolic::Concrete(n.clone())),
             ExprKind::Variable { module: <span class="kw">_</span>, name } =&gt; {
                 <span class="kw">if </span>is_generic_parameter(<span class="kw-2">&amp;</span>name.value) {
                     <span class="prelude-val">Ok</span>(Symbolic::Generic(name.clone()))
@@ -2202,7 +2212,11 @@
                 <span class="comment">// resolve the generic parameter
                 </span><span class="kw">match </span>sym {
                     Symbolic::Generic(ident) =&gt; {
-                        <span class="self">self</span>.generics.assign(<span class="kw-2">&amp;</span>ident.value, <span class="kw-2">*</span>observed_size, span)<span class="question-mark">?</span>;
+                        <span class="self">self</span>.generics.assign(
+                            <span class="kw-2">&amp;</span>ident.value,
+                            BigUint::from_u32(<span class="kw-2">*</span>observed_size).unwrap(),
+                            span,
+                        )<span class="question-mark">?</span>;
                     }
                     <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"no operation allowed on symbolic size in function argument"</span>),
                 }
@@ -2264,7 +2278,7 @@
 
             <span class="kw">let </span>generics = generics
                 .iter()
-                .map(|(name, value)| <span class="macro">format!</span>(<span class="string">"{}={}"</span>, name, value.unwrap()))
+                .map(|(name, value)| <span class="macro">format!</span>(<span class="string">"{}={}"</span>, name, value.as_ref().unwrap()))
                 .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
                 .join(<span class="string">"#"</span>);
 
@@ -2373,7 +2387,7 @@
 <span class="attr">#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 </span><span class="doccomment">/// Generic parameters for a function signature
 </span><span class="kw">pub struct </span>GenericParameters {
-    <span class="kw">pub </span>parameters: HashMap&lt;String, <span class="prelude-ty">Option</span>&lt;u32&gt;&gt;,
+    <span class="kw">pub </span>parameters: HashMap&lt;String, <span class="prelude-ty">Option</span>&lt;BigUint&gt;&gt;,
     <span class="kw">pub </span>resolved_sig: <span class="prelude-ty">Option</span>&lt;ResolvedSig&gt;,
 }
 
@@ -2389,11 +2403,13 @@
     }
 
     <span class="doccomment">/// Get the value of a generic parameter
-    </span><span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; u32 {
+    </span><span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; BigUint {
         <span class="self">self</span>.parameters
             .get(name)
             .expect(<span class="string">"generic parameter not found"</span>)
+            .as_ref()
             .expect(<span class="string">"generic value not assigned"</span>)
+            .clone()
     }
 
     <span class="doccomment">/// Returns whether the generic parameters are empty
@@ -2402,7 +2418,7 @@
     }
 
     <span class="doccomment">/// Bind a generic parameter to a value
-    </span><span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>String, value: u32, span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    </span><span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>String, value: BigUint, span: Span) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>existing = <span class="self">self</span>.parameters.get(name);
         <span class="kw">match </span>existing {
             <span class="prelude-val">Some</span>(<span class="prelude-val">Some</span>(v)) =&gt; {
@@ -2412,7 +2428,11 @@
 
                 <span class="prelude-val">Err</span>(Error::new(
                     <span class="string">"mast"</span>,
-                    ErrorKind::ConflictGenericValue(name.to_string(), <span class="kw-2">*</span>v, value),
+                    ErrorKind::ConflictGenericValue(
+                        name.to_string(),
+                        v.to_str_radix(<span class="number">10</span>),
+                        value.to_str_radix(<span class="number">10</span>),
+                    ),
                     span,
                 ))
             }

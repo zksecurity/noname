@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cli/cmd_build_and_check.rs`."><title>cmd_build_and_check.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-a5dc3bae.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (4f2f477fd 2024-10-23)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/cli/</div>cmd_build_and_check.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cli/cmd_build_and_check.rs`."><title>cmd_build_and_check.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (df4ca44d3 2024-10-27)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/cli/</div>cmd_build_and_check.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -431,7 +431,32 @@
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
 <a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a></pre></div><pre class="rust"><code><span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a></pre></div><pre class="rust"><code><span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
 <span class="kw">use </span>clap::ValueEnum;
 <span class="kw">use </span>miette::{Context, IntoDiagnostic};
 
@@ -444,14 +469,16 @@
         r1cs::{snarkjs::SnarkjsExporter, R1CS},
         Backend, BackendField, BackendKind,
     },
-    cli::packages::path_to_package,
+    cli::packages::{path_to_package, path_to_stdlib},
     compiler::{compile, generate_witness, typecheck_next_file, Sources},
     inputs::{parse_inputs, JsonInputs},
+    stdlib::init_stdlib_dep,
     type_checker::TypeChecker,
 };
 
 <span class="kw">use </span><span class="kw">super</span>::packages::{
-    get_deps_of_package, is_lib, validate_package_and_get_manifest, DependencyGraph, UserRepo,
+    download_stdlib, get_deps_of_package, is_lib, validate_package_and_get_manifest,
+    DependencyGraph, UserRepo,
 };
 
 <span class="kw">const </span>COMPILED_DIR: <span class="kw-2">&amp;</span>str = <span class="string">"compiled"</span>;
@@ -570,6 +597,26 @@
     <span class="prelude-val">Ok</span>(())
 }
 
+<span class="kw">fn </span>add_stdlib&lt;B: Backend&gt;(
+    sources: <span class="kw-2">&amp;mut </span>Sources,
+    tast: <span class="kw-2">&amp;mut </span>TypeChecker&lt;B&gt;,
+    node_id: usize,
+) -&gt; miette::Result&lt;usize&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>node_id = node_id;
+
+    <span class="comment">// check if the release folder exists, otherwise download the latest release
+    // todo: check the latest version and compare it with the current version, to decide if download is needed
+    </span><span class="kw">let </span>stdlib_dir = path_to_stdlib();
+
+    <span class="kw">if </span>!stdlib_dir.exists() {
+        download_stdlib()<span class="question-mark">?</span>;
+    }
+
+    node_id = init_stdlib_dep(sources, tast, node_id, stdlib_dir.as_ref());
+
+    <span class="prelude-val">Ok</span>(node_id)
+}
+
 <span class="kw">fn </span>produce_all_asts&lt;B: Backend&gt;(path: <span class="kw-2">&amp;</span>PathBuf) -&gt; miette::Result&lt;(Sources, TypeChecker&lt;B&gt;)&gt; {
     <span class="comment">// find manifest
     </span><span class="kw">let </span>manifest = validate_package_and_get_manifest(<span class="kw-2">&amp;</span>path, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
@@ -593,6 +640,9 @@
     <span class="kw">let </span><span class="kw-2">mut </span>node_id = <span class="number">0</span>;
 
     <span class="kw">let </span><span class="kw-2">mut </span>tast = TypeChecker::new();
+
+    <span class="comment">// adding stdlib
+    </span>add_stdlib(<span class="kw-2">&amp;mut </span>sources, <span class="kw-2">&amp;mut </span>tast, node_id)<span class="question-mark">?</span>;
 
     <span class="kw">for </span>dep <span class="kw">in </span>dep_graph.from_leaves_to_roots() {
         <span class="kw">let </span>path = path_to_package(<span class="kw-2">&amp;</span>dep);
