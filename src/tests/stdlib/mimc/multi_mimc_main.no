@@ -1,7 +1,7 @@
 use std::mimc;
 
 fn main(pub key: Field, values: [Field; 3]) -> Field {
-    let res = mimc::mimc_hash(91, values, key);
+    let res = mimc::mimc_hash(values, key);
 
     return res;
 }

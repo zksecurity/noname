@@ -2,7 +2,6 @@
 /// This function allows a maximum of 91 rounds, with each round using exponentiation of 7.
 ///
 /// # Parameters
-/// - `ROUNDS`: The number of rounds for the MIMC hash. 
 /// - `value`: The input value to be hashed.
 /// - `key`: The secret key used in the hash computation.
 ///
@@ -11,7 +10,8 @@
 ///
 /// # Constraints
 /// - `ROUNDS` must be within the range of constants defined in `csts`.
-fn mimc_cipher(const ROUNDS: Field, value: Field, key: Field) -> Field {
+fn mimc_cipher(value: Field, key: Field) -> Field {
+    let rounds = 91;
     // Initial value: sum of the key and input value.
     let init = key + value;
     // Variable for the accumulative result of exponentiation with 7.
@@ -113,7 +113,7 @@ fn mimc_cipher(const ROUNDS: Field, value: Field, key: Field) -> Field {
     ];
 
     // Iterate through each round to compute the hash.
-    for round in 0..ROUNDS {
+    for round in 0..rounds {
         // Calculate intermediate values based on the round.
         let exp1_else = (key + exp7) + csts[round];
         let exp1 = if round == 0 { init } else { exp1_else };
@@ -123,7 +123,7 @@ fn mimc_cipher(const ROUNDS: Field, value: Field, key: Field) -> Field {
         let exp7_then = exp6 * exp1;
         let exp7_else = exp7_then + key;
         // Update exp7 based on whether it's the last round.
-        exp7 = if round != (ROUNDS - 1) { exp7_then } else { exp7_else };
+        exp7 = if round != (rounds - 1) { exp7_then } else { exp7_else };
     }
 
     // Return the final hash value.
@@ -134,20 +134,19 @@ fn mimc_cipher(const ROUNDS: Field, value: Field, key: Field) -> Field {
 /// Uses the `mimc_cipher` function iteratively to hash an array of values.
 ///
 /// # Parameters
-/// - `ROUNDS`: The number of rounds for the MIMC hash.
 /// - `values`: An array of `Field` values to be hashed.
 /// - `key`: The secret key used in the hash computation.
 ///
 /// # Returns
 /// - `Field`: The resulting hash after processing all input values.
 ///
-fn mimc_hash(const ROUNDS: Field, values: [Field; LEN], key: Field) -> Field {
+fn mimc_hash(values: [Field; LEN], key: Field) -> Field {
     // Initialize with the key.
     let mut res = key;
     // Iterate over each value in the input array.
     for value in values {
         // Update the result with the MIMC hash of the value and the current result.
-        res = res + (value + mimc_cipher(ROUNDS, value, res));
+        res = res + (value + mimc_cipher(value, res));
     }
     // Return the final accumulated result.
     return res;
