@@ -10,7 +10,7 @@
 ///
 /// # Constraints
 /// - `ROUNDS` must be within the range of constants defined in `csts`.
-fn mimc_cipher(value: Field, key: Field) -> Field {
+fn mimc7_cipher(value: Field, key: Field) -> Field {
     let rounds = 91;
     // Initial value: sum of the key and input value.
     let init = key + value;
@@ -131,7 +131,7 @@ fn mimc_cipher(value: Field, key: Field) -> Field {
 }
 
 /// MIMC hash function for multiple values.
-/// Uses the `mimc_cipher` function iteratively to hash an array of values.
+/// Uses the `mimc7_cipher` function iteratively to hash an array of values.
 ///
 /// # Parameters
 /// - `values`: An array of `Field` values to be hashed.
@@ -140,13 +140,13 @@ fn mimc_cipher(value: Field, key: Field) -> Field {
 /// # Returns
 /// - `Field`: The resulting hash after processing all input values.
 ///
-fn mimc_hash(values: [Field; LEN], key: Field) -> Field {
+fn mimc7_hash(values: [Field; LEN], key: Field) -> Field {
     // Initialize with the key.
     let mut res = key;
     // Iterate over each value in the input array.
     for value in values {
         // Update the result with the MIMC hash of the value and the current result.
-        res = res + (value + mimc_cipher(value, res));
+        res = res + (value + mimc7_cipher(value, res));
     }
     // Return the final accumulated result.
     return res;
