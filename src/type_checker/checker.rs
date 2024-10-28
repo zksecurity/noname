@@ -368,12 +368,10 @@ impl<B: Backend> TypeChecker<B> {
                     // only allow fields
                     match (&lhs_node.typ, &rhs_node.typ) {
                         (TyKind::Field { .. }, TyKind::Field { .. }) => (),
-                        _ => {
-                            Err(self.error(
-                                ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
-                                expr.span,
-                            ))?
-                        }
+                        _ => Err(self.error(
+                            ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
+                            expr.span,
+                        ))?,
                     }
                 }
 
