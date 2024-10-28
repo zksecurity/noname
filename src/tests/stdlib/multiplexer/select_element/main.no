@@ -1,0 +1,6 @@
+use std::multiplexer;
+
+fn main(pub xx: [[Field; 3]; 3], sel: Field) -> [Field; 3] {
+    let chosen_elements = multiplexer::select_element(xx, sel);
+    return chosen_elements;
+}
