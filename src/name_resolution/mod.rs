@@ -41,15 +41,15 @@ impl<B: Backend> NAST<B> {
                     }
 
                     // insert and detect duplicates
-                    ctx.modules
-                        .insert(path.submodule.value.clone(), path.clone())
-                        .ok_or_else(|| {
-                            // lazily evaluated
-                            ctx.error(
-                                ErrorKind::DuplicateModule(path.submodule.value.clone()),
-                                path.submodule.span,
-                            )
-                        })?;
+                    let dedup = ctx
+                        .modules
+                        .insert(path.submodule.value.clone(), path.clone());
+                    if let Some(_) = dedup {
+                        Err(ctx.error(
+                            ErrorKind::DuplicateModule(path.submodule.value.clone()),
+                            path.submodule.span,
+                        ))?
+                    }
                 }
                 RootKind::FunctionDef(FunctionDef { span, .. })
                 | RootKind::StructDef(StructDef { span, .. })
