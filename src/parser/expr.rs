@@ -561,7 +561,9 @@ impl Expr {
                 // sanity check
                 if !matches!(
                     self.kind,
-                    ExprKind::Variable { .. } | ExprKind::FieldAccess { .. }
+                    ExprKind::Variable { .. }
+                        | ExprKind::FieldAccess { .. }
+                        | ExprKind::ArrayAccess { .. }
                 ) {
                     Err(Error::new(
                         "parse_rhs - left bracket",
@@ -569,7 +571,6 @@ impl Expr {
                         self.span,
                     ))?
                 }
-
                 // array[idx]
                 //       ^^^
                 let idx = Expr::parse(ctx, tokens)?;

@@ -1,4 +1,5 @@
 use educe::Educe;
+use num_bigint::BigUint;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
@@ -7,7 +8,7 @@ use std::{
 };
 
 use ark_ff::Field;
-use num_traits::ToPrimitive;
+use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -15,7 +16,6 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     lexer::{Keyword, Token, TokenKind, Tokens},
-    mast::ExprMonoInfo,
     stdlib::builtins::BUILTIN_FN_NAMES,
     syntax::{is_generic_parameter, is_type},
 };
@@ -181,7 +181,7 @@ pub enum ModulePath {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Symbolic {
     /// A literal number
-    Concrete(u32),
+    Concrete(BigUint),
     /// Point to a constant variable
     Constant(Ident),
     /// Generic parameter
@@ -230,7 +230,7 @@ impl Symbolic {
     /// Parse from an expression node recursively.
     pub fn parse(node: &Expr) -> Result<Self> {
         match &node.kind {
-            ExprKind::BigUInt(n) => Ok(Symbolic::Concrete(n.to_u32().unwrap())),
+            ExprKind::BigUInt(n) => Ok(Symbolic::Concrete(n.clone())),
             ExprKind::Variable { module: _, name } => {
                 if is_generic_parameter(&name.value) {
                     Ok(Symbolic::Generic(name.clone()))
@@ -574,7 +574,11 @@ impl FnSig {
                 // resolve the generic parameter
                 match sym {
                     Symbolic::Generic(ident) => {
-                        self.generics.assign(&ident.value, *observed_size, span)?;
+                        self.generics.assign(
+                            &ident.value,
+                            BigUint::from_u32(*observed_size).unwrap(),
+                            span,
+                        )?;
                     }
                     _ => unreachable!("no operation allowed on symbolic size in function argument"),
                 }
@@ -636,7 +640,7 @@ impl FnSig {
 
             let generics = generics
                 .iter()
-                .map(|(name, value)| format!("{}={}", name, value.unwrap()))
+                .map(|(name, value)| format!("{}={}", name, value.as_ref().unwrap()))
                 .collect::<Vec<_>>()
                 .join("#");
 
@@ -745,7 +749,7 @@ pub struct ResolvedSig {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 /// Generic parameters for a function signature
 pub struct GenericParameters {
-    pub parameters: HashMap<String, Option<u32>>,
+    pub parameters: HashMap<String, Option<BigUint>>,
     pub resolved_sig: Option<ResolvedSig>,
 }
 
@@ -761,11 +765,13 @@ impl GenericParameters {
     }
 
     /// Get the value of a generic parameter
-    pub fn get(&self, name: &str) -> u32 {
+    pub fn get(&self, name: &str) -> BigUint {
         self.parameters
             .get(name)
             .expect("generic parameter not found")
+            .as_ref()
             .expect("generic value not assigned")
+            .clone()
     }
 
     /// Returns whether the generic parameters are empty
@@ -774,7 +780,7 @@ impl GenericParameters {
     }
 
     /// Bind a generic parameter to a value
-    pub fn assign(&mut self, name: &String, value: u32, span: Span) -> Result<()> {
+    pub fn assign(&mut self, name: &String, value: BigUint, span: Span) -> Result<()> {
         let existing = self.parameters.get(name);
         match existing {
             Some(Some(v)) => {
@@ -784,7 +790,11 @@ impl GenericParameters {
 
                 Err(Error::new(
                     "mast",
-                    ErrorKind::ConflictGenericValue(name.to_string(), *v, value),
+                    ErrorKind::ConflictGenericValue(
+                        name.to_string(),
+                        v.to_str_radix(10),
+                        value.to_str_radix(10),
+                    ),
                     span,
                 ))
             }

@@ -1,0 +1,77 @@
+/// a hint function (unconstrained) to extracts the `nth` bit from a given `value`.
+/// Its current implementation points to `std::bits::nth_bit`. So it has an empty body in definition.
+/// 
+/// # Parameters
+/// - `value`: The `Field` value from which to extract the bit.
+/// - `nth`: The position of the bit to extract (0-indexed).
+/// 
+/// # Returns
+/// - `Field`: The value of the `nth` bit (0 or 1).
+/// 
+hint fn nth_bit(value: Field, const nth: Field) -> Field;
+
+/// Converts an array of boolean values (`bits`) into a `Field` value.
+///
+/// # Parameters
+/// - `bits`: An array of `Bool` values representing bits, where each `true` represents `1` and `false` represents `0`.
+///
+/// # Returns
+/// - `Field`: A `Field` value that represents the integer obtained from the binary representation of `bits`.
+///
+/// # Example
+/// ```
+/// let bits = [true, false, true]; // Represents the binary value 101
+/// let result = from_bits(bits);
+/// `result` should be 5 as 101 in binary equals 5 in decimal.
+/// ```
+fn from_bits(bits: [Bool; LEN]) -> Field {
+    let mut lc1 = 0;
+    let mut e2 = 1;
+    let zero = 0;
+
+    for index in 0..LEN {
+        lc1 = lc1 + if bits[index] { e2 } else { zero };
+        e2 = e2 + e2;
+    }
+    return lc1;
+}
+
+/// Converts a `Field` value into an array of boolean values (`bits`) representing its binary form.
+///
+/// # Parameters
+/// - `LEN`: The length of the resulting bit array. Determines how many bits are considered in the conversion.
+/// - `value`: The `Field` value to convert into binary representation.
+///
+/// # Returns
+/// - `[Bool; LEN]`: An array of boolean values where each `true` represents `1` and `false` represents `0`.
+///
+/// # Example
+/// ```
+/// let value = 5; // Binary representation: 101
+/// let bits = to_bits(3, value);
+/// `bits` should be [true, false, true] corresponding to the binary 101.
+/// ```
+/// 
+/// # Panics
+/// - The function asserts that `from_bits(bits)` equals `value`, ensuring the conversion is correct.
+fn to_bits(const LEN: Field, value: Field) -> [Bool; LEN] {
+    let mut bits = [false; LEN];
+    let mut lc1 = 0;
+    let mut e2 = 1;
+
+    // TODO: ITE should allow literals.
+    let true_val = true;
+    let false_val = false;
+
+    for index in 0..LEN {
+        let bit_num = unsafe nth_bit(value, index);
+        
+        // constraint the bit values to booleans
+        bits[index] = if bit_num == 1 { true_val } else { false_val };
+    }
+
+    // constraint the accumulative contributions of bits to be equal to the value
+    assert_eq(from_bits(bits), value);
+
+    return bits;
+}

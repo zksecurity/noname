@@ -1,0 +1,8 @@
+use std::comparator;
+
+fn main(pub lhs: Field, rhs: Field) -> Bool {
+    let bit_len = 2;
+    let res = comparator::less_than(bit_len, lhs, rhs);
+
+    return res;
+}
