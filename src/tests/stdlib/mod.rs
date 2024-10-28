@@ -1,5 +1,6 @@
 mod comparator;
 mod mimc;
+mod multiplexer;
 
 use std::{path::Path, str::FromStr};
 
