@@ -13,7 +13,6 @@ pub mod types;
 
 pub use expr::{Expr, ExprKind, Op2};
 use serde::Serialize;
-use serde_with::serde_as;
 pub use structs::{CustomType, StructDef};
 
 //~

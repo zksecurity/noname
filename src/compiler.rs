@@ -209,7 +209,7 @@ pub fn compile<B: Backend>(
 
     // debug server
     if let Some(server_mode) = server_mode {
-        server_mode.send(format!("monomorphization of whole project"), &mast);
+        server_mode.send("monomorphization of whole project".to_string(), &mast);
         // block on an answer
         let _ = server_mode.recv();
     }

@@ -1,7 +1,7 @@
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::{get, get_service, post},
+    routing::get,
     Json, Router,
 };
 use base64::prelude::*;
@@ -23,14 +23,6 @@ pub enum ServerMessage {
 #[derive(Clone, Debug)]
 pub enum CompilerMessage {
     State { title: String, state: String },
-}
-
-// TODO: use this instead of just a title
-#[derive(Clone, Debug, Serialize)]
-pub struct CompilerContext {
-    /// To figure out nesting
-    level: usize,
-    pass: String,
 }
 
 pub struct ServerShim {
@@ -59,7 +51,7 @@ impl ServerShim {
 
     pub(crate) fn send<T: Serialize>(&self, title: String, state: &T) {
         let state = serde_json::to_string(&state).unwrap();
-        let state = BASE64_STANDARD.encode(&state);
+        let state = BASE64_STANDARD.encode(state);
         let _ = self
             .tx
             .clone()
@@ -78,7 +70,6 @@ impl ServerShim {
 #[derive(Debug, Clone)]
 struct ServerState {
     tx: Arc<Mutex<mpsc::Sender<ServerMessage>>>,
-    rx: Arc<Mutex<mpsc::Receiver<CompilerMessage>>>,
     compiler_state: Arc<Mutex<Vec<CompilerStep>>>,
 }
 
@@ -98,7 +89,6 @@ async fn run_server(tx: mpsc::Sender<ServerMessage>, rx: mpsc::Receiver<Compiler
     let rx = Arc::new(Mutex::new(rx));
     let server_state = ServerState {
         tx,
-        rx: rx.clone(),
         compiler_state: compiler_state.clone(),
     };
 
@@ -118,7 +108,6 @@ async fn run_server(tx: mpsc::Sender<ServerMessage>, rx: mpsc::Receiver<Compiler
     let assets_dir = std::path::Path::new(&manifest_dir).join("assets");
 
     let app = Router::new()
-        //        .route("/", get(root))
         // let the compiler go to the next step
         .route("/states", get(states))
         .route("/resume/:id", get(resume))
@@ -136,11 +125,6 @@ async fn run_server(tx: mpsc::Sender<ServerMessage>, rx: mpsc::Receiver<Compiler
 //
 // Routes
 //
-
-// basic handler that responds with a static string
-async fn root() -> &'static str {
-    "Hello, World!"
-}
 
 #[axum::debug_handler]
 async fn states(state: State<ServerState>) -> String {

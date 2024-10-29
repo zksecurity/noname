@@ -43,16 +43,6 @@ pub struct FullyQualified {
     pub name: String,
 }
 
-// impl ToString for FullyQualified {
-//     fn to_string(&self) -> String {
-//         if let Some(module) = &self.module {
-//             format!("{module}/{}", self.name)
-//         } else {
-//             format!("{}", self.name)
-//         }
-//     }
-// }
-
 impl Display for FullyQualified {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(module) = &self.module {
@@ -78,27 +68,6 @@ impl FullyQualified {
             module,
             name: name.clone(),
         }
-    }
-}
-
-pub mod attr {
-    use serde::{Serialize, Serializer};
-
-    // pub type Attr<T: Serialize> = std::collections::HashMap<super::FullyQualified, T>;
-
-    // pub(super) fn serialize<T: Serialize, S: Serializer>(
-    //     attr: &Attr<T>,
-    //     ser: S,
-    // ) -> Result<S::Ok, S::Error> {
-    //     let attr: Vec<_> = attr.iter().collect();
-    //     serde::Serialize::serialize(&attr, ser)
-    // }
-
-    pub type Attr = super::FullyQualified;
-
-    pub(super) fn serialize<S: Serializer>(attr: &Attr, ser: S) -> Result<S::Ok, S::Error> {
-        let attr: String = attr.to_string();
-        serde::Serialize::serialize(&attr, ser)
     }
 }
 
