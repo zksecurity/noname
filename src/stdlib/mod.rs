@@ -20,6 +20,9 @@ pub mod bits;
 pub mod builtins;
 pub mod crypto;
 
+/// The directory under [NONAME_DIRECTORY] containing the native stdlib.
+pub const STDLIB_DIRECTORY: &str = "src/stdlib/native/";
+
 pub enum AllStdModules {
     Builtins,
     Crypto,
@@ -91,7 +94,7 @@ pub fn init_stdlib_dep<B: Backend>(
     server_mode: &mut Option<crate::server::ServerShim>,
 ) -> usize {
     // list the stdlib dependency in order
-    let libs = vec!["bits", "comparator", "int"];
+    let libs = vec!["bits", "comparator", "multiplexer", "mimc", "int"];
 
     let mut node_id = node_id;
 
@@ -109,6 +112,9 @@ pub fn init_stdlib_dep<B: Backend>(
             server_mode,
         )
         .unwrap();
+        let code = std::fs::read_to_string(prefix_stdlib.join(format!("{lib}/lib.no"))).unwrap();
+        node_id =
+            typecheck_next_file(tast, Some(module), sources, lib.to_string(), code, 0).unwrap();
     }
 
     node_id

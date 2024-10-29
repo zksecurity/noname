@@ -222,7 +222,6 @@ mod tests {
         let code = r#"main(pub public_input: [Fel; 3], private_input: [Fel; 3]) -> [Fel; 3] { return public_input; }"#;
         let tokens = &mut Token::parse(0, code).unwrap();
         let ctx = &mut ParserCtx::default();
-        let is_hint = false;
         let parsed = FunctionDef::parse(ctx, tokens).unwrap();
         println!("{:?}", parsed);
     }

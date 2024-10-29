@@ -140,13 +140,16 @@ pub enum ErrorKind {
     GenericValueExpected(String),
 
     #[error("conflict generic values during binding for `{0}`: `{1}` and `{2}`")]
-    ConflictGenericValue(String, u32, u32),
+    ConflictGenericValue(String, String, String),
 
     #[error("unexpected generic parameter: `{0}`")]
     UnexpectedGenericParameter(String),
 
     #[error("calling generic functions in for loop is not allowed")]
     GenericInForLoop,
+
+    #[error("variable `{0}` is forbidden to be accessed in the for loop, likely due to a generic function call")]
+    VarAccessForbiddenInForLoop(String),
 
     #[error("the value passed could not be converted to a field element")]
     InvalidField(String),

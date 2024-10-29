@@ -37,27 +37,27 @@ pub struct ExprMonoInfo {
 
 #[derive(Debug, Clone)]
 pub enum PropagatedConstant {
-    Single(u32),
+    Single(BigUint),
     Array(Vec<PropagatedConstant>),
     Custom(HashMap<Ident, PropagatedConstant>),
 }
 
 impl PropagatedConstant {
-    pub fn as_single(&self) -> u32 {
+    pub fn as_single(&self) -> BigUint {
         match self {
-            PropagatedConstant::Single(v) => *v,
+            PropagatedConstant::Single(v) => v.clone(),
             _ => panic!("expected single value"),
         }
     }
 
-    pub fn as_array(&self) -> Vec<u32> {
+    pub fn as_array(&self) -> Vec<BigUint> {
         match self {
             PropagatedConstant::Array(v) => v.iter().map(|c| c.as_single()).collect(),
             _ => panic!("expected array value"),
         }
     }
 
-    pub fn as_custom(&self) -> HashMap<Ident, u32> {
+    pub fn as_custom(&self) -> HashMap<Ident, BigUint> {
         match self {
             PropagatedConstant::Custom(v) => {
                 v.iter().map(|(k, c)| (k.clone(), c.as_single())).collect()
@@ -68,8 +68,8 @@ impl PropagatedConstant {
 }
 
 /// impl From trait for single value
-impl From<u32> for PropagatedConstant {
-    fn from(v: u32) -> Self {
+impl From<BigUint> for PropagatedConstant {
+    fn from(v: BigUint) -> Self {
         PropagatedConstant::Single(v)
     }
 }
@@ -225,7 +225,10 @@ impl FnSig {
             TyKind::Array(ty, size) => TyKind::Array(Box::new(self.resolve_type(ty, ctx)), *size),
             TyKind::GenericSizedArray(ty, sym) => {
                 let val = sym.eval(&self.generics, &ctx.tast);
-                TyKind::Array(Box::new(self.resolve_type(ty, ctx)), val)
+                TyKind::Array(
+                    Box::new(self.resolve_type(ty, ctx)),
+                    val.to_u32().expect("array size exceeded u32"),
+                )
             }
             _ => typ.clone(),
         }
@@ -382,9 +385,9 @@ impl<B: Backend> MastCtx<B> {
 
 impl Symbolic {
     /// Evaluate symbolic size to an integer.
-    pub fn eval<B: Backend>(&self, gens: &GenericParameters, tast: &TypeChecker<B>) -> u32 {
+    pub fn eval<B: Backend>(&self, gens: &GenericParameters, tast: &TypeChecker<B>) -> BigUint {
         match self {
-            Symbolic::Concrete(v) => *v,
+            Symbolic::Concrete(v) => v.clone(),
             Symbolic::Constant(var) => {
                 let qualified = FullyQualified::local(var.value.clone());
                 let cst = tast.const_info(&qualified).expect("constant not found");
@@ -806,11 +809,7 @@ fn monomorphize_expr<B: Backend>(
                 Some(v) => {
                     let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(v.clone()));
 
-                    ExprMonoInfo::new(
-                        mexpr,
-                        typ,
-                        Some(PropagatedConstant::from(v.to_u32().unwrap())),
-                    )
+                    ExprMonoInfo::new(mexpr, typ, Some(PropagatedConstant::from(v)))
                 }
                 // keep as is
                 _ => {
@@ -847,13 +846,12 @@ fn monomorphize_expr<B: Backend>(
         }
 
         ExprKind::BigUInt(inner) => {
-            let cst: u32 = inner.try_into().expect("biguint too large");
             let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(inner.clone()));
 
             ExprMonoInfo::new(
                 mexpr,
                 Some(TyKind::Field { constant: true }),
-                Some(PropagatedConstant::from(cst)),
+                Some(PropagatedConstant::from(inner.clone())),
             )
         }
 
@@ -893,13 +891,12 @@ fn monomorphize_expr<B: Backend>(
                 // if it's a variable,
                 // check if it's a constant first
                 let bigint: BigUint = cst.value[0].into();
-                let cst: u32 = bigint.clone().try_into().expect("biguint too large");
-                let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(bigint));
+                let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(bigint.clone()));
 
                 ExprMonoInfo::new(
                     mexpr,
                     Some(TyKind::Field { constant: true }),
-                    Some(PropagatedConstant::from(cst)),
+                    Some(PropagatedConstant::from(bigint)),
                 )
             } else {
                 // otherwise it's a local variable
@@ -1091,7 +1088,10 @@ fn monomorphize_expr<B: Backend>(
             );
 
             if let Some(cst) = size_mono.constant {
-                let arr_typ = TyKind::Array(Box::new(item_typ), cst.as_single());
+                let arr_typ = TyKind::Array(
+                    Box::new(item_typ),
+                    cst.as_single().to_u32().expect("array size too large"),
+                );
                 ExprMonoInfo::new(mexpr, Some(arr_typ), None)
             } else {
                 return Err(error(ErrorKind::InvalidArraySize, expr.span));
