@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/r1cs/snarkjs.rs`."><title>snarkjs.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (df4ca44d3 2024-10-27)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/backends/r1cs/</div>snarkjs.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/r1cs/snarkjs.rs`."><title>snarkjs.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (3f1be1ec7 2024-10-28)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/backends/r1cs/</div>snarkjs.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -319,14 +319,21 @@
 <a href="#318" id="318">318</a>
 <a href="#319" id="319">319</a>
 <a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::backends::BackendField;
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::backends::BackendField;
 <span class="kw">use </span>constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
-<span class="kw">use </span>miette::{miette, Diagnostic};
+<span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::fs::{File, OpenOptions};
-<span class="kw">use </span>std::io::{<span class="self">self</span>, BufWriter, Seek, SeekFrom, Write};
+<span class="kw">use </span>std::io::{<span class="self">self</span>, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 <span class="kw">use </span>std::vec;
 
 <span class="kw">use super</span>::{GeneratedWitness, LinearCombination, R1CS};
@@ -360,16 +367,20 @@
 }
 
 <span class="kw">impl </span>SnarkjsLinearCombination {
-    <span class="kw">fn </span>to_hashmap(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashMap&lt;usize, BigInt&gt; {
+    <span class="kw">fn </span>try_hashmap(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;HashMap&lt;usize, BigInt&gt;, Error&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>terms = <span class="self">self</span>.terms.clone();
 
         <span class="comment">// add the constant term with var indexed at 0
         </span><span class="kw">if </span>terms.insert(<span class="number">0</span>, <span class="self">self</span>.constant.clone()).is_some() {
             <span class="comment">// sanity check
-            </span><span class="macro">panic!</span>(<span class="string">"The first var should be preserved for constant term"</span>);
-        }
 
-        terms
+            </span><span class="prelude-val">Err</span>(std::io::Error::new(
+                ErrorKind::Other,
+                <span class="string">"The first var should be preserved for constant term"</span>,
+            ))<span class="question-mark">?
+        </span>}
+
+        <span class="prelude-val">Ok</span>(terms)
     }
 }
 
@@ -455,9 +466,9 @@
         <span class="kw">for </span>constraint <span class="kw">in </span><span class="kw-2">&amp;</span>restructure_constraints {
             ConstraintSection::write_constraint_usize(
                 <span class="kw-2">&amp;mut </span>constraint_section,
-                <span class="kw-2">&amp;</span>constraint.a.to_hashmap(),
-                <span class="kw-2">&amp;</span>constraint.b.to_hashmap(),
-                <span class="kw-2">&amp;</span>constraint.c.to_hashmap(),
+                <span class="kw-2">&amp;</span>constraint.a.try_hashmap()<span class="question-mark">?</span>,
+                <span class="kw-2">&amp;</span>constraint.b.try_hashmap()<span class="question-mark">?</span>,
+                <span class="kw-2">&amp;</span>constraint.c.try_hashmap()<span class="question-mark">?</span>,
             )
             .map_err(|<span class="kw">_</span>| Error::R1CSWriterIo)<span class="question-mark">?</span>;
         }
@@ -548,8 +559,11 @@
         <span class="comment">// Write the file type (magic string) as bytes
         </span><span class="kw">let </span>file_type_bytes = file_type.as_bytes();
         <span class="kw">if </span>file_type_bytes.len() != <span class="number">4 </span>{
-            <span class="macro">panic!</span>(<span class="string">"File type must be 4 characters long"</span>);
-        }
+            <span class="prelude-val">Err</span>(std::io::Error::new(
+                ErrorKind::Other,
+                <span class="string">"File type must be 4 characters long"</span>,
+            ))<span class="question-mark">?
+        </span>}
         writer.write_all(file_type_bytes)<span class="question-mark">?</span>;
 
         <span class="comment">// Write the version as a 32-bit unsigned integer in little endian

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/inputs.rs`."><title>inputs.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (df4ca44d3 2024-10-27)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../static.files/storage-59e33391.js"></script><script defer src="../../static.files/src-script-56102188.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/</div>inputs.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/inputs.rs`."><title>inputs.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (3f1be1ec7 2024-10-28)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../static.files/storage-59e33391.js"></script><script defer src="../../static.files/src-script-56102188.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/</div>inputs.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -173,7 +173,19 @@
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a></pre></div><pre class="rust"><code><span class="doccomment">//! Used to parse public and private inputs to a program.
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a></pre></div><pre class="rust"><code><span class="doccomment">//! Used to parse public and private inputs to a program.
 
 </span><span class="kw">use </span>std::{collections::HashMap, fs::File, io::Read, str::FromStr};
 
@@ -209,6 +221,14 @@
 
     <span class="attr">#[error(<span class="string">"mismatch between expected argument format ({0}), and given argument in JSON (`{1}`)"</span>)]
     </span>MismatchJsonArgument(TyKind, serde_json::Value),
+    <span class="attr">#[error(<span class="string">"Incorrect array size: Expected {0}, Got {1})"</span>)]
+    </span>ArraySizeMismatch(usize, usize),
+    <span class="attr">#[error(<span class="string">"Incorrect struct fields count. {0} expected {1}, Got {2})"</span>)]
+    </span>StructFieldCountMismatch(String, usize, usize),
+    <span class="attr">#[error(<span class="string">"Compiler bug: failed to locate struct name `{0}` given as input"</span>)]
+    </span>MissingStructIdent(String),
+    <span class="attr">#[error(<span class="string">"Failed to locate struct field name `{0}` in JSON input"</span>)]
+    </span>MissingStructFieldIdent(String),
 }
 
 <span class="comment">//
@@ -268,8 +288,11 @@
 
             (TyKind::Array(el_typ, size), Value::Array(values)) =&gt; {
                 <span class="kw">if </span>values.len() != (<span class="kw-2">*</span>size <span class="kw">as </span>usize) {
-                    <span class="macro">panic!</span>(<span class="string">"wrong size of array"</span>);
-                }
+                    <span class="prelude-val">Err</span>(ParsingError::ArraySizeMismatch(
+                        values.len(),
+                        <span class="kw-2">*</span>size <span class="kw">as </span>usize,
+                    ))<span class="question-mark">?
+                </span>}
                 <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[];
                 <span class="kw">for </span>value <span class="kw">in </span>values {
                     <span class="kw">let </span>el = <span class="self">self</span>.parse_single_input(value, el_typ)<span class="question-mark">?</span>;
@@ -290,23 +313,24 @@
                 <span class="kw">let </span>struct_info = <span class="self">self
                     </span>.circuit
                     .struct_info(<span class="kw-2">&amp;</span>qualified)
-                    .expect(<span class="string">"compiler bug: couldn't find struct given as input"</span>);
+                    .ok_or_else(|| ParsingError::MissingStructIdent(struct_name.to_string()))<span class="question-mark">?</span>;
                 <span class="kw">let </span>fields = <span class="kw-2">&amp;</span>struct_info.fields;
 
                 <span class="comment">// make sure that they're the same length
                 </span><span class="kw">if </span>fields.len() != map.len() {
-                    <span class="macro">panic!</span>(<span class="string">"wrong number of fields in struct (TODO: better error)"</span>);
+                    <span class="prelude-val">Err</span>(ParsingError::StructFieldCountMismatch(
+                        struct_info.name.to_string(),
+                        map.len(),
+                        fields.len(),
+                    ))<span class="question-mark">?</span>;
                 }
 
                 <span class="comment">// parse each field
                 </span><span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[];
                 <span class="kw">for </span>(field_name, field_ty) <span class="kw">in </span>fields {
-                    <span class="kw">let </span>value = map
-                    .remove(field_name)
-                    .ok_or_else(|| {
-                        <span class="macro">format!</span>(<span class="string">"couldn't find field `{field_name}` in given JSON input (TODO: better error)"</span>)
-                    })
-                    .unwrap();
+                    <span class="kw">let </span>value = map.remove(field_name).ok_or_else(|| {
+                        ParsingError::MissingStructFieldIdent(field_name.to_string())
+                    })<span class="question-mark">?</span>;
                     <span class="kw">let </span>parsed = <span class="self">self</span>.parse_single_input(value, field_ty)<span class="question-mark">?</span>;
                     res.extend(parsed);
                 }

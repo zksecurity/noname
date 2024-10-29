@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/mast/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (df4ca44d3 2024-10-27)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/mast/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/mast/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (3f1be1ec7 2024-10-28)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/mast/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -1368,7 +1368,38 @@
 <a href="#1367" id="1367">1367</a>
 <a href="#1368" id="1368">1368</a>
 <a href="#1369" id="1369">1369</a>
-<a href="#1370" id="1370">1370</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
+<a href="#1370" id="1370">1370</a>
+<a href="#1371" id="1371">1371</a>
+<a href="#1372" id="1372">1372</a>
+<a href="#1373" id="1373">1373</a>
+<a href="#1374" id="1374">1374</a>
+<a href="#1375" id="1375">1375</a>
+<a href="#1376" id="1376">1376</a>
+<a href="#1377" id="1377">1377</a>
+<a href="#1378" id="1378">1378</a>
+<a href="#1379" id="1379">1379</a>
+<a href="#1380" id="1380">1380</a>
+<a href="#1381" id="1381">1381</a>
+<a href="#1382" id="1382">1382</a>
+<a href="#1383" id="1383">1383</a>
+<a href="#1384" id="1384">1384</a>
+<a href="#1385" id="1385">1385</a>
+<a href="#1386" id="1386">1386</a>
+<a href="#1387" id="1387">1387</a>
+<a href="#1388" id="1388">1388</a>
+<a href="#1389" id="1389">1389</a>
+<a href="#1390" id="1390">1390</a>
+<a href="#1391" id="1391">1391</a>
+<a href="#1392" id="1392">1392</a>
+<a href="#1393" id="1393">1393</a>
+<a href="#1394" id="1394">1394</a>
+<a href="#1395" id="1395">1395</a>
+<a href="#1396" id="1396">1396</a>
+<a href="#1397" id="1397">1397</a>
+<a href="#1398" id="1398">1398</a>
+<a href="#1399" id="1399">1399</a>
+<a href="#1400" id="1400">1400</a>
+<a href="#1401" id="1401">1401</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>num_traits::ToPrimitive;
 <span class="kw">use </span>std::collections::HashMap;
 
@@ -1845,8 +1876,11 @@
     <span class="kw">let </span><span class="kw-2">mut </span>func_def = <span class="kw">match </span><span class="kw-2">&amp;</span>main_fn.kind {
         <span class="comment">// `fn main() { ... }`
         </span>FnKind::Native(function) =&gt; function.clone(),
-
-        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"main function must be native"</span>),
+        <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(
+            <span class="string">"Backend - Monomorphize"</span>,
+            ErrorKind::UnexpectedError(<span class="string">"Main function must be native"</span>),
+            Span::default(),
+        ))<span class="question-mark">?</span>,
     };
 
     <span class="comment">// create a new typed fn environment to type check the function
@@ -1896,7 +1930,11 @@
             <span class="comment">// obtain the type of the field
             </span><span class="kw">let </span>(module, struct_name) = <span class="kw">match </span>lhs_mono.typ {
                 <span class="prelude-val">Some</span>(TyKind::Custom { module, name }) =&gt; (module, name),
-                <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"field access must be done on a custom struct"</span>),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(
+                    <span class="string">"Monomorphize Expr"</span>,
+                    ErrorKind::UnexpectedError(<span class="string">"field access must be done on a custom struct"</span>),
+                    expr.span,
+                ))<span class="question-mark">?</span>,
             };
 
             <span class="comment">// get struct info
@@ -2103,7 +2141,14 @@
                     },
                 );
 
-                <span class="kw">let </span>fn_def = fn_info_mono.native();
+                <span class="kw">let </span>fn_def = fn_info_mono.native().ok_or_else(|| {
+                    Error::new(
+                        <span class="string">"monomorphize-expr-MethodCall"</span>,
+                        ErrorKind::UnexpectedError(<span class="string">"Function kind is not native"</span>),
+                        fn_info_mono.span,
+                    )
+                })<span class="question-mark">?</span>;
+
                 ctx.tast
                     .add_monomorphized_method(struct_qualified, <span class="kw-2">&amp;</span>fn_name_mono.value, fn_def);
 
@@ -2290,9 +2335,15 @@
             <span class="kw">let </span>id_mono = monomorphize_expr(ctx, idx, mono_fn_env)<span class="question-mark">?</span>;
 
             <span class="comment">// get type of element
-            </span><span class="kw">let </span>el_typ = <span class="kw">match </span>array_mono.typ.unwrap() {
-                TyKind::Array(typkind, <span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>typkind),
-                <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"not an array"</span>),
+            </span><span class="kw">let </span>el_typ = <span class="kw">match </span>array_mono.typ {
+                <span class="prelude-val">Some</span>(TyKind::Array(typkind, <span class="kw">_</span>)) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>typkind),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(
+                    <span class="string">"Array Access"</span>,
+                    ErrorKind::UnexpectedError(
+                        <span class="string">"Attempting to access array when type is not an array"</span>,
+                    ),
+                    expr.span,
+                ))<span class="question-mark">?</span>,
             };
 
             <span class="kw">let </span>mexpr = expr.to_mast(
@@ -2351,8 +2402,14 @@
 
             <span class="comment">// make sure that the type of then_ and else_ match
             </span><span class="kw">if </span>then_mono.typ != else_mono.typ {
-                <span class="macro">panic!</span>(<span class="string">"`if` branch and `else` branch must have matching types"</span>);
-            }
+                <span class="prelude-val">Err</span>(Error::new(
+                    <span class="string">"If-Else Monomorphization"</span>,
+                    ErrorKind::UnexpectedError(
+                        <span class="string">"`if` branch and `else` branch must have matching types"</span>,
+                    ),
+                    expr.span,
+                ))<span class="question-mark">?
+            </span>}
 
             <span class="kw">let </span>mexpr = expr.to_mast(
                 ctx,
@@ -2586,15 +2643,20 @@
                 }
                 ForLoopArgument::Iterator(iterator) =&gt; {
                     <span class="kw">let </span>iterator_mono = monomorphize_expr(ctx, iterator, mono_fn_env)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>typ = iterator_mono.typ.as_ref().expect(<span class="string">"expected a type"</span>);
-                    <span class="kw">let </span>array_element_type = <span class="kw">match </span>typ {
-                        TyKind::Array(t, <span class="kw">_</span>) =&gt; t,
-                        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected an array"</span>),
+                    <span class="kw">let </span>array_element_type = <span class="kw">match </span>iterator_mono.typ {
+                        <span class="prelude-val">Some</span>(TyKind::Array(t, <span class="kw">_</span>)) =&gt; t,
+                        <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(
+                            <span class="string">"Monomorphize Stmt - ForLoopArgument"</span>,
+                            ErrorKind::UnexpectedError(
+                                <span class="string">"Expected array while monomorphizing iterator's type"</span>,
+                            ),
+                            stmt.span,
+                        ))<span class="question-mark">?</span>,
                     };
 
                     mono_fn_env.store_type(
                         <span class="kw-2">&amp;</span>var.value,
-                        <span class="kw-2">&amp;</span>MTypeInfo::new(array_element_type, var.span, <span class="prelude-val">None</span>),
+                        <span class="kw-2">&amp;</span>MTypeInfo::new(<span class="kw-2">&amp;</span>array_element_type, var.span, <span class="prelude-val">None</span>),
                     )<span class="question-mark">?</span>;
                     ForLoopArgument::Iterator(Box::new(iterator_mono.expr))
                 }

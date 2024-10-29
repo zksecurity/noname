@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/checker.rs`."><title>checker.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (df4ca44d3 2024-10-27)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/type_checker/</div>checker.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/checker.rs`."><title>checker.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (3f1be1ec7 2024-10-28)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/type_checker/</div>checker.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -871,7 +871,15 @@
 <a href="#870" id="870">870</a>
 <a href="#871" id="871">871</a>
 <a href="#872" id="872">872</a>
-<a href="#873" id="873">873</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>num_traits::ToPrimitive;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -915,10 +923,10 @@
         }
     }
 
-    <span class="kw">pub fn </span>native(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>FunctionDef {
+    <span class="kw">pub fn </span>native(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>FunctionDef&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
-            FnKind::Native(func) =&gt; func,
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected a native function"</span>),
+            FnKind::Native(func) =&gt; <span class="prelude-val">Some</span>(func),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 }
@@ -1169,18 +1177,23 @@
                             .var_name
                             .expect(<span class="string">"anonymous lhs access cannot be mutated"</span>)
                     }
-                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"bad expression assignment (TODO: replace with error)"</span>),
+                    <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                        ErrorKind::UnexpectedError(<span class="string">"bad expression assignment"</span>),
+                        expr.span,
+                    ))<span class="question-mark">?</span>,
                 };
 
                 <span class="comment">// check that the var exists locally
                 </span><span class="kw">let </span>lhs_info = typed_fn_env
                     .get_type_info(<span class="kw-2">&amp;</span>lhs_name)<span class="question-mark">?
-                    </span>.expect(<span class="string">"variable not found (TODO: replace with error"</span>)
-                    .clone();
+                    </span>.ok_or_else(|| {
+                        <span class="self">self</span>.error(ErrorKind::UnexpectedError(<span class="string">"variable not found"</span>), expr.span)
+                    })<span class="question-mark">?
+                    </span>.clone();
 
                 <span class="comment">// and is mutable
                 </span><span class="kw">if </span>!lhs_info.mutable {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::AssignmentToImmutableVariable, expr.span));
+                    <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::AssignmentToImmutableVariable, expr.span))<span class="question-mark">?</span>;
                 }
 
                 <span class="comment">// and is of the same type as the rhs
@@ -1236,12 +1249,10 @@
                     <span class="comment">// only allow fields
                     </span><span class="kw">match </span>(<span class="kw-2">&amp;</span>lhs_node.typ, <span class="kw-2">&amp;</span>rhs_node.typ) {
                         (TyKind::Field { .. }, TyKind::Field { .. }) =&gt; (),
-                        <span class="kw">_ </span>=&gt; {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
-                                ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
-                                expr.span,
-                            ))
-                        }
+                        <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                            ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
+                            expr.span,
+                        ))<span class="question-mark">?</span>,
                     }
                 }
 
@@ -1262,15 +1273,15 @@
             ExprKind::Negated(inner) =&gt; {
                 <span class="kw">let </span>inner_typ = <span class="self">self</span>.compute_type(inner, typed_fn_env)<span class="question-mark">?</span>.unwrap();
                 <span class="kw">if </span>!<span class="macro">matches!</span>(inner_typ.typ, TyKind::Field { .. }) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                    <span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                         <span class="comment">// it can be either constant or not.
                         // here we just default it to constant for error message.
                         </span>ErrorKind::MismatchType(TyKind::Field { constant: <span class="bool-val">true </span>}, inner_typ.typ),
                         expr.span,
-                    ));
+                    ))<span class="question-mark">?
+                </span>} <span class="kw">else </span>{
+                    <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(inner_typ.typ))
                 }
-
-                <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(inner_typ.typ))
             }
 
             ExprKind::Not(inner) =&gt; {
@@ -1330,8 +1341,8 @@
 
                 <span class="comment">// check that it is an array
                 </span><span class="kw">if </span>!<span class="macro">matches!</span>(typ.typ, TyKind::Array(..) | TyKind::GenericSizedArray(..)) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::ArrayAccessOnNonArray, expr.span));
-                }
+                    <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::ArrayAccessOnNonArray, expr.span))<span class="question-mark">?
+                </span>}
 
                 <span class="comment">// check that expression is a bigint
                 </span><span class="kw">let </span>idx_typ = <span class="self">self</span>.compute_type(idx, typed_fn_env)<span class="question-mark">?</span>;
@@ -1344,7 +1355,7 @@
                 </span><span class="kw">let </span>el_typ = <span class="kw">match </span>typ.typ {
                     TyKind::Array(typkind, <span class="kw">_</span>) =&gt; <span class="kw-2">*</span>typkind,
                     TyKind::GenericSizedArray(typkind, <span class="kw">_</span>) =&gt; <span class="kw-2">*</span>typkind,
-                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"not an array"</span>),
+                    <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::UnexpectedError(<span class="string">"not an array"</span>), expr.span))<span class="question-mark">?</span>,
                 };
 
                 <span class="kw">let </span>res = ExprTyInfo::new(typ.var_name, el_typ);
@@ -1385,11 +1396,11 @@
                     </span>.compute_type(cond, typed_fn_env)<span class="question-mark">?
                     </span>.expect(<span class="string">"can't compute type of condition"</span>);
                 <span class="kw">if </span>!<span class="macro">matches!</span>(cond_node.typ, TyKind::Bool) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                    <span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                         ErrorKind::IfElseInvalidConditionType(cond_node.typ.clone()),
                         cond.span,
-                    ));
-                }
+                    ))<span class="question-mark">?
+                </span>}
 
                 <span class="comment">// then_ and else_ can only be variables, field accesses, or array accesses
                 </span><span class="kw">if </span>!<span class="macro">matches!</span>(
@@ -1507,8 +1518,8 @@
 
                     <span class="prelude-val">Some</span>(res)
                 } <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::InvalidArraySize, expr.span));
-                }
+                    <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::InvalidArraySize, expr.span))<span class="question-mark">?
+                </span>}
             }
         };
 
@@ -1543,8 +1554,13 @@
 
         <span class="kw">for </span>stmt <span class="kw">in </span>stmts {
             <span class="kw">if </span>return_typ.is_some() {
-                <span class="macro">panic!</span>(<span class="string">"early return detected: we don't allow that for now (TODO: return error"</span>);
-            }
+                <span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                    ErrorKind::UnexpectedError(
+                        <span class="string">"early return detected: we don't allow that for now"</span>,
+                    ),
+                    stmt.span,
+                ))<span class="question-mark">?
+            </span>}
 
             return_typ = <span class="self">self</span>.check_stmt(typed_fn_env, stmt)<span class="question-mark">?</span>;
         }
@@ -1552,19 +1568,17 @@
         <span class="comment">// check the return
         </span><span class="kw">match </span>(expected_return, return_typ) {
             (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; (),
-            (<span class="prelude-val">Some</span>(expected), <span class="prelude-val">None</span>) =&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::MissingReturn, expected.span))
-            }
+            (<span class="prelude-val">Some</span>(expected), <span class="prelude-val">None</span>) =&gt; <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::MissingReturn, expected.span))<span class="question-mark">?</span>,
             (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="kw">_</span>)) =&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::NoReturnExpected, stmts.last().unwrap().span))
-            }
+                <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::NoReturnExpected, stmts.last().unwrap().span))<span class="question-mark">?
+            </span>}
             (<span class="prelude-val">Some</span>(expected), <span class="prelude-val">Some</span>(observed)) =&gt; {
                 <span class="kw">if </span>!observed.match_expected(<span class="kw-2">&amp;</span>expected.kind, <span class="bool-val">false</span>) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                    <span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                         ErrorKind::ReturnTypeMismatch(expected.kind.clone(), observed.clone()),
                         expected.span,
-                    ));
-                }
+                    ))<span class="question-mark">?
+                </span>}
             }
         };
 
@@ -1616,26 +1630,28 @@
                         <span class="kw">let </span>start_type = <span class="self">self</span>.compute_type(<span class="kw-2">&amp;</span>range.start, typed_fn_env)<span class="question-mark">?</span>.unwrap();
                         <span class="kw">let </span>end_type = <span class="self">self</span>.compute_type(<span class="kw-2">&amp;</span>range.end, typed_fn_env)<span class="question-mark">?</span>.unwrap();
                         <span class="kw">if </span>!is_numeric(<span class="kw-2">&amp;</span>start_type.typ) || !is_numeric(<span class="kw-2">&amp;</span>end_type.typ) {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::InvalidRangeSize, range.span));
+                            <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::InvalidRangeSize, range.span))<span class="question-mark">?</span>;
                         }
                     }
                     ForLoopArgument::Iterator(iterator) =&gt; {
                         <span class="comment">// make sure that the iterator expression is an iterator,
                         // for now this means that the expression should have type `Array`
                         </span><span class="kw">let </span>iterator_typ = <span class="self">self</span>.compute_type(iterator, typed_fn_env)<span class="question-mark">?</span>;
-                        <span class="kw">let </span>iterator_typ = iterator_typ
-                            .expect(<span class="string">"Could not compute type of iterator (TODO: better error)"</span>);
+                        <span class="kw">let </span>iterator_typ = iterator_typ.ok_or_else(|| {
+                            <span class="self">self</span>.error(
+                                ErrorKind::UnexpectedError(<span class="string">"Could not compute type of iterator"</span>),
+                                iterator.span,
+                            )
+                        })<span class="question-mark">?</span>;
 
                         <span class="comment">// the type of the variable is the type of the items of the iterator
                         </span><span class="kw">let </span>element_type = <span class="kw">match </span>iterator_typ.typ {
                             TyKind::Array(element_type, _len) =&gt; <span class="kw-2">*</span>element_type,
                             TyKind::GenericSizedArray(element_type, _size) =&gt; <span class="kw-2">*</span>element_type,
-                            <span class="kw">_ </span>=&gt; {
-                                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
-                                    ErrorKind::InvalidIteratorType(iterator_typ.typ.clone()),
-                                    iterator.span,
-                                ))
-                            }
+                            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                                ErrorKind::InvalidIteratorType(iterator_typ.typ.clone()),
+                                iterator.span,
+                            ))<span class="question-mark">?</span>,
                         };
 
                         typed_fn_env

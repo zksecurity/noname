@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/types.rs`."><title>types.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (df4ca44d3 2024-10-27)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/parser/</div>types.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/types.rs`."><title>types.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (3f1be1ec7 2024-10-28)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/parser/</div>types.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -1639,7 +1639,10 @@
 <a href="#1638" id="1638">1638</a>
 <a href="#1639" id="1639">1639</a>
 <a href="#1640" id="1640">1640</a>
-<a href="#1641" id="1641">1641</a></pre></div><pre class="rust"><code><span class="kw">use </span>educe::Educe;
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a></pre></div><pre class="rust"><code><span class="kw">use </span>educe::Educe;
 <span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
@@ -2040,11 +2043,13 @@
 }
 
 <span class="kw">impl </span>Ty {
-    <span class="kw">pub fn </span>reserved_types(module: ModulePath, name: Ident) -&gt; TyKind {
-        <span class="kw">match </span>name.value.as_ref() {
-            <span class="string">"Field" </span>| <span class="string">"Bool" </span><span class="kw">if </span>!<span class="macro">matches!</span>(module, ModulePath::Local) =&gt; {
-                <span class="macro">panic!</span>(<span class="string">"reserved types cannot be in a module (TODO: better error)"</span>)
-            }
+    <span class="kw">pub fn </span>reserved_types(module: ModulePath, name: Ident) -&gt; <span class="prelude-ty">Result</span>&lt;TyKind&gt; {
+        <span class="kw">let </span>reserved_type = <span class="kw">match </span>name.value.as_ref() {
+            <span class="string">"Field" </span>| <span class="string">"Bool" </span><span class="kw">if </span>!<span class="macro">matches!</span>(module, ModulePath::Local) =&gt; <span class="prelude-val">Err</span>(Error::new(
+                <span class="string">"reserved_types"</span>,
+                ErrorKind::UnexpectedError(<span class="string">"reserved types cannot be in a module"</span>),
+                name.span,
+            ))<span class="question-mark">?</span>,
             <span class="comment">// Default the `constant` to false, as here has no context for const attribute.
             // For a function argument and it is with const attribute,
             // the `constant` will be corrected to true by the `FunctionDef::parse_args` parser.
@@ -2054,7 +2059,8 @@
                 module,
                 name: name.value,
             },
-        }
+        };
+        <span class="prelude-val">Ok</span>(reserved_type)
     }
 
     <span class="kw">pub fn </span>parse(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
@@ -2090,7 +2096,7 @@
                     (ModulePath::Alias(maybe_module), name, span)
                 };
 
-                <span class="kw">let </span>ty_kind = <span class="self">Self</span>::reserved_types(module, name);
+                <span class="kw">let </span>ty_kind = <span class="self">Self</span>::reserved_types(module, name)<span class="question-mark">?</span>;
 
                 <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
                     kind: ty_kind,
@@ -3100,11 +3106,11 @@
             <span class="comment">// if/else
             </span><span class="prelude-val">Some</span>(Token {
                 kind: TokenKind::Keyword(Keyword::If),
-                span: <span class="kw">_</span>,
+                span,
             }) =&gt; {
                 <span class="comment">// TODO: wait, this should be implemented as an expression! not a statement
-                </span><span class="macro">panic!</span>(<span class="string">"if statements are not implemented yet. Use if expressions instead (e.g. `x = if cond {{ 1 }} else {{ 2 }};`)"</span>);
-            }
+                </span><span class="prelude-val">Err</span>(Error::new(<span class="string">"parse"</span>, ErrorKind::UnexpectedError(<span class="string">"if statements are not implemented yet. Use if expressions instead (e.g. `x = if cond {{ 1 }} else {{ 2 }};`)"</span>), span))<span class="question-mark">?
+            </span>}
 
             <span class="comment">// return
             </span><span class="prelude-val">Some</span>(Token {
