@@ -400,14 +400,17 @@ where
                     .iter()
                     .find(|private_cell_var| private_cell_var.index == index)
                 {
-                    let err = Error::new(
+                    Err(Error::new(
                         "constraint-finalization",
                         ErrorKind::PrivateInputNotUsed,
                         private_cell_var.span,
-                    );
-                    return Err(err);
+                    ))?
                 } else {
-                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
+                    Err(Error::new(
+                        "constraint-finalization",
+                        ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"),
+                        Span::default(),
+                    ))?
                 }
             }
         }

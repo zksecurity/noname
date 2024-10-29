@@ -1,5 +1,6 @@
 use std::{path::Path, str::FromStr};
 
+use miette::miette;
 use rstest::rstest;
 
 use crate::{
@@ -67,7 +68,7 @@ fn test_file(
                     eprintln!("{obtained_asm}");
                     eprintln!("expected:");
                     eprintln!("{expected_asm}");
-                    panic!("Obtained ASM does not match expected ASM");
+                    Err(miette!("Obtained ASM does not match expected ASM"))?
                 }
             }
 
@@ -91,7 +92,7 @@ fn test_file(
                 expected_public_output
                     .iter()
                     .for_each(|x| eprintln!("- {x}"));
-                panic!("Obtained output does not match expected output");
+                Err(miette!("Obtained output does not match expected output"))?
             }
 
             // verify proof
@@ -134,7 +135,7 @@ fn test_file(
                     eprintln!("{obtained_asm}");
                     eprintln!("expected:");
                     eprintln!("{expected_asm}");
-                    panic!("Obtained ASM does not match expected ASM");
+                    Err(miette!("Obtained ASM does not match expected ASM"))?
                 }
             }
 
@@ -153,7 +154,7 @@ fn test_file(
                 expected_public_output
                     .iter()
                     .for_each(|x| eprintln!("- {x}"));
-                panic!("Obtained output does not match expected output");
+                Err(miette!("Obtained output does not match expected output"))?
             }
         }
         BackendKind::R1csBn254(_) => todo!(),

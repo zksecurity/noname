@@ -8,7 +8,6 @@ use kimchi::mina_poseidon::permutation::full_round;
 use super::{KimchiCellVar, KimchiVesta, VestaField};
 use crate::backends::kimchi::NUM_REGISTERS;
 use crate::backends::Backend;
-
 use crate::parser::types::GenericParameters;
 use crate::{
     circuit_writer::{CircuitWriter, GateKind, VarInfo},
@@ -37,7 +36,12 @@ pub fn poseidon(
         Some(TyKind::Array(el_typ, 2)) => {
             assert!(matches!(&**el_typ, TyKind::Field { .. }));
         }
-        _ => panic!("wrong type for input to poseidon"),
+        _ => Err(compiler.error(
+            ErrorKind::UnexpectedError(
+                "incorrect type used as input to the builtin poseidon hash function",
+            ),
+            span,
+        ))?,
     };
 
     // extract the values
@@ -46,10 +50,10 @@ pub fn poseidon(
 
     // hashing a full-constant input is not a good idea
     if input[0].is_const() && input[1].is_const() {
-        return Err(compiler.error(
+        Err(compiler.error(
             ErrorKind::UnexpectedError("cannot hash a full-constant input"),
             span,
-        ));
+        ))?
     }
 
     // IMPORTANT: time to constrain any constants

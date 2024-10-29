@@ -42,10 +42,10 @@ impl<B: Backend> FnInfo<B> {
         }
     }
 
-    pub fn native(&self) -> &FunctionDef {
+    pub fn native(&self) -> Option<&FunctionDef> {
         match &self.kind {
-            FnKind::Native(func) => func,
-            _ => panic!("expected a native function"),
+            FnKind::Native(func) => Some(func),
+            _ => None,
         }
     }
 }
@@ -296,18 +296,23 @@ impl<B: Backend> TypeChecker<B> {
                             .var_name
                             .expect("anonymous lhs access cannot be mutated")
                     }
-                    _ => panic!("bad expression assignment (TODO: replace with error)"),
+                    _ => Err(self.error(
+                        ErrorKind::UnexpectedError("bad expression assignment"),
+                        expr.span,
+                    ))?,
                 };
 
                 // check that the var exists locally
                 let lhs_info = typed_fn_env
                     .get_type_info(&lhs_name)?
-                    .expect("variable not found (TODO: replace with error")
+                    .ok_or_else(|| {
+                        self.error(ErrorKind::UnexpectedError("variable not found"), expr.span)
+                    })?
                     .clone();
 
                 // and is mutable
                 if !lhs_info.mutable {
-                    return Err(self.error(ErrorKind::AssignmentToImmutableVariable, expr.span));
+                    Err(self.error(ErrorKind::AssignmentToImmutableVariable, expr.span))?;
                 }
 
                 // and is of the same type as the rhs
@@ -363,12 +368,10 @@ impl<B: Backend> TypeChecker<B> {
                     // only allow fields
                     match (&lhs_node.typ, &rhs_node.typ) {
                         (TyKind::Field { .. }, TyKind::Field { .. }) => (),
-                        _ => {
-                            return Err(self.error(
-                                ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
-                                expr.span,
-                            ))
-                        }
+                        _ => Err(self.error(
+                            ErrorKind::MismatchType(lhs_node.typ.clone(), rhs_node.typ.clone()),
+                            expr.span,
+                        ))?,
                     }
                 }
 
@@ -389,15 +392,15 @@ impl<B: Backend> TypeChecker<B> {
             ExprKind::Negated(inner) => {
                 let inner_typ = self.compute_type(inner, typed_fn_env)?.unwrap();
                 if !matches!(inner_typ.typ, TyKind::Field { .. }) {
-                    return Err(self.error(
+                    Err(self.error(
                         // it can be either constant or not.
                         // here we just default it to constant for error message.
                         ErrorKind::MismatchType(TyKind::Field { constant: true }, inner_typ.typ),
                         expr.span,
-                    ));
+                    ))?
+                } else {
+                    Some(ExprTyInfo::new_anon(inner_typ.typ))
                 }
-
-                Some(ExprTyInfo::new_anon(inner_typ.typ))
             }
 
             ExprKind::Not(inner) => {
@@ -457,7 +460,7 @@ impl<B: Backend> TypeChecker<B> {
 
                 // check that it is an array
                 if !matches!(typ.typ, TyKind::Array(..) | TyKind::GenericSizedArray(..)) {
-                    return Err(self.error(ErrorKind::ArrayAccessOnNonArray, expr.span));
+                    Err(self.error(ErrorKind::ArrayAccessOnNonArray, expr.span))?
                 }
 
                 // check that expression is a bigint
@@ -471,7 +474,7 @@ impl<B: Backend> TypeChecker<B> {
                 let el_typ = match typ.typ {
                     TyKind::Array(typkind, _) => *typkind,
                     TyKind::GenericSizedArray(typkind, _) => *typkind,
-                    _ => panic!("not an array"),
+                    _ => Err(self.error(ErrorKind::UnexpectedError("not an array"), expr.span))?,
                 };
 
                 let res = ExprTyInfo::new(typ.var_name, el_typ);
@@ -512,10 +515,10 @@ impl<B: Backend> TypeChecker<B> {
                     .compute_type(cond, typed_fn_env)?
                     .expect("can't compute type of condition");
                 if !matches!(cond_node.typ, TyKind::Bool) {
-                    return Err(self.error(
+                    Err(self.error(
                         ErrorKind::IfElseInvalidConditionType(cond_node.typ.clone()),
                         cond.span,
-                    ));
+                    ))?
                 }
 
                 // then_ and else_ can only be variables, field accesses, or array accesses
@@ -634,7 +637,7 @@ impl<B: Backend> TypeChecker<B> {
 
                     Some(res)
                 } else {
-                    return Err(self.error(ErrorKind::InvalidArraySize, expr.span));
+                    Err(self.error(ErrorKind::InvalidArraySize, expr.span))?
                 }
             }
         };
@@ -670,7 +673,12 @@ impl<B: Backend> TypeChecker<B> {
 
         for stmt in stmts {
             if return_typ.is_some() {
-                panic!("early return detected: we don't allow that for now (TODO: return error");
+                Err(self.error(
+                    ErrorKind::UnexpectedError(
+                        "early return detected: we don't allow that for now",
+                    ),
+                    stmt.span,
+                ))?
             }
 
             return_typ = self.check_stmt(typed_fn_env, stmt)?;
@@ -679,18 +687,16 @@ impl<B: Backend> TypeChecker<B> {
         // check the return
         match (expected_return, return_typ) {
             (None, None) => (),
-            (Some(expected), None) => {
-                return Err(self.error(ErrorKind::MissingReturn, expected.span))
-            }
+            (Some(expected), None) => Err(self.error(ErrorKind::MissingReturn, expected.span))?,
             (None, Some(_)) => {
-                return Err(self.error(ErrorKind::NoReturnExpected, stmts.last().unwrap().span))
+                Err(self.error(ErrorKind::NoReturnExpected, stmts.last().unwrap().span))?
             }
             (Some(expected), Some(observed)) => {
                 if !observed.match_expected(&expected.kind, false) {
-                    return Err(self.error(
+                    Err(self.error(
                         ErrorKind::ReturnTypeMismatch(expected.kind.clone(), observed.clone()),
                         expected.span,
-                    ));
+                    ))?
                 }
             }
         };
@@ -743,26 +749,28 @@ impl<B: Backend> TypeChecker<B> {
                         let start_type = self.compute_type(&range.start, typed_fn_env)?.unwrap();
                         let end_type = self.compute_type(&range.end, typed_fn_env)?.unwrap();
                         if !is_numeric(&start_type.typ) || !is_numeric(&end_type.typ) {
-                            return Err(self.error(ErrorKind::InvalidRangeSize, range.span));
+                            Err(self.error(ErrorKind::InvalidRangeSize, range.span))?;
                         }
                     }
                     ForLoopArgument::Iterator(iterator) => {
                         // make sure that the iterator expression is an iterator,
                         // for now this means that the expression should have type `Array`
                         let iterator_typ = self.compute_type(iterator, typed_fn_env)?;
-                        let iterator_typ = iterator_typ
-                            .expect("Could not compute type of iterator (TODO: better error)");
+                        let iterator_typ = iterator_typ.ok_or_else(|| {
+                            self.error(
+                                ErrorKind::UnexpectedError("Could not compute type of iterator"),
+                                iterator.span,
+                            )
+                        })?;
 
                         // the type of the variable is the type of the items of the iterator
                         let element_type = match iterator_typ.typ {
                             TyKind::Array(element_type, _len) => *element_type,
                             TyKind::GenericSizedArray(element_type, _size) => *element_type,
-                            _ => {
-                                return Err(self.error(
-                                    ErrorKind::InvalidIteratorType(iterator_typ.typ.clone()),
-                                    iterator.span,
-                                ))
-                            }
+                            _ => Err(self.error(
+                                ErrorKind::InvalidIteratorType(iterator_typ.typ.clone()),
+                                iterator.span,
+                            ))?,
                         };
 
                         typed_fn_env

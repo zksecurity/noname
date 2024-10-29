@@ -10,7 +10,7 @@ use crate::{
     circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
     constants::Span,
     constraints::{boolean, field},
-    error::{ErrorKind, Result},
+    error::{Error, ErrorKind, Result},
     imports::FnKind,
     parser::{
         types::{ForLoopArgument, FunctionDef, Stmt, StmtKind, TyKind},
@@ -133,7 +133,7 @@ impl<B: Backend> CircuitWriter<B> {
 
                 // store the new variable
                 // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
-                self.add_local_var(fn_env, lhs.value.clone(), var_info);
+                self.add_local_var(fn_env, lhs.value.clone(), var_info)?;
             }
 
             StmtKind::ForLoop {
@@ -178,7 +178,7 @@ impl<B: Backend> CircuitWriter<B> {
                                 false,
                                 Some(TyKind::Field { constant: true }),
                             );
-                            self.add_local_var(fn_env, var.value.clone(), var_info);
+                            self.add_local_var(fn_env, var.value.clone(), var_info)?;
 
                             self.compile_block(fn_env, body)?;
 
@@ -197,7 +197,11 @@ impl<B: Backend> CircuitWriter<B> {
 
                         let (elem_type, array_len) = match array_typ {
                             TyKind::Array(ty, array_len) => (ty, array_len),
-                            _ => panic!("expected array"),
+                            _ => Err(Error::new(
+                                "compile-stmt",
+                                ErrorKind::UnexpectedError("expected array"),
+                                stmt.span,
+                            ))?,
                         };
 
                         // compute the size of each element in the array
@@ -215,7 +219,7 @@ impl<B: Backend> CircuitWriter<B> {
                             let indexed_var = iterator_var.narrow(start, len).value(self, fn_env);
                             let var_info =
                                 VarInfo::new(indexed_var.clone(), false, Some(*elem_type.clone()));
-                            self.add_local_var(fn_env, var.value.clone(), var_info);
+                            self.add_local_var(fn_env, var.value.clone(), var_info)?;
 
                             self.compile_block(fn_env, body)?;
 
@@ -280,7 +284,7 @@ impl<B: Backend> CircuitWriter<B> {
         assert_eq!(function.sig.arguments.len(), args.len());
 
         for (name, var_info) in function.sig.arguments.iter().zip(args) {
-            self.add_local_var(fn_env, name.name.value.clone(), var_info);
+            self.add_local_var(fn_env, name.name.value.clone(), var_info)?;
         }
 
         // compile it and potentially return a return value
@@ -354,7 +358,7 @@ impl<B: Backend> CircuitWriter<B> {
                     match r {
                         ConstOrCell::Cell(c) => returned_cells.push(c.clone()),
                         ConstOrCell::Const(_) => {
-                            return Err(self.error(ErrorKind::ConstantInOutput, returned.span))
+                            Err(self.error(ErrorKind::ConstantInOutput, returned.span))?
                         }
                     }
                 }
@@ -383,7 +387,7 @@ impl<B: Backend> CircuitWriter<B> {
             } => {
                 // sanity check
                 if fn_name.value == "main" {
-                    return Err(self.error(ErrorKind::RecursiveMain, expr.span));
+                    Err(self.error(ErrorKind::RecursiveMain, expr.span))?
                 }
 
                 // retrieve the function in the env
@@ -452,9 +456,13 @@ impl<B: Backend> CircuitWriter<B> {
 
                 let (module, self_struct) = match lhs_struct {
                     TyKind::Custom { module, name } => (module, name),
-                    _ => {
-                        panic!("could not figure out struct implementing that method call")
-                    }
+                    _ => Err(Error::new(
+                        "compute-expr",
+                        ErrorKind::UnexpectedError(
+                            "could not figure out struct implementing that method call",
+                        ),
+                        lhs.span,
+                    ))?,
                 };
 
                 let qualified = FullyQualified::new(module, self_struct);
@@ -596,7 +604,11 @@ impl<B: Backend> CircuitWriter<B> {
 
                 // replace the left with the right
                 match lhs {
-                    VarOrRef::Var(_) => panic!("can't reassign this non-mutable variable"),
+                    VarOrRef::Var(_) => Err(Error::new(
+                        "compute-expr",
+                        ErrorKind::UnexpectedError("can't reassign this non-mutable variable"),
+                        expr.span,
+                    ))?,
                     VarOrRef::Ref {
                         var_name,
                         start,
@@ -717,7 +729,11 @@ impl<B: Backend> CircuitWriter<B> {
                         }
                         ty
                     }
-                    _ => panic!("expected array"),
+                    _ => Err(Error::new(
+                        "compute-expr",
+                        ErrorKind::UnexpectedError("expected array"),
+                        expr.span,
+                    ))?,
                 };
 
                 // compute the size of each element in the array

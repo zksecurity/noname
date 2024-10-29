@@ -399,11 +399,13 @@ impl Display for TyKind {
 }
 
 impl Ty {
-    pub fn reserved_types(module: ModulePath, name: Ident) -> TyKind {
-        match name.value.as_ref() {
-            "Field" | "Bool" if !matches!(module, ModulePath::Local) => {
-                panic!("reserved types cannot be in a module (TODO: better error)")
-            }
+    pub fn reserved_types(module: ModulePath, name: Ident) -> Result<TyKind> {
+        let reserved_type = match name.value.as_ref() {
+            "Field" | "Bool" if !matches!(module, ModulePath::Local) => Err(Error::new(
+                "reserved_types",
+                ErrorKind::UnexpectedError("reserved types cannot be in a module"),
+                name.span,
+            ))?,
             // Default the `constant` to false, as here has no context for const attribute.
             // For a function argument and it is with const attribute,
             // the `constant` will be corrected to true by the `FunctionDef::parse_args` parser.
@@ -413,7 +415,8 @@ impl Ty {
                 module,
                 name: name.value,
             },
-        }
+        };
+        Ok(reserved_type)
     }
 
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
@@ -449,7 +452,7 @@ impl Ty {
                     (ModulePath::Alias(maybe_module), name, span)
                 };
 
-                let ty_kind = Self::reserved_types(module, name);
+                let ty_kind = Self::reserved_types(module, name)?;
 
                 Ok(Self {
                     kind: ty_kind,
@@ -1459,10 +1462,10 @@ impl Stmt {
             // if/else
             Some(Token {
                 kind: TokenKind::Keyword(Keyword::If),
-                span: _,
+                span,
             }) => {
                 // TODO: wait, this should be implemented as an expression! not a statement
-                panic!("if statements are not implemented yet. Use if expressions instead (e.g. `x = if cond {{ 1 }} else {{ 2 }};`)");
+                Err(Error::new("parse", ErrorKind::UnexpectedError("if statements are not implemented yet. Use if expressions instead (e.g. `x = if cond {{ 1 }} else {{ 2 }};`)"), span))?
             }
 
             // return

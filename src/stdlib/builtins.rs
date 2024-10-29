@@ -51,17 +51,35 @@ fn assert_eq_fn<B: Backend>(
 
     // they are both of type field
     if !matches!(lhs_info.typ, Some(TyKind::Field { .. })) {
-        panic!(
-            "the lhs of assert_eq must be of type Field or BigInt. It was of type {:?}",
-            lhs_info.typ
-        );
+        let lhs = lhs_info.typ.clone().ok_or_else(|| {
+            Error::new(
+                "constraint-generation",
+                ErrorKind::UnexpectedError("No type info for lhs of assertion"),
+                span,
+            )
+        })?;
+
+        Err(Error::new(
+            "constraint-generation",
+            ErrorKind::AssertTypeMismatch("rhs", lhs),
+            span,
+        ))?
     }
 
     if !matches!(rhs_info.typ, Some(TyKind::Field { .. })) {
-        panic!(
-            "the rhs of assert_eq must be of type Field or BigInt. It was of type {:?}",
-            rhs_info.typ
-        );
+        let rhs = rhs_info.typ.clone().ok_or_else(|| {
+            Error::new(
+                "constraint-generation",
+                ErrorKind::UnexpectedError("No type info for rhs of assertion"),
+                span,
+            )
+        })?;
+
+        Err(Error::new(
+            "constraint-generation",
+            ErrorKind::AssertTypeMismatch("rhs", rhs),
+            span,
+        ))?
     }
 
     // retrieve the values
@@ -77,11 +95,11 @@ fn assert_eq_fn<B: Backend>(
         // two constants
         (ConstOrCell::Const(a), ConstOrCell::Const(b)) => {
             if a != b {
-                return Err(Error::new(
+                Err(Error::new(
                     "constraint-generation",
                     ErrorKind::AssertionFailed,
                     span,
-                ));
+                ))?
             }
         }
 
