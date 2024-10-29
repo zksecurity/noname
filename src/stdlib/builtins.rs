@@ -1,6 +1,10 @@
 //! Builtins are imported by default.
 
-use ark_ff::One;
+use std::sync::Arc;
+
+use ark_ff::{One, Zero};
+use kimchi::o1_utils::FieldHelpers;
+use num_bigint::BigUint;
 
 use crate::{
     backends::Backend,
@@ -9,7 +13,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     parser::types::{GenericParameters, TyKind},
-    var::{ConstOrCell, Var},
+    var::{ConstOrCell, Value, Var},
 };
 
 use super::{FnInfoType, Module};
