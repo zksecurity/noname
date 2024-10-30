@@ -267,15 +267,49 @@ fn foo(const NN: Field) {...}
 fn foo(arr: [Field; NN]) {...} 
 ```
 
-*Forbid generic function in for-loop*
+*Restrictions over generic function in for-loop*
+**Mutable Variables as Generic Arguments**: It's prohibited to use mutable variables as generic arguments in generic function calls inside loops. The language doesn't support loop unrolling, so using loop indices or mutable counters as generic parameters is invalid.
+
+Invalid example:
 ```rust
+fn fn_call(const LEN: Field) -> [Field; LEN] {...}
+
+...
 for ii in 0..NN {
-    // any function takes the for loop var as its argument should be forbidden
-    fn_call(ii);
+    fn_call(ii); // Error: 'ii' is mutable
+}
+
+...
+let mut jj = 0;
+for ii in 0..NN {
+    fn_call(jj); // Error: 'jj' is mutable
+    jj = jj + 1;
 }
 ```
 
-To allow generic functions in for-loop, we will need to take care of unrolling the loop and instantiating the function with the concrete value of the loop variable. This is not in the scope of this RFC.
+**Allowed Usage with Constants**: You can use constant values or immutable variables as generic arguments within loops.
+
+Valid example:
+```rust
+let kk = 0;
+for ii in 0..NN {
+    fn_call(kk); // Allowed: 'kk' is constant
+}
+```
+
+**Exception for Arrays**: Mutable array variables can be used as generic arguments because their sizes are fixed at declaration, even if their contents change.
+
+For example:
+```rust
+fn fn_call_arr(const arr: [Field; LEN]) -> [Field; LEN] {...}
+...
+
+let mut arr = [0; 3];
+for ii in 0..NN {
+    fn_call_arr(arr); // Allowed: array size is fixed
+}
+```
+
 
 *Forbid operations on symbolic value of arguments*
 ```rust
