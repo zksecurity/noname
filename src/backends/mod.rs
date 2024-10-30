@@ -5,6 +5,7 @@ use ark_ff::{Field, One, Zero};
 use num_bigint::BigUint;
 
 use crate::{
+    circuit_writer::VarInfo,
     compiler::Sources,
     constants::Span,
     error::{Error, ErrorKind, Result},
@@ -216,4 +217,6 @@ pub trait Backend: Clone {
 
     /// Generate the asm for a backend.
     fn generate_asm(&self, sources: &Sources, debug: bool) -> String;
+
+    fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, msg: String, span: Span);
 }
