@@ -111,10 +111,11 @@ impl TypedFnEnv {
     }
 
     /// Since currently we don't support unrolling, the generic function calls are assumed to target a same instance.
+    /// Each loop iteration should instantiate generic function calls with the same parameters.
     /// This assumption requires a few type checking rules to forbid the cases that needs unrolling.
     /// Forbid rules:
     /// - Access to variables within the for loop scope.
-    /// - Access to mutable variables, except it is an array.
+    /// - Access to mutable variables, except if it is an array.
     ///   Because once the array is declared, the size is fixed even if the array is mutable,
     ///   so the generic value resolved from array size will be same for generic function argument.
     pub fn is_forbidden(&self, scope: usize, ty_info: TypeInfo) -> bool {
