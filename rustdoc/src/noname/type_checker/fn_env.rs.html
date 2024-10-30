@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/fn_env.rs`."><title>fn_env.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-198729e5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (3f1be1ec7 2024-10-28)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/type_checker/</div>fn_env.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/fn_env.rs`."><title>fn_env.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-590a400c.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (1e4f10ba6 2024-10-29)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/type_checker/</div>fn_env.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -169,7 +169,21 @@
 <a href="#168" id="168">168</a>
 <a href="#169" id="169">169</a>
 <a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the context (or environment) that gets created when type checking a function.
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the context (or environment) that gets created when type checking a function.
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -281,14 +295,28 @@
         <span class="self">self</span>.current_scope &gt;= prefix_scope
     }
 
-    <span class="kw">pub fn </span>is_forbidden(<span class="kw-2">&amp;</span><span class="self">self</span>, scope: usize) -&gt; bool {
+    <span class="doccomment">/// Since currently we don't support unrolling, the generic function calls are assumed to target a same instance.
+    /// Each loop iteration should instantiate generic function calls with the same parameters.
+    /// This assumption requires a few type checking rules to forbid the cases that needs unrolling.
+    /// Forbid rules:
+    /// - Access to variables within the for loop scope.
+    /// - Access to mutable variables, except if it is an array.
+    ///   Because once the array is declared, the size is fixed even if the array is mutable,
+    ///   so the generic value resolved from array size will be same for generic function argument.
+    </span><span class="kw">pub fn </span>is_forbidden(<span class="kw-2">&amp;</span><span class="self">self</span>, scope: usize, ty_info: TypeInfo) -&gt; bool {
         <span class="kw">let </span>in_forbidden_scope = <span class="kw">if let </span><span class="prelude-val">Some</span>(forloop_scope) = <span class="self">self</span>.forloop_scopes.first() {
             scope &gt;= <span class="kw-2">*</span>forloop_scope
         } <span class="kw">else </span>{
             <span class="bool-val">false
         </span>};
 
-        <span class="self">self</span>.forbid_forloop_scope &amp;&amp; in_forbidden_scope
+        <span class="kw">let </span>forbidden_mutable = ty_info.mutable
+            &amp;&amp; !<span class="macro">matches!</span>(
+                ty_info.typ,
+                TyKind::GenericSizedArray(..) | TyKind::Array(..)
+            );
+
+        <span class="self">self</span>.forbid_forloop_scope &amp;&amp; (in_forbidden_scope || forbidden_mutable)
     }
 
     <span class="doccomment">/// Stores type information about a local variable.
@@ -322,7 +350,7 @@
     </span><span class="comment">// TODO: return an error no?
     </span><span class="kw">pub fn </span>get_type_info(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TypeInfo&gt;&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>((scope, type_info)) = <span class="self">self</span>.vars.get(ident) {
-            <span class="kw">if </span><span class="self">self</span>.is_forbidden(<span class="kw-2">*</span>scope) {
+            <span class="kw">if </span><span class="self">self</span>.is_forbidden(<span class="kw-2">*</span>scope, type_info.clone()) {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
                     <span class="string">"type-checker"</span>,
                     ErrorKind::VarAccessForbiddenInForLoop(ident.to_string()),
