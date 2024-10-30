@@ -216,9 +216,13 @@ impl<B: Backend> TypeChecker<B> {
 
                 // check if generic is allowed
                 if method_type.sig.require_monomorphization() && typed_fn_env.is_in_forloop() {
-                    for (observed_arg, expected_arg) in
-                        args.iter().zip(method_type.sig.arguments.iter())
-                    {
+                    for (observed_arg, expected_arg) in args.iter().zip(
+                        method_type
+                            .sig
+                            .arguments
+                            .iter()
+                            .filter(|arg| arg.name.value != "self"),
+                    ) {
                         // check if the arg involves generic vars
                         if !expected_arg.extract_generic_names().is_empty() {
                             let mut forbidden_env = typed_fn_env.clone();
