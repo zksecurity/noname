@@ -162,19 +162,7 @@
 <a href="#161" id="161">161</a>
 <a href="#162" id="162">162</a>
 <a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a></pre></div><pre class="rust"><code><span class="doccomment">//! Builtins are imported by default.
+<a href="#164" id="164">164</a></pre></div><pre class="rust"><code><span class="doccomment">//! Builtins are imported by default.
 
 </span><span class="kw">use </span>ark_ff::One;
 
@@ -331,21 +319,9 @@
     vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
     span: Span,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
-    <span class="macro">println!</span>(<span class="string">"---log span: {:?}---"</span>, span);
     <span class="kw">for </span>var <span class="kw">in </span>vars {
-        <span class="comment">// typ
-        </span><span class="macro">println!</span>(<span class="string">"typ: {:?}"</span>, var.typ);
-        <span class="comment">// mutable
-        </span><span class="macro">println!</span>(<span class="string">"mutable: {:?}"</span>, var.mutable);
-        <span class="comment">// var
-        </span>var.var.iter().for_each(|v| <span class="kw">match </span>v {
-            ConstOrCell::Const(cst) =&gt; {
-                <span class="macro">println!</span>(<span class="string">"cst: {:?}"</span>, cst.pretty());
-            }
-            ConstOrCell::Cell(cvar) =&gt; {
-                <span class="macro">println!</span>(<span class="string">"cvar: {:?}"</span>, cvar);
-            }
-        });
+        <span class="comment">// todo: will need to support string argument in order to customize msg
+        </span>compiler.backend.log_var(var, <span class="string">"log"</span>.to_owned(), span);
     }
 
     <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)

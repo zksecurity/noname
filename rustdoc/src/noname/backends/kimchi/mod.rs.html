@@ -765,7 +765,16 @@
 <a href="#764" id="764">764</a>
 <a href="#765" id="765">765</a>
 <a href="#766" id="766">766</a>
-<a href="#767" id="767">767</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>asm;
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>asm;
 <span class="kw">pub mod </span>builtin;
 <span class="kw">pub mod </span>prover;
 
@@ -1530,6 +1539,15 @@
         <span class="self">self</span>.public_input_size += <span class="number">1</span>;
 
         cvar
+    }
+
+    <span class="kw">fn </span>log_var(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        var: <span class="kw-2">&amp;</span><span class="kw">crate</span>::circuit_writer::VarInfo&lt;<span class="self">Self</span>::Field, <span class="self">Self</span>::Var&gt;,
+        msg: String,
+        span: Span,
+    ) {
+        <span class="macro">todo!</span>()
     }
 }
 </code></pre></div></section></main></body></html>
