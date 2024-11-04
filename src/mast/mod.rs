@@ -402,7 +402,7 @@ impl Symbolic {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Mast relies on the TAST for the information about the "unresolved" types to monomorphize.
 /// Things such as loading the function AST and struct AST from fully qualified names.
 /// After monomorphization process, the following data will be updated:
@@ -1379,8 +1379,7 @@ pub fn instantiate_fn_call<B: Backend>(
                     kind: FnKind::Native(FunctionDef {
                         sig: sig_typed,
                         body: stmts_typed,
-                        span: fn_def.span,
-                        is_hint: fn_def.is_hint,
+                        ..fn_def
                     }),
                     is_hint: fn_info.is_hint,
                     span: fn_info.span,

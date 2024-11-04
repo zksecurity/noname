@@ -62,7 +62,7 @@ impl FullyQualified {
 }
 
 /// The environment we use to type check a noname program.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TypeChecker<B>
 where
     B: Backend,
@@ -336,7 +336,7 @@ impl<B: Backend> TypeChecker<B> {
 
                     // save the function in the typed global env
 
-                    if function.is_hint {
+                    if function.is_hint && function.body.is_empty() {
                         // convert to builtin function
                         let qualified = match &function.sig.kind {
                             FuncOrMethod::Function(module) => {

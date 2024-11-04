@@ -167,10 +167,6 @@ impl<B: Backend> AST<B> {
 
                     let func = FunctionDef::parse_hint(ctx, &mut tokens)?;
 
-                    // expect ;, as the hint function is an empty function wired with a builtin.
-                    // todo: later these hint functions will be migrated from builtins to native functions
-                    // then it will expect a function block instead of ;
-                    tokens.bump_expected(ctx, TokenKind::SemiColon)?;
 
                     ast.push(Root {
                         kind: RootKind::FunctionDef(func),
