@@ -19,6 +19,7 @@ pub use writer::{Gate, GateKind, Wiring};
 
 pub mod fn_env;
 pub mod writer;
+pub mod ir;
 
 //#[derive(Debug, Serialize, Deserialize)]
 #[derive(Debug)]
@@ -44,6 +45,8 @@ where
     /// 3. During witness generation, the public output computation
     ///    is delayed until the very end.
     pub(crate) public_output: Option<Var<B::Field, B::Var>>,
+
+    ir_writer: ir::IRWriter<B>,
 }
 
 /// Debug information related to a single row in a circuit.
@@ -126,9 +129,10 @@ impl<B: Backend> CircuitWriter<B> {
     /// Creates a global environment from the one created by the type checker.
     fn new(typed: Mast<B>, backend: B) -> Self {
         Self {
-            typed,
+            typed: typed.clone(),
             backend,
             public_output: None,
+            ir_writer: ir::IRWriter {typed: typed.clone()},
         }
     }
 

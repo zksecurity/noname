@@ -1,6 +1,8 @@
 use std::{fmt::Debug, hash::Hash, str::FromStr};
 
-use ::kimchi::o1_utils::FieldHelpers;
+use fxhash::FxHashMap;
+use circ::{cfg::CircCfg, ir::term::precomp::PreComp};
+use ::kimchi::{o1_utils::FieldHelpers, turshi::helper::CairoFieldHelpers};
 use ark_ff::{Field, One, Zero};
 use num_bigint::BigUint;
 
@@ -199,6 +201,44 @@ pub trait Backend: Clone {
 
                 Ok(res)
             }
+            Value::HintIR(t, named_vars) => {
+                let mut precomp = PreComp::new();
+                // For hint evaluation purpose, precomp only has only one output and no connections with other parts, 
+                // so just use a dummy output var name.
+                precomp.add_output("x".to_string(), t.clone());
+
+                // todo: encapsulate this in a field mapper
+                let cfg = CircCfg::default();
+                let cfg_f = cfg.field();
+
+                // map the named vars to env
+                let env = named_vars
+                    .iter()
+                    .map(|(name, var)| {
+                        let val = match var {
+                            // todo: convert ark_ff to rug::integer instead of u64
+                            crate::var::ConstOrCell::Const(cst) => cfg_f.new_v(cst.to_u64()),
+                            crate::var::ConstOrCell::Cell(var) => {
+                                let val = self.compute_var(env, var).unwrap();
+                                // todo: convert ark_ff to rug::integer instead of u64
+                                cfg_f.new_v(val.to_u64())
+                            },
+                        };
+                        (name.clone(), circ::ir::term::Value::Field(val))
+                    })
+                    .collect::<FxHashMap<String, circ::ir::term::Value>>();
+
+                let res = precomp.eval(&env);
+                // get the only one output
+                let res = res.get("x").unwrap();
+                // convert to field
+                let res = match res {
+                    circ::ir::term::Value::Field(f) => Self::Field::from(f.i().to_u128_wrapping()),
+                    _ => panic!("unexpected output type"),
+                };
+
+                Ok(res)
+            },
         }
     }
 

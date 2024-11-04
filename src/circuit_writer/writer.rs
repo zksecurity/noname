@@ -422,7 +422,7 @@ impl<B: Backend> CircuitWriter<B> {
                     vars.push(var_info);
                 }
 
-                let res = match &fn_info.kind {
+                match &fn_info.kind {
                     // assert() <-- for example
                     FnKind::BuiltIn(sig, handle) => {
                         let res = handle(self, &sig.generics, &vars, expr.span);
@@ -434,13 +434,20 @@ impl<B: Backend> CircuitWriter<B> {
                     FnKind::Native(func) => {
                         // module::fn_name(args)
                         // ^^^^^^
-                        self.compile_native_function_call(&func, vars)
-                            .map(|r| r.map(VarOrRef::Var))
+                        if func.is_hint {
+                            self.ir_writer.compile_hint_function_call(func, vars).map(|r| {
+                                r.map(|r| {
+                                    let var = self.backend.new_internal_var(r, expr.span);
+                                    VarOrRef::Var(Var::new_var(var, expr.span))
+                                })
+                            })
+                        }
+                        else {
+                            self.compile_native_function_call(func, vars)
+                                .map(|r| r.map(VarOrRef::Var))
+                        }
                     }
-                };
-
-                //
-                res
+                }
             }
 
             ExprKind::FieldAccess { lhs, rhs } => {
