@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["STDLIB_DIRECTORY"],"enum":["AllStdModules"],"fn":["init_stdlib_dep"],"mod":["bits","builtins","crypto"]};
+window.SIDEBAR_ITEMS = {"constant":["STDLIB_DIRECTORY"],"enum":["AllStdModules"],"fn":["init_stdlib_dep"],"mod":["bits","builtins","crypto","int"]};
