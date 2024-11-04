@@ -46,6 +46,10 @@ where
     /// Note that it will potentially return 0 if the given variable is 0.
     Inverse(B::Var),
 
+    Div(ConstOrCell<B::Field, B::Var>, ConstOrCell<B::Field, B::Var>),
+
+    Mod(ConstOrCell<B::Field, B::Var>, ConstOrCell<B::Field, B::Var>),
+
     /// Extract the nth bit from a value.
     // todo: consider using Value itself as argument, which wraps B::Var or B::Field, as Value::Var or Value::Field
     // - so the arguments for these operations can be either B::Var or B::Field
@@ -74,6 +78,8 @@ impl<B: Backend> std::fmt::Debug for Value<B> {
             Value::LinearCombination(..) => write!(f, "LinearCombination"),
             Value::Mul(..) => write!(f, "Mul"),
             Value::Inverse(_) => write!(f, "Inverse"),
+            Value::Div(..) => write!(f, "Divide"),
+            Value::Mod(..) => write!(f, "Mod"),
             Value::External(..) => write!(f, "External"),
             Value::PublicOutput(..) => write!(f, "PublicOutput"),
             Value::Scale(..) => write!(f, "Scaling"),
