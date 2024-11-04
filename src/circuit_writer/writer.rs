@@ -435,14 +435,15 @@ impl<B: Backend> CircuitWriter<B> {
                         // module::fn_name(args)
                         // ^^^^^^
                         if func.is_hint {
-                            self.ir_writer.compile_hint_function_call(func, vars).map(|r| {
-                                r.map(|r| {
-                                    let var = self.backend.new_internal_var(r, expr.span);
-                                    VarOrRef::Var(Var::new_var(var, expr.span))
+                            self.ir_writer
+                                .compile_hint_function_call(func, vars)
+                                .map(|r| {
+                                    r.map(|r| {
+                                        let var = self.backend.new_internal_var(r, expr.span);
+                                        VarOrRef::Var(Var::new_var(var, expr.span))
+                                    })
                                 })
-                            })
-                        }
-                        else {
+                        } else {
                             self.compile_native_function_call(func, vars)
                                 .map(|r| r.map(VarOrRef::Var))
                         }

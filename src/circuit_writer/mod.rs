@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 pub use writer::{Gate, GateKind, Wiring};
 
 pub mod fn_env;
-pub mod writer;
 pub mod ir;
+pub mod writer;
 
 //#[derive(Debug, Serialize, Deserialize)]
 #[derive(Debug)]
@@ -132,7 +132,9 @@ impl<B: Backend> CircuitWriter<B> {
             typed: typed.clone(),
             backend,
             public_output: None,
-            ir_writer: ir::IRWriter {typed: typed.clone()},
+            ir_writer: ir::IRWriter {
+                typed: typed.clone(),
+            },
         }
     }
 

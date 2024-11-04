@@ -67,7 +67,7 @@ where
     PublicOutput(Option<B::Var>),
 
     /// Resulted IR term and the (name, variable) for arugments of the hint function
-    HintIR(Term, Vec<(String, ConstOrCell<B::Field, B::Var>)>)
+    HintIR(Term, Vec<(String, ConstOrCell<B::Field, B::Var>)>),
 }
 
 impl<B: Backend> std::fmt::Debug for Value<B> {

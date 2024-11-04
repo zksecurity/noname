@@ -1,12 +1,12 @@
-use num_bigint::BigUint;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use circ::{
     cfg::CircCfg,
     ir::term::{leaf_term, term, Op, PfNaryOp, PfUnOp, Sort, Term, Value},
     term,
 };
 use circ_fields::FieldT;
+use num_bigint::BigUint;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::{
     backends::{Backend, BackendField},

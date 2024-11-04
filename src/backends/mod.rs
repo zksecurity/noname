@@ -1,9 +1,9 @@
 use std::{fmt::Debug, hash::Hash, str::FromStr};
 
-use fxhash::FxHashMap;
-use circ::{cfg::CircCfg, ir::term::precomp::PreComp};
 use ::kimchi::{o1_utils::FieldHelpers, turshi::helper::CairoFieldHelpers};
 use ark_ff::{Field, One, Zero};
+use circ::{cfg::CircCfg, ir::term::precomp::PreComp};
+use fxhash::FxHashMap;
 use num_bigint::BigUint;
 
 use crate::{
@@ -203,7 +203,7 @@ pub trait Backend: Clone {
             }
             Value::HintIR(t, named_vars) => {
                 let mut precomp = PreComp::new();
-                // For hint evaluation purpose, precomp only has only one output and no connections with other parts, 
+                // For hint evaluation purpose, precomp only has only one output and no connections with other parts,
                 // so just use a dummy output var name.
                 precomp.add_output("x".to_string(), t.clone());
 
@@ -222,7 +222,7 @@ pub trait Backend: Clone {
                                 let val = self.compute_var(env, var).unwrap();
                                 // todo: convert ark_ff to rug::integer instead of u64
                                 cfg_f.new_v(val.to_u64())
-                            },
+                            }
                         };
                         (name.clone(), circ::ir::term::Value::Field(val))
                     })
@@ -238,7 +238,7 @@ pub trait Backend: Clone {
                 };
 
                 Ok(res)
-            },
+            }
         }
     }
 

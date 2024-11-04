@@ -167,7 +167,6 @@ impl<B: Backend> AST<B> {
 
                     let func = FunctionDef::parse_hint(ctx, &mut tokens)?;
 
-
                     ast.push(Root {
                         kind: RootKind::FunctionDef(func),
                         span: token.span,

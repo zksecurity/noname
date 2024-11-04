@@ -714,13 +714,7 @@ fn test_hint_fn(#[case] backend: BackendKind) -> miette::Result<()> {
     let public_inputs = r#"{"public_input": "2"}"#;
     let private_inputs = r#"{"private_input": "2"}"#;
 
-    test_file(
-        "hint",
-        public_inputs,
-        private_inputs,
-        vec!["8"],
-        backend,
-    )?;
+    test_file("hint", public_inputs, private_inputs, vec!["8"], backend)?;
 
     Ok(())
 }
