@@ -25,13 +25,26 @@ hint fn exp(const EXP: Field, val: Field) -> Field {
     return res;
 }
 
+struct Thing {
+    xx: Field,
+    yy: Field,
+}
+
+hint fn multiple_inputs_outputs(aa: [Field; 2]) -> Thing {
+    return Thing {
+        xx: aa[0],
+        yy: aa[1],
+    };
+}
+
 fn main(pub public_input: Field, private_input: Field) -> Field {
+    // have to assert these inputs, otherwise it throws vars not in circuit error
     assert_eq(public_input, 2);
     assert_eq(private_input, 2);
 
     let xx = unsafe add_mul_2(public_input, private_input); 
     let yy = unsafe mul(public_input, private_input);
-    assert_eq(xx, yy * 2); // builtin call
+    assert_eq(xx, yy * 2); 
 
     let zz = unsafe div(xx, public_input);
     assert_eq(zz, yy);
@@ -43,5 +56,11 @@ fn main(pub public_input: Field, private_input: Field) -> Field {
     log(kk);
     assert_eq(kk, 16);
 
-    return xx;
+    let thing = unsafe multiple_inputs_outputs([public_input, 3]);
+    // have to include all the outputs from hint function, otherwise it throws vars not in circuit error.
+    // this is because each individual element in the hint output maps to a separate cell var in noname.
+    assert_eq(thing.xx, public_input);
+    assert_eq(thing.yy, 3);
+
+    return public_input;
 }

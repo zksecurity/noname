@@ -438,10 +438,20 @@ impl<B: Backend> CircuitWriter<B> {
                             self.ir_writer
                                 .compile_hint_function_call(func, vars)
                                 .map(|r| {
-                                    r.map(|r| {
-                                        let var = self.backend.new_internal_var(r, expr.span);
-                                        VarOrRef::Var(Var::new_var(var, expr.span))
-                                    })
+                                    let cvars: Vec<_> = r
+                                        .into_iter()
+                                        .map(|r| {
+                                            ConstOrCell::Cell(
+                                                self.backend.new_internal_var(r, expr.span),
+                                            )
+                                        })
+                                        .collect();
+
+                                    if cvars.is_empty() {
+                                        return None;
+                                    }
+
+                                    Some(VarOrRef::Var(Var::new(cvars, expr.span)))
                                 })
                         } else {
                             self.compile_native_function_call(func, vars)
