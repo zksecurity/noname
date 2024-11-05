@@ -53,7 +53,6 @@ fn main(pub public_input: Field, private_input: Field) -> Field {
     assert_eq(ww, xx);
 
     let kk = unsafe exp(4, public_input);
-    log(kk);
     assert_eq(kk, 16);
 
     let thing = unsafe multiple_inputs_outputs([public_input, 3]);
@@ -62,5 +61,5 @@ fn main(pub public_input: Field, private_input: Field) -> Field {
     assert_eq(thing.xx, public_input);
     assert_eq(thing.yy, 3);
 
-    return public_input;
+    return xx;
 }
