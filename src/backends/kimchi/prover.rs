@@ -264,11 +264,12 @@ mod tests {
             "inline_test_output.no".to_string(),
             code.to_owned(),
             0,
+            &mut None,
         )
         .unwrap();
 
         let kimchi_vesta = KimchiVesta::new(false);
-        let compiled_circuit = compile(&sources, tast, kimchi_vesta)?;
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta, &mut None)?;
 
         let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
 
