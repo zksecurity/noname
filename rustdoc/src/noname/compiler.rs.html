@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/compiler.rs`."><title>compiler.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-590a400c.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (b8c8287a2 2024-11-03)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../static.files/storage-59e33391.js"></script><script defer src="../../static.files/src-script-56102188.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/</div>compiler.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/compiler.rs`."><title>compiler.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-590a400c.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (fbab78289 2024-11-04)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../static.files/storage-59e33391.js"></script><script defer src="../../static.files/src-script-56102188.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/</div>compiler.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -166,7 +166,75 @@
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
 <a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is a wrapper API around noname.
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is a wrapper API around noname.
 //! It is important that user-facing features use the functions here,
 //! as they attach the correct filename and source code to errors.
 //! It does that by transforming our [Error] type into a [miette::Error] type for all functions here.
@@ -258,9 +326,18 @@
     filename: String,
     code: String,
     node_id: usize,
+    server_mode: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::server::ServerShim&gt;,
 ) -&gt; miette::Result&lt;usize&gt; {
-    typecheck_next_file_inner(typechecker, this_module, sources, filename, code, node_id)
-        .into_miette(sources)
+    typecheck_next_file_inner(
+        typechecker,
+        this_module,
+        sources,
+        filename,
+        code,
+        node_id,
+        server_mode,
+    )
+    .into_miette(sources)
 }
 
 <span class="doccomment">/// This should not be used directly. Check [get_tast] instead.
@@ -271,14 +348,31 @@
     filename: String,
     code: String,
     node_id: usize,
+    server_mode: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::server::ServerShim&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>is_lib = this_module.is_some();
 
     <span class="comment">// parsing to name resolution
-    </span><span class="kw">let </span>(nast, new_node_id) = get_nast(this_module, sources, filename, code, node_id)<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>(nast, new_node_id) = get_nast(
+        this_module.clone(),
+        sources,
+        filename.clone(),
+        code,
+        node_id,
+        server_mode,
+    )<span class="question-mark">?</span>;
 
     <span class="comment">// type checker
     </span>typechecker.analyze(nast, is_lib)<span class="question-mark">?</span>;
+
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(server_mode) = server_mode {
+        server_mode.send(
+            <span class="macro">format!</span>(<span class="string">"typechecker of {this_module:?} - {filename}"</span>),
+            <span class="kw-2">&amp;</span>typechecker,
+        );
+        <span class="comment">// block on an answer
+        </span><span class="kw">let _ </span>= server_mode.recv();
+    }
 
     <span class="prelude-val">Ok</span>(new_node_id)
 }
@@ -289,9 +383,10 @@
     filename: String,
     code: String,
     node_id: usize,
+    server_mode: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::server::ServerShim&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(NAST&lt;B&gt;, usize)&gt; {
     <span class="comment">// save filename and source code
-    </span><span class="kw">let </span>filename_id = sources.add(filename, code);
+    </span><span class="kw">let </span>filename_id = sources.add(filename.clone(), code);
     <span class="kw">let </span>code = <span class="kw-2">&amp;</span>sources.map[<span class="kw-2">&amp;</span>filename_id].<span class="number">1</span>;
 
     <span class="comment">// lexer
@@ -300,16 +395,40 @@
         <span class="macro">println!</span>(<span class="string">"lexer succeeded"</span>);
     }
 
+    <span class="comment">// debug server
+    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(server_mode) = server_mode {
+        server_mode.send(
+            <span class="macro">format!</span>(<span class="string">"lexer of {this_module:?} - {filename}"</span>),
+            <span class="kw-2">&amp;</span>tokens.as_vec(),
+        );
+        <span class="comment">// block on an answer
+        </span><span class="kw">let _ </span>= server_mode.recv();
+    }
+
     <span class="comment">// parser
     </span><span class="kw">let </span>(ast, new_node_id) = AST::parse(filename_id, tokens, node_id)<span class="question-mark">?</span>;
     <span class="kw">if </span>std::env::var(<span class="string">"NONAME_VERBOSE"</span>).is_ok() {
         <span class="macro">println!</span>(<span class="string">"parser succeeded"</span>);
     }
 
+    <span class="comment">// debug server
+    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(server_mode) = server_mode {
+        server_mode.send(<span class="macro">format!</span>(<span class="string">"ast of {filename}"</span>), <span class="kw-2">&amp;</span>ast);
+        <span class="comment">// block on an answer
+        </span><span class="kw">let _ </span>= server_mode.recv();
+    }
+
     <span class="comment">// name resolution
     </span><span class="kw">let </span>nast = NAST::resolve_modules(this_module, ast)<span class="question-mark">?</span>;
     <span class="kw">if </span>std::env::var(<span class="string">"NONAME_VERBOSE"</span>).is_ok() {
         <span class="macro">println!</span>(<span class="string">"name resolution succeeded"</span>);
+    }
+
+    <span class="comment">// debug server
+    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(server_mode) = server_mode {
+        server_mode.send(<span class="macro">format!</span>(<span class="string">"name resolution of {filename}"</span>), <span class="kw-2">&amp;</span>nast);
+        <span class="comment">// block on an answer
+        </span><span class="kw">let _ </span>= server_mode.recv();
     }
 
     <span class="prelude-val">Ok</span>((nast, new_node_id))
@@ -319,9 +438,26 @@
     sources: <span class="kw-2">&amp;</span>Sources,
     tast: TypeChecker&lt;B&gt;,
     backend: B,
+    server_mode: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::server::ServerShim&gt;,
 ) -&gt; miette::Result&lt;CompiledCircuit&lt;B&gt;&gt; {
-    <span class="kw">let </span>mast = mast::monomorphize(tast)<span class="question-mark">?</span>;
-    CircuitWriter::generate_circuit(mast, backend).into_miette(sources)
+    <span class="comment">// monomorphization pass
+    </span><span class="kw">let </span>mast = mast::monomorphize(tast)<span class="question-mark">?</span>;
+
+    <span class="comment">// debug server
+    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(server_mode) = server_mode {
+        server_mode.send(<span class="string">"monomorphization of whole project"</span>.to_string(), <span class="kw-2">&amp;</span>mast);
+        <span class="comment">// block on an answer
+        </span><span class="kw">let _ </span>= server_mode.recv();
+    }
+
+    serde_json::to_string(<span class="kw-2">&amp;</span>mast.<span class="number">0</span>.constants).unwrap();
+    serde_json::to_string(<span class="kw-2">&amp;</span>mast.<span class="number">0</span>.structs).unwrap();
+    serde_json::to_string(<span class="kw-2">&amp;</span>mast.<span class="number">0</span>.functions).unwrap();
+    serde_json::to_string(<span class="kw-2">&amp;</span>mast.<span class="number">0</span>).unwrap();
+    serde_json::to_string(<span class="kw-2">&amp;</span>mast).unwrap();
+
+    <span class="comment">// synthesizer pass
+    </span>CircuitWriter::generate_circuit(mast, backend).into_miette(sources)
 }
 
 <span class="kw">pub fn </span>generate_witness&lt;B: Backend&gt;(

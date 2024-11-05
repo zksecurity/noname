@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cli/cmd_build_and_check.rs`."><title>cmd_build_and_check.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-590a400c.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (b8c8287a2 2024-11-03)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/cli/</div>cmd_build_and_check.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cli/cmd_build_and_check.rs`."><title>cmd_build_and_check.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-590a400c.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (fbab78289 2024-11-04)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/cli/</div>cmd_build_and_check.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -456,7 +456,39 @@
 <a href="#455" id="455">455</a>
 <a href="#456" id="456">456</a>
 <a href="#457" id="457">457</a>
-<a href="#458" id="458">458</a></pre></div><pre class="rust"><code><span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a></pre></div><pre class="rust"><code><span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
 <span class="kw">use </span>clap::ValueEnum;
 <span class="kw">use </span>miette::{Context, IntoDiagnostic};
 
@@ -526,6 +558,10 @@
     /// Defaults to `verifier.nope`
     </span><span class="attr">#[clap(long, value_parser)]
     </span>verifier_params: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+
+    <span class="doccomment">/// Run in server mode to help debug and understand the compiler passes.
+    </span><span class="attr">#[clap(long)]
+    </span>server_mode: bool,
 }
 
 <span class="kw">pub fn </span>cmd_build(args: CmdBuild) -&gt; miette::Result&lt;()&gt; {
@@ -533,7 +569,17 @@
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    <span class="kw">let </span>(sources, prover_index, verifier_index) = build(<span class="kw-2">&amp;</span>curr_dir, args.asm, args.debug)<span class="question-mark">?</span>;
+    <span class="comment">// setup server in server mode
+    </span><span class="kw">let </span>(handle, <span class="kw-2">mut </span>server_mode) = <span class="kw">if </span>args.server_mode {
+        <span class="kw">let </span>(handle, shim) = <span class="kw">crate</span>::server::ServerShim::start_server();
+        (<span class="prelude-val">Some</span>(handle), <span class="prelude-val">Some</span>(shim))
+    } <span class="kw">else </span>{
+        (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>)
+    };
+
+    <span class="comment">// build
+    </span><span class="kw">let </span>(sources, prover_index, verifier_index) =
+        build(<span class="kw-2">&amp;</span>curr_dir, args.asm, args.debug, <span class="kw-2">&amp;mut </span>server_mode)<span class="question-mark">?</span>;
 
     <span class="comment">// create COMPILED_DIR
     </span><span class="kw">let </span>compiled_path = curr_dir.join(COMPILED_DIR);
@@ -574,6 +620,9 @@
 
     <span class="macro">println!</span>(<span class="string">"successfully built"</span>);
 
+    <span class="comment">// server mode
+    </span>handle.map(|h| h.join().unwrap());
+
     <span class="comment">//
     </span><span class="prelude-val">Ok</span>(())
 }
@@ -591,7 +640,7 @@
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
     <span class="comment">// produce all TASTs and stop here
-    </span>produce_all_asts::&lt;KimchiVesta&gt;(<span class="kw-2">&amp;</span>curr_dir)<span class="question-mark">?</span>;
+    </span>produce_all_asts::&lt;KimchiVesta&gt;(<span class="kw-2">&amp;</span>curr_dir, <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>)<span class="question-mark">?</span>;
 
     <span class="macro">println!</span>(<span class="string">"all good!"</span>);
     <span class="prelude-val">Ok</span>(())
@@ -601,6 +650,7 @@
     sources: <span class="kw-2">&amp;mut </span>Sources,
     tast: <span class="kw-2">&amp;mut </span>TypeChecker&lt;B&gt;,
     node_id: usize,
+    server_mode: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::server::ServerShim&gt;,
 ) -&gt; miette::Result&lt;usize&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>node_id = node_id;
 
@@ -612,12 +662,15 @@
         download_stdlib()<span class="question-mark">?</span>;
     }
 
-    node_id = init_stdlib_dep(sources, tast, node_id, stdlib_dir.as_ref());
+    node_id = init_stdlib_dep(sources, tast, node_id, stdlib_dir.as_ref(), server_mode);
 
     <span class="prelude-val">Ok</span>(node_id)
 }
 
-<span class="kw">fn </span>produce_all_asts&lt;B: Backend&gt;(path: <span class="kw-2">&amp;</span>PathBuf) -&gt; miette::Result&lt;(Sources, TypeChecker&lt;B&gt;)&gt; {
+<span class="kw">fn </span>produce_all_asts&lt;B: Backend&gt;(
+    path: <span class="kw-2">&amp;</span>PathBuf,
+    server_mode: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::server::ServerShim&gt;,
+) -&gt; miette::Result&lt;(Sources, TypeChecker&lt;B&gt;)&gt; {
     <span class="comment">// find manifest
     </span><span class="kw">let </span>manifest = validate_package_and_get_manifest(<span class="kw-2">&amp;</span>path, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
@@ -642,7 +695,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>tast = TypeChecker::new();
 
     <span class="comment">// adding stdlib
-    </span>add_stdlib(<span class="kw-2">&amp;mut </span>sources, <span class="kw-2">&amp;mut </span>tast, node_id)<span class="question-mark">?</span>;
+    </span>add_stdlib(<span class="kw-2">&amp;mut </span>sources, <span class="kw-2">&amp;mut </span>tast, node_id, server_mode)<span class="question-mark">?</span>;
 
     <span class="kw">for </span>dep <span class="kw">in </span>dep_graph.from_leaves_to_roots() {
         <span class="kw">let </span>path = path_to_package(<span class="kw-2">&amp;</span>dep);
@@ -660,6 +713,7 @@
             lib_file_str.clone(),
             code,
             node_id,
+            server_mode,
         )<span class="question-mark">?</span>;
     }
 
@@ -687,6 +741,7 @@
         file_path.to_string(),
         code,
         node_id,
+        server_mode,
     )<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>((sources, tast))
@@ -696,15 +751,16 @@
     curr_dir: <span class="kw-2">&amp;</span>PathBuf,
     asm: bool,
     debug: bool,
+    server_mode: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::server::ServerShim&gt;,
 ) -&gt; miette::Result&lt;(Sources, ProverIndex, VerifierIndex)&gt; {
     <span class="comment">// produce all TASTs
-    </span><span class="kw">let </span>(sources, tast) = produce_all_asts(curr_dir)<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>(sources, tast) = produce_all_asts(curr_dir, server_mode)<span class="question-mark">?</span>;
 
     <span class="comment">// produce indexes
     </span><span class="kw">let </span>double_generic_gate_optimization = <span class="bool-val">false</span>;
 
     <span class="kw">let </span>kimchi_vesta = KimchiVesta::new(double_generic_gate_optimization);
-    <span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, kimchi_vesta)<span class="question-mark">?</span>;
+    <span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, kimchi_vesta, server_mode)<span class="question-mark">?</span>;
 
     <span class="kw">if </span>asm {
         <span class="macro">println!</span>(<span class="string">"{}"</span>, compiled_circuit.asm(<span class="kw-2">&amp;</span>sources, debug));
@@ -765,7 +821,7 @@
         BackendKind::KimchiVesta(<span class="kw">_</span>) =&gt; {
             <span class="kw">let </span>(tast, sources) = typecheck_file(<span class="kw-2">&amp;</span>args.path)<span class="question-mark">?</span>;
             <span class="kw">let </span>kimchi_vesta = KimchiVesta::new(args.double);
-            <span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, kimchi_vesta)<span class="question-mark">?</span>;
+            <span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, kimchi_vesta, <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>(prover_index, verifier_index) = compiled_circuit.compile_to_indexes()<span class="question-mark">?</span>;
             <span class="macro">println!</span>(<span class="string">"successfully compiled"</span>);
@@ -857,9 +913,9 @@
     </span>F: BackendField,
 {
     <span class="comment">// Assuming `curr_dir`, `public_inputs`, and `private_inputs` are available in the scope
-    </span><span class="kw">let </span>(sources, tast) = produce_all_asts(curr_dir)<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>(sources, tast) = produce_all_asts(curr_dir, <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, r1cs)<span class="question-mark">?</span>;
+    <span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, r1cs, <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>generated_witness =
         generate_witness(<span class="kw-2">&amp;</span>compiled_circuit, <span class="kw-2">&amp;</span>sources, public_inputs, private_inputs)<span class="question-mark">?</span>;
@@ -892,7 +948,7 @@
 {
     <span class="kw">let </span>(tast, sources) = typecheck_file(path)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, r1cs)<span class="question-mark">?</span>;
+    <span class="kw">let </span>compiled_circuit = compile(<span class="kw-2">&amp;</span>sources, tast, r1cs, <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>)<span class="question-mark">?</span>;
 
     generate_witness(<span class="kw-2">&amp;</span>compiled_circuit, <span class="kw-2">&amp;</span>sources, public_inputs, private_inputs)<span class="question-mark">?</span>;
 
@@ -910,7 +966,15 @@
 
     <span class="kw">let </span><span class="kw-2">mut </span>sources = Sources::new();
     <span class="kw">let </span><span class="kw-2">mut </span>tast = TypeChecker::&lt;B&gt;::new();
-    <span class="kw">let </span>_node_id = typecheck_next_file(<span class="kw-2">&amp;mut </span>tast, <span class="prelude-val">None</span>, <span class="kw-2">&amp;mut </span>sources, path.to_string(), code, <span class="number">0</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span>_node_id = typecheck_next_file(
+        <span class="kw-2">&amp;mut </span>tast,
+        <span class="prelude-val">None</span>,
+        <span class="kw-2">&amp;mut </span>sources,
+        path.to_string(),
+        code,
+        <span class="number">0</span>,
+        <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>,
+    )<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>((tast, sources))
 }
