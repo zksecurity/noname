@@ -19,6 +19,7 @@ use std::path::Path;
 pub mod bits;
 pub mod builtins;
 pub mod crypto;
+pub mod int;
 
 /// The directory under [NONAME_DIRECTORY] containing the native stdlib.
 pub const STDLIB_DIRECTORY: &str = "src/stdlib/native/";
@@ -27,6 +28,7 @@ pub enum AllStdModules {
     Builtins,
     Crypto,
     Bits,
+    Int,
 }
 
 impl AllStdModules {
@@ -35,6 +37,7 @@ impl AllStdModules {
             AllStdModules::Builtins,
             AllStdModules::Crypto,
             AllStdModules::Bits,
+            AllStdModules::Int,
         ]
     }
 
@@ -43,6 +46,7 @@ impl AllStdModules {
             AllStdModules::Builtins => builtins::BuiltinsLib::get_parsed_fns(),
             AllStdModules::Crypto => crypto::CryptoLib::get_parsed_fns(),
             AllStdModules::Bits => bits::BitsLib::get_parsed_fns(),
+            AllStdModules::Int => int::IntLib::get_parsed_fns(),
         }
     }
 
@@ -51,6 +55,7 @@ impl AllStdModules {
             AllStdModules::Builtins => builtins::BuiltinsLib::MODULE,
             AllStdModules::Crypto => crypto::CryptoLib::MODULE,
             AllStdModules::Bits => bits::BitsLib::MODULE,
+            AllStdModules::Int => int::IntLib::MODULE,
         }
     }
 }

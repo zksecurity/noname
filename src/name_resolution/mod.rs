@@ -37,23 +37,22 @@ impl<B: Backend> NAST<B> {
                 RootKind::Use(path) => {
                     // important: no struct or function definition can appear before a use declaration
                     if let Some(span) = abort {
-                        return Err(Error::new(
+                        Err(Error::new(
                             "type-checker",
                             ErrorKind::OrderOfUseDeclaration,
                             span,
-                        ));
+                        ))?;
                     }
 
                     // insert and detect duplicates
-                    if ctx
+                    let dedup = ctx
                         .modules
-                        .insert(path.submodule.value.clone(), path.clone())
-                        .is_some()
-                    {
-                        return Err(ctx.error(
+                        .insert(path.submodule.value.clone(), path.clone());
+                    if let Some(_) = dedup {
+                        Err(ctx.error(
                             ErrorKind::DuplicateModule(path.submodule.value.clone()),
                             path.submodule.span,
-                        ));
+                        ))?
                     }
                 }
                 RootKind::FunctionDef(FunctionDef { span, .. })

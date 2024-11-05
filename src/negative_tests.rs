@@ -126,6 +126,58 @@ fn test_generic_const_for_loop() {
 }
 
 #[test]
+fn test_generic_const_mut_for_loop() {
+    let code = r#"
+        // generic on const argument
+        fn gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+
+        fn loop() {
+            let mut size = 2;
+            for ii in 0..3 {
+                gen(size);
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
+fn test_generic_mut_struct_for_loop() {
+    let code = r#"
+        struct Thing {
+            xx: Field,
+        }
+
+        // generic on const argument
+        fn gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+
+        fn loop() {
+            let mut thing = Thing {xx: 3};
+            for ii in 0..3 {
+                gen(thing.xx);
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
 fn test_generic_const_nested_for_loop() {
     let code = r#"
         // generic on const argument
@@ -185,6 +237,34 @@ fn test_generic_method_cst_for_loop() {
         // generic on const argument
         fn Thing.gen(const LEN: Field) -> [Field; LEN] {
             return [0; LEN];
+        }
+
+        fn loop() {
+            let thing = Thing { xx: 3 };
+            for ii in 0..3 {
+                thing.gen(ii);
+            }
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::VarAccessForbiddenInForLoop(..)
+    ));
+}
+
+#[test]
+fn test_generic_struct_self_for_loop() {
+    let code = r#"
+        struct Thing {
+            xx: Field,
+        }
+
+        // generic on const argument
+        fn Thing.gen(self, const LEN: Field) -> [Field; LEN] {
+            return [self.xx; LEN];
         }
 
         fn loop() {

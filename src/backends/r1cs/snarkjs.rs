@@ -1,11 +1,11 @@
 use crate::backends::BackendField;
 use constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
-use miette::{miette, Diagnostic};
+use miette::Diagnostic;
 use thiserror::Error;
 
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{self, BufWriter, Seek, SeekFrom, Write};
+use std::io::{self, BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::vec;
 
 use super::{GeneratedWitness, LinearCombination, R1CS};
@@ -39,16 +39,20 @@ struct SnarkjsLinearCombination {
 }
 
 impl SnarkjsLinearCombination {
-    fn to_hashmap(&self) -> HashMap<usize, BigInt> {
+    fn try_hashmap(&self) -> Result<HashMap<usize, BigInt>, Error> {
         let mut terms = self.terms.clone();
 
         // add the constant term with var indexed at 0
         if terms.insert(0, self.constant.clone()).is_some() {
             // sanity check
-            panic!("The first var should be preserved for constant term");
+
+            Err(std::io::Error::new(
+                ErrorKind::Other,
+                "The first var should be preserved for constant term",
+            ))?
         }
 
-        terms
+        Ok(terms)
     }
 }
 
@@ -134,9 +138,9 @@ where
         for constraint in &restructure_constraints {
             ConstraintSection::write_constraint_usize(
                 &mut constraint_section,
-                &constraint.a.to_hashmap(),
-                &constraint.b.to_hashmap(),
-                &constraint.c.to_hashmap(),
+                &constraint.a.try_hashmap()?,
+                &constraint.b.try_hashmap()?,
+                &constraint.c.try_hashmap()?,
             )
             .map_err(|_| Error::R1CSWriterIo)?;
         }
@@ -227,7 +231,10 @@ impl WitnessWriter {
         // Write the file type (magic string) as bytes
         let file_type_bytes = file_type.as_bytes();
         if file_type_bytes.len() != 4 {
-            panic!("File type must be 4 characters long");
+            Err(std::io::Error::new(
+                ErrorKind::Other,
+                "File type must be 4 characters long",
+            ))?
         }
         writer.write_all(file_type_bytes)?;
 

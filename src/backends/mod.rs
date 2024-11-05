@@ -5,13 +5,14 @@ use ark_ff::{Field, One, Zero};
 use num_bigint::BigUint;
 
 use crate::{
+    circuit_writer::VarInfo,
     compiler::Sources,
     constants::Span,
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
     parser::FunctionDef,
-    var::{Value, Var},
+    var::{ConstOrCell, Value, Var},
     witness::WitnessEnv,
 };
 
@@ -198,6 +199,161 @@ pub trait Backend: Clone {
 
                 Ok(res)
             }
+            Value::Div(lhs, rhs) => {
+                let res = match (lhs, rhs) {
+                    (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => {
+                        if rhs.is_zero() {
+                            return Err(Error::new(
+                                "runtime",
+                                ErrorKind::DivisionByZero,
+                                Span::default(),
+                            ));
+                        }
+
+                        // convert to bigints
+                        let lhs = lhs.to_biguint();
+                        let rhs = rhs.to_biguint();
+
+                        let res = lhs / rhs;
+                        Self::Field::from(res)
+                    }
+                    (ConstOrCell::Cell(lhs), ConstOrCell::Const(rhs)) => {
+                        if rhs.is_zero() {
+                            return Err(Error::new(
+                                "runtime",
+                                ErrorKind::DivisionByZero,
+                                Span::default(),
+                            ));
+                        }
+
+                        let lhs = self.compute_var(env, lhs)?;
+
+                        // convert to bigints
+                        let lhs = lhs.to_biguint();
+                        let rhs = rhs.to_biguint();
+
+                        let res = lhs / rhs;
+
+                        Self::Field::from(res)
+                    }
+                    (ConstOrCell::Const(lhs), ConstOrCell::Cell(rhs)) => {
+                        let rhs = self.compute_var(env, rhs)?;
+                        if rhs.is_zero() {
+                            return Err(Error::new(
+                                "runtime",
+                                ErrorKind::DivisionByZero,
+                                Span::default(),
+                            ));
+                        }
+
+                        // convert to bigints
+                        let lhs = lhs.to_biguint();
+                        let rhs = rhs.to_biguint();
+
+                        let res = lhs / rhs;
+
+                        Self::Field::from(res)
+                    }
+                    (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
+                        let lhs = self.compute_var(env, lhs)?;
+                        let rhs = self.compute_var(env, rhs)?;
+
+                        if rhs.is_zero() {
+                            return Err(Error::new(
+                                "runtime",
+                                ErrorKind::DivisionByZero,
+                                Span::default(),
+                            ));
+                        }
+                        // convert to bigints
+                        let lhs = lhs.to_biguint();
+                        let rhs = rhs.to_biguint();
+
+                        let res = lhs / rhs;
+
+                        Self::Field::from(res)
+                    }
+                };
+
+                env.cached_values.insert(cache_key, res); // cache
+                Ok(res)
+            }
+            Value::Mod(lhs, rhs) => {
+                match (lhs, rhs) {
+                    (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => {
+                        if rhs.is_zero() {
+                            return Err(Error::new(
+                                "runtime",
+                                ErrorKind::DivisionByZero,
+                                Span::default(),
+                            ));
+                        }
+
+                        // convert to bigints
+                        let lhs = lhs.to_biguint();
+                        let rhs = rhs.to_biguint();
+
+                        let res = lhs % rhs;
+                        Ok(Self::Field::from(res))
+                    }
+                    (ConstOrCell::Cell(lhs), ConstOrCell::Const(rhs)) => {
+                        if rhs.is_zero() {
+                            return Err(Error::new(
+                                "runtime",
+                                ErrorKind::DivisionByZero,
+                                Span::default(),
+                            ));
+                        }
+
+                        let lhs = self.compute_var(env, lhs)?;
+
+                        // convert to bigints
+                        let lhs = lhs.to_biguint();
+                        let rhs = rhs.to_biguint();
+
+                        let res = lhs % rhs;
+
+                        Ok(Self::Field::from(res))
+                    }
+                    (ConstOrCell::Const(lhs), ConstOrCell::Cell(rhs)) => {
+                        let rhs = self.compute_var(env, rhs)?;
+                        if rhs.is_zero() {
+                            return Err(Error::new(
+                                "runtime",
+                                ErrorKind::DivisionByZero,
+                                Span::default(),
+                            ));
+                        }
+
+                        // convert to bigints
+                        let lhs = lhs.to_biguint();
+                        let rhs = rhs.to_biguint();
+
+                        let res = lhs % rhs;
+
+                        Ok(Self::Field::from(res))
+                    }
+                    (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
+                        let lhs = self.compute_var(env, lhs)?;
+                        let rhs = self.compute_var(env, rhs)?;
+
+                        if rhs.is_zero() {
+                            return Err(Error::new(
+                                "runtime",
+                                ErrorKind::DivisionByZero,
+                                Span::default(),
+                            ));
+                        }
+                        // convert to bigints
+                        let lhs = lhs.to_biguint();
+                        let rhs = rhs.to_biguint();
+
+                        let res = lhs % rhs;
+
+                        Ok(Self::Field::from(res))
+                    }
+                }
+            }
         }
     }
 
@@ -216,4 +372,6 @@ pub trait Backend: Clone {
 
     /// Generate the asm for a backend.
     fn generate_asm(&self, sources: &Sources, debug: bool) -> String;
+
+    fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, msg: String, span: Span);
 }

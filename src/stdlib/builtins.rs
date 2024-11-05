@@ -1,6 +1,10 @@
 //! Builtins are imported by default.
 
-use ark_ff::One;
+use std::sync::Arc;
+
+use ark_ff::{One, Zero};
+use kimchi::o1_utils::FieldHelpers;
+use num_bigint::BigUint;
 
 use crate::{
     backends::Backend,
@@ -9,7 +13,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     parser::types::{GenericParameters, TyKind},
-    var::{ConstOrCell, Var},
+    var::{ConstOrCell, Value, Var},
 };
 
 use super::{FnInfoType, Module};
@@ -51,17 +55,35 @@ fn assert_eq_fn<B: Backend>(
 
     // they are both of type field
     if !matches!(lhs_info.typ, Some(TyKind::Field { .. })) {
-        panic!(
-            "the lhs of assert_eq must be of type Field or BigInt. It was of type {:?}",
-            lhs_info.typ
-        );
+        let lhs = lhs_info.typ.clone().ok_or_else(|| {
+            Error::new(
+                "constraint-generation",
+                ErrorKind::UnexpectedError("No type info for lhs of assertion"),
+                span,
+            )
+        })?;
+
+        Err(Error::new(
+            "constraint-generation",
+            ErrorKind::AssertTypeMismatch("rhs", lhs),
+            span,
+        ))?
     }
 
     if !matches!(rhs_info.typ, Some(TyKind::Field { .. })) {
-        panic!(
-            "the rhs of assert_eq must be of type Field or BigInt. It was of type {:?}",
-            rhs_info.typ
-        );
+        let rhs = rhs_info.typ.clone().ok_or_else(|| {
+            Error::new(
+                "constraint-generation",
+                ErrorKind::UnexpectedError("No type info for rhs of assertion"),
+                span,
+            )
+        })?;
+
+        Err(Error::new(
+            "constraint-generation",
+            ErrorKind::AssertTypeMismatch("rhs", rhs),
+            span,
+        ))?
     }
 
     // retrieve the values
@@ -77,11 +99,11 @@ fn assert_eq_fn<B: Backend>(
         // two constants
         (ConstOrCell::Const(a), ConstOrCell::Const(b)) => {
             if a != b {
-                return Err(Error::new(
+                Err(Error::new(
                     "constraint-generation",
                     ErrorKind::AssertionFailed,
                     span,
-                ));
+                ))?
             }
         }
 
@@ -137,21 +159,9 @@ fn log_fn<B: Backend>(
     vars: &[VarInfo<B::Field, B::Var>],
     span: Span,
 ) -> Result<Option<Var<B::Field, B::Var>>> {
-    println!("---log span: {:?}---", span);
     for var in vars {
-        // typ
-        println!("typ: {:?}", var.typ);
-        // mutable
-        println!("mutable: {:?}", var.mutable);
-        // var
-        var.var.iter().for_each(|v| match v {
-            ConstOrCell::Const(cst) => {
-                println!("cst: {:?}", cst.pretty());
-            }
-            ConstOrCell::Cell(cvar) => {
-                println!("cvar: {:?}", cvar);
-            }
-        });
+        // todo: will need to support string argument in order to customize msg
+        compiler.backend.log_var(var, "log".to_owned(), span);
     }
 
     Ok(None)

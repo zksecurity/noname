@@ -9,10 +9,10 @@ use itertools::{izip, Itertools as _};
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
+use crate::circuit_writer::VarInfo;
 use crate::constants::Span;
 use crate::error::{Error, ErrorKind, Result};
-use crate::helpers::PrettyField;
-use crate::parser::FunctionDef;
+use crate::var::ConstOrCell;
 use crate::{circuit_writer::DebugInfo, var::Value};
 
 use super::{Backend, BackendField, BackendVar};
@@ -224,7 +224,10 @@ where
     /// Constraints in the r1cs.
     constraints: Vec<Constraint<F>>,
     witness_vector: Vec<Value<Self>>,
+    /// Debug information for each constraint.
     debug_info: Vec<DebugInfo>,
+    /// Debug information for var info.
+    log_info: Vec<(String, Span, VarInfo<F, LinearCombination<F>>)>,
     /// Record the public inputs for reordering the witness vector
     public_inputs: Vec<CellVar>,
     /// Record the private inputs for checking
@@ -247,6 +250,7 @@ where
             private_input_cell_vars: Vec::new(),
             public_outputs: Vec::new(),
             finalized: false,
+            log_info: Vec::new(),
         }
     }
 
@@ -400,14 +404,17 @@ where
                     .iter()
                     .find(|private_cell_var| private_cell_var.index == index)
                 {
-                    let err = Error::new(
+                    Err(Error::new(
                         "constraint-finalization",
                         ErrorKind::PrivateInputNotUsed,
                         private_cell_var.span,
-                    );
-                    return Err(err);
+                    ))?
                 } else {
-                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
+                    Err(Error::new(
+                        "constraint-finalization",
+                        ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"),
+                        Span::default(),
+                    ))?
                 }
             }
         }
@@ -461,6 +468,21 @@ where
         for var in &self.public_outputs {
             let val = self.compute_var(witness_env, &var.to_linear_combination())?;
             witness[var.index] = val;
+        }
+
+        // print out the log info
+        for (_, span, var_info) in &self.log_info {
+            for cvar in var_info.var.iter() {
+                match cvar {
+                    ConstOrCell::Const(cst) => {
+                        println!("span:{}, cst: {}", span.start, cst.pretty());
+                    }
+                    ConstOrCell::Cell(cell) => {
+                        let val = cell.evaluate(&witness);
+                        println!("span:{}, val: {}", span.start, val.pretty());
+                    }
+                }
+            }
         }
 
         for (index, (constraint, debug_info)) in
@@ -627,6 +649,10 @@ where
         self.public_outputs.push(*var.to_cell_var());
 
         var
+    }
+
+    fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, msg: String, span: Span) {
+        self.log_info.push((msg, span, var.clone()));
     }
 }
 

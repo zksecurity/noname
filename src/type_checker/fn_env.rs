@@ -110,14 +110,28 @@ impl TypedFnEnv {
         self.current_scope >= prefix_scope
     }
 
-    pub fn is_forbidden(&self, scope: usize) -> bool {
+    /// Since currently we don't support unrolling, the generic function calls are assumed to target a same instance.
+    /// Each loop iteration should instantiate generic function calls with the same parameters.
+    /// This assumption requires a few type checking rules to forbid the cases that needs unrolling.
+    /// Forbid rules:
+    /// - Access to variables within the for loop scope.
+    /// - Access to mutable variables, except if it is an array.
+    ///   Because once the array is declared, the size is fixed even if the array is mutable,
+    ///   so the generic value resolved from array size will be same for generic function argument.
+    pub fn is_forbidden(&self, scope: usize, ty_info: TypeInfo) -> bool {
         let in_forbidden_scope = if let Some(forloop_scope) = self.forloop_scopes.first() {
             scope >= *forloop_scope
         } else {
             false
         };
 
-        self.forbid_forloop_scope && in_forbidden_scope
+        let forbidden_mutable = ty_info.mutable
+            && !matches!(
+                ty_info.typ,
+                TyKind::GenericSizedArray(..) | TyKind::Array(..)
+            );
+
+        self.forbid_forloop_scope && (in_forbidden_scope || forbidden_mutable)
     }
 
     /// Stores type information about a local variable.
@@ -151,7 +165,7 @@ impl TypedFnEnv {
     // TODO: return an error no?
     pub fn get_type_info(&self, ident: &str) -> Result<Option<&TypeInfo>> {
         if let Some((scope, type_info)) = self.vars.get(ident) {
-            if self.is_forbidden(*scope) {
+            if self.is_forbidden(*scope, type_info.clone()) {
                 return Err(Error::new(
                     "type-checker",
                     ErrorKind::VarAccessForbiddenInForLoop(ident.to_string()),

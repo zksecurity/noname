@@ -343,16 +343,22 @@ impl Backend for KimchiVesta {
                         ErrorKind::PrivateInputNotUsed,
                         private_cell_var.span,
                     );
-                    return Err(err);
+                    Err(err)?;
                 } else {
-                    panic!("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!");
+                    Err(Error::new("contraint-finalization", ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"), Span::default()))?;
                 }
             }
         }
 
         // kimchi hack
         if self.gates.len() <= 2 {
-            panic!("the circuit is either too small or does not constrain anything (TODO: better error)");
+            Err(Error::new(
+                "contraint-finalization",
+                ErrorKind::UnexpectedError(
+                    "The circuit is either too small or does not constrain anything, too few gates create in the R1CS",
+                ),
+                Span::default(),
+            ))?;
         }
 
         // store the return value in the public input that was created for that ^
@@ -757,5 +763,14 @@ impl Backend for KimchiVesta {
         self.public_input_size += 1;
 
         cvar
+    }
+
+    fn log_var(
+        &mut self,
+        var: &crate::circuit_writer::VarInfo<Self::Field, Self::Var>,
+        msg: String,
+        span: Span,
+    ) {
+        todo!()
     }
 }
