@@ -184,7 +184,7 @@ fn produce_all_asts<B: Backend>(path: &PathBuf) -> miette::Result<(Sources, Type
     let mut tast = TypeChecker::new();
 
     // adding stdlib
-    add_stdlib(&mut sources, &mut tast, node_id)?;
+    node_id = add_stdlib(&mut sources, &mut tast, node_id)?;
 
     for dep in dep_graph.from_leaves_to_roots() {
         let path = path_to_package(&dep);
@@ -432,7 +432,26 @@ fn test_r1cs_backend<F: BackendField>(
 where
     F: BackendField,
 {
-    let (tast, sources) = typecheck_file(path)?;
+    let mut sources = Sources::new();
+    let mut node_id = 0;
+
+    let mut tast = TypeChecker::new();
+
+    // adding stdlib
+    node_id = add_stdlib(&mut sources, &mut tast, node_id)?;
+
+    let code = std::fs::read_to_string(path)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("could not read file `{path}`"))?;
+
+    typecheck_next_file(
+        &mut tast,
+        None,
+        &mut sources,
+        path.to_string(),
+        code,
+        node_id,
+    )?;
 
     let compiled_circuit = compile(&sources, tast, r1cs)?;
 
