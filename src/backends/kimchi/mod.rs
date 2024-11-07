@@ -771,6 +771,6 @@ impl Backend for KimchiVesta {
         msg: String,
         span: Span,
     ) {
-        todo!()
+        println!("todo: implement log_var for kimchi backend");
     }
 }
