@@ -244,13 +244,17 @@ pub(crate) fn path_to_package(dep: &UserRepo) -> PathBuf {
 }
 
 pub(crate) fn path_to_stdlib() -> PathBuf {
+    path_to_release_dir().join(STDLIB_DIRECTORY)
+}
+
+pub(crate) fn path_to_release_dir() -> PathBuf {
     let home_dir: PathBuf = dirs::home_dir()
         .expect("could not find home directory of current user")
         .try_into()
         .expect("invalid UTF8 path");
     let noname_dir = home_dir.join(NONAME_DIRECTORY);
 
-    noname_dir.join(RELEASE_DIRECTORY).join(STDLIB_DIRECTORY)
+    noname_dir.join(RELEASE_DIRECTORY)
 }
 
 /// download package from github
@@ -271,44 +275,6 @@ pub fn download_from_github(dep: &UserRepo) -> Result<()> {
 
     if !output.status.success() {
         miette::bail!(format!("could not download package `{dep}`. Are you sure that https://www.github.com/{dep} is a valid package?"));
-    }
-
-    Ok(())
-}
-
-pub fn download_stdlib() -> Result<()> {
-    // Hardcoded repository details and target branch
-    let repo_owner = "zksecurity";
-    let repo_name = "noname";
-    let target_branch = "main";
-    let repo_url = format!(
-        "https://github.com/{owner}/{repo}.git",
-        owner = repo_owner,
-        repo = repo_name
-    );
-
-    let home_dir: PathBuf = dirs::home_dir()
-        .expect("could not find home directory of current user")
-        .try_into()
-        .expect("invalid UTF8 path");
-    let noname_dir = home_dir.join(NONAME_DIRECTORY);
-    let release_dir = noname_dir.join("release");
-
-    // Clone the repository and checkout the specified branch to the temporary directory
-    let output = process::Command::new("git")
-        .arg("clone")
-        .arg("--branch")
-        .arg(target_branch)
-        .arg("--single-branch")
-        .arg(repo_url)
-        .arg(release_dir)
-        .output()
-        .expect("failed to execute git clone command");
-
-    if !output.status.success() {
-        miette::bail!(format!(
-            "Could not clone branch `{target_branch}` of repository `{repo_owner}/{repo_name}`."
-        ));
     }
 
     Ok(())
