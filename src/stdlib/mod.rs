@@ -19,6 +19,7 @@ use std::path::Path;
 pub mod bits;
 pub mod builtins;
 pub mod crypto;
+pub mod int;
 
 /// The directory under [NONAME_DIRECTORY] containing the native stdlib.
 pub const STDLIB_DIRECTORY: &str = "src/stdlib/native/";
@@ -27,6 +28,7 @@ pub enum AllStdModules {
     Builtins,
     Crypto,
     Bits,
+    Int,
 }
 
 impl AllStdModules {
@@ -35,6 +37,7 @@ impl AllStdModules {
             AllStdModules::Builtins,
             AllStdModules::Crypto,
             AllStdModules::Bits,
+            AllStdModules::Int,
         ]
     }
 
@@ -43,6 +46,7 @@ impl AllStdModules {
             AllStdModules::Builtins => builtins::BuiltinsLib::get_parsed_fns(),
             AllStdModules::Crypto => crypto::CryptoLib::get_parsed_fns(),
             AllStdModules::Bits => bits::BitsLib::get_parsed_fns(),
+            AllStdModules::Int => int::IntLib::get_parsed_fns(),
         }
     }
 
@@ -51,6 +55,7 @@ impl AllStdModules {
             AllStdModules::Builtins => builtins::BuiltinsLib::MODULE,
             AllStdModules::Crypto => crypto::CryptoLib::MODULE,
             AllStdModules::Bits => bits::BitsLib::MODULE,
+            AllStdModules::Int => int::IntLib::MODULE,
         }
     }
 }
@@ -91,6 +96,7 @@ pub fn init_stdlib_dep<B: Backend>(
     tast: &mut TypeChecker<B>,
     node_id: usize,
     path_prefix: &str,
+    server_mode: &mut Option<crate::server::ServerShim>,
 ) -> usize {
     // list the stdlib dependency in order
     let libs = vec!["bits", "comparator", "multiplexer", "mimc", "int"];
@@ -101,8 +107,16 @@ pub fn init_stdlib_dep<B: Backend>(
         let module = UserRepo::new(&format!("std/{}", lib));
         let prefix_stdlib = Path::new(path_prefix);
         let code = std::fs::read_to_string(prefix_stdlib.join(format!("{lib}/lib.no"))).unwrap();
-        node_id =
-            typecheck_next_file(tast, Some(module), sources, lib.to_string(), code, 0).unwrap();
+        node_id = typecheck_next_file(
+            tast,
+            Some(module),
+            sources,
+            lib.to_string(),
+            code,
+            node_id,
+            server_mode,
+        )
+        .unwrap();
     }
 
     node_id

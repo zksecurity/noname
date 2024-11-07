@@ -12,6 +12,7 @@ pub mod structs;
 pub mod types;
 
 pub use expr::{Expr, ExprKind, Op2};
+use serde::Serialize;
 pub use structs::{CustomType, StructDef};
 
 //~
@@ -95,7 +96,8 @@ impl ParserCtx {
 // AST
 //
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize)]
+#[serde(bound(serialize = "Root<B::Field>: Serialize",))]
 pub struct AST<B: Backend>(pub Vec<Root<B::Field>>);
 
 impl<B: Backend> AST<B> {

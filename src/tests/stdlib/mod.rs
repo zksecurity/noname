@@ -1,6 +1,7 @@
 mod comparator;
 mod mimc;
 mod multiplexer;
+mod uints;
 
 use std::{path::Path, str::FromStr};
 
@@ -58,7 +59,13 @@ fn test_stdlib_code(
     let mut sources = Sources::new();
     let mut tast = TypeChecker::new();
     let mut node_id = 0;
-    node_id = init_stdlib_dep(&mut sources, &mut tast, node_id, STDLIB_DIRECTORY);
+    node_id = init_stdlib_dep(
+        &mut sources,
+        &mut tast,
+        node_id,
+        STDLIB_DIRECTORY,
+        &mut None,
+    );
 
     let this_module = None;
     let _node_id = typecheck_next_file(
@@ -68,6 +75,7 @@ fn test_stdlib_code(
         "test.no".to_string(),
         code.to_string(),
         node_id,
+        &mut None,
     )
     .unwrap();
 

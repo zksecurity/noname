@@ -30,6 +30,7 @@ fn nast_pass(code: &str) -> Result<(NAST<R1csBackend>, usize)> {
         "example.no".to_string(),
         code.to_string(),
         0,
+        &mut None,
     )
 }
 
@@ -43,6 +44,7 @@ fn tast_pass(code: &str) -> (Result<usize>, TypeChecker<R1csBackend>, Sources) {
         "example.no".to_string(),
         code.to_string(),
         0,
+        &mut None,
     );
 
     (res, tast, source)
@@ -638,6 +640,7 @@ fn test_hint_builtin_fn(qualified: &FullyQualified, code: &str) -> Result<usize>
         "example.no".to_string(),
         code.to_string(),
         0,
+        &mut None,
     )
 }
 

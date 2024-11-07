@@ -1,3 +1,4 @@
+use ark_ff::PrimeField;
 use std::vec;
 
 use kimchi::{o1_utils::FieldHelpers, turshi::helper::CairoFieldHelpers};
@@ -6,7 +7,7 @@ use crate::{
     backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
-    error::Result,
+    error::{Error, ErrorKind, Result},
     parser::types::GenericParameters,
     var::{ConstOrCell, Value, Var},
 };
@@ -14,6 +15,7 @@ use crate::{
 use super::{FnInfoType, Module};
 
 const NTH_BIT_FN: &str = "nth_bit(val: Field, const nth: Field) -> Field";
+const CHECK_FIELD_SIZE_FN: &str = "check_field_size(cmp: Field)";
 
 pub struct BitsLib {}
 
@@ -21,7 +23,10 @@ impl Module for BitsLib {
     const MODULE: &'static str = "bits";
 
     fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>)> {
-        vec![(NTH_BIT_FN, nth_bit)]
+        vec![
+            (NTH_BIT_FN, nth_bit),
+            (CHECK_FIELD_SIZE_FN, check_field_size),
+        ]
     }
 }
 
@@ -66,4 +71,34 @@ fn nth_bit<B: Backend>(
         .new_internal_var(Value::NthBit(val.clone(), nth), span);
 
     Ok(Some(Var::new(vec![ConstOrCell::Cell(bit)], span)))
+}
+
+// Ensure that the field size is not exceeded
+fn check_field_size<B: Backend>(
+    _compiler: &mut CircuitWriter<B>,
+    _generics: &GenericParameters,
+    vars: &[VarInfo<B::Field, B::Var>],
+    span: Span,
+) -> Result<Option<Var<B::Field, B::Var>>> {
+    let var = &vars[0].var[0];
+    let bit_len = B::Field::size_in_bits() as u64;
+
+    match var {
+        ConstOrCell::Const(cst) => {
+            let to_cmp = cst.to_u64();
+            if to_cmp >= bit_len {
+                return Err(Error::new(
+                    "constraint-generation",
+                    ErrorKind::AssertionFailed,
+                    span,
+                ));
+            }
+            Ok(None)
+        }
+        ConstOrCell::Cell(_) => Err(Error::new(
+            "constraint-generation",
+            ErrorKind::ExpectedConstant,
+            span,
+        )),
+    }
 }

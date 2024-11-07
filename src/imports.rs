@@ -1,7 +1,5 @@
 use std::{collections::HashMap, fmt};
 
-use serde::{Deserialize, Serialize};
-
 use crate::{
     backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
@@ -70,17 +68,42 @@ pub type FnHandle<B: Backend> = fn(
 ) -> Result<Option<Var<B::Field, B::Var>>>;
 
 /// The different types of a noname function.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub enum FnKind<B>
 where
     B: Backend,
 {
     /// A built-in is just a handle to a function written in Rust.
-    #[serde(skip)]
     BuiltIn(FnSig, FnHandle<B>),
 
     /// A native function is represented as an AST.
     Native(FunctionDef),
+}
+
+mod fn_kind_serde {
+    use super::*;
+    use serde::{Deserialize, Serialize, Serializer};
+
+    #[derive(Serialize, Deserialize)]
+    enum FnKindSurrogate {
+        BuiltIn(FnSig, String), // Use String as a placeholder
+        Native(FunctionDef),
+    }
+
+    impl<B: Backend> Serialize for FnKind<B> {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let surrogate = match self {
+                FnKind::BuiltIn(sig, _handle) => {
+                    FnKindSurrogate::BuiltIn(sig.clone(), "native function".to_string())
+                }
+                FnKind::Native(def) => FnKindSurrogate::Native(def.clone()),
+            };
+            surrogate.serialize(serializer)
+        }
+    }
 }
 
 impl<B: Backend> fmt::Debug for FnKind<B> {
