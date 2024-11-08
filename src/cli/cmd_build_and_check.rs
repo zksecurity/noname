@@ -19,8 +19,7 @@ use crate::{
 };
 
 use super::packages::{
-    download_stdlib, get_deps_of_package, is_lib, validate_package_and_get_manifest,
-    DependencyGraph, UserRepo,
+    get_deps_of_package, is_lib, validate_package_and_get_manifest, DependencyGraph, UserRepo,
 };
 
 const COMPILED_DIR: &str = "compiled";
@@ -165,13 +164,7 @@ fn add_stdlib<B: Backend>(
     let mut node_id = node_id;
 
     // check if the release folder exists, otherwise download the latest release
-    // todo: check the latest version and compare it with the current version, to decide if download is needed
     let stdlib_dir = path_to_stdlib();
-
-    if !stdlib_dir.exists() {
-        download_stdlib()?;
-    }
-
     node_id = init_stdlib_dep(sources, tast, node_id, stdlib_dir.as_ref(), server_mode);
 
     Ok(node_id)
@@ -456,7 +449,27 @@ fn test_r1cs_backend<F: BackendField>(
 where
     F: BackendField,
 {
-    let (tast, sources) = typecheck_file(path)?;
+    let mut sources = Sources::new();
+    let mut node_id = 0;
+
+    let mut tast = TypeChecker::new();
+
+    // adding stdlib
+    node_id = add_stdlib(&mut sources, &mut tast, node_id, &mut None)?;
+
+    let code = std::fs::read_to_string(path)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("could not read file `{path}`"))?;
+
+    typecheck_next_file(
+        &mut tast,
+        None,
+        &mut sources,
+        path.to_string(),
+        code,
+        node_id,
+        &mut None,
+    )?;
 
     let compiled_circuit = compile(&sources, tast, r1cs, &mut None)?;
 

@@ -110,7 +110,13 @@ fn test_file(
             let mut sources = Sources::new();
             let mut tast = TypeChecker::new();
             let mut node_id = 0;
-            node_id = init_stdlib_dep(&mut sources, &mut tast, node_id, STDLIB_DIRECTORY);
+            node_id = init_stdlib_dep(
+                &mut sources,
+                &mut tast,
+                node_id,
+                STDLIB_DIRECTORY,
+                &mut None,
+            );
             let this_module = None;
             let _node_id = typecheck_next_file(
                 &mut tast,
@@ -118,7 +124,7 @@ fn test_file(
                 &mut sources,
                 file_name.to_string(),
                 code.clone(),
-                0,
+                node_id,
                 &mut None,
             )
             .unwrap();
