@@ -215,6 +215,7 @@ impl<F: Field, C: BackendVar> std::ops::Index<usize> for Var<F, C> {
 /// Represents a variable in the circuit, or a reference to one.
 /// Note that mutable variables are always passed as references,
 /// as one needs to have access to the variable name to be able to reassign it in the environment.
+#[derive(Debug, Clone)]
 pub enum VarOrRef<B>
 where
     B: Backend,

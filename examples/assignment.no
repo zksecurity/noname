@@ -14,8 +14,7 @@ fn main(pub xx: Field) {
         xx: xx,
     };
 
-    // ideally: thing.xx += 1;
-    thing.xx = thing.xx + 1;
+    thing.xx +=  1;
 
     try_to_mutate(thing);
 
