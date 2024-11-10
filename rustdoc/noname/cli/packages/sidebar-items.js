@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["download_from_github","download_stdlib","get_dep","get_dep_code","get_deps_of_package","is_lib","validate_package_and_get_manifest"],"struct":["DependencyGraph","DependencyNode","UserRepo"]};
+window.SIDEBAR_ITEMS = {"fn":["download_from_github","get_dep","get_dep_code","get_deps_of_package","is_lib","validate_package_and_get_manifest"],"struct":["DependencyGraph","DependencyNode","UserRepo"]};
