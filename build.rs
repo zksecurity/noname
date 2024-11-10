@@ -15,13 +15,15 @@ fn main() {
     }
 
     let current_dir = env::current_dir().expect("could not get current directory");
+    let folders = ["assets", "src/stdlib"];
 
-    // Set up copy options
     let mut options = CopyOptions::new();
     options.overwrite = true; // Overwrite existing files
     options.copy_inside = true; // Copy contents inside the source directory
 
-    // Copy the current folder to the release directory
-    dir::copy(current_dir, &release_dir, &options)
-        .expect("could not copy current directory to release directory");
+    for folder in &folders {
+        let src = current_dir.join(folder);
+        dir::copy(&src, &release_dir.join(folder), &options)
+            .expect("could not copy assets and stdlib folders to release directory");
+    }
 }
