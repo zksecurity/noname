@@ -130,8 +130,9 @@ mod tests {
 
         let json_public = parse_inputs(inputs_public).unwrap();
         let json_private = parse_inputs(inputs_private).unwrap();
+        let sources = Sources::new();
         let generated_witness = compiled_circuit
-            .generate_witness(json_public, json_private)
+            .generate_witness(&sources, json_public, json_private)
             .unwrap();
 
         let noname_circuit = NoNameCircuit {
@@ -153,8 +154,9 @@ mod tests {
 
         let json_public = parse_inputs(inputs_public).unwrap();
         let json_private = parse_inputs(inputs_private).unwrap();
+        let sources = Sources::new();
         let generated_witness = compiled_circuit
-            .generate_witness(json_public, json_private)
+            .generate_witness(&sources, json_public, json_private)
             .unwrap();
         let noname_circuit = NoNameCircuit {
             compiled_circuit,

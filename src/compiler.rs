@@ -231,6 +231,6 @@ pub fn generate_witness<B: Backend>(
     private_inputs: JsonInputs,
 ) -> miette::Result<B::GeneratedWitness> {
     compiled_circuit
-        .generate_witness(public_inputs, private_inputs)
+        .generate_witness(sources, public_inputs, private_inputs)
         .into_miette(sources)
 }

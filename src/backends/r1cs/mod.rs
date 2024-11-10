@@ -10,6 +10,7 @@ use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
 use crate::circuit_writer::VarInfo;
+use crate::compiler::Sources;
 use crate::constants::Span;
 use crate::error::{Error, ErrorKind, Result};
 use crate::var::ConstOrCell;
@@ -445,6 +446,7 @@ where
     fn generate_witness(
         &self,
         witness_env: &mut crate::witness::WitnessEnv<F>,
+        sources: &Sources,
     ) -> crate::error::Result<Self::GeneratedWitness> {
         assert!(self.finalized, "the circuit is not finalized yet!");
 
@@ -472,14 +474,18 @@ where
 
         // print out the log info
         for (_, span, var_info) in &self.log_info {
+            let (filename, source) = sources.get(&span.filename_id).unwrap();
+            let (line, _, line_str) = crate::utils::find_exact_line(source, *span);
+            let line_str = line_str.trim_start();
+            let dbg_msg = format!("[{filename}:{line}] `{line_str}` -> ");
             for cvar in var_info.var.iter() {
                 match cvar {
                     ConstOrCell::Const(cst) => {
-                        println!("span:{}, cst: {}", span.start, cst.pretty());
+                        println!("{dbg_msg}{}", cst.pretty());
                     }
                     ConstOrCell::Cell(cell) => {
                         let val = cell.evaluate(&witness);
-                        println!("span:{}, val: {}", span.start, val.pretty());
+                        println!("{dbg_msg}{}", val.pretty());
                     }
                 }
             }

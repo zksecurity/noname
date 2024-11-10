@@ -392,6 +392,7 @@ impl Backend for KimchiVesta {
     fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<VestaField>,
+        sources: &Sources,
     ) -> Result<GeneratedWitness> {
         if !self.finalized {
             unreachable!("the circuit must be finalized before generating a witness");
