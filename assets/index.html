@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-screen">
 
 <head>
     <meta charset="UTF-8">
@@ -7,33 +7,43 @@
     <title>Compiler State Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@pgrabovets/json-view"></script>
+    <style>
+        .active {
+            background-color: #3b82f6;
+            /* bg-blue-500 */
+            color: white;
+            /* text-white */
+
+        }
+    </style>
 </head>
 
-<body class="bg-gray-100">
-    <div class="container mx-auto p-4">
-        <h1 class="text-3xl font-bold mb-4">Compiler State</h1>
+<body class="bg-gray-100 h-screen min-h-screen flex flex-col">
+    <div class="container mx-auto p-4 flex-grow h-full">
+        <h1 class="text-3xl font-bold mb-4">Compiler Passes</h1>
+        <!-- 
         <div class="flex space-x-4 mb-4">
-            <button id="resumeBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+           <button id="resumeBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                 Resume
             </button>
             <span id="counter" class="text-gray-600">Counter: 0</span>
         </div>
-        <div class="flex flex-col md:flex-row">
-            <div class="md:w-1/2">
-                <h2 class="text-xl font-bold mb-2">Panel 1</h2>
+    -->
+        <div class="flex flex-col md:flex-row flex-grow">
+            <div class="md:w-1/2 h-full">
                 <div class="flex">
-                    <ul id="panel1Menu" class="w-48 flex-none bg-gray-200 p-2 space-y-2">
+                    <ul id="panel1Menu" class="w-48 flex-none bg-gray-200 p-2 space-y-2 overflow-y-auto max-h-96">
                     </ul>
-                    <div id="panel1Content" class="border border-gray-300 rounded p-4 bg-white w-full">
+                    <div id="panel1Content" class="border border-gray-300 rounded p-4 bg-white w-full overflow-y-auto">
                     </div>
+
                 </div>
             </div>
-            <div class="md:w-1/2 md:ml-4">
-                <h2 class="text-xl font-bold mb-2">Panel 2</h2>
+            <div class="md:w-1/2 md:ml-4 h-full">
                 <div class="flex">
-                    <ul id="panel2Menu" class="w-48 flex-none bg-gray-200 p-2 space-y-2">
+                    <ul id="panel2Menu" class="w-48 flex-none bg-gray-200 p-2 space-y-2 overflow-y-auto max-h-96">
                     </ul>
-                    <div id="panel2Content" class="border border-gray-300 rounded p-4 bg-white w-full">
+                    <div id="panel2Content" class="border border-gray-300 rounded p-4 bg-white w-full overflow-y-auto">
                     </div>
                 </div>
             </div>
@@ -42,7 +52,7 @@
 
     <script>
         // Access to the DOM
-        const resumeBtn = document.getElementById('resumeBtn');
+        //        const resumeBtn = document.getElementById('resumeBtn');
         const counterSpan = document.getElementById('counter');
         const panel1Menu = document.getElementById('panel1Menu');
         const panel2Menu = document.getElementById('panel2Menu');
@@ -54,26 +64,26 @@
         let counter = 1;
 
         // Click on resume
-        resumeBtn.addEventListener('click', async () => {
-            try {
-                const response = await fetch(`/resume/${counter}`);
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                await response.text(); // Await the response, even if you don't use it
-                counter++;
-                counterSpan.textContent = `Counter: ${counter}`;
+        // resumeBtn.addEventListener('click', async () => {
+        //     try {
+        //         const response = await fetch(`/resume/${counter}`);
+        //         if (!response.ok) {
+        //             throw new Error('Network response was not ok');
+        //         }
+        //         await response.text(); // Await the response, even if you don't use it
+        //         counter++;
+        //         counterSpan.textContent = `Counter: ${counter}`;
 
-                // wait for the compiler to fetch the state
-                setTimeout(async () => {
-                    await fetchState(counter - 1);
-                    counterSpan.textContent = `Counter: ${counter}`;
-                }, 1000); // 1000 milliseconds = 1 second
+        //         // wait for the compiler to fetch the state
+        //         setTimeout(async () => {
+        //             await fetchState(counter - 1);
+        //             counterSpan.textContent = `Counter: ${counter}`;
+        //         }, 1000); // 1000 milliseconds = 1 second
 
-            } catch (error) {
-                console.error('Error resuming:', error);
-            }
-        });
+        //     } catch (error) {
+        //         console.error('Error resuming:', error);
+        //     }
+        // });
 
         const fetchState = async (layer) => {
             try {
@@ -135,20 +145,40 @@
             menuItem.classList.add('cursor-pointer', 'hover:bg-gray-300', 'p-2', 'rounded', 'text-xs');
             menuItem.textContent = title;
             menuItem.addEventListener('click', () => {
+                // Remove active class from all menu items
+                const menuItems = menu.querySelectorAll('li');
+                menuItems.forEach(item => item.classList.remove('active'));
+
+                // Add active class to the clicked menu item
+                menuItem.classList.add('active');
+
+
                 displayLayer(layer, panelId);
+
+                // Scroll the menu to the top
+                menuItem.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
             menu.appendChild(menuItem);
         };
 
         const displayLayer = (layer, panelId) => {
-            const { state } = layers[layer];
+            const { title, state } = layers[layer];
             const panelContent = document.getElementById(panelId);
             panelContent.innerHTML = ''; // Clear existing content
 
             // Use json-view to render the JSON data
-            const json = JSON.parse(atob(state));
-            const tree = jsonview.create(json);
-            jsonview.render(tree, panelContent);
+            // if title contains "source" then the state is a plain string and not a json
+            const decoded_state = atob(state);
+            if (title.includes("source")) {
+                const pre = document.createElement('pre');
+                pre.style.whiteSpace = 'pre-wrap';
+                pre.innerHTML = decoded_state.slice(1, -1).replace(/\\n/g, '<br>');
+                panelContent.appendChild(pre);
+            } else {
+                const json = JSON.parse(atob(state));
+                const tree = jsonview.create(json);
+                jsonview.render(tree, panelContent);
+            }
         };
     </script>
 </body>

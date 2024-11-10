@@ -61,7 +61,8 @@ impl ServerShim {
     }
 
     pub(crate) fn recv(&mut self) -> Option<ServerMessage> {
-        self.rx.blocking_recv()
+        return Some(ServerMessage::Resume);
+        //self.rx.blocking_recv()
     }
 }
 

@@ -153,6 +153,13 @@ pub fn get_nast<B: Backend>(
     let filename_id = sources.add(filename.clone(), code);
     let code = &sources.map[&filename_id].1;
 
+    // debug server
+    if let Some(server_mode) = server_mode {
+        server_mode.send(format!("source of {this_module:?} - {filename}"), code);
+        // block on an answer
+        let _ = server_mode.recv();
+    }
+
     // lexer
     let tokens = Token::parse(filename_id, &code)?;
     if std::env::var("NONAME_VERBOSE").is_ok() {
