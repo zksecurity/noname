@@ -132,7 +132,6 @@ pub enum Op2 {
     Division,
     Equality,
     Inequality,
-    PlusEqual,
     BoolAnd,
     BoolOr,
 }
@@ -471,7 +470,6 @@ impl Expr {
                     | TokenKind::Slash
                     | TokenKind::DoubleEqual
                     | TokenKind::NotEqual
-                    | TokenKind::PlusEqual
                     | TokenKind::DoubleAmpersand
                     | TokenKind::DoublePipe
                     | TokenKind::Exclamation,
@@ -486,7 +484,6 @@ impl Expr {
                     TokenKind::Slash => Op2::Division,
                     TokenKind::DoubleEqual => Op2::Equality,
                     TokenKind::NotEqual => Op2::Inequality,
-                    TokenKind::PlusEqual => Op2::PlusEqual,
                     TokenKind::DoubleAmpersand => Op2::BoolAnd,
                     TokenKind::DoublePipe => Op2::BoolOr,
                     _ => unreachable!(),

@@ -623,8 +623,6 @@ impl<B: Backend> CircuitWriter<B> {
 
             ExprKind::BinaryOp { op, lhs, rhs, .. } => {
                 let lhs = self.compute_expr(fn_env, lhs)?.unwrap();
-                // We need to keep the original lhs variable for the += case
-                let lhs_var = lhs.clone();
                 let rhs = self.compute_expr(fn_env, rhs)?.unwrap();
 
                 let lhs = lhs.value(self, fn_env);
@@ -638,29 +636,6 @@ impl<B: Backend> CircuitWriter<B> {
                     Op2::Inequality => field::not_equal(self, &lhs, &rhs, expr.span),
                     Op2::BoolAnd => boolean::and(self, &lhs[0], &rhs[0], expr.span),
                     Op2::BoolOr => boolean::or(self, &lhs[0], &rhs[0], expr.span),
-                    Op2::PlusEqual => {
-                        // Compute lhs + rhs
-                        let sum = field::add(self, &lhs[0], &rhs[0], expr.span);
-
-                        // Assign sum to lhs
-                        match lhs_var {
-                            VarOrRef::Var(_) => Err(Error::new(
-                                "compute-expr",
-                                ErrorKind::UnexpectedError("can't reassign this non-mutable variable"),
-                                expr.span,
-                            ))?,
-                            VarOrRef::Ref {
-                                var_name,
-                                start,
-                                len,
-                            } => {
-                                fn_env.reassign_var_range(&var_name, sum, start, len);
-                            }
-                        }
-                        
-                        // Return None like regular assignments
-                        return Ok(None);
-                    },
                     Op2::Division => todo!(),
                 };
 
