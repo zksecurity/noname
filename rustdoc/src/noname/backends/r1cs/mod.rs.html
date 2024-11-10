@@ -709,7 +709,13 @@
 <a href="#708" id="708">708</a>
 <a href="#709" id="709">709</a>
 <a href="#710" id="710">710</a>
-<a href="#711" id="711">711</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>arkworks;
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>arkworks;
 <span class="kw">pub mod </span>builtin;
 <span class="kw">pub mod </span>snarkjs;
 
@@ -721,6 +727,7 @@
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use </span><span class="kw">crate</span>::circuit_writer::VarInfo;
+<span class="kw">use </span><span class="kw">crate</span>::compiler::Sources;
 <span class="kw">use </span><span class="kw">crate</span>::constants::Span;
 <span class="kw">use </span><span class="kw">crate</span>::error::{Error, ErrorKind, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::var::ConstOrCell;
@@ -1156,6 +1163,7 @@
     </span><span class="kw">fn </span>generate_witness(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         witness_env: <span class="kw-2">&amp;mut </span><span class="kw">crate</span>::witness::WitnessEnv&lt;F&gt;,
+        sources: <span class="kw-2">&amp;</span>Sources,
     ) -&gt; <span class="kw">crate</span>::error::Result&lt;<span class="self">Self</span>::GeneratedWitness&gt; {
         <span class="macro">assert!</span>(<span class="self">self</span>.finalized, <span class="string">"the circuit is not finalized yet!"</span>);
 
@@ -1183,14 +1191,18 @@
 
         <span class="comment">// print out the log info
         </span><span class="kw">for </span>(<span class="kw">_</span>, span, var_info) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.log_info {
+            <span class="kw">let </span>(filename, source) = sources.get(<span class="kw-2">&amp;</span>span.filename_id).unwrap();
+            <span class="kw">let </span>(line, <span class="kw">_</span>, line_str) = <span class="kw">crate</span>::utils::find_exact_line(source, <span class="kw-2">*</span>span);
+            <span class="kw">let </span>line_str = line_str.trim_start();
+            <span class="kw">let </span>dbg_msg = <span class="macro">format!</span>(<span class="string">"[{filename}:{line}] `{line_str}` -&gt; "</span>);
             <span class="kw">for </span>cvar <span class="kw">in </span>var_info.var.iter() {
                 <span class="kw">match </span>cvar {
                     ConstOrCell::Const(cst) =&gt; {
-                        <span class="macro">println!</span>(<span class="string">"span:{}, cst: {}"</span>, span.start, cst.pretty());
+                        <span class="macro">println!</span>(<span class="string">"{dbg_msg}{}"</span>, cst.pretty());
                     }
                     ConstOrCell::Cell(cell) =&gt; {
                         <span class="kw">let </span>val = cell.evaluate(<span class="kw-2">&amp;</span>witness);
-                        <span class="macro">println!</span>(<span class="string">"span:{}, val: {}"</span>, span.start, val.pretty());
+                        <span class="macro">println!</span>(<span class="string">"{dbg_msg}{}"</span>, val.pretty());
                     }
                 }
             }

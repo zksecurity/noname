@@ -467,7 +467,7 @@
     private_inputs: JsonInputs,
 ) -&gt; miette::Result&lt;B::GeneratedWitness&gt; {
     compiled_circuit
-        .generate_witness(public_inputs, private_inputs)
+        .generate_witness(sources, public_inputs, private_inputs)
         .into_miette(sources)
 }
 </code></pre></div></section></main></body></html>

@@ -166,7 +166,9 @@
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
 <a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::backends::r1cs::LinearCombination <span class="kw">as </span>NoNameLinearCombination;
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::backends::r1cs::LinearCombination <span class="kw">as </span>NoNameLinearCombination;
 <span class="kw">use </span><span class="kw">crate</span>::backends::{
     r1cs::{GeneratedWitness, R1CS},
     BackendField,
@@ -298,8 +300,9 @@
 
         <span class="kw">let </span>json_public = parse_inputs(inputs_public).unwrap();
         <span class="kw">let </span>json_private = parse_inputs(inputs_private).unwrap();
+        <span class="kw">let </span>sources = Sources::new();
         <span class="kw">let </span>generated_witness = compiled_circuit
-            .generate_witness(json_public, json_private)
+            .generate_witness(<span class="kw-2">&amp;</span>sources, json_public, json_private)
             .unwrap();
 
         <span class="kw">let </span>noname_circuit = NoNameCircuit {
@@ -321,8 +324,9 @@
 
         <span class="kw">let </span>json_public = parse_inputs(inputs_public).unwrap();
         <span class="kw">let </span>json_private = parse_inputs(inputs_private).unwrap();
+        <span class="kw">let </span>sources = Sources::new();
         <span class="kw">let </span>generated_witness = compiled_circuit
-            .generate_witness(json_public, json_private)
+            .generate_witness(<span class="kw-2">&amp;</span>sources, json_public, json_private)
             .unwrap();
         <span class="kw">let </span>noname_circuit = NoNameCircuit {
             compiled_circuit,

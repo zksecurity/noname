@@ -252,8 +252,11 @@
 <a href="#251" id="251">251</a>
 <a href="#252" id="252">252</a>
 <a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     backends::Backend,
+    compiler::Sources,
     constants::Span,
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     mast::Mast,
@@ -471,8 +474,9 @@
     </span><span class="kw">pub fn </span>generate_witness(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         witness_env: <span class="kw-2">&amp;mut </span>WitnessEnv&lt;B::Field&gt;,
+        sources: <span class="kw-2">&amp;</span>Sources,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;B::GeneratedWitness&gt; {
-        <span class="self">self</span>.backend.generate_witness(witness_env)
+        <span class="self">self</span>.backend.generate_witness(witness_env, sources)
     }
 
     <span class="kw">fn </span>handle_arg(

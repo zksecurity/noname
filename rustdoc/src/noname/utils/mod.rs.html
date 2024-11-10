@@ -129,7 +129,7 @@
     res.push(<span class="string">'\n'</span>);
 }
 
-<span class="kw">fn </span>find_exact_line(source: <span class="kw-2">&amp;</span>str, span: <span class="kw">crate</span>::constants::Span) -&gt; (usize, usize, <span class="kw-2">&amp;</span>str) {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>find_exact_line(source: <span class="kw-2">&amp;</span>str, span: <span class="kw">crate</span>::constants::Span) -&gt; (usize, usize, <span class="kw-2">&amp;</span>str) {
     <span class="kw">let </span>ss = source.as_bytes();
     <span class="kw">let </span><span class="kw-2">mut </span>start = span.start;
     <span class="kw">let </span><span class="kw-2">mut </span>end = span.end();

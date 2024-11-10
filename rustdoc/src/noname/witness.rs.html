@@ -110,7 +110,8 @@
 <a href="#109" id="109">109</a>
 <a href="#110" id="110">110</a>
 <a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>ark_ff::Field;
 <span class="kw">use </span>itertools::chain;
@@ -169,6 +170,7 @@
 
     <span class="kw">pub fn </span>generate_witness(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
+        sources: <span class="kw-2">&amp;</span>Sources,
         <span class="kw-2">mut </span>public_inputs: JsonInputs,
         <span class="kw-2">mut </span>private_inputs: JsonInputs,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;B::GeneratedWitness&gt; {
@@ -219,7 +221,7 @@
             ));
         }
 
-        <span class="self">self</span>.circuit.generate_witness(<span class="kw-2">&amp;mut </span>env)
+        <span class="self">self</span>.circuit.generate_witness(<span class="kw-2">&amp;mut </span>env, sources)
     }
 }
 </code></pre></div></section></main></body></html>

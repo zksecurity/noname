@@ -774,7 +774,8 @@
 <a href="#773" id="773">773</a>
 <a href="#774" id="774">774</a>
 <a href="#775" id="775">775</a>
-<a href="#776" id="776">776</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>asm;
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>asm;
 <span class="kw">pub mod </span>builtin;
 <span class="kw">pub mod </span>prover;
 
@@ -1168,6 +1169,7 @@
     <span class="kw">fn </span>generate_witness(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         witness_env: <span class="kw-2">&amp;mut </span>WitnessEnv&lt;VestaField&gt;,
+        sources: <span class="kw-2">&amp;</span>Sources,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;GeneratedWitness&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.finalized {
             <span class="macro">unreachable!</span>(<span class="string">"the circuit must be finalized before generating a witness"</span>);
