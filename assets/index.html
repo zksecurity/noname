@@ -6,7 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Compiler State Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- nice display for json -->
     <script src="https://unpkg.com/@pgrabovets/json-view"></script>
+
+    <!-- syntax highlight -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.28.0/components/prism-rust.min.js"></script>
+
     <style>
         .active {
             background-color: #3b82f6;
@@ -185,13 +193,12 @@
             const panelContent = document.getElementById(panelId);
             panelContent.innerHTML = ''; // Clear existing content
 
-            // Use json-view to render the JSON data
-            // if title contains "source" then the state is a plain string and not a json
             const decoded_state = atob(state);
             if (title.includes("source")) {
                 const pre = document.createElement('pre');
+                pre.classList.add('language-rust'); // Add Rust syntax highlighting
                 pre.style.whiteSpace = 'pre-wrap';
-                pre.innerHTML = decoded_state.slice(1, -1).replace(/\\n/g, '<br>');
+                pre.innerHTML = Prism.highlight(decoded_state.slice(1, -1).replace(/\\n/g, '\n'), Prism.languages.rust, 'rust');
                 panelContent.appendChild(pre);
             } else {
                 const json = JSON.parse(atob(state));
