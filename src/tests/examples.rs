@@ -133,7 +133,7 @@ fn test_file(
 
             // this should check the constraints
             let generated_witness = compiled_circuit
-                .generate_witness(public_inputs.clone(), private_inputs.clone())
+                .generate_witness(&sources, public_inputs.clone(), private_inputs.clone())
                 .unwrap();
 
             // check the ASM

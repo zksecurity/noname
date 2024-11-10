@@ -1,5 +1,6 @@
 use crate::{
     backends::Backend,
+    compiler::Sources,
     constants::Span,
     error::{Error, ErrorKind, Result},
     mast::Mast,
@@ -217,8 +218,9 @@ impl<B: Backend> CircuitWriter<B> {
     pub fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<B::Field>,
+        sources: &Sources,
     ) -> Result<B::GeneratedWitness> {
-        self.backend.generate_witness(witness_env)
+        self.backend.generate_witness(witness_env, sources)
     }
 
     fn handle_arg(

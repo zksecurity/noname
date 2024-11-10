@@ -83,8 +83,11 @@ fn test_stdlib_code(
     let compiled_circuit = CircuitWriter::generate_circuit(mast, r1cs)?;
 
     // this should check the constraints
-    let generated_witness =
-        compiled_circuit.generate_witness(public_inputs.clone(), private_inputs.clone())?;
+    let generated_witness = compiled_circuit.generate_witness(
+        &sources,
+        public_inputs.clone(),
+        private_inputs.clone(),
+    )?;
 
     let expected_public_output = expected_public_output
         .iter()
