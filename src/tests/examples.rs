@@ -436,6 +436,25 @@ fn test_assignment(#[case] backend: BackendKind) -> miette::Result<()> {
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_augmented_assign(#[case] backend: BackendKind) -> miette::Result<()> {
+    let private_inputs = r#"{"yy": "2"}"#;
+    let public_inputs = r#"{"xx": "3"}"#;
+    let expected_public_output = vec!["34"];
+
+    test_file(
+        "augmented_assign",
+        public_inputs,
+        private_inputs,
+        expected_public_output,
+        backend,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_if_else(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "1"}"#;
