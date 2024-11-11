@@ -142,7 +142,7 @@ impl<B: Backend> CircuitWriter<B> {
         let main_fn_info = circuit_writer.main_info()?;
 
         let function = match &main_fn_info.kind {
-            crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
+            crate::imports::FnKind::BuiltIn(_, _, _) => unreachable!(),
             crate::imports::FnKind::Native(fn_sig) => fn_sig.clone(),
         };
 

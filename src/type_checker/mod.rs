@@ -377,7 +377,7 @@ impl<B: Backend> TypeChecker<B> {
 
                         // check it is a builtin function
                         let fn_handle = match builtin_fn {
-                            FnKind::BuiltIn(_, fn_handle) => fn_handle,
+                            FnKind::BuiltIn(_, fn_handle, _) => fn_handle,
                             _ => {
                                 return Err(Error::new(
                                     "type-checker",
@@ -392,7 +392,8 @@ impl<B: Backend> TypeChecker<B> {
                             qualified,
                             FnInfo {
                                 is_hint: true,
-                                kind: FnKind::BuiltIn(function.sig.clone(), fn_handle),
+                                // todo: is there a case where we want to ignore argument types for hint functions?
+                                kind: FnKind::BuiltIn(function.sig.clone(), fn_handle, false),
                                 span: function.span,
                             },
                         );

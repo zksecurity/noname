@@ -623,7 +623,7 @@ fn test_hint_builtin_fn(qualified: &FullyQualified, code: &str) -> Result<usize>
     }
 
     let fn_info = FnInfo {
-        kind: FnKind::BuiltIn(sig, mocked_builtin_fn::<R1csBackend>),
+        kind: FnKind::BuiltIn(sig, mocked_builtin_fn::<R1csBackend>, false),
         is_hint: true,
         span: Span::default(),
     };
