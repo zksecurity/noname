@@ -10,7 +10,8 @@ use crate::{
     imports::FnKind,
     parser::{
         types::{
-            is_numeric, FnSig, ForLoopArgument, FunctionDef, Stmt, StmtKind, Symbolic, Ty, TyKind,
+            is_numeric, Attribute, AttributeKind, FnSig, ForLoopArgument, FuncOrMethod,
+            FunctionDef, Stmt, StmtKind, Symbolic, Ty, TyKind,
         },
         CustomType, Expr, ExprKind, Op2,
     },
@@ -55,7 +56,7 @@ impl<B: Backend> FnInfo<B> {
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct StructInfo {
     pub name: String,
-    pub fields: Vec<(String, TyKind)>,
+    pub fields: Vec<(String, TyKind, Option<Attribute>)>,
     pub methods: HashMap<String, FunctionDef>,
 }
 
@@ -116,14 +117,37 @@ impl<B: Backend> TypeChecker<B> {
                     .expect("this struct is not defined, or you're trying to access a field of a struct defined in a third-party library (TODO: better error)");
 
                 // find field type
-                let res = struct_info
+                if let Some((_, field_typ, attribute)) = struct_info
                     .fields
                     .iter()
-                    .find(|(name, _)| name == &rhs.value)
-                    .map(|(_, typ)| typ.clone());
+                    .find(|(field_name, _, _)| field_name == &rhs.value)
+                {
+                    // check for the pub attribute
+                    let is_public = attribute
+                        .as_ref()
+                        .map(|attr| matches!(attr.kind, AttributeKind::Pub))
+                        .unwrap_or(false);
 
-                if let Some(res) = res {
-                    Some(ExprTyInfo::new(lhs_node.var_name, res))
+                    // check if we're inside a method of the same struct
+                    let in_method = if let Some(fn_kind) = typed_fn_env.current_fn_kind() {
+                        match fn_kind {
+                            FuncOrMethod::Method(method_struct) => method_struct.name == struct_name,
+                            FuncOrMethod::Function(_) => false
+                        }
+                    } else {
+                        false
+                    };
+
+                    if is_public || in_method {
+                        // allow access
+                        Some(ExprTyInfo::new(lhs_node.var_name, field_typ.clone()))
+                    } else {
+                        // block access
+                        Err(self.error(
+                            ErrorKind::PrivateFieldAccess(struct_name.clone(), rhs.value.clone()),
+                            expr.span,
+                        ))?
+                    }
                 } else {
                     return Err(self.error(
                         ErrorKind::UndefinedField(struct_info.name.clone(), rhs.value.clone()),

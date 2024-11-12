@@ -320,7 +320,7 @@ impl<B: Backend> CircuitWriter<B> {
                     .clone();
 
                 let mut offset = 0;
-                for (_field_name, field_typ) in &struct_info.fields {
+                for (_field_name, field_typ, _attribute) in &struct_info.fields {
                     let len = self.size_of(field_typ);
                     let range = offset..(offset + len);
                     self.constrain_inputs_to_main(&input[range], field_typ, span)?;
@@ -473,7 +473,7 @@ impl<B: Backend> CircuitWriter<B> {
                 // find range of field
                 let mut start = 0;
                 let mut len = 0;
-                for (field, field_typ) in &struct_info.fields {
+                for (field, field_typ, _attribute) in &struct_info.fields {
                     if field == &rhs.value {
                         len = self.size_of(field_typ);
                         break;

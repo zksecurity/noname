@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
-    parser::types::TyKind,
+    parser::types::{FuncOrMethod, TyKind},
 };
 
 /// Some type information on local variables that we want to track in the [TypedFnEnv] environment.
@@ -55,6 +55,9 @@ pub struct TypedFnEnv {
 
     /// Determines if forloop variables are allowed to be accessed.
     forbid_forloop_scope: bool,
+
+    /// The kind of function we're currently type checking
+    current_fn_kind: Option<FuncOrMethod>,
 }
 
 impl TypedFnEnv {
@@ -181,5 +184,13 @@ impl TypedFnEnv {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn current_fn_kind(&self) -> Option<&FuncOrMethod> {
+        self.current_fn_kind.as_ref()
+    }
+
+    pub fn set_current_fn_kind(&mut self, kind: FuncOrMethod) {
+        self.current_fn_kind = Some(kind);
     }
 }

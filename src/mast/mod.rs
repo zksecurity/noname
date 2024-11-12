@@ -446,7 +446,7 @@ impl<B: Backend> Mast<B> {
 
                 let mut sum = 0;
 
-                for (_, t) in &struct_info.fields {
+                for (_, t, _) in &struct_info.fields {
                     sum += self.size_of(t);
                 }
 
@@ -548,8 +548,8 @@ fn monomorphize_expr<B: Backend>(
             let typ = struct_info
                 .fields
                 .iter()
-                .find(|(name, _)| name == &rhs.value)
-                .map(|(_, typ)| typ.clone());
+                .find(|(name, _, _)| name == &rhs.value)
+                .map(|(_, typ, _)| typ.clone());
 
             let mexpr = expr.to_mast(
                 ctx,

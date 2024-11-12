@@ -298,8 +298,8 @@ impl<B: Backend> TypeChecker<B> {
                     let fields: Vec<_> = fields
                         .iter()
                         .map(|field| {
-                            let (name, typ) = field;
-                            (name.value.clone(), typ.kind.clone())
+                            let (name, typ, attribute) = field;
+                            (name.value.clone(), typ.kind.clone(), attribute.clone())
                         })
                         .collect();
 
@@ -330,6 +330,8 @@ impl<B: Backend> TypeChecker<B> {
                 RootKind::FunctionDef(function) => {
                     // create a new typed fn environment to type check the function
                     let mut typed_fn_env = TypedFnEnv::default();
+
+                    typed_fn_env.set_current_fn_kind(function.sig.kind.clone());
 
                     // if we're expecting a library, this should not be the main function
                     let is_main = function.is_main();
