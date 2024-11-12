@@ -700,7 +700,7 @@ fn test_nonhint_call_with_unsafe() {
 fn test_no_cst_struct_field_prop() {
     let code = r#"
     struct Thing {
-        val: Field,
+        pub val: Field,
     }
 
     fn gen(const LEN: Field) -> [Field; LEN] {
@@ -725,7 +725,7 @@ fn test_no_cst_struct_field_prop() {
 fn test_mut_cst_struct_field_prop() {
     let code = r#"
     struct Thing {
-        val: Field,
+        pub val: Field,
     }
 
     fn gen(const LEN: Field) -> [Field; LEN] {
@@ -745,5 +745,32 @@ fn test_mut_cst_struct_field_prop() {
     assert!(matches!(
         res.unwrap_err().kind,
         ErrorKind::ArgumentTypeMismatch(..)
+    ));
+}
+
+#[test]
+fn test_private_field_access() {
+    let code = r#"
+    struct Room {
+        pub beds: Field, // public
+            size: Field // private
+    }
+
+    fn Room.access_size(self) {
+        let room2 = Room {beds: self.beds, size: self.size};
+    }
+
+    fn main(pub beds: Field) {
+        let mut room = Room {beds: 2, size: 10};
+        room.beds = beds; // allowed
+        room.size = 5; // not allowed
+        room.access_size(); // allowed
+    }
+    "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::PrivateFieldAccess(..)
     ));
 }
