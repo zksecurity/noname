@@ -642,9 +642,12 @@ impl<B: Backend> IRWriter<B> {
 
                 match &fn_info.kind {
                     // assert() <-- for example
-                    FnKind::BuiltIn(..) => {
-                        Err(self.error(ErrorKind::InvalidFnCall("builtin functions not allowed in hint functions."), expr.span))
-                    }
+                    FnKind::BuiltIn(..) => Err(self.error(
+                        ErrorKind::InvalidFnCall(
+                            "builtin functions not allowed in hint functions.",
+                        ),
+                        expr.span,
+                    )),
                     // fn_name(args)
                     // ^^^^^^^
                     FnKind::Native(func) => {
