@@ -238,7 +238,7 @@ pub trait Backend: Clone {
                         } else {
                             Self::Field::zero()
                         }
-                    },
+                    }
                     _ => panic!("unexpected output type"),
                 };
 

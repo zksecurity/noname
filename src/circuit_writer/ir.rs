@@ -1,11 +1,11 @@
+use ark_ff::Zero;
 use circ::{
     ir::term::{leaf_term, term, BoolNaryOp, Op, PfNaryOp, PfUnOp, Sort, Term, Value},
     term,
 };
-use std::collections::HashMap;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
-use ark_ff::Zero;
+use std::collections::HashMap;
 
 use crate::{
     backends::{Backend, BackendField},
