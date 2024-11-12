@@ -660,6 +660,14 @@ impl<B: Backend> IRWriter<B> {
                     FnKind::Native(func) => {
                         // module::fn_name(args)
                         // ^^^^^^
+                        // only allow calling hint functions
+                        if !func.is_hint {
+                            return Err(self.error(
+                                ErrorKind::InvalidFnCall("only hint functions allowed"),
+                                expr.span,
+                            ));
+                        }
+
                         self.compile_native_function_call(func, vars)
                             .map(|r| r.map(VarOrRef::Var))
                     }
