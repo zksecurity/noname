@@ -1,13 +1,11 @@
 use circ::{
-    cfg::CircCfg,
-    ir::term::{leaf_term, term, Op, PfNaryOp, PfUnOp, Sort, Term, Value},
+    ir::term::{leaf_term, term, BoolNaryOp, Op, PfNaryOp, PfUnOp, Sort, Term, Value},
     term,
 };
-use circ_fields::FieldT;
-use kimchi::turshi::helper::CairoFieldHelpers;
+use std::collections::HashMap;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use ark_ff::Zero;
 
 use crate::{
     backends::{Backend, BackendField},
@@ -52,6 +50,15 @@ impl Var {
 
     pub fn new_constant<F: BackendField>(cst: F, span: Span) -> Self {
         let cvar = leaf_term(Op::new_const(Value::Field(cst.to_circ_field())));
+
+        Self {
+            cvars: vec![cvar],
+            span,
+        }
+    }
+
+    pub fn new_bool(b: bool, span: Span) -> Self {
+        let cvar = leaf_term(Op::new_const(Value::Bool(b)));
 
         Self {
             cvars: vec![cvar],
@@ -896,17 +903,18 @@ impl<B: Backend> IRWriter<B> {
 
                 let var = var.value(self, fn_env);
 
-                todo!()
+                let t: Term = term![Op::PfUnOp(PfUnOp::Neg); var.cvars[0].clone()];
+                let res = Var::new_cvar(t, expr.span);
+                Ok(Some(VarOrRef::Var(res)))
             }
 
             ExprKind::Not(b) => {
                 let var = self.compute_expr(fn_env, b)?.unwrap();
-
                 let var = var.value(self, fn_env);
 
-                // let res = boolean::not(self, &var[0], expr.span.merge_with(b.span));
-                // Ok(Some(VarOrRef::Var(res)))
-                todo!()
+                let t: Term = term![Op::Not; var.cvars[0].clone()];
+                let res = Var::new_cvar(t, expr.span);
+                Ok(Some(VarOrRef::Var(res)))
             }
 
             ExprKind::BigUInt(b) => {
@@ -917,14 +925,8 @@ impl<B: Backend> IRWriter<B> {
             }
 
             ExprKind::Bool(b) => {
-                // let value = if *b {
-                //     B::Field::one()
-                // } else {
-                //     B::Field::zero()
-                // };
-                // let res = VarOrRef::Var(Var::new_constant(value, expr.span));
-                // Ok(Some(res))
-                todo!()
+                let v = Var::new_bool(*b, expr.span);
+                Ok(Some(VarOrRef::Var(v)))
             }
 
             ExprKind::Variable { module, name } => {

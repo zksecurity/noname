@@ -61,5 +61,6 @@ fn main(pub public_input: Field, private_input: Field) -> Field {
     assert_eq(thing.xx, public_input);
     assert_eq(thing.yy, 3);
 
+    assert_eq(oo[2], true);
     return xx;
 }

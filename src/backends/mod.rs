@@ -232,6 +232,13 @@ pub trait Backend: Clone {
                         let bytes = f.i().to_digits::<u8>(rug::integer::Order::Lsf);
                         Self::Field::from_le_bytes_mod_order(&bytes)
                     }
+                    circ::ir::term::Value::Bool(b) => {
+                        if *b {
+                            Self::Field::one()
+                        } else {
+                            Self::Field::zero()
+                        }
+                    },
                     _ => panic!("unexpected output type"),
                 };
 
