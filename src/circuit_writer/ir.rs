@@ -367,6 +367,8 @@ impl FnEnv {
 }
 
 #[derive(Debug)]
+/// This converts the MAST to circ IR.
+/// Currently it is only for hint functions.
 pub(crate) struct IRWriter<B: Backend> {
     pub(crate) typed: Mast<B>,
 }
