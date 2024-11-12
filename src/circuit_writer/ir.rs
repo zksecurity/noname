@@ -854,7 +854,10 @@ impl<B: Backend> IRWriter<B> {
                         let t: Term = term![Op::PfNaryOp(PfNaryOp::Add); lhs.cvars[0].clone(), rhs.cvars[0].clone()];
                         Var::new_cvar(t, expr.span)
                     }
-                    // Op2::Subtraction => field::sub(self, &lhs[0], &rhs[0], expr.span),
+                    Op2::Subtraction => {
+                        let t: Term = term![Op::PfNaryOp(PfNaryOp::Add); lhs.cvars[0].clone(), term![Op::PfUnOp(PfUnOp::Neg); rhs.cvars[0].clone()]];
+                        Var::new_cvar(t, expr.span)
+                    }
                     Op2::Multiplication => {
                         let t: Term = term![Op::PfNaryOp(PfNaryOp::Mul); lhs.cvars[0].clone(), rhs.cvars[0].clone()];
                         Var::new_cvar(t, expr.span)
@@ -867,8 +870,14 @@ impl<B: Backend> IRWriter<B> {
                         let t: Term = term![Op::Not; term![Op::Eq; lhs.cvars[0].clone(), rhs.cvars[0].clone()]];
                         Var::new_cvar(t, expr.span)
                     }
-                    // Op2::BoolAnd => boolean::and(self, &lhs[0], &rhs[0], expr.span),
-                    // Op2::BoolOr => boolean::or(self, &lhs[0], &rhs[0], expr.span),
+                    Op2::BoolAnd => {
+                        let t: Term = term![Op::BoolNaryOp(BoolNaryOp::And); lhs.cvars[0].clone(), rhs.cvars[0].clone()];
+                        Var::new_cvar(t, expr.span)
+                    }
+                    Op2::BoolOr => {
+                        let t: Term = term![Op::BoolNaryOp(BoolNaryOp::Or); lhs.cvars[0].clone(), rhs.cvars[0].clone()];
+                        Var::new_cvar(t, expr.span)
+                    }
                     Op2::Division => {
                         let t: Term = term![
                             Op::PfNaryOp(PfNaryOp::Mul); lhs.cvars[0].clone(),
