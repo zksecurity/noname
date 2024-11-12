@@ -90,9 +90,18 @@ pub fn typecheck_next_file<B: Backend>(
     filename: String,
     code: String,
     node_id: usize,
+    server_mode: &mut Option<crate::server::ServerShim>,
 ) -> miette::Result<usize> {
-    typecheck_next_file_inner(typechecker, this_module, sources, filename, code, node_id)
-        .into_miette(sources)
+    typecheck_next_file_inner(
+        typechecker,
+        this_module,
+        sources,
+        filename,
+        code,
+        node_id,
+        server_mode,
+    )
+    .into_miette(sources)
 }
 
 /// This should not be used directly. Check [get_tast] instead.
@@ -103,14 +112,31 @@ pub fn typecheck_next_file_inner<B: Backend>(
     filename: String,
     code: String,
     node_id: usize,
+    server_mode: &mut Option<crate::server::ServerShim>,
 ) -> Result<usize> {
     let is_lib = this_module.is_some();
 
     // parsing to name resolution
-    let (nast, new_node_id) = get_nast(this_module, sources, filename, code, node_id)?;
+    let (nast, new_node_id) = get_nast(
+        this_module.clone(),
+        sources,
+        filename.clone(),
+        code,
+        node_id,
+        server_mode,
+    )?;
 
     // type checker
     typechecker.analyze(nast, is_lib)?;
+
+    if let Some(server_mode) = server_mode {
+        server_mode.send(
+            format!("typechecker of {this_module:?} - {filename}"),
+            &typechecker,
+        );
+        // block on an answer
+        let _ = server_mode.recv();
+    }
 
     Ok(new_node_id)
 }
@@ -121,15 +147,33 @@ pub fn get_nast<B: Backend>(
     filename: String,
     code: String,
     node_id: usize,
+    server_mode: &mut Option<crate::server::ServerShim>,
 ) -> Result<(NAST<B>, usize)> {
     // save filename and source code
-    let filename_id = sources.add(filename, code);
+    let filename_id = sources.add(filename.clone(), code);
     let code = &sources.map[&filename_id].1;
+
+    // debug server
+    if let Some(server_mode) = server_mode {
+        server_mode.send(format!("source of {this_module:?} - {filename}"), code);
+        // block on an answer
+        let _ = server_mode.recv();
+    }
 
     // lexer
     let tokens = Token::parse(filename_id, &code)?;
     if std::env::var("NONAME_VERBOSE").is_ok() {
         println!("lexer succeeded");
+    }
+
+    // debug server
+    if let Some(server_mode) = server_mode {
+        server_mode.send(
+            format!("lexer of {this_module:?} - {filename}"),
+            &tokens.as_vec(),
+        );
+        // block on an answer
+        let _ = server_mode.recv();
     }
 
     // parser
@@ -138,10 +182,24 @@ pub fn get_nast<B: Backend>(
         println!("parser succeeded");
     }
 
+    // debug server
+    if let Some(server_mode) = server_mode {
+        server_mode.send(format!("ast of {filename}"), &ast);
+        // block on an answer
+        let _ = server_mode.recv();
+    }
+
     // name resolution
     let nast = NAST::resolve_modules(this_module, ast)?;
     if std::env::var("NONAME_VERBOSE").is_ok() {
         println!("name resolution succeeded");
+    }
+
+    // debug server
+    if let Some(server_mode) = server_mode {
+        server_mode.send(format!("name resolution of {filename}"), &nast);
+        // block on an answer
+        let _ = server_mode.recv();
     }
 
     Ok((nast, new_node_id))
@@ -151,8 +209,25 @@ pub fn compile<B: Backend>(
     sources: &Sources,
     tast: TypeChecker<B>,
     backend: B,
+    server_mode: &mut Option<crate::server::ServerShim>,
 ) -> miette::Result<CompiledCircuit<B>> {
+    // monomorphization pass
     let mast = mast::monomorphize(tast)?;
+
+    // debug server
+    if let Some(server_mode) = server_mode {
+        server_mode.send("monomorphization of whole project".to_string(), &mast);
+        // block on an answer
+        let _ = server_mode.recv();
+    }
+
+    serde_json::to_string(&mast.0.constants).unwrap();
+    serde_json::to_string(&mast.0.structs).unwrap();
+    serde_json::to_string(&mast.0.functions).unwrap();
+    serde_json::to_string(&mast.0).unwrap();
+    serde_json::to_string(&mast).unwrap();
+
+    // synthesizer pass
     CircuitWriter::generate_circuit(mast, backend).into_miette(sources)
 }
 
@@ -163,6 +238,6 @@ pub fn generate_witness<B: Backend>(
     private_inputs: JsonInputs,
 ) -> miette::Result<B::GeneratedWitness> {
     compiled_circuit
-        .generate_witness(public_inputs, private_inputs)
+        .generate_witness(sources, public_inputs, private_inputs)
         .into_miette(sources)
 }

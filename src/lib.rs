@@ -16,6 +16,7 @@ pub mod mast;
 pub mod name_resolution;
 pub mod parser;
 pub mod serialization;
+pub mod server;
 pub mod stdlib;
 pub mod syntax;
 pub mod type_checker;

@@ -1,5 +1,6 @@
 use educe::Educe;
 use num_bigint::BigUint;
+use serde_with::serde_as;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
@@ -1539,13 +1540,14 @@ impl Stmt {
 //
 
 // TODO: where do I enforce that there's not several `use` with the same module name? or several functions with the same names? I guess that's something I need to enforce in any scope anyway...
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 
 /// Things you can have in a scope (including the root scope).
 pub struct Root<F>
 where
     F: Field,
 {
+    #[serde(bound(serialize = "RootKind<F>: Serialize"))]
     pub kind: RootKind<F>,
     pub span: Span,
 }
@@ -1598,12 +1600,13 @@ impl UsePath {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum RootKind<F: Field> {
     Use(UsePath),
     FunctionDef(FunctionDef),
     Comment(String),
     StructDef(StructDef),
+    #[serde(bound(serialize = "ConstDef<F>: Serialize"))]
     ConstDef(ConstDef<F>),
 }
 
@@ -1611,13 +1614,15 @@ pub enum RootKind<F: Field> {
 // Const
 //
 
-#[derive(Debug)]
+#[serde_as]
+#[derive(Debug, Serialize)]
 pub struct ConstDef<F>
 where
     F: Field,
 {
     pub module: ModulePath, // name resolution
     pub name: Ident,
+    #[serde_as(as = "crate::serialization::SerdeAs")]
     pub value: F,
     pub span: Span,
 }

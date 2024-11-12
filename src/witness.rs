@@ -57,6 +57,7 @@ impl<B: Backend> CompiledCircuit<B> {
 
     pub fn generate_witness(
         &self,
+        sources: &Sources,
         mut public_inputs: JsonInputs,
         mut private_inputs: JsonInputs,
     ) -> Result<B::GeneratedWitness> {
@@ -107,6 +108,6 @@ impl<B: Backend> CompiledCircuit<B> {
             ));
         }
 
-        self.circuit.generate_witness(&mut env)
+        self.circuit.generate_witness(&mut env, sources)
     }
 }

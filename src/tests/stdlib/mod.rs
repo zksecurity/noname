@@ -59,7 +59,13 @@ fn test_stdlib_code(
     let mut sources = Sources::new();
     let mut tast = TypeChecker::new();
     let mut node_id = 0;
-    node_id = init_stdlib_dep(&mut sources, &mut tast, node_id, STDLIB_DIRECTORY);
+    node_id = init_stdlib_dep(
+        &mut sources,
+        &mut tast,
+        node_id,
+        STDLIB_DIRECTORY,
+        &mut None,
+    );
 
     let this_module = None;
     let _node_id = typecheck_next_file(
@@ -69,6 +75,7 @@ fn test_stdlib_code(
         "test.no".to_string(),
         code.to_string(),
         node_id,
+        &mut None,
     )
     .unwrap();
 
@@ -76,8 +83,11 @@ fn test_stdlib_code(
     let compiled_circuit = CircuitWriter::generate_circuit(mast, r1cs)?;
 
     // this should check the constraints
-    let generated_witness =
-        compiled_circuit.generate_witness(public_inputs.clone(), private_inputs.clone())?;
+    let generated_witness = compiled_circuit.generate_witness(
+        &sources,
+        public_inputs.clone(),
+        private_inputs.clone(),
+    )?;
 
     let expected_public_output = expected_public_output
         .iter()

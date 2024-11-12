@@ -20,11 +20,12 @@ use crate::{
 use super::{FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
 
 /// Keeps track of the signature of a user-defined function.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FnInfo<B>
 where
     B: Backend,
 {
+    #[serde(bound = "FnKind<B>: Serialize")]
     pub kind: FnKind<B>,
     // TODO: We will remove this once the native hint is supported
     // This field is to indicate if a builtin function should be treated as a hint.

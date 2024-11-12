@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use crate::{
     backends::Backend,
@@ -18,7 +18,7 @@ pub use checker::{FnInfo, StructInfo};
 pub use fn_env::{TypeInfo, TypedFnEnv};
 
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
+use serde_with::{serde_as, SerializeDisplay};
 
 pub mod checker;
 pub mod fn_env;
@@ -36,11 +36,21 @@ where
     pub typ: Ty,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, SerializeDisplay, Deserialize, PartialEq, Eq, Hash)]
 pub struct FullyQualified {
     /// Set to `None` if the function is defined in the main module.
     pub module: Option<UserRepo>,
     pub name: String,
+}
+
+impl Display for FullyQualified {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(module) = &self.module {
+            write!(f, "{}/{}", module, self.name)
+        } else {
+            write!(f, "{}", self.name)
+        }
+    }
 }
 
 impl FullyQualified {
@@ -62,28 +72,34 @@ impl FullyQualified {
 }
 
 /// The environment we use to type check a noname program.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde_as]
+#[derive(Debug, Clone, Serialize)]
 pub struct TypeChecker<B>
 where
     B: Backend,
 {
     /// the functions present in the scope
     /// contains at least the set of builtin functions (like assert_eq)
-    functions: HashMap<FullyQualified, FnInfo<B>>,
+    #[serde(bound = "FnInfo<B>: Serialize")]
+    #[serde_as(as = "Vec<(_, _)>")]
+    pub functions: HashMap<FullyQualified, FnInfo<B>>,
 
     /// Custom structs type information and ASTs for methods.
-    structs: HashMap<FullyQualified, StructInfo>,
+    #[serde_as(as = "Vec<(_, _)>")]
+    pub structs: HashMap<FullyQualified, StructInfo>,
 
     /// Constants declared in this module.
-    constants: HashMap<FullyQualified, ConstInfo<B::Field>>,
+    #[serde(bound = "ConstInfo<B::Field>: Serialize")]
+    #[serde_as(as = "Vec<(_, _)>")]
+    pub constants: HashMap<FullyQualified, ConstInfo<B::Field>>,
 
     /// Mapping from node id to TyKind.
     /// This can be used by the circuit-writer when it needs type information.
     // TODO: I think we should get rid of this if we can
-    node_types: HashMap<usize, TyKind>,
+    pub node_types: HashMap<usize, TyKind>,
 
     /// The last node id for the MAST phase to reference.
-    node_id: usize,
+    pub node_id: usize,
 }
 
 impl<B: Backend> TypeChecker<B> {

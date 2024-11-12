@@ -1,5 +1,6 @@
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
+use serde::Serialize;
 use std::collections::HashMap;
 
 use crate::{
@@ -402,14 +403,14 @@ impl Symbolic {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 /// Mast relies on the TAST for the information about the "unresolved" types to monomorphize.
 /// Things such as loading the function AST and struct AST from fully qualified names.
 /// After monomorphization process, the following data will be updated:
 /// - Resolved types. This can be used to determine the size of a type.
 /// - Instantiated functions. The circuit writer will load the instantiated function AST by node id.
 /// - Monomorphized AST is generated for the circuit writer to walk through and compute.
-pub struct Mast<B: Backend>(TypeChecker<B>);
+pub struct Mast<B: Backend>(#[serde(bound = "TypeChecker<B>: Serialize")] pub TypeChecker<B>);
 
 impl<B: Backend> Mast<B> {
     /// Returns the concrete type for the given expression node.

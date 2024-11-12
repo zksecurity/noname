@@ -41,7 +41,7 @@ pub fn display_source(
     res.push('\n');
 }
 
-fn find_exact_line(source: &str, span: crate::constants::Span) -> (usize, usize, &str) {
+pub(crate) fn find_exact_line(source: &str, span: crate::constants::Span) -> (usize, usize, &str) {
     let ss = source.as_bytes();
     let mut start = span.start;
     let mut end = span.end();

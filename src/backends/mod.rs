@@ -413,6 +413,7 @@ pub trait Backend: Clone {
     fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<Self::Field>,
+        sources: &Sources,
     ) -> Result<Self::GeneratedWitness>;
 
     /// Generate the asm for a backend.

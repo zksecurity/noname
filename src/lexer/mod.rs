@@ -8,6 +8,7 @@ use crate::{
 
 use num_bigint::BigUint;
 use num_traits::Num as _;
+use serde::Serialize;
 pub use tokens::Tokens;
 
 pub mod tokens;
@@ -38,7 +39,7 @@ impl LexerCtx {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Keyword {
     /// Importing a library
     Use,
@@ -123,7 +124,7 @@ impl Display for Keyword {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum TokenKind {
     Keyword(Keyword),   // reserved keywords
     Identifier(String), // [a-zA-Z](A-Za-z0-9_)*
@@ -218,7 +219,7 @@ impl TokenKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
