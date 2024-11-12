@@ -1,3 +1,8 @@
+struct Thing {
+    xx: Field,
+    yy: Field,
+}
+
 hint fn mul(lhs: Field, rhs: Field) -> Field {
     return lhs * rhs;
 }
@@ -19,15 +24,23 @@ hint fn exp(const EXP: Field, val: Field) -> Field {
     let mut res = val;
 
     for num in 1..EXP {
-        res = res + res ;
+        res = res * val;
     }
 
     return res;
 }
 
-struct Thing {
-    xx: Field,
-    yy: Field,
+hint fn sub(lhs: Field, rhs: Field) -> Field {
+    return lhs - rhs;
+}
+
+hint fn boolean_ops(lhs: Field, rhs: Field) -> [Bool; 3] {
+    let aa = lhs == rhs;
+
+    let bb = aa && false;
+    let cc = bb || true;
+
+    return [aa, bb, cc];
 }
 
 hint fn multiple_inputs_outputs(aa: [Field; 2]) -> Thing {
@@ -61,6 +74,13 @@ fn main(pub public_input: Field, private_input: Field) -> Field {
     assert_eq(thing.xx, public_input);
     assert_eq(thing.yy, 3);
 
-    assert_eq(oo[2], true);
+    let jj = unsafe sub(thing.xx + 1, public_input);
+    assert_eq(jj, 1);
+
+    let oo = unsafe boolean_ops(2, 2);
+    assert(oo[0]);
+    assert(!oo[1]);
+    assert(oo[2]);
+
     return xx;
 }
