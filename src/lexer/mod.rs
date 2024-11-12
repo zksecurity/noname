@@ -158,9 +158,9 @@ pub enum TokenKind {
     DoublePipe,         // ||
     Exclamation,        // !
     Question,           // ?
-    PlusEqual,    // +=
-    MinusEqual,   // -=
-    StarEqual,    // *=
+    PlusEqual,          // +=
+    MinusEqual,         // -=
+    StarEqual,          // *=
                         //    Literal,               // "thing"
 }
 

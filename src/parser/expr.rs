@@ -431,7 +431,11 @@ impl Expr {
             // assignment or augmented assignment
             // lhs = rhs | lhs += rhs | lhs -= rhs | lhs *= rhs
             Some(Token {
-                kind: TokenKind::Equal | TokenKind::PlusEqual | TokenKind::MinusEqual | TokenKind::StarEqual,
+                kind:
+                    TokenKind::Equal
+                    | TokenKind::PlusEqual
+                    | TokenKind::MinusEqual
+                    | TokenKind::StarEqual,
                 span,
             }) => {
                 let token = tokens.bump(ctx).unwrap();
@@ -454,16 +458,14 @@ impl Expr {
 
                 match token.kind {
                     // regular assignment
-                    TokenKind::Equal => {
-                        Expr::new(
-                            ctx,
-                            ExprKind::Assignment {
-                                lhs: Box::new(self),
-                                rhs: Box::new(rhs),
-                            },
-                            span,
-                        )
-                    },
+                    TokenKind::Equal => Expr::new(
+                        ctx,
+                        ExprKind::Assignment {
+                            lhs: Box::new(self),
+                            rhs: Box::new(rhs),
+                        },
+                        span,
+                    ),
                     // augmented assignments
                     TokenKind::PlusEqual | TokenKind::MinusEqual | TokenKind::StarEqual => {
                         let op = match token.kind {
@@ -494,7 +496,7 @@ impl Expr {
                             },
                             span,
                         )
-                    },
+                    }
                     _ => unreachable!(),
                 }
             }
