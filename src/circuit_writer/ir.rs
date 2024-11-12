@@ -50,14 +50,8 @@ impl Var {
         }
     }
 
-    pub fn new_constant(cst: BigUint, span: Span) -> Self {
-        let cst: u32 = cst.try_into().expect("expected u32");
-        // todo: it should map from the noname backend field type to the circ field type
-        // use default field type from circ
-        let cfg = CircCfg::default();
-        let cfg_f = cfg.field();
-        let cst_v = cfg_f.new_v(cst);
-        let cvar = leaf_term(Op::new_const(Value::Field(cst_v)));
+    pub fn new_constant<F: BackendField>(cst: F, span: Span) -> Self {
+        let cvar = leaf_term(Op::new_const(Value::Field(cst.to_circ_field())));
 
         Self {
             cvars: vec![cvar],
@@ -67,18 +61,10 @@ impl Var {
 
     pub fn new_constant_typ<F: BackendField>(cst_info: &ConstInfo<F>, span: Span) -> Self {
         let ConstInfo { value, typ: _ } = cst_info;
-        // todo: use a mapping for field type to construct a circ term for constant field
-        let cfg = CircCfg::default();
-        let cfg_f = cfg.field();
         let cvars = value
             .iter()
             .cloned()
-            .map(|f| {
-                let cst: BigUint = f.into();
-                let cst: u32 = cst.try_into().expect("expected u32");
-                let cst_v = cfg_f.new_v(cst);
-                leaf_term(Op::new_const(Value::Field(cst_v)))
-            })
+            .map(|f| leaf_term(Op::new_const(Value::Field(f.to_circ_field()))))
             .collect();
 
         Self { cvars, span }
@@ -434,7 +420,7 @@ impl<B: Backend> IRWriter<B> {
                         for ii in start..end {
                             fn_env.nest();
 
-                            let cst_var = Var::new_constant(ii.into(), var.span);
+                            let cst_var = Var::new_constant(B::Field::from(ii), var.span);
                             let var_info = VarInfo::new(
                                 cst_var,
                                 false,
@@ -529,7 +515,6 @@ impl<B: Backend> IRWriter<B> {
         Ok(None)
     }
 
-    // todo: now only assume it is always field, later it should support other types for both inputs and outputs
     pub fn compile_hint_function_call(
         &mut self,
         function: &FunctionDef,
@@ -544,13 +529,10 @@ impl<B: Backend> IRWriter<B> {
         assert_eq!(function.sig.arguments.len(), args.len());
 
         // create circ var terms for the arguments
-        let cfg = CircCfg::default();
-        let cfg_f = cfg.field();
         let mut named_args = vec![];
         for (arg, observed) in function.sig.arguments.iter().zip(args) {
             let name = &arg.name.value;
             // create a list of terms corresponding to the observed
-
             let cvars = observed.var.cvars.iter().enumerate().map(|(i, v)| {
                 // internal var name for IR
                 let name = format!("{}_{}", name, i);
@@ -559,13 +541,12 @@ impl<B: Backend> IRWriter<B> {
 
                 match v {
                     crate::var::ConstOrCell::Const(cst) => {
-                        let cst: u64 = cst.to_u64();
-                        let cst_v = cfg_f.new_v(cst);
-                        leaf_term(Op::new_const(Value::Field(cst_v)))
+                        leaf_term(Op::new_const(Value::Field(cst.to_circ_field())))
                     }
-                    crate::var::ConstOrCell::Cell(_) => {
-                        leaf_term(Op::new_var(name.clone(), Sort::Field(FieldT::FBls12381)))
-                    }
+                    crate::var::ConstOrCell::Cell(_) => leaf_term(Op::new_var(
+                        name.clone(),
+                        Sort::Field(B::Field::to_circ_type()),
+                    )),
                 }
             });
 
@@ -917,7 +898,9 @@ impl<B: Backend> IRWriter<B> {
             }
 
             ExprKind::BigUInt(b) => {
-                let v = Var::new_constant(b.clone(), expr.span);
+                let ff = B::Field::from(b.to_owned());
+
+                let v = Var::new_constant(ff, expr.span);
                 Ok(Some(VarOrRef::Var(v)))
             }
 

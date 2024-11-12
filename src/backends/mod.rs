@@ -1,8 +1,8 @@
-use std::{fmt::Debug, hash::Hash, str::FromStr};
+use std::{fmt::Debug, str::FromStr};
 
-use ::kimchi::{o1_utils::FieldHelpers, turshi::helper::CairoFieldHelpers};
-use ark_ff::{Field, One, Zero};
-use circ::{cfg::CircCfg, ir::term::precomp::PreComp};
+use ::kimchi::o1_utils::FieldHelpers;
+use ark_ff::{Field, One, PrimeField, Zero};
+use circ::ir::term::precomp::PreComp;
 use fxhash::FxHashMap;
 use num_bigint::BigUint;
 
@@ -13,7 +13,6 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
-    parser::FunctionDef,
     var::{ConstOrCell, Value, Var},
     witness::WitnessEnv,
 };
@@ -30,6 +29,8 @@ pub mod r1cs;
 pub trait BackendField:
     Field + FromStr + TryFrom<BigUint> + TryInto<BigUint> + Into<BigUint> + PrettyField
 {
+    fn to_circ_field(&self) -> circ_fields::FieldV;
+    fn to_circ_type() -> circ_fields::FieldT;
 }
 
 /// This trait allows different backends to have different cell var types.
@@ -207,33 +208,30 @@ pub trait Backend: Clone {
                 // so just use a dummy output var name.
                 precomp.add_output("x".to_string(), t.clone());
 
-                // todo: encapsulate this in a field mapper
-                let cfg = CircCfg::default();
-                let cfg_f = cfg.field();
-
                 // map the named vars to env
                 let env = named_vars
                     .iter()
                     .map(|(name, var)| {
                         let val = match var {
-                            // todo: convert ark_ff to rug::integer instead of u64
-                            crate::var::ConstOrCell::Const(cst) => cfg_f.new_v(cst.to_u64()),
+                            crate::var::ConstOrCell::Const(cst) => cst.to_circ_field(),
                             crate::var::ConstOrCell::Cell(var) => {
                                 let val = self.compute_var(env, var).unwrap();
-                                // todo: convert ark_ff to rug::integer instead of u64
-                                cfg_f.new_v(val.to_u64())
+                                val.to_circ_field()
                             }
                         };
                         (name.clone(), circ::ir::term::Value::Field(val))
                     })
                     .collect::<FxHashMap<String, circ::ir::term::Value>>();
 
-                let res = precomp.eval(&env);
-                // get the only one output
-                let res = res.get("x").unwrap();
+                // evaluate and get the only one output
+                let eval_map = precomp.eval(&env);
+                let value = eval_map.get("x").unwrap();
                 // convert to field
-                let res = match res {
-                    circ::ir::term::Value::Field(f) => Self::Field::from(f.i().to_u128_wrapping()),
+                let res = match value {
+                    circ::ir::term::Value::Field(f) => {
+                        let bytes = f.i().to_digits::<u8>(rug::integer::Order::Lsf);
+                        Self::Field::from_le_bytes_mod_order(&bytes)
+                    }
                     _ => panic!("unexpected output type"),
                 };
 
