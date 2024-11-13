@@ -428,12 +428,17 @@ impl Expr {
         // the expression `self` we just parsed.
         // warning: ALL of the rules here should make use of `self`.
         let lhs = match tokens.peek() {
-            // assignment
+            // assignment or augmented assignment
+            // lhs = rhs | lhs += rhs | lhs -= rhs | lhs *= rhs
             Some(Token {
-                kind: TokenKind::Equal,
+                kind:
+                    TokenKind::Equal
+                    | TokenKind::PlusEqual
+                    | TokenKind::MinusEqual
+                    | TokenKind::StarEqual,
                 span,
             }) => {
-                tokens.bump(ctx); // =
+                let token = tokens.bump(ctx).unwrap();
 
                 // sanitize
                 if !matches!(
@@ -451,14 +456,49 @@ impl Expr {
                 let rhs = Expr::parse(ctx, tokens)?;
                 let span = self.span.merge_with(rhs.span);
 
-                Expr::new(
-                    ctx,
-                    ExprKind::Assignment {
-                        lhs: Box::new(self),
-                        rhs: Box::new(rhs),
-                    },
-                    span,
-                )
+                match token.kind {
+                    // regular assignment
+                    TokenKind::Equal => Expr::new(
+                        ctx,
+                        ExprKind::Assignment {
+                            lhs: Box::new(self),
+                            rhs: Box::new(rhs),
+                        },
+                        span,
+                    ),
+                    // augmented assignments
+                    TokenKind::PlusEqual | TokenKind::MinusEqual | TokenKind::StarEqual => {
+                        let op = match token.kind {
+                            TokenKind::PlusEqual => Op2::Addition,
+                            TokenKind::MinusEqual => Op2::Subtraction,
+                            TokenKind::StarEqual => Op2::Multiplication,
+                            _ => unreachable!(),
+                        };
+
+                        // create the binary operation: lhs <op> rhs
+                        let binary_op = Expr::new(
+                            ctx,
+                            ExprKind::BinaryOp {
+                                op,
+                                lhs: Box::new(self.clone()),
+                                rhs: Box::new(rhs),
+                                protected: false,
+                            },
+                            span,
+                        );
+
+                        // create the assignment with rhs obtained above: lhs = (binary_op)
+                        Expr::new(
+                            ctx,
+                            ExprKind::Assignment {
+                                lhs: Box::new(self),
+                                rhs: Box::new(binary_op),
+                            },
+                            span,
+                        )
+                    }
+                    _ => unreachable!(),
+                }
             }
 
             // binary operation

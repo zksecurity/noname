@@ -158,6 +158,9 @@ pub enum TokenKind {
     DoublePipe,         // ||
     Exclamation,        // !
     Question,           // ?
+    PlusEqual,          // +=
+    MinusEqual,         // -=
+    StarEqual,          // *=
                         //    Literal,               // "thing"
 }
 
@@ -199,6 +202,9 @@ impl Display for TokenKind {
             DoublePipe => "`||`",
             Exclamation => "`!`",
             Question => "`?`",
+            PlusEqual => "`+=`",
+            MinusEqual => "`-=`",
+            StarEqual => "`*=`",
             //            TokenType::Literal => "`\"something\"",
         };
 
@@ -387,19 +393,38 @@ impl Token {
                     }
                 }
                 '+' => {
-                    tokens.push(TokenKind::Plus.new_token(ctx, 1));
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'=')) {
+                        tokens.push(TokenKind::PlusEqual.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenKind::Plus.new_token(ctx, 1));
+                    }
                 }
                 '-' => {
                     let next_c = chars.peek();
-                    if matches!(next_c, Some(&'>')) {
-                        tokens.push(TokenKind::RightArrow.new_token(ctx, 2));
-                        chars.next();
-                    } else {
-                        tokens.push(TokenKind::Minus.new_token(ctx, 1));
+                    match next_c {
+                        Some(&'>') => {
+                            tokens.push(TokenKind::RightArrow.new_token(ctx, 2));
+                            chars.next();
+                        }
+                        Some(&'=') => {
+                            tokens.push(TokenKind::MinusEqual.new_token(ctx, 2));
+                            chars.next();
+                        }
+                        _ => {
+                            tokens.push(TokenKind::Minus.new_token(ctx, 1));
+                        }
                     }
                 }
                 '*' => {
-                    tokens.push(TokenKind::Star.new_token(ctx, 1));
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'=')) {
+                        tokens.push(TokenKind::StarEqual.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenKind::Star.new_token(ctx, 1));
+                    }
                 }
                 '&' => {
                     let next_c = chars.peek();
