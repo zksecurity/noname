@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use ark_ff::Field;
+use circ::ir::term::Term;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -68,6 +69,9 @@ where
     /// A public output.
     /// This is tracked separately as public inputs as it needs to be computed later.
     PublicOutput(Option<B::Var>),
+
+    /// Resulted IR term and the (name, variable) for arugments of the hint function
+    HintIR(Term, Vec<(String, ConstOrCell<B::Field, B::Var>)>),
 }
 
 impl<B: Backend> std::fmt::Debug for Value<B> {
@@ -84,6 +88,7 @@ impl<B: Backend> std::fmt::Debug for Value<B> {
             Value::PublicOutput(..) => write!(f, "PublicOutput"),
             Value::Scale(..) => write!(f, "Scaling"),
             Value::NthBit(_, _) => write!(f, "NthBit"),
+            Value::HintIR(..) => write!(f, "HintIR"),
         }
     }
 }

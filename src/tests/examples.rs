@@ -171,7 +171,72 @@ fn test_file(
                 Err(miette!("Obtained output does not match expected output"))?
             }
         }
-        BackendKind::R1csBn254(_) => todo!(),
+        BackendKind::R1csBn254(r1cs) => {
+            // compile
+            let mut sources = Sources::new();
+            let mut tast = TypeChecker::new();
+            let mut node_id = 0;
+            node_id = init_stdlib_dep(
+                &mut sources,
+                &mut tast,
+                node_id,
+                STDLIB_DIRECTORY,
+                &mut None,
+            );
+            let this_module = None;
+            let _node_id = typecheck_next_file(
+                &mut tast,
+                this_module,
+                &mut sources,
+                file_name.to_string(),
+                code.clone(),
+                node_id,
+                &mut None,
+            )
+            .unwrap();
+
+            let compiled_circuit = compile(&sources, tast, r1cs, &mut None)?;
+
+            // this should check the constraints
+            let generated_witness = compiled_circuit
+                .generate_witness(&sources, public_inputs.clone(), private_inputs.clone())
+                .unwrap();
+
+            // check the ASM
+            if compiled_circuit.circuit.backend.num_constraints() < 100 {
+                let prefix_asm = prefix_examples.join("fixture/asm/r1cs");
+                let expected_asm =
+                    std::fs::read_to_string(prefix_asm.clone().join(format!("{file_name}.asm")))
+                        .unwrap();
+                let obtained_asm = compiled_circuit.asm(&Sources::new(), false);
+
+                if obtained_asm != expected_asm {
+                    eprintln!("obtained:");
+                    eprintln!("{obtained_asm}");
+                    eprintln!("expected:");
+                    eprintln!("{expected_asm}");
+                    Err(miette!("Obtained ASM does not match expected ASM"))?
+                }
+            }
+
+            let expected_public_output = expected_public_output
+                .iter()
+                .map(|x| crate::backends::r1cs::R1csBn254Field::from_str(x).unwrap())
+                .collect::<Vec<_>>();
+
+            if generated_witness.outputs != expected_public_output {
+                eprintln!("obtained by executing the circuit:");
+                generated_witness
+                    .outputs
+                    .iter()
+                    .for_each(|x| eprintln!("- {x}"));
+                eprintln!("passed as output by the verifier:");
+                expected_public_output
+                    .iter()
+                    .for_each(|x| eprintln!("- {x}"));
+                Err(miette!("Obtained output does not match expected output"))?
+            }
+        }
     }
 
     Ok(())
@@ -717,6 +782,19 @@ fn test_generic_nested_method(#[case] backend: BackendKind) -> miette::Result<()
         vec!["1", "1", "1"],
         backend,
     )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs_bls(BackendKind::R1csBls12_381(R1CS::new()))]
+#[case::r1cs_254(BackendKind::R1csBn254(R1CS::new()))]
+fn test_hint_fn(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"public_input": "2"}"#;
+    let private_inputs = r#"{"private_input": "2"}"#;
+
+    test_file("hint", public_inputs, private_inputs, vec!["8"], backend)?;
 
     Ok(())
 }
