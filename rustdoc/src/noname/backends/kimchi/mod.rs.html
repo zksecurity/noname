@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/kimchi/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-590a400c.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (143ce0920 2024-11-10)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/backends/kimchi/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/kimchi/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-42caa33d.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (f7273e004 2024-11-12)" data-channel="nightly" data-search-js="search-853ef39b.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/backends/kimchi/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -775,11 +775,39 @@
 <a href="#774" id="774">774</a>
 <a href="#775" id="775">775</a>
 <a href="#776" id="776">776</a>
-<a href="#777" id="777">777</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>asm;
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>asm;
 <span class="kw">pub mod </span>builtin;
 <span class="kw">pub mod </span>prover;
 
+<span class="kw">use </span>circ::cfg::{CircCfg, CircOpt};
 <span class="kw">use </span>educe::Educe;
+<span class="kw">use </span>rug::Integer;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Write,
@@ -787,7 +815,10 @@
 };
 
 <span class="kw">use </span>itertools::{izip, Itertools};
-<span class="kw">use </span>kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
+<span class="kw">use </span>kimchi::{
+    circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS},
+    o1_utils::FieldHelpers,
+};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use crate</span>::{
@@ -816,7 +847,28 @@
 
 <span class="kw">use super</span>::{Backend, BackendField, BackendVar};
 
-<span class="kw">impl </span>BackendField <span class="kw">for </span>VestaField {}
+<span class="kw">impl </span>BackendField <span class="kw">for </span>VestaField {
+    <span class="kw">fn </span>to_circ_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; circ_fields::FieldV {
+        <span class="kw">let </span><span class="kw-2">mut </span>opt = CircOpt::default();
+
+        <span class="comment">// define the modulus for the field
+        </span>opt.field.custom_modulus = VestaField::modulus_biguint().to_str_radix(<span class="number">10</span>);
+
+        <span class="kw">let </span>cfg = CircCfg::from(opt);
+
+        <span class="kw">let </span>cfg_f = cfg.field();
+        <span class="kw">let </span>int = Integer::from_str_radix(<span class="kw-2">&amp;</span><span class="self">self</span>.to_biguint().to_str_radix(<span class="number">10</span>), <span class="number">10</span>).unwrap();
+
+        cfg_f.new_v(int)
+    }
+
+    <span class="kw">fn </span>to_circ_type() -&gt; circ_fields::FieldT {
+        <span class="kw">let </span>digits = VestaField::modulus_biguint().to_bytes_le();
+        circ_fields::FieldT::IntField(
+            Integer::from_digits::&lt;u8&gt;(<span class="kw-2">&amp;</span>digits, rug::integer::Order::Lsf).into(),
+        )
+    }
+}
 
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>Witness(Vec&lt;[VestaField; NUM_REGISTERS]&gt;);

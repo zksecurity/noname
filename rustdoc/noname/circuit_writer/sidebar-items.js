@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["fn_env","writer"],"struct":["CircuitWriter","DebugInfo"]};
+window.SIDEBAR_ITEMS = {"mod":["fn_env","ir","writer"],"struct":["CircuitWriter","DebugInfo"]};

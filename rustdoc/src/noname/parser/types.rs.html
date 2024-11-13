@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/types.rs`."><title>types.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-590a400c.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (143ce0920 2024-11-10)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/parser/</div>types.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/types.rs`."><title>types.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-42caa33d.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (f7273e004 2024-11-12)" data-channel="nightly" data-search-js="search-853ef39b.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/parser/</div>types.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -1647,7 +1647,24 @@
 <a href="#1646" id="1646">1646</a>
 <a href="#1647" id="1647">1647</a>
 <a href="#1648" id="1648">1648</a>
-<a href="#1649" id="1649">1649</a></pre></div><pre class="rust"><code><span class="kw">use </span>educe::Educe;
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a>
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a>
+<a href="#1659" id="1659">1659</a>
+<a href="#1660" id="1660">1660</a>
+<a href="#1661" id="1661">1661</a>
+<a href="#1662" id="1662">1662</a>
+<a href="#1663" id="1663">1663</a>
+<a href="#1664" id="1664">1664</a>
+<a href="#1665" id="1665">1665</a>
+<a href="#1666" id="1666">1666</a></pre></div><pre class="rust"><code><span class="kw">use </span>educe::Educe;
 <span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>serde_with::serde_as;
 <span class="kw">use </span>std::{
@@ -2783,6 +2800,18 @@
     <span class="kw">pub fn </span>parse_fn_body(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Stmt&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>body = <span class="macro">vec!</span>[];
 
+        <span class="comment">// return empty body when the next token is `;` instead of `{`
+        </span><span class="kw">if </span><span class="macro">matches!</span>(
+            tokens.peek(),
+            <span class="prelude-val">Some</span>(Token {
+                kind: TokenKind::SemiColon,
+                ..
+            })
+        ) {
+            tokens.bump(ctx);
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(body);
+        }
+
         tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)<span class="question-mark">?</span>;
 
         <span class="kw">loop </span>{
@@ -2856,21 +2885,26 @@
     }
 
     <span class="doccomment">/// Parse a hint function signature
+    </span><span class="comment">// todo: once builtin hints are deprecated merge this function to FunctionDef::parse (no need empty body for workaround)
     </span><span class="kw">pub fn </span>parse_hint(ctx: <span class="kw-2">&amp;mut </span>ParserCtx, tokens: <span class="kw-2">&amp;mut </span>Tokens) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="comment">// parse signature
         </span><span class="kw">let </span>sig = FnSig::parse(ctx, tokens)<span class="question-mark">?</span>;
-        <span class="kw">let </span>span = sig.name.span;
+        <span class="kw">let </span><span class="kw-2">mut </span>span = sig.name.span;
 
         <span class="comment">// make sure that it doesn't shadow a builtin
         </span><span class="kw">if </span>BUILTIN_FN_NAMES.contains(<span class="kw-2">&amp;</span>sig.name.value.as_ref()) {
             <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(ErrorKind::ShadowingBuiltIn(sig.name.value.clone()), span));
         }
 
-        <span class="comment">// for now the body is empty.
-        // this will be changed once the native hint is implemented.
-        </span><span class="kw">let </span>func = <span class="self">Self </span>{
+        <span class="kw">let </span>body = <span class="self">Self</span>::parse_fn_body(ctx, tokens)<span class="question-mark">?</span>;
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(t) = body.last() {
+            span = span.merge_with(t.span);
+        }
+
+        <span class="kw">let </span>func = <span class="self">Self </span>{
             sig,
-            body: <span class="macro">vec!</span>[],
+            body,
             span,
             is_hint: <span class="bool-val">true</span>,
         };

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/r1cs/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-590a400c.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (143ce0920 2024-11-10)" data-channel="nightly" data-search-js="search-c5a66128.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/backends/r1cs/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/r1cs/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-42caa33d.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (f7273e004 2024-11-12)" data-channel="nightly" data-search-js="search-853ef39b.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/backends/r1cs/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -715,15 +715,60 @@
 <a href="#714" id="714">714</a>
 <a href="#715" id="715">715</a>
 <a href="#716" id="716">716</a>
-<a href="#717" id="717">717</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>arkworks;
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>arkworks;
 <span class="kw">pub mod </span>builtin;
 <span class="kw">pub mod </span>snarkjs;
 
 <span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use </span>ark_ff::FpParameters;
+<span class="kw">use </span>circ::cfg::{CircCfg, CircOpt};
+<span class="kw">use </span>circ_fields::FieldV;
 <span class="kw">use </span>itertools::{izip, Itertools <span class="kw">as _</span>};
+<span class="kw">use </span>kimchi::o1_utils::FieldHelpers;
 <span class="kw">use </span>num_bigint::BigUint;
+<span class="kw">use </span>rug::Integer;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use </span><span class="kw">crate</span>::circuit_writer::VarInfo;
@@ -739,8 +784,45 @@
 <span class="kw">pub type </span>R1csBn254Field = ark_bn254::Fr;
 
 <span class="comment">// Because the associated field type is BackendField, we need to implement it for the actual field types in order to use them.
-</span><span class="kw">impl </span>BackendField <span class="kw">for </span>R1csBls12381Field {}
-<span class="kw">impl </span>BackendField <span class="kw">for </span>R1csBn254Field {}
+</span><span class="kw">impl </span>BackendField <span class="kw">for </span>R1csBls12381Field {
+    <span class="kw">fn </span>to_circ_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FieldV {
+        <span class="kw">let </span><span class="kw-2">mut </span>opt = CircOpt::default();
+
+        <span class="comment">// define the modulus for the field
+        </span>opt.field.custom_modulus = R1csBls12381Field::modulus_biguint().to_str_radix(<span class="number">10</span>);
+
+        <span class="kw">let </span>cfg = CircCfg::from(opt);
+
+        <span class="kw">let </span>cfg_f = cfg.field();
+        <span class="kw">let </span>int = Integer::from_str_radix(<span class="kw-2">&amp;</span><span class="self">self</span>.to_biguint().to_str_radix(<span class="number">10</span>), <span class="number">10</span>).unwrap();
+
+        cfg_f.new_v(int)
+    }
+
+    <span class="kw">fn </span>to_circ_type() -&gt; circ_fields::FieldT {
+        circ_fields::FieldT::FBls12381
+    }
+}
+
+<span class="kw">impl </span>BackendField <span class="kw">for </span>R1csBn254Field {
+    <span class="kw">fn </span>to_circ_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FieldV {
+        <span class="kw">let </span><span class="kw-2">mut </span>opt = CircOpt::default();
+
+        <span class="comment">// define the modulus for the field
+        </span>opt.field.custom_modulus = R1csBn254Field::modulus_biguint().to_str_radix(<span class="number">10</span>);
+
+        <span class="kw">let </span>cfg = CircCfg::from(opt);
+
+        <span class="kw">let </span>cfg_f = cfg.field();
+        <span class="kw">let </span>int = Integer::from_str_radix(<span class="kw-2">&amp;</span><span class="self">self</span>.to_biguint().to_str_radix(<span class="number">10</span>), <span class="number">10</span>).unwrap();
+
+        cfg_f.new_v(int)
+    }
+
+    <span class="kw">fn </span>to_circ_type() -&gt; circ_fields::FieldT {
+        circ_fields::FieldT::FBn254
+    }
+}
 
 <span class="attr">#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>CellVar {
