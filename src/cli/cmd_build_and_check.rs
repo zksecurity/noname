@@ -91,8 +91,13 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
     };
 
     // build
-    let (sources, prover_index, verifier_index) =
-        build(&curr_dir, args.asm, args.debug, &mut server_mode, args.disable_safety_check)?;
+    let (sources, prover_index, verifier_index) = build(
+        &curr_dir,
+        args.asm,
+        args.debug,
+        &mut server_mode,
+        args.disable_safety_check,
+    )?;
 
     // create COMPILED_DIR
     let compiled_path = curr_dir.join(COMPILED_DIR);
@@ -268,7 +273,13 @@ pub fn build(
     let double_generic_gate_optimization = false;
 
     let kimchi_vesta = KimchiVesta::new(double_generic_gate_optimization);
-    let compiled_circuit = compile(&sources, tast, kimchi_vesta, server_mode, disable_safety_check)?;
+    let compiled_circuit = compile(
+        &sources,
+        tast,
+        kimchi_vesta,
+        server_mode,
+        disable_safety_check,
+    )?;
 
     if asm {
         println!("{}", compiled_circuit.asm(&sources, debug));
@@ -333,7 +344,13 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         BackendKind::KimchiVesta(_) => {
             let (tast, sources) = typecheck_file(&args.path)?;
             let kimchi_vesta = KimchiVesta::new(args.double);
-            let compiled_circuit = compile(&sources, tast, kimchi_vesta, &mut None, args.disable_safety_check)?;
+            let compiled_circuit = compile(
+                &sources,
+                tast,
+                kimchi_vesta,
+                &mut None,
+                args.disable_safety_check,
+            )?;
 
             let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
             println!("successfully compiled");
@@ -352,10 +369,24 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
             println!("proof verified");
         }
         BackendKind::R1csBls12_381(r1cs) => {
-            test_r1cs_backend(r1cs, &args.path, public_inputs, private_inputs, args.debug, args.disable_safety_check)?;
+            test_r1cs_backend(
+                r1cs,
+                &args.path,
+                public_inputs,
+                private_inputs,
+                args.debug,
+                args.disable_safety_check,
+            )?;
         }
         BackendKind::R1csBn254(r1cs) => {
-            test_r1cs_backend(r1cs, &args.path, public_inputs, private_inputs, args.debug, args.disable_safety_check)?;
+            test_r1cs_backend(
+                r1cs,
+                &args.path,
+                public_inputs,
+                private_inputs,
+                args.debug,
+                args.disable_safety_check,
+            )?;
         }
     }
 
@@ -408,12 +439,20 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
         BackendKind::KimchiVesta(_) => {
             unimplemented!("kimchi-vesta backend is not yet supported for this command")
         }
-        BackendKind::R1csBls12_381(r1cs) => {
-            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs, args.disable_safety_check)?
-        }
-        BackendKind::R1csBn254(r1cs) => {
-            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs, args.disable_safety_check)?
-        }
+        BackendKind::R1csBls12_381(r1cs) => run_r1cs_backend(
+            r1cs,
+            &curr_dir,
+            public_inputs,
+            private_inputs,
+            args.disable_safety_check,
+        )?,
+        BackendKind::R1csBn254(r1cs) => run_r1cs_backend(
+            r1cs,
+            &curr_dir,
+            public_inputs,
+            private_inputs,
+            args.disable_safety_check,
+        )?,
     }
 
     Ok(())
