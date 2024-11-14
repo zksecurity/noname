@@ -210,7 +210,7 @@ fn test_file(
             )
             .unwrap();
 
-            let compiled_circuit = compile(&sources, tast, r1cs, &mut None)?;
+            let compiled_circuit = compile(&sources, tast, r1cs, &mut None, options.disable_safety_check)?;
 
             // this should check the constraints
             let generated_witness = compiled_circuit
@@ -532,6 +532,7 @@ fn test_augmented_assign(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         expected_public_output,
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
