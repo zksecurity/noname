@@ -335,6 +335,7 @@ impl Backend for KimchiVesta {
         &mut self,
         public_output: Option<Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<KimchiCellVar>>,
+        disable_safety_check: bool,
     ) -> Result<()> {
         // TODO: the current tests pass even this is commented out. Add a test case for this one.
         // important: there might still be a pending generic gate
@@ -364,14 +365,18 @@ impl Backend for KimchiVesta {
                     .find(|private_cell_var| private_cell_var.index == var)
                 {
                     // TODO: is this error useful?
-                    let err = Error::new(
-                        "constraint-finalization",
-                        ErrorKind::PrivateInputNotUsed,
-                        private_cell_var.span,
-                    );
-                    Err(err)?;
+                    if !disable_safety_check {
+                        let err = Error::new(
+                            "constraint-finalization",
+                            ErrorKind::PrivateInputNotUsed,
+                            private_cell_var.span,
+                        );
+                        Err(err)?;
+                    }
                 } else {
-                    Err(Error::new("contraint-finalization", ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"), Span::default()))?;
+                    if !disable_safety_check {
+                        Err(Error::new("contraint-finalization", ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"), Span::default()))?;
+                    }
                 }
             }
         }

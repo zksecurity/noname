@@ -91,6 +91,7 @@ pub const WITH_PUBLIC_OUTPUT_ARRAY: &str =
 
 pub fn compile_source_code<BF: BackendField>(
     code: &str,
+    disable_safety_check: bool,
 ) -> Result<CompiledCircuit<R1CS<BF>>, crate::error::Error> {
     let mut sources = Sources::new();
 
@@ -111,7 +112,7 @@ pub fn compile_source_code<BF: BackendField>(
     let mast = mast::monomorphize(tast)?;
     let r1cs = R1CS::<BF>::new();
     // compile
-    CircuitWriter::generate_circuit(mast, r1cs)
+    CircuitWriter::generate_circuit(mast, r1cs, disable_safety_check)
 }
 
 #[cfg(test)]
@@ -124,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_arkworks_cs_is_satisfied() {
-        let compiled_circuit = compile_source_code::<R1csBn254Field>(SIMPLE_ADDITION).unwrap();
+        let compiled_circuit = compile_source_code::<R1csBn254Field>(SIMPLE_ADDITION, false).unwrap();
         let inputs_public = r#"{"public_input": "2"}"#;
         let inputs_private = r#"{"private_input": "2"}"#;
 
@@ -148,7 +149,7 @@ mod tests {
     #[test]
     fn test_arkworks_cs_is_satisfied_array() {
         let compiled_circuit =
-            compile_source_code::<R1csBn254Field>(WITH_PUBLIC_OUTPUT_ARRAY).unwrap();
+            compile_source_code::<R1csBn254Field>(WITH_PUBLIC_OUTPUT_ARRAY, false).unwrap();
         let inputs_public = r#"{"public_input": ["2", "5"]}"#;
         let inputs_private = r#"{"private_input": ["8", "2"]}"#;
 

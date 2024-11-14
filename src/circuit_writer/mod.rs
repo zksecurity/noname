@@ -124,6 +124,7 @@ impl<B: Backend> CircuitWriter<B> {
     pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
         Error::new("constraint-generation", kind, span)
     }
+
 }
 
 impl<B: Backend> CircuitWriter<B> {
@@ -139,7 +140,7 @@ impl<B: Backend> CircuitWriter<B> {
         }
     }
 
-    pub fn generate_circuit(typed: Mast<B>, backend: B) -> Result<CompiledCircuit<B>> {
+    pub fn generate_circuit(typed: Mast<B>, backend: B, disable_safety_check: bool) -> Result<CompiledCircuit<B>> {
         // create circuit writer
         let mut circuit_writer = CircuitWriter::new(typed, backend);
 
@@ -214,7 +215,7 @@ impl<B: Backend> CircuitWriter<B> {
 
         circuit_writer
             .backend
-            .finalize_circuit(public_output, returned_cells)?;
+            .finalize_circuit(public_output, returned_cells, disable_safety_check)?;
 
         //
         Ok(CompiledCircuit::new(circuit_writer))

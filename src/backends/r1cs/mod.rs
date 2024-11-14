@@ -407,6 +407,7 @@ where
         &mut self,
         public_output: Option<crate::var::Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<LinearCombination<F>>>,
+        disable_safety_check: bool,
     ) -> crate::error::Result<()> {
         // store the return value in the public input that was created for that
         if let Some(public_output) = public_output {
@@ -446,17 +447,21 @@ where
                     .iter()
                     .find(|private_cell_var| private_cell_var.index == index)
                 {
-                    Err(Error::new(
-                        "constraint-finalization",
-                        ErrorKind::PrivateInputNotUsed,
-                        private_cell_var.span,
-                    ))?
+                    if !disable_safety_check {
+                        Err(Error::new(
+                            "constraint-finalization",
+                            ErrorKind::PrivateInputNotUsed,
+                            private_cell_var.span,
+                        ))?
+                    }
                 } else {
-                    Err(Error::new(
-                        "constraint-finalization",
-                        ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"),
-                        Span::default(),
-                    ))?
+                    if !disable_safety_check {
+                        Err(Error::new(
+                            "constraint-finalization",
+                            ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"),
+                            Span::default(),
+                        ))?
+                    }
                 }
             }
         }

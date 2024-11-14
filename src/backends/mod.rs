@@ -407,6 +407,7 @@ pub trait Backend: Clone {
         &mut self,
         public_output: Option<Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<Self::Var>>,
+        disable_safety_check: bool,
     ) -> Result<()>;
 
     /// Generate the witness for a backend.

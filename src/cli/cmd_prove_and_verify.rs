@@ -26,6 +26,10 @@ pub struct CmdProve {
     /// JSON encoding of the private inputs. Similar to `--public-inputs` but for private inputs.
     #[clap(long, value_parser, default_value = "{}")]
     private_inputs: String,
+
+    /// Do not check that every variable is in a constraint
+    #[arg(long = "disable-safety-check", global = true)]
+    disable_safety_check: bool,
 }
 
 pub fn cmd_prove(args: CmdProve) -> miette::Result<()> {
@@ -33,7 +37,7 @@ pub fn cmd_prove(args: CmdProve) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let (sources, prover_index, verifier_index) = build(&curr_dir, false, args.debug, &mut None)?;
+    let (sources, prover_index, verifier_index) = build(&curr_dir, false, args.debug, &mut None, args.disable_safety_check)?;
 
     // parse inputs
     let public_inputs = parse_inputs(&args.public_inputs).unwrap();
@@ -86,6 +90,10 @@ pub struct CmdVerify {
     /// An optional expected public output, in JSON format.
     #[clap(short, long, value_parser)]
     public_output: Option<String>,
+
+    /// Do not check that every variable is in a constraint
+    #[arg(long = "disable-safety-check", global = true)]
+    disable_safety_check: bool,
 }
 
 pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
@@ -93,7 +101,7 @@ pub fn cmd_verify(args: CmdVerify) -> miette::Result<()> {
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    let (_sources, _prover_index, verifier_index) = build(&curr_dir, false, false, &mut None)?;
+    let (_sources, _prover_index, verifier_index) = build(&curr_dir, false, false, &mut None, args.disable_safety_check)?;
 
     // parse inputs
     let mut public_inputs = parse_inputs(&args.public_inputs).unwrap();
