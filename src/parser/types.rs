@@ -1134,6 +1134,18 @@ impl FunctionDef {
     pub fn parse_fn_body(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<Stmt>> {
         let mut body = vec![];
 
+        // return empty body when the next token is `;` instead of `{`
+        if matches!(
+            tokens.peek(),
+            Some(Token {
+                kind: TokenKind::SemiColon,
+                ..
+            })
+        ) {
+            tokens.bump(ctx);
+            return Ok(body);
+        }
+
         tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
 
         loop {
@@ -1207,21 +1219,26 @@ impl FunctionDef {
     }
 
     /// Parse a hint function signature
+    // todo: once builtin hints are deprecated merge this function to FunctionDef::parse (no need empty body for workaround)
     pub fn parse_hint(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
         // parse signature
         let sig = FnSig::parse(ctx, tokens)?;
-        let span = sig.name.span;
+        let mut span = sig.name.span;
 
         // make sure that it doesn't shadow a builtin
         if BUILTIN_FN_NAMES.contains(&sig.name.value.as_ref()) {
             return Err(ctx.error(ErrorKind::ShadowingBuiltIn(sig.name.value.clone()), span));
         }
 
-        // for now the body is empty.
-        // this will be changed once the native hint is implemented.
+        let body = Self::parse_fn_body(ctx, tokens)?;
+
+        if let Some(t) = body.last() {
+            span = span.merge_with(t.span);
+        }
+
         let func = Self {
             sig,
-            body: vec![],
+            body,
             span,
             is_hint: true,
         };

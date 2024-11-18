@@ -5,8 +5,12 @@ pub mod snarkjs;
 use std::collections::{HashMap, HashSet};
 
 use ark_ff::FpParameters;
+use circ::cfg::{CircCfg, CircOpt};
+use circ_fields::FieldV;
 use itertools::{izip, Itertools as _};
+use kimchi::o1_utils::FieldHelpers;
 use num_bigint::BigUint;
+use rug::Integer;
 use serde::{Deserialize, Serialize};
 
 use crate::circuit_writer::VarInfo;
@@ -22,8 +26,45 @@ pub type R1csBls12381Field = ark_bls12_381::Fr;
 pub type R1csBn254Field = ark_bn254::Fr;
 
 // Because the associated field type is BackendField, we need to implement it for the actual field types in order to use them.
-impl BackendField for R1csBls12381Field {}
-impl BackendField for R1csBn254Field {}
+impl BackendField for R1csBls12381Field {
+    fn to_circ_field(&self) -> FieldV {
+        let mut opt = CircOpt::default();
+
+        // define the modulus for the field
+        opt.field.custom_modulus = R1csBls12381Field::modulus_biguint().to_str_radix(10);
+
+        let cfg = CircCfg::from(opt);
+
+        let cfg_f = cfg.field();
+        let int = Integer::from_str_radix(&self.to_biguint().to_str_radix(10), 10).unwrap();
+
+        cfg_f.new_v(int)
+    }
+
+    fn to_circ_type() -> circ_fields::FieldT {
+        circ_fields::FieldT::FBls12381
+    }
+}
+
+impl BackendField for R1csBn254Field {
+    fn to_circ_field(&self) -> FieldV {
+        let mut opt = CircOpt::default();
+
+        // define the modulus for the field
+        opt.field.custom_modulus = R1csBn254Field::modulus_biguint().to_str_radix(10);
+
+        let cfg = CircCfg::from(opt);
+
+        let cfg_f = cfg.field();
+        let int = Integer::from_str_radix(&self.to_biguint().to_str_radix(10), 10).unwrap();
+
+        cfg_f.new_v(int)
+    }
+
+    fn to_circ_type() -> circ_fields::FieldT {
+        circ_fields::FieldT::FBn254
+    }
+}
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CellVar {
