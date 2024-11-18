@@ -131,8 +131,10 @@ impl<B: Backend> TypeChecker<B> {
                     // check if we're inside a method of the same struct
                     let in_method = if let Some(fn_kind) = typed_fn_env.current_fn_kind() {
                         match fn_kind {
-                            FuncOrMethod::Method(method_struct) => method_struct.name == struct_name,
-                            FuncOrMethod::Function(_) => false
+                            FuncOrMethod::Method(method_struct) => {
+                                method_struct.name == struct_name
+                            }
+                            FuncOrMethod::Function(_) => false,
                         }
                     } else {
                         false
