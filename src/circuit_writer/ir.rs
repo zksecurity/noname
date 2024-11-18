@@ -706,7 +706,7 @@ impl<B: Backend> IRWriter<B> {
                 // find range of field
                 let mut start = 0;
                 let mut len = 0;
-                for (field, field_typ) in &struct_info.fields {
+                for (field, field_typ, _attribute) in &struct_info.fields {
                     if field == &rhs.value {
                         len = self.size_of(field_typ);
                         break;
