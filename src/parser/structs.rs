@@ -66,10 +66,10 @@ impl StructDef {
                     ..
                 })
             ) {
-                tokens.bump(ctx);
+                let token = tokens.bump(ctx).unwrap();
                 Some(Attribute {
                     kind: AttributeKind::Pub,
-                    span: ctx.last_span(),
+                    span: token.span,
                 })
             } else {
                 None
