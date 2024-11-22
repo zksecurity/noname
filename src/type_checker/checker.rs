@@ -123,7 +123,13 @@ impl<B: Backend> TypeChecker<B> {
                     .find(|(field_name, _, _)| field_name == &rhs.value)
                 {
                     // check for the pub attribute
-                    let is_public = matches!(attribute, &Some(Attribute { kind: AttributeKind::Pub, .. }));
+                    let is_public = matches!(
+                        attribute,
+                        &Some(Attribute {
+                            kind: AttributeKind::Pub,
+                            ..
+                        })
+                    );
 
                     // check if we're inside a method of the same struct
                     let in_method = matches!(
