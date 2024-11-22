@@ -755,16 +755,10 @@ fn test_private_field_access() {
         pub beds: Field, // public
             size: Field // private
     }
-
-    fn Room.access_size(self) {
-        let room2 = Room {beds: self.beds, size: self.size};
-    }
-
+    
     fn main(pub beds: Field) {
-        let mut room = Room {beds: 2, size: 10};
-        room.beds = beds; // allowed
+        let room = Room {beds: beds, size: 10};
         room.size = 5; // not allowed
-        room.access_size(); // allowed
     }
     "#;
 
