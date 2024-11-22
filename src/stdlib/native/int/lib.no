@@ -8,7 +8,7 @@ hint fn divmod(dividend: Field, divisor: Field) -> [Field; 2];
 // u8
 // must use new() to create a Uint8, so the value is range checked
 struct Uint8 {
-    pub inner: Field,
+    inner: Field,
 }
 
 fn Uint8.new(val: Field) -> Uint8 {
@@ -288,3 +288,21 @@ fn Uint64.mod(self, rhs: Uint64) -> Uint64 {
     let res = self.divmod(rhs);
     return res[1];
 }
+
+// implement to field
+fn Uint8.to_field(self) -> Field {
+    return self.inner;
+}
+
+fn Uint16.to_field(self) -> Field {
+    return self.inner;
+}
+
+fn Uint32.to_field(self) -> Field {
+    return self.inner;
+}
+
+fn Uint64.to_field(self) -> Field {
+    return self.inner;
+}
+    
