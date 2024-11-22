@@ -329,9 +329,7 @@ impl<B: Backend> TypeChecker<B> {
                 // `fn main() { ... }`
                 RootKind::FunctionDef(function) => {
                     // create a new typed fn environment to type check the function
-                    let mut typed_fn_env = TypedFnEnv::default();
-
-                    typed_fn_env.set_current_fn_kind(function.sig.kind.clone());
+                    let mut typed_fn_env = TypedFnEnv::new(&function.sig.kind);
 
                     // if we're expecting a library, this should not be the main function
                     let is_main = function.is_main();

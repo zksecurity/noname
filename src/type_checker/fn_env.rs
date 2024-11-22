@@ -39,7 +39,7 @@ impl TypeInfo {
 }
 
 /// The environment we use to type check functions.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct TypedFnEnv {
     /// The current nesting level.
     /// Starting at 0 (top level), and increasing as we go into a block.
@@ -57,13 +57,19 @@ pub struct TypedFnEnv {
     forbid_forloop_scope: bool,
 
     /// The kind of function we're currently type checking
-    current_fn_kind: Option<FuncOrMethod>,
+    current_fn_kind: FuncOrMethod,
 }
 
 impl TypedFnEnv {
-    /// Creates a new TypeEnv
-    pub fn new() -> Self {
-        Self::default()
+    /// Creates a new TypeEnv with the given function kind
+    pub fn new(fn_kind: &FuncOrMethod) -> Self {
+        Self {
+            current_scope: 0,
+            vars: HashMap::new(),
+            forloop_scopes: Vec::new(),
+            forbid_forloop_scope: false,
+            current_fn_kind: fn_kind.clone(),
+        }
     }
 
     /// Enters a scoped block.
@@ -186,11 +192,7 @@ impl TypedFnEnv {
         }
     }
 
-    pub fn current_fn_kind(&self) -> Option<&FuncOrMethod> {
-        self.current_fn_kind.as_ref()
-    }
-
-    pub fn set_current_fn_kind(&mut self, kind: FuncOrMethod) {
-        self.current_fn_kind = Some(kind);
+    pub fn current_fn_kind(&self) -> &FuncOrMethod {
+        &self.current_fn_kind
     }
 }

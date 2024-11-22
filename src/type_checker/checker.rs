@@ -123,22 +123,13 @@ impl<B: Backend> TypeChecker<B> {
                     .find(|(field_name, _, _)| field_name == &rhs.value)
                 {
                     // check for the pub attribute
-                    let is_public = attribute
-                        .as_ref()
-                        .map(|attr| matches!(attr.kind, AttributeKind::Pub))
-                        .unwrap_or(false);
+                    let is_public = matches!(attribute, &Some(Attribute { kind: AttributeKind::Pub, .. }));
 
                     // check if we're inside a method of the same struct
-                    let in_method = if let Some(fn_kind) = typed_fn_env.current_fn_kind() {
-                        match fn_kind {
-                            FuncOrMethod::Method(method_struct) => {
-                                method_struct.name == struct_name
-                            }
-                            FuncOrMethod::Function(_) => false,
-                        }
-                    } else {
-                        false
-                    };
+                    let in_method = matches!(
+                        typed_fn_env.current_fn_kind(),
+                        FuncOrMethod::Method(method_struct) if method_struct.name == struct_name
+                    );
 
                     if is_public || in_method {
                         // allow access
