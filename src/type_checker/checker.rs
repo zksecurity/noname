@@ -11,12 +11,13 @@ use crate::{
     imports::FnKind,
     parser::{
         types::{
-            is_numeric, ModulePath, FnSig, ForLoopArgument, FunctionDef, Stmt, StmtKind, Symbolic, Ty, TyKind,
+            is_numeric, FnSig, ForLoopArgument, FunctionDef, ModulePath, Stmt, StmtKind, Symbolic,
+            Ty, TyKind,
         },
         CustomType, Expr, ExprKind, Op2,
     },
-    syntax::is_type,
     stdlib::builtins::QUALIFIED_BUILTINS,
+    syntax::is_type,
 };
 
 use super::{FullyQualified, TypeChecker, TypeInfo, TypedFnEnv};
@@ -842,7 +843,7 @@ impl<B: Backend> TypeChecker<B> {
                 &fn_sig.name.value,
             ))
             .map(|info| &info.kind)
-        {   
+        {
             // check builtin
             Some(FnKind::BuiltIn(_, _, ignore)) => *ignore,
             _ => false,
