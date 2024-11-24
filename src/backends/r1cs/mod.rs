@@ -13,6 +13,7 @@ use crate::circuit_writer::VarInfo;
 use crate::compiler::Sources;
 use crate::constants::Span;
 use crate::error::{Error, ErrorKind, Result};
+use crate::parser::types::TyKind;
 use crate::var::ConstOrCell;
 use crate::{circuit_writer::DebugInfo, var::Value};
 
@@ -478,15 +479,80 @@ where
             let (line, _, line_str) = crate::utils::find_exact_line(source, *span);
             let line_str = line_str.trim_start();
             let dbg_msg = format!("[{filename}:{line}] `{line_str}` -> ");
-            for cvar in var_info.var.iter() {
-                match cvar {
-                    ConstOrCell::Const(cst) => {
-                        println!("{dbg_msg}{}", cst.pretty());
+            
+            match &var_info.typ {
+                // Field
+                Some(TyKind::Field { .. }) => {
+                    match &var_info.var[0] {
+                        ConstOrCell::Const(cst) => {
+                            println!("{dbg_msg}{}", cst.pretty());
+                        }
+                        ConstOrCell::Cell(cell) => {
+                            let val = cell.evaluate(&witness);
+                            println!("{dbg_msg}{}", val.pretty());
+                        }
                     }
-                    ConstOrCell::Cell(cell) => {
-                        let val = cell.evaluate(&witness);
-                        println!("{dbg_msg}{}", val.pretty());
+                }
+
+                // Bool
+                Some(TyKind::Bool) => {
+                    match &var_info.var[0] {
+                        ConstOrCell::Const(cst) => {
+                            let val = *cst == F::one();
+                            println!("{dbg_msg}{}", val);
+                        }
+                        ConstOrCell::Cell(cell) => {
+                            let val = cell.evaluate(&witness) == F::one();
+                            println!("{dbg_msg}{}", val);
+                        }
                     }
+                }
+
+                // Array
+                Some(TyKind::Array(_, _)) => {
+                    let mut str = Vec::new();
+                    for cvar in var_info.var.iter() {
+                        match cvar {
+                            ConstOrCell::Const(cst) => {
+                                str.push(cst.pretty());
+                            }
+                            ConstOrCell::Cell(cell) => {
+                                let val = cell.evaluate(&witness);
+                                str.push(val.pretty());
+
+                            }
+                        }
+                    }
+                    println!("{dbg_msg}{}", format!("[{}]", str.join(", ")));
+                }
+
+                // Custom types
+                Some(TyKind::Custom { module: _, name: _ }) => {
+                    let mut str = Vec::new();
+                    for cvar in var_info.var.iter() {
+                        match cvar {
+                            ConstOrCell::Const(cst) => {
+                                str.push(cst.pretty());
+                            }
+                            ConstOrCell::Cell(cell) => {
+                                let val = cell.evaluate(&witness);
+                                str.push(val.pretty());
+
+                            }
+                        }
+                    }
+                    println!("{dbg_msg}{}", format!("{{{}}}", str.join(", ")));
+                },
+
+                // GenericSizedArray
+                Some(TyKind::GenericSizedArray(_, _)) => unreachable!("GenericSizedArray should be monomorphized"),
+
+                None => {
+                    return Err(Error::new(
+                        "log",
+                        ErrorKind::UnexpectedError("No type info for logging"),
+                        *span,
+                    ))
                 }
             }
         }
