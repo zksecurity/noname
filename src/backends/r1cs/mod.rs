@@ -479,34 +479,30 @@ where
             let (line, _, line_str) = crate::utils::find_exact_line(source, *span);
             let line_str = line_str.trim_start();
             let dbg_msg = format!("[{filename}:{line}] `{line_str}` -> ");
-            
+
             match &var_info.typ {
                 // Field
-                Some(TyKind::Field { .. }) => {
-                    match &var_info.var[0] {
-                        ConstOrCell::Const(cst) => {
-                            println!("{dbg_msg}{}", cst.pretty());
-                        }
-                        ConstOrCell::Cell(cell) => {
-                            let val = cell.evaluate(&witness);
-                            println!("{dbg_msg}{}", val.pretty());
-                        }
+                Some(TyKind::Field { .. }) => match &var_info.var[0] {
+                    ConstOrCell::Const(cst) => {
+                        println!("{dbg_msg}{}", cst.pretty());
                     }
-                }
+                    ConstOrCell::Cell(cell) => {
+                        let val = cell.evaluate(&witness);
+                        println!("{dbg_msg}{}", val.pretty());
+                    }
+                },
 
                 // Bool
-                Some(TyKind::Bool) => {
-                    match &var_info.var[0] {
-                        ConstOrCell::Const(cst) => {
-                            let val = *cst == F::one();
-                            println!("{dbg_msg}{}", val);
-                        }
-                        ConstOrCell::Cell(cell) => {
-                            let val = cell.evaluate(&witness) == F::one();
-                            println!("{dbg_msg}{}", val);
-                        }
+                Some(TyKind::Bool) => match &var_info.var[0] {
+                    ConstOrCell::Const(cst) => {
+                        let val = *cst == F::one();
+                        println!("{dbg_msg}{}", val);
                     }
-                }
+                    ConstOrCell::Cell(cell) => {
+                        let val = cell.evaluate(&witness) == F::one();
+                        println!("{dbg_msg}{}", val);
+                    }
+                },
 
                 // Array
                 Some(TyKind::Array(_, _)) => {
@@ -519,7 +515,6 @@ where
                             ConstOrCell::Cell(cell) => {
                                 let val = cell.evaluate(&witness);
                                 str.push(val.pretty());
-
                             }
                         }
                     }
@@ -537,15 +532,16 @@ where
                             ConstOrCell::Cell(cell) => {
                                 let val = cell.evaluate(&witness);
                                 str.push(val.pretty());
-
                             }
                         }
                     }
                     println!("{dbg_msg}{}", format!("{{{}}}", str.join(", ")));
-                },
+                }
 
                 // GenericSizedArray
-                Some(TyKind::GenericSizedArray(_, _)) => unreachable!("GenericSizedArray should be monomorphized"),
+                Some(TyKind::GenericSizedArray(_, _)) => {
+                    unreachable!("GenericSizedArray should be monomorphized")
+                }
 
                 None => {
                     return Err(Error::new(
