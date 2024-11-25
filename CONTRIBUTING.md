@@ -1,16 +1,22 @@
 # Contributing to noname
 
-You want to contribute to noname (or this file)? Look no further! 
+**You want to contribute to noname (or this file)? Look no further!**
 
-The first thing you should look at, is our [list of easy issues](https://github.com/zksecurity/noname/issues?q=is%3Aopen+is%3Aissue+label%3Aeasy). Find something in there and ask for more information if you need it! We'll be happy to help you.
+## Where to start contributing?
 
-[The book](https://zksecurity.github.io/noname/) also has more information about internals, but keep in mind that it might not always be up to date (PRs to fix that are welcome). You can also check our [series of videos here](https://cryptologie.net/article/573).
+The first thing you should do is to try using noname by yourself. If something doesn't compile, or seems confusing, then that's an opportunity to make it compile, improve the error, or improve the documentation. In general if something is confusing or lacking please post an issue!
 
-General advice: 
+Make sure you `git clone` this repository and then create an alias for running your local copy of noname (e.g. `alias noname_dev="cargo run --manifest-path ABSOLUTE_PATH_TO_THE_CLONED_REPO`).
 
-* write the code you want to be able to compile, and if it does not compile post an issue. We can then discuss if this is something that should be implemented!
-* setup debugging and step through the program to understand how noname compiles things, and how you can fix something that doesn't work! (see next section)
-* any improvement to the user experience is welcome (better error messages, better documentation, better examples, better CLI, etc.)
+Once you're a bit more familiar with how to play with noname, check our [list of easy issues to start contributing](https://github.com/zksecurity/noname/issues?q=is%3Aopen+is%3Aissue+label%3Aeasy). Find something in there and ask for more information if you need it! We'll be happy to help you.
+
+Generally, a good way to hit your goal is to start by writing the code you want to be able to compile and work backward to make it compile.
+
+## How to learn about the inners of noname?
+ 
+The [noname book](https://zksecurity.github.io/noname/) has a lot of information about internals, but keep in mind that it might not always be up to date (PRs to fix that are welcome). 
+
+For a gentle intro, you can check [a walkthrough of the codebase here](https://www.youtube.com/live/pQer-ua73Vo), as well as our [series of videos here](https://cryptologie.net/article/573).
 
 ## Setup & Debugging
 
@@ -18,9 +24,6 @@ In vscode you can create such a file to easily debug a command. (But you should 
 
 ```json
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
@@ -50,4 +53,10 @@ In vscode you can create such a file to easily debug a command. (But you should 
         },
     ]
 }
+```
+
+In addition, we have a `--server-mode` that allows you to look at the different stages of compilation visually within your browser. Run it as:
+
+```
+$ noname build --server-mode
 ```
