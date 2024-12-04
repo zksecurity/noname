@@ -747,3 +747,57 @@ fn test_mut_cst_struct_field_prop() {
         ErrorKind::ArgumentTypeMismatch(..)
     ));
 }
+
+#[test]
+fn test_monomorphize_main_function_not_found() {
+    let code = r#"
+    fn some_fn(xx: Field) -> Field {
+        let yy = xx + 1;
+        return yy;
+    }
+    "#;
+
+    let res = mast_pass(code);
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::MainFunctionNotFound
+    ));
+}
+
+#[test]
+fn test_monomorphize_duplicate_definition() {
+    let code = r#"
+    fn main(xx: Field) -> Field {
+        let xx = xx + 1;
+        let yy = xx + 1;
+        return yy;
+    }
+    "#;
+
+    let res = mast_pass(code);
+    let _xx = "xx".to_string();
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::DuplicateDefinition(_xx),
+    ));
+}
+
+#[test]
+fn test_monomorphize_returntype_mismatch() {
+    let code = r#"
+    struct Thing {
+        val: Field,
+    }
+    fn main(xx: Field) -> Field {
+        let mut thing = Thing { val: 3 };
+        thing.val = xx;
+        return thing;
+    }
+    "#;
+
+    let res = mast_pass(code);
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::ReturnTypeMismatch(..),
+    ));
+}
