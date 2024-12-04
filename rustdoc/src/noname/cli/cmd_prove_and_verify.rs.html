@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cli/cmd_prove_and_verify.rs`."><title>cmd_prove_and_verify.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-42caa33d.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0-nightly (28fc2ba71 2024-11-24)" data-channel="nightly" data-search-js="search-92e6798f.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/cli/</div>cmd_prove_and_verify.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cli/cmd_prove_and_verify.rs`."><title>cmd_prove_and_verify.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-dbdb5eec.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0-nightly (c44b3d50f 2024-12-03)" data-channel="nightly" data-search-js="search-92e6798f.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/cli/</div>cmd_prove_and_verify.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -132,7 +132,29 @@
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a></pre></div><pre class="rust"><code><span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a></pre></div><pre class="rust"><code><span class="kw">use </span>camino::Utf8PathBuf <span class="kw">as </span>PathBuf;
 <span class="kw">use </span>miette::{Context, IntoDiagnostic};
 
 <span class="kw">use </span><span class="kw">crate</span>::inputs::parse_inputs;
@@ -160,6 +182,11 @@
     <span class="doccomment">/// JSON encoding of the private inputs. Similar to `--public-inputs` but for private inputs.
     </span><span class="attr">#[clap(long, value_parser, default_value = <span class="string">"{}"</span>)]
     </span>private_inputs: String,
+
+    <span class="doccomment">/// WARNING: This option disables safety checks that ensure each variable is properly constrained.
+    /// Do not check that every variable is in a constraint
+    </span><span class="attr">#[arg(long = <span class="string">"disable-safety-check"</span>, global = <span class="bool-val">true</span>)]
+    </span>disable_safety_check: bool,
 }
 
 <span class="kw">pub fn </span>cmd_prove(args: CmdProve) -&gt; miette::Result&lt;()&gt; {
@@ -167,7 +194,13 @@
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    <span class="kw">let </span>(sources, prover_index, verifier_index) = build(<span class="kw-2">&amp;</span>curr_dir, <span class="bool-val">false</span>, args.debug, <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(sources, prover_index, verifier_index) = build(
+        <span class="kw-2">&amp;</span>curr_dir,
+        <span class="bool-val">false</span>,
+        args.debug,
+        <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>,
+        args.disable_safety_check,
+    )<span class="question-mark">?</span>;
 
     <span class="comment">// parse inputs
     </span><span class="kw">let </span>public_inputs = parse_inputs(<span class="kw-2">&amp;</span>args.public_inputs).unwrap();
@@ -220,6 +253,11 @@
     <span class="doccomment">/// An optional expected public output, in JSON format.
     </span><span class="attr">#[clap(short, long, value_parser)]
     </span>public_output: <span class="prelude-ty">Option</span>&lt;String&gt;,
+
+    <span class="doccomment">/// WARNING: This option disables safety checks that ensure each variable is properly constrained.
+    /// Do not check that every variable is in a constraint
+    </span><span class="attr">#[arg(long = <span class="string">"disable-safety-check"</span>, global = <span class="bool-val">true</span>)]
+    </span>disable_safety_check: bool,
 }
 
 <span class="kw">pub fn </span>cmd_verify(args: CmdVerify) -&gt; miette::Result&lt;()&gt; {
@@ -227,7 +265,13 @@
         .path
         .unwrap_or_else(|| std::env::current_dir().unwrap().try_into().unwrap());
 
-    <span class="kw">let </span>(_sources, _prover_index, verifier_index) = build(<span class="kw-2">&amp;</span>curr_dir, <span class="bool-val">false</span>, <span class="bool-val">false</span>, <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(_sources, _prover_index, verifier_index) = build(
+        <span class="kw-2">&amp;</span>curr_dir,
+        <span class="bool-val">false</span>,
+        <span class="bool-val">false</span>,
+        <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>,
+        args.disable_safety_check,
+    )<span class="question-mark">?</span>;
 
     <span class="comment">// parse inputs
     </span><span class="kw">let </span><span class="kw-2">mut </span>public_inputs = parse_inputs(<span class="kw-2">&amp;</span>args.public_inputs).unwrap();
