@@ -72,6 +72,7 @@ pub struct CmdBuild {
     #[clap(long)]
     server_mode: bool,
 
+    /// WARNING: This option disables safety checks that ensure each variable is properly constrained.
     /// Do not check that every variable is in a constraint
     #[arg(long = "disable-safety-check", global = true)]
     disable_safety_check: bool,
@@ -321,6 +322,7 @@ pub struct CmdTest {
     #[clap(long)]
     double: bool,
 
+    /// WARNING: This option disables safety checks that ensure each variable is properly constrained.
     /// Do not check that every variable is in a constraint
     #[arg(long = "disable-safety-check", global = true)]
     disable_safety_check: bool,
@@ -412,6 +414,7 @@ pub struct CmdRun {
     #[clap(long, value_parser, default_value = "{}")]
     private_inputs: Option<String>,
 
+    /// WARNING: This option disables safety checks that ensure each variable is properly constrained.
     /// Do not check that every variable is in a constraint
     #[arg(long = "disable-safety-check", global = true)]
     disable_safety_check: bool,

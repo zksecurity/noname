@@ -358,25 +358,21 @@ impl Backend for KimchiVesta {
         }
 
         for var in 0..self.next_variable {
-            if !written_vars.contains(&var) {
+            if !written_vars.contains(&var) && !disable_safety_check {
                 if let Some(private_cell_var) = self
                     .private_input_cell_vars
                     .iter()
                     .find(|private_cell_var| private_cell_var.index == var)
                 {
                     // TODO: is this error useful?
-                    if !disable_safety_check {
-                        let err = Error::new(
-                            "constraint-finalization",
-                            ErrorKind::PrivateInputNotUsed,
-                            private_cell_var.span,
-                        );
-                        Err(err)?;
-                    }
+                    let err = Error::new(
+                        "constraint-finalization",
+                        ErrorKind::PrivateInputNotUsed,
+                        private_cell_var.span,
+                    );
+                    Err(err)?;
                 } else {
-                    if !disable_safety_check {
-                        Err(Error::new("contraint-finalization", ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"), Span::default()))?;
-                    }
+                    Err(Error::new("contraint-finalization", ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"), Span::default()))?;
                 }
             }
         }

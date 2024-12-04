@@ -27,6 +27,7 @@ pub struct CmdProve {
     #[clap(long, value_parser, default_value = "{}")]
     private_inputs: String,
 
+    /// WARNING: This option disables safety checks that ensure each variable is properly constrained.
     /// Do not check that every variable is in a constraint
     #[arg(long = "disable-safety-check", global = true)]
     disable_safety_check: bool,
@@ -97,6 +98,7 @@ pub struct CmdVerify {
     #[clap(short, long, value_parser)]
     public_output: Option<String>,
 
+    /// WARNING: This option disables safety checks that ensure each variable is properly constrained.
     /// Do not check that every variable is in a constraint
     #[arg(long = "disable-safety-check", global = true)]
     disable_safety_check: bool,

@@ -441,27 +441,23 @@ where
                 continue;
             }
 
-            if !written_vars.contains(&index) {
+            if !written_vars.contains(&index) && !disable_safety_check {
                 if let Some(private_cell_var) = self
                     .private_input_cell_vars
                     .iter()
                     .find(|private_cell_var| private_cell_var.index == index)
                 {
-                    if !disable_safety_check {
-                        Err(Error::new(
-                            "constraint-finalization",
-                            ErrorKind::PrivateInputNotUsed,
-                            private_cell_var.span,
-                        ))?
-                    }
+                    Err(Error::new(
+                        "constraint-finalization",
+                        ErrorKind::PrivateInputNotUsed,
+                        private_cell_var.span,
+                    ))?
                 } else {
-                    if !disable_safety_check {
-                        Err(Error::new(
-                            "constraint-finalization",
-                            ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"),
-                            Span::default(),
-                        ))?
-                    }
+                    Err(Error::new(
+                        "constraint-finalization",
+                        ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"),
+                        Span::default(),
+                    ))?
                 }
             }
         }
