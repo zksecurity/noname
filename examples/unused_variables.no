@@ -1,0 +1,4 @@
+fn main(pub xx: Field, yy: Field) {
+    let zz = yy + 1;
+    assert_eq(xx, 2);
+}

@@ -57,7 +57,7 @@ fn mast_pass(code: &str) -> Result<Mast<R1csBackend>> {
 
 fn synthesizer_pass(code: &str) -> Result<CompiledCircuit<R1csBackend>> {
     let mast = mast_pass(code);
-    CircuitWriter::generate_circuit(mast?, R1CS::new())
+    CircuitWriter::generate_circuit(mast?, R1CS::new(), false)
 }
 
 #[test]

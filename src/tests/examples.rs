@@ -15,12 +15,29 @@ use crate::{
     type_checker::TypeChecker,
 };
 
+pub struct TestOptions {
+    ///Disable safety checks
+    pub disable_safety_check: bool,
+}
+
+impl TestOptions {
+    pub const fn new(disable_safety_check_arg: bool) -> Self {
+        Self {
+            disable_safety_check: disable_safety_check_arg,
+        }
+    }
+}
+
+const DEFAULT_OPTIONS: TestOptions = TestOptions::new(false);
+const DISABLE_SAFETY_CHECK_OPTIONS: TestOptions = TestOptions::new(true);
+
 fn test_file(
     file_name: &str,
     public_inputs: &str,
     private_inputs: &str,
     expected_public_output: Vec<&str>,
     backend: BackendKind,
+    options: TestOptions,
 ) -> miette::Result<()> {
     let version = env!("CARGO_MANIFEST_DIR");
     let prefix_examples = Path::new(version).join("examples");
@@ -58,7 +75,13 @@ fn test_file(
             )
             .unwrap();
 
-            let compiled_circuit = compile(&sources, tast, kimchi_vesta, &mut None)?;
+            let compiled_circuit = compile(
+                &sources,
+                tast,
+                kimchi_vesta,
+                &mut None,
+                options.disable_safety_check,
+            )?;
 
             let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes().unwrap();
 
@@ -129,7 +152,13 @@ fn test_file(
             )
             .unwrap();
 
-            let compiled_circuit = compile(&sources, tast, r1cs, &mut None)?;
+            let compiled_circuit = compile(
+                &sources,
+                tast,
+                r1cs,
+                &mut None,
+                options.disable_safety_check,
+            )?;
 
             // this should check the constraints
             let generated_witness = compiled_circuit
@@ -195,7 +224,13 @@ fn test_file(
             )
             .unwrap();
 
-            let compiled_circuit = compile(&sources, tast, r1cs, &mut None)?;
+            let compiled_circuit = compile(
+                &sources,
+                tast,
+                r1cs,
+                &mut None,
+                options.disable_safety_check,
+            )?;
 
             // this should check the constraints
             let generated_witness = compiled_circuit
@@ -249,7 +284,14 @@ fn test_arithmetic(#[case] backend: BackendKind) -> miette::Result<()> {
     let public_inputs = r#"{"public_input": "2"}"#;
     let private_inputs = r#"{"private_input": "2"}"#;
 
-    test_file("arithmetic", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "arithmetic",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -267,6 +309,7 @@ fn test_public_output(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         vec!["8"],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -285,6 +328,7 @@ fn test_lc_return(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         vec!["2"],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -305,7 +349,14 @@ fn test_poseidon(#[case] backend: BackendKind) -> miette::Result<()> {
 
     let public_inputs = &format!(r#"{{"public_input": "{digest_dec}"}}"#);
 
-    test_file("poseidon", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "poseidon",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -317,7 +368,14 @@ fn test_bool(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"private_input": false}"#;
     let public_inputs = r#"{"public_input": true}"#;
 
-    test_file("bool", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "bool",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -329,7 +387,14 @@ fn test_mutable(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"xx": "2", "yy": "3"}"#;
     let public_inputs = r#"{}"#;
 
-    test_file("mutable", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "mutable",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -341,7 +406,14 @@ fn test_for_loop(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"private_input": ["2", "3", "4"]}"#;
     let public_inputs = r#"{"public_input": "9"}"#;
 
-    test_file("for_loop", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "for_loop",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -353,7 +425,14 @@ fn test_dup_var(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"private_input": ["1", "2", "2"]}"#;
     let public_inputs = r#"{"public_input": "10"}"#;
 
-    test_file("dup_var", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "dup_var",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -365,7 +444,14 @@ fn test_array(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"public_input": ["1", "2"]}"#;
 
-    test_file("array", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "array",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -377,7 +463,14 @@ fn test_equals(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": ["3", "3"]}"#;
 
-    test_file("equals", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "equals",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -389,7 +482,14 @@ fn test_not_equal(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": ["1", "2"]}"#;
 
-    test_file("not_equal", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "not_equal",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -401,7 +501,14 @@ fn test_types(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "1", "yy": "2"}"#;
 
-    test_file("types", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "types",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -420,6 +527,7 @@ fn test_const(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         expected_public_output,
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -432,7 +540,14 @@ fn test_functions(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"one": "1"}"#;
 
-    test_file("functions", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "functions",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -444,7 +559,14 @@ fn test_methods(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "1"}"#;
 
-    test_file("methods", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "methods",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -462,6 +584,7 @@ fn test_types_array(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         vec![],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -481,6 +604,7 @@ fn test_iterate(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         expected_public_output,
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -493,7 +617,14 @@ fn test_assignment(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "2"}"#;
 
-    test_file("assignment", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "assignment",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -512,6 +643,7 @@ fn test_augmented_assign(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         expected_public_output,
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -524,7 +656,14 @@ fn test_if_else(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"xx": "1"}"#;
 
-    test_file("if_else", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "if_else",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -536,7 +675,14 @@ fn test_sudoku(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{"solution": { "inner": ["9", "5", "3", "6", "2", "1", "7", "8", "4", "1", "4", "8", "7", "5", "9", "2", "6", "3", "2", "7", "6", "8", "3", "4", "9", "5", "1", "3", "6", "9", "2", "7", "5", "4", "1", "8", "4", "8", "5", "9", "1", "6", "3", "7", "2", "7", "1", "2", "3", "4", "8", "6", "9", "5", "6", "3", "7", "1", "8", "2", "5", "4", "9", "5", "2", "1", "4", "9", "7", "8", "3", "6", "8", "9", "4", "5", "6", "3", "1", "2", "7"] }}"#;
     let public_inputs = r#"{"grid": { "inner": ["0", "5", "3", "6", "2", "1", "7", "8", "4", "0", "4", "8", "7", "5", "9", "2", "6", "3", "2", "7", "6", "8", "3", "4", "9", "5", "1", "3", "6", "9", "2", "7", "0", "4", "1", "8", "4", "8", "5", "9", "1", "6", "3", "7", "2", "0", "1", "2", "3", "4", "8", "6", "9", "5", "6", "3", "0", "1", "8", "2", "5", "4", "9", "5", "2", "1", "4", "9", "0", "8", "3", "6", "8", "9", "4", "5", "6", "3", "1", "2", "7"] }}"#;
 
-    test_file("sudoku", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "sudoku",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -548,7 +694,14 @@ fn test_literals(#[case] backend: BackendKind) -> miette::Result<()> {
     let private_inputs = r#"{}"#;
     let public_inputs = r#"{"public_input": "42"}"#;
 
-    test_file("literals", public_inputs, private_inputs, vec![], backend)?;
+    test_file(
+        "literals",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
 
     Ok(())
 }
@@ -566,6 +719,7 @@ fn test_public_output_array(#[case] backend: BackendKind) -> miette::Result<()> 
         private_inputs,
         vec!["8", "2"],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -584,6 +738,7 @@ fn test_types_array_output(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         vec!["2", "4", "1", "8"], // 2x, y, x, 2y
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -602,6 +757,7 @@ fn test_public_output_bool(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         vec!["1"],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -620,6 +776,7 @@ fn test_public_output_types(#[case] backend: BackendKind) -> miette::Result<()> 
         private_inputs,
         vec!["1", "2"],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -638,6 +795,7 @@ fn test_generic_repeated_array(#[case] backend: BackendKind) -> miette::Result<(
         private_inputs,
         vec!["1", "1", "1"],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -656,6 +814,7 @@ fn test_generic_array_access(#[case] backend: BackendKind) -> miette::Result<()>
         private_inputs,
         vec![],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -674,6 +833,7 @@ fn test_generic_array_nested(#[case] backend: BackendKind) -> miette::Result<()>
         private_inputs,
         vec![],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -692,6 +852,7 @@ fn test_generic_fn_multi_init(#[case] backend: BackendKind) -> miette::Result<()
         private_inputs,
         vec![],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -710,6 +871,7 @@ fn generic_method_multi_init(#[case] backend: BackendKind) -> miette::Result<()>
         private_inputs,
         vec![],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -728,6 +890,7 @@ fn test_generic_for_loop(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         vec![],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -746,6 +909,7 @@ fn test_generic_builtin_bits(#[case] backend: BackendKind) -> miette::Result<()>
         private_inputs,
         vec![],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -764,6 +928,7 @@ fn test_generic_iterator(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         vec!["1"],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -782,6 +947,7 @@ fn test_generic_nested_func(#[case] backend: BackendKind) -> miette::Result<()> 
         private_inputs,
         vec!["1", "1", "1"],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -800,6 +966,7 @@ fn test_generic_nested_method(#[case] backend: BackendKind) -> miette::Result<()
         private_inputs,
         vec!["1", "1", "1"],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
@@ -813,7 +980,35 @@ fn test_hint_fn(#[case] backend: BackendKind) -> miette::Result<()> {
     let public_inputs = r#"{"public_input": "2"}"#;
     let private_inputs = r#"{"private_input": "2"}"#;
 
-    test_file("hint", public_inputs, private_inputs, vec!["8"], backend)?;
+    test_file(
+        "hint",
+        public_inputs,
+        private_inputs,
+        vec!["8"],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs_bls(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_unused_variables_with_disabled_safety_check(
+    #[case] backend: BackendKind,
+) -> miette::Result<()> {
+    let public_inputs = r#"{"xx": "2"}"#;
+    let private_inputs = r#"{"yy": "1"}"#;
+
+    test_file(
+        "unused_variables",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DISABLE_SAFETY_CHECK_OPTIONS,
+    )?;
 
     Ok(())
 }

@@ -407,6 +407,7 @@ where
         &mut self,
         public_output: Option<crate::var::Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<LinearCombination<F>>>,
+        disable_safety_check: bool,
     ) -> crate::error::Result<()> {
         // store the return value in the public input that was created for that
         if let Some(public_output) = public_output {
@@ -440,7 +441,7 @@ where
                 continue;
             }
 
-            if !written_vars.contains(&index) {
+            if !written_vars.contains(&index) && !disable_safety_check {
                 if let Some(private_cell_var) = self
                     .private_input_cell_vars
                     .iter()

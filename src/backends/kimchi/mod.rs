@@ -335,6 +335,7 @@ impl Backend for KimchiVesta {
         &mut self,
         public_output: Option<Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<KimchiCellVar>>,
+        disable_safety_check: bool,
     ) -> Result<()> {
         // TODO: the current tests pass even this is commented out. Add a test case for this one.
         // important: there might still be a pending generic gate
@@ -357,7 +358,7 @@ impl Backend for KimchiVesta {
         }
 
         for var in 0..self.next_variable {
-            if !written_vars.contains(&var) {
+            if !written_vars.contains(&var) && !disable_safety_check {
                 if let Some(private_cell_var) = self
                     .private_input_cell_vars
                     .iter()

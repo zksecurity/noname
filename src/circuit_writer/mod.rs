@@ -139,7 +139,11 @@ impl<B: Backend> CircuitWriter<B> {
         }
     }
 
-    pub fn generate_circuit(typed: Mast<B>, backend: B) -> Result<CompiledCircuit<B>> {
+    pub fn generate_circuit(
+        typed: Mast<B>,
+        backend: B,
+        disable_safety_check: bool,
+    ) -> Result<CompiledCircuit<B>> {
         // create circuit writer
         let mut circuit_writer = CircuitWriter::new(typed, backend);
 
@@ -212,9 +216,11 @@ impl<B: Backend> CircuitWriter<B> {
             }
         }
 
-        circuit_writer
-            .backend
-            .finalize_circuit(public_output, returned_cells)?;
+        circuit_writer.backend.finalize_circuit(
+            public_output,
+            returned_cells,
+            disable_safety_check,
+        )?;
 
         //
         Ok(CompiledCircuit::new(circuit_writer))
