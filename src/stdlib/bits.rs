@@ -22,10 +22,10 @@ pub struct BitsLib {}
 impl Module for BitsLib {
     const MODULE: &'static str = "bits";
 
-    fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>)> {
+    fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>, bool)> {
         vec![
-            (NTH_BIT_FN, nth_bit),
-            (CHECK_FIELD_SIZE_FN, check_field_size),
+            (NTH_BIT_FN, nth_bit, false),
+            (CHECK_FIELD_SIZE_FN, check_field_size, false),
         ]
     }
 }
