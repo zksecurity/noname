@@ -7,7 +7,7 @@ use crate::{
 
 use super::boolean;
 
-use ark_ff::{One, Zero};
+use ark_ff::{One, Field,  PrimeField, Zero};
 
 use std::ops::Neg;
 
@@ -344,4 +344,55 @@ pub fn if_else_inner<B: Backend>(
     let one_minus_cond = sub(compiler, &one, cond, span);
     let temp = mul(compiler, &one_minus_cond[0], else_, span);
     add(compiler, &cond_then[0], &temp[0], span)
+}
+
+/// Performs a left shift (multiplication by 2^n) on a field element
+pub fn shift_left<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    lhs: &ConstOrCell<B::Field, B::Var>,
+    shift: &ConstOrCell<B::Field, B::Var>,
+    span: Span,
+) -> Var<B::Field, B::Var> {
+    match (lhs, shift) {
+        // Constant value and constant shift
+        (ConstOrCell::Const(val), ConstOrCell::Const(shift_amount)) => {
+            let two = B::Field::from(2u64);
+            let shift_value = two.pow([shift_amount.into_repr().as_ref()[0]]);
+            Var::new_constant(*val * shift_value, span)
+        }
+        // Constant shift and variable value
+        (ConstOrCell::Cell(var), ConstOrCell::Const(shift_amount)) => {
+            let two = B::Field::from(2u64);
+            let shift_value = two.pow([shift_amount.into_repr().as_ref()[0]]);
+            let res = compiler.backend.mul_const(var, &shift_value, span);
+            Var::new_var(res, span)
+        }
+        // variable shift
+        _ => unimplemented!("Variable shift amounts are not yet supported."),
+    }
+}
+
+/// Performs a right shift (division by 2^n) on a field element
+pub fn shift_right<B: Backend>(
+    compiler: &mut CircuitWriter<B>,
+    lhs: &ConstOrCell<B::Field, B::Var>,
+    shift: &ConstOrCell<B::Field, B::Var>,
+    span: Span,
+) -> Var<B::Field, B::Var> {
+    match (lhs, shift) {
+        // Constant value and constant shift
+        (ConstOrCell::Const(val), ConstOrCell::Const(shift_amount)) => {
+            let shift_value = B::Field::from(2u64).pow(shift_amount.into_repr().as_ref());
+            Var::new_constant(*val / shift_value, span)
+        }
+        // Constant shift and variable value
+        (ConstOrCell::Cell(var), ConstOrCell::Const(shift_amount)) => {
+            let shift_value = B::Field::from(2u64).pow(shift_amount.into_repr().as_ref());
+            let shift_inverse = shift_value.inverse().expect("Division by zero");
+            let res = compiler.backend.mul_const(var, &shift_inverse, span);
+            Var::new_var(res, span)
+        }
+        // Variable shift
+        _ => unimplemented!("Variable shift amounts are not yet supported."),
+    }
 }

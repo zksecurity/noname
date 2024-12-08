@@ -654,6 +654,8 @@ impl<B: Backend> CircuitWriter<B> {
                     Op2::Inequality => field::not_equal(self, &lhs, &rhs, expr.span),
                     Op2::BoolAnd => boolean::and(self, &lhs[0], &rhs[0], expr.span),
                     Op2::BoolOr => boolean::or(self, &lhs[0], &rhs[0], expr.span),
+                    Op2::LeftShift => field::shift_left(self, &lhs[0], &rhs[0], expr.span),
+                    Op2::RightShift => field::shift_right(self, &lhs[0], &rhs[0], expr.span),
                     Op2::Division => todo!(),
                 };
 
