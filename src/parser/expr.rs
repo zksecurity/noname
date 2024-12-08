@@ -134,6 +134,8 @@ pub enum Op2 {
     Inequality,
     BoolAnd,
     BoolOr,
+    RightShift,
+    LeftShift,
 }
 
 impl Expr {
@@ -512,7 +514,9 @@ impl Expr {
                     | TokenKind::NotEqual
                     | TokenKind::DoubleAmpersand
                     | TokenKind::DoublePipe
-                    | TokenKind::Exclamation,
+                    | TokenKind::Exclamation
+                    | TokenKind::DoubleGreater
+                    | TokenKind::DoubleLess,
                 ..
             }) => {
                 // lhs + rhs
@@ -526,6 +530,8 @@ impl Expr {
                     TokenKind::NotEqual => Op2::Inequality,
                     TokenKind::DoubleAmpersand => Op2::BoolAnd,
                     TokenKind::DoublePipe => Op2::BoolOr,
+                    TokenKind::DoubleGreater => Op2::RightShift,
+                    TokenKind::DoubleLess => Op2::LeftShift,
                     _ => unreachable!(),
                 };
 

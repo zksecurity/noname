@@ -1,6 +1,6 @@
 use ark_ff::Zero;
 use circ::{
-    ir::term::{leaf_term, term, BoolNaryOp, Op, PfNaryOp, PfUnOp, Sort, Term, Value},
+    ir::term::{leaf_term, term, BoolNaryOp, BvBinOp, Op, PfNaryOp, PfUnOp, Sort, Term, Value},
     term,
 };
 use num_bigint::BigUint;
@@ -893,6 +893,14 @@ impl<B: Backend> IRWriter<B> {
                     }
                     Op2::BoolOr => {
                         let t: Term = term![Op::BoolNaryOp(BoolNaryOp::Or); lhs.cvars[0].clone(), rhs.cvars[0].clone()];
+                        Var::new_cvar(t, expr.span)
+                    }
+                    Op2::RightShift => {
+                        let t: Term = term![Op::BvBinOp(BvBinOp::Lshr); lhs.cvars[0].clone(), rhs.cvars[0].clone()];
+                        Var::new_cvar(t, expr.span)
+                    }
+                    Op2::LeftShift => {
+                        let t: Term = term![Op::BvBinOp(BvBinOp::Shl); lhs.cvars[0].clone(), rhs.cvars[0].clone()];
                         Var::new_cvar(t, expr.span)
                     }
                     Op2::Division => {

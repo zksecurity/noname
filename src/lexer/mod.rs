@@ -157,6 +157,8 @@ pub enum TokenKind {
     Pipe,               // |
     DoublePipe,         // ||
     Exclamation,        // !
+    DoubleGreater,      // >>
+    DoubleLess,         // <<
     Question,           // ?
     PlusEqual,          // +=
     MinusEqual,         // -=
@@ -201,6 +203,8 @@ impl Display for TokenKind {
             Pipe => "`|`",
             DoublePipe => "`||`",
             Exclamation => "`!`",
+            DoubleGreater => "`>>`",
+            DoubleLess => "`<<`",
             Question => "`?`",
             PlusEqual => "`+=`",
             MinusEqual => "`-=`",
@@ -378,10 +382,22 @@ impl Token {
                     }
                 }
                 '>' => {
-                    tokens.push(TokenKind::Greater.new_token(ctx, 1));
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'>')) {
+                        tokens.push(TokenKind::DoubleGreater.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenKind::Greater.new_token(ctx, 1));
+                    }
                 }
                 '<' => {
-                    tokens.push(TokenKind::Less.new_token(ctx, 1));
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'<')) {
+                        tokens.push(TokenKind::DoubleLess.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenKind::Less.new_token(ctx, 1));
+                    }
                 }
                 '=' => {
                     let next_c = chars.peek();
