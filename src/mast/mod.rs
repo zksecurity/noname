@@ -188,7 +188,7 @@ impl<B: Backend> FnInfo<B> {
         ctx: &mut MastCtx<B>,
     ) -> Result<FnSig> {
         match self.kind {
-            FnKind::BuiltIn(ref mut sig, _) => {
+            FnKind::BuiltIn(ref mut sig, _, _) => {
                 sig.resolve_generic_values(observed_args, ctx)?;
             }
             FnKind::Native(ref mut func) => {
@@ -1363,9 +1363,9 @@ pub fn instantiate_fn_call<B: Backend>(
 
     // construct the monomorphized function AST
     let (func_def, mono_info) = match fn_info.kind {
-        FnKind::BuiltIn(_, handle) => (
+        FnKind::BuiltIn(_, handle, ignore_arg_types) => (
             FnInfo {
-                kind: FnKind::BuiltIn(sig_typed, handle),
+                kind: FnKind::BuiltIn(sig_typed, handle, ignore_arg_types),
                 ..fn_info
             },
             // todo: we will need to propagate the constant value from builtin function as well

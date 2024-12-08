@@ -71,18 +71,18 @@ trait Module {
     /// e.g. "crypto"
     const MODULE: &'static str;
 
-    fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>)>;
+    fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>, bool)>;
 
     fn get_parsed_fns<B: Backend>() -> Vec<FnInfo<B>> {
         let fns = Self::get_fns();
         let mut res = Vec::with_capacity(fns.len());
-        for (code, fn_handle) in fns {
+        for (code, fn_handle, ignore_arg_types) in fns {
             let ctx = &mut ParserCtx::default();
             // TODO: we should try to point to real noname files here (not 0)
             let mut tokens = Token::parse(0, code).unwrap();
             let sig = FnSig::parse(ctx, &mut tokens).unwrap();
             res.push(FnInfo {
-                kind: FnKind::BuiltIn(sig, fn_handle),
+                kind: FnKind::BuiltIn(sig, fn_handle, ignore_arg_types),
                 is_hint: false,
                 span: Span::default(),
             });

@@ -20,8 +20,8 @@ pub struct IntLib {}
 impl Module for IntLib {
     const MODULE: &'static str = "int";
 
-    fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>)> {
-        vec![(DIVMOD_FN, divmod_fn)]
+    fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>, bool)> {
+        vec![(DIVMOD_FN, divmod_fn, false)]
     }
 }
 
