@@ -7,7 +7,7 @@ use crate::{
 
 use super::boolean;
 
-use ark_ff::{One, Field,  PrimeField, Zero};
+use ark_ff::{Field, One, PrimeField, Zero};
 
 use std::ops::Neg;
 
