@@ -801,3 +801,22 @@ fn test_monomorphize_returntype_mismatch() {
         ErrorKind::ReturnTypeMismatch(..),
     ));
 }
+
+
+#[test]
+fn test_simple_mast() {
+    let code = r#"
+    struct Thing {
+        val: Field,
+    }
+    fn main(xx: Field) -> Thing {
+        let mut thing = Thing { val: 3 };
+        thing.val = xx;
+        return thing;
+    }
+    "#;
+
+    let mast = mast_pass(code).unwrap();
+
+    insta::assert_snapshot!(serde_json::to_string(&mast).unwrap());
+}
