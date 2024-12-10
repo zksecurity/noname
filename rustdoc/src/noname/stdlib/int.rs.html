@@ -97,8 +97,8 @@
 <span class="kw">impl </span>Module <span class="kw">for </span>IntLib {
     <span class="kw">const </span>MODULE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">"int"</span>;
 
-    <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;)&gt; {
-        <span class="macro">vec!</span>[(DIVMOD_FN, divmod_fn)]
+    <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;, bool)&gt; {
+        <span class="macro">vec!</span>[(DIVMOD_FN, divmod_fn, <span class="bool-val">false</span>)]
     }
 }
 

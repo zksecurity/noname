@@ -126,10 +126,10 @@
 <span class="kw">impl </span>Module <span class="kw">for </span>BitsLib {
     <span class="kw">const </span>MODULE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">"bits"</span>;
 
-    <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;)&gt; {
+    <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;, bool)&gt; {
         <span class="macro">vec!</span>[
-            (NTH_BIT_FN, nth_bit),
-            (CHECK_FIELD_SIZE_FN, check_field_size),
+            (NTH_BIT_FN, nth_bit, <span class="bool-val">false</span>),
+            (CHECK_FIELD_SIZE_FN, check_field_size, <span class="bool-val">false</span>),
         ]
     }
 }

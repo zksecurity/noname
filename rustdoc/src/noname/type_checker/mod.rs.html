@@ -518,7 +518,8 @@
 <a href="#517" id="517">517</a>
 <a href="#518" id="518">518</a>
 <a href="#519" id="519">519</a>
-<a href="#520" id="520">520</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fmt::Display};
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fmt::Display};
 
 <span class="kw">use crate</span>::{
     backends::Backend,
@@ -897,7 +898,7 @@
 
                         <span class="comment">// check it is a builtin function
                         </span><span class="kw">let </span>fn_handle = <span class="kw">match </span>builtin_fn {
-                            FnKind::BuiltIn(<span class="kw">_</span>, fn_handle) =&gt; fn_handle,
+                            FnKind::BuiltIn(<span class="kw">_</span>, fn_handle, <span class="kw">_</span>) =&gt; fn_handle,
                             <span class="kw">_ </span>=&gt; {
                                 <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
                                     <span class="string">"type-checker"</span>,
@@ -912,7 +913,8 @@
                             qualified,
                             FnInfo {
                                 is_hint: <span class="bool-val">true</span>,
-                                kind: FnKind::BuiltIn(function.sig.clone(), fn_handle),
+                                <span class="comment">// todo: is there a case where we want to ignore argument types for hint functions?
+                                </span>kind: FnKind::BuiltIn(function.sig.clone(), fn_handle, <span class="bool-val">false</span>),
                                 span: function.span,
                             },
                         );

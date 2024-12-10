@@ -1313,7 +1313,7 @@
 
                 <span class="kw">match </span><span class="kw-2">&amp;</span>fn_info.kind {
                     <span class="comment">// assert() &lt;-- for example
-                    </span>FnKind::BuiltIn(sig, handle) =&gt; {
+                    </span>FnKind::BuiltIn(sig, handle, <span class="kw">_</span>) =&gt; {
                         <span class="kw">let </span>res = handle(<span class="self">self</span>, <span class="kw-2">&amp;</span>sig.generics, <span class="kw-2">&amp;</span>vars, expr.span);
                         res.map(|r| r.map(VarOrRef::Var))
                     }

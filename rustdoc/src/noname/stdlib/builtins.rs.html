@@ -165,8 +165,7 @@
 <a href="#164" id="164">164</a>
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a></pre></div><pre class="rust"><code><span class="doccomment">//! Builtins are imported by default.
+<a href="#167" id="167">167</a></pre></div><pre class="rust"><code><span class="doccomment">//! Builtins are imported by default.
 
 </span><span class="kw">use </span>std::sync::Arc;
 
@@ -191,20 +190,19 @@
 
 <span class="kw">const </span>ASSERT_FN: <span class="kw-2">&amp;</span>str = <span class="string">"assert(condition: Bool)"</span>;
 <span class="kw">const </span>ASSERT_EQ_FN: <span class="kw-2">&amp;</span>str = <span class="string">"assert_eq(lhs: Field, rhs: Field)"</span>;
-<span class="comment">// todo: currently only supports a single field var
-// to support all the types, we can bypass the type check for this log function for now
-</span><span class="kw">const </span>LOG_FN: <span class="kw-2">&amp;</span>str = <span class="string">"log(var: Field)"</span>;
+<span class="kw">const </span>LOG_FN: <span class="kw-2">&amp;</span>str = <span class="string">"log(var: Field)"</span>;
 
 <span class="kw">pub struct </span>BuiltinsLib {}
 
 <span class="kw">impl </span>Module <span class="kw">for </span>BuiltinsLib {
     <span class="kw">const </span>MODULE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">"builtins"</span>;
 
-    <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;)&gt; {
+    <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;, bool)&gt; {
         <span class="macro">vec!</span>[
-            (ASSERT_FN, assert_fn),
-            (ASSERT_EQ_FN, assert_eq_fn),
-            (LOG_FN, log_fn),
+            (ASSERT_FN, assert_fn, <span class="bool-val">false</span>),
+            (ASSERT_EQ_FN, assert_eq_fn, <span class="bool-val">false</span>),
+            <span class="comment">// true -&gt; skip argument type checking for log
+            </span>(LOG_FN, log_fn, <span class="bool-val">true</span>),
         ]
     }
 }

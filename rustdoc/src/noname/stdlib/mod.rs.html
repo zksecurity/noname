@@ -194,18 +194,18 @@
     <span class="doccomment">/// e.g. "crypto"
     </span><span class="kw">const </span>MODULE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str;
 
-    <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;)&gt;;
+    <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;, bool)&gt;;
 
     <span class="kw">fn </span>get_parsed_fns&lt;B: Backend&gt;() -&gt; Vec&lt;FnInfo&lt;B&gt;&gt; {
         <span class="kw">let </span>fns = <span class="self">Self</span>::get_fns();
         <span class="kw">let </span><span class="kw-2">mut </span>res = Vec::with_capacity(fns.len());
-        <span class="kw">for </span>(code, fn_handle) <span class="kw">in </span>fns {
+        <span class="kw">for </span>(code, fn_handle, ignore_arg_types) <span class="kw">in </span>fns {
             <span class="kw">let </span>ctx = <span class="kw-2">&amp;mut </span>ParserCtx::default();
             <span class="comment">// TODO: we should try to point to real noname files here (not 0)
             </span><span class="kw">let </span><span class="kw-2">mut </span>tokens = Token::parse(<span class="number">0</span>, code).unwrap();
             <span class="kw">let </span>sig = FnSig::parse(ctx, <span class="kw-2">&amp;mut </span>tokens).unwrap();
             res.push(FnInfo {
-                kind: FnKind::BuiltIn(sig, fn_handle),
+                kind: FnKind::BuiltIn(sig, fn_handle, ignore_arg_types),
                 is_hint: <span class="bool-val">false</span>,
                 span: Span::default(),
             });

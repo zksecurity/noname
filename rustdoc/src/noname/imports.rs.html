@@ -111,7 +111,8 @@
 <a href="#110" id="110">110</a>
 <a href="#111" id="111">111</a>
 <a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fmt};
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fmt};
 
 <span class="kw">use crate</span>::{
     backends::Backend,
@@ -187,7 +188,8 @@ impl std::fmt::Debug for BuiltinModule {
     </span>B: Backend,
 {
     <span class="doccomment">/// A built-in is just a handle to a function written in Rust.
-    </span>BuiltIn(FnSig, FnHandle&lt;B&gt;),
+    /// The boolean flag indicates whether to skip argument type checking for builtins
+    </span>BuiltIn(FnSig, FnHandle&lt;B&gt;, bool),
 
     <span class="doccomment">/// A native function is represented as an AST.
     </span>Native(FunctionDef),
@@ -209,7 +211,7 @@ impl std::fmt::Debug for BuiltinModule {
             </span>S: Serializer,
         {
             <span class="kw">let </span>surrogate = <span class="kw">match </span><span class="self">self </span>{
-                FnKind::BuiltIn(sig, _handle) =&gt; {
+                FnKind::BuiltIn(sig, _handle, <span class="kw">_</span>) =&gt; {
                     FnKindSurrogate::BuiltIn(sig.clone(), <span class="string">"native function"</span>.to_string())
                 }
                 FnKind::Native(def) =&gt; FnKindSurrogate::Native(def.clone()),

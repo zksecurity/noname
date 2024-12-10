@@ -420,7 +420,7 @@
         <span class="kw">let </span>main_fn_info = circuit_writer.main_info()<span class="question-mark">?</span>;
 
         <span class="kw">let </span>function = <span class="kw">match </span><span class="kw-2">&amp;</span>main_fn_info.kind {
-            <span class="kw">crate</span>::imports::FnKind::BuiltIn(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
+            <span class="kw">crate</span>::imports::FnKind::BuiltIn(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
             <span class="kw">crate</span>::imports::FnKind::Native(fn_sig) =&gt; fn_sig.clone(),
         };
 
