@@ -674,6 +674,13 @@ impl Ident {
                 value: ident,
                 span: token.span,
             }),
+            TokenKind::Keyword(keyword) => Err(ctx.error(
+                ErrorKind::ExpectedTokenNotKeyword(
+                    keyword.to_string(),
+                    TokenKind::Identifier("".to_string()),
+                ),
+                token.span,
+            )),
 
             _ => Err(ctx.error(
                 ErrorKind::ExpectedToken(TokenKind::Identifier("".to_string())),

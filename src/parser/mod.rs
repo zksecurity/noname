@@ -238,4 +238,20 @@ mod tests {
         let parsed = Stmt::parse(ctx, tokens).unwrap();
         println!("{:?}", parsed);
     }
+
+    #[test]
+    fn expected_token_not_keyword_as_identifier() {
+        let code = r#"Foo { pub: Field }"#;
+        let tokens = &mut Token::parse(0, code).unwrap();
+        let ctx = &mut ParserCtx::default();
+        let parsed = StructDef::parse(ctx, tokens);
+        assert!(parsed.is_err());
+        assert!(parsed.as_ref().err().is_some());
+        match &parsed.as_ref().err().unwrap().kind {
+            ErrorKind::ExpectedTokenNotKeyword(keyword, _) => {
+                assert_eq!(keyword, "pub");
+            }
+            _ => panic!("expected error: ExpectedTokenNotKeyword"),
+        }
+    }
 }
