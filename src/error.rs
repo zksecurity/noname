@@ -345,6 +345,9 @@ pub enum ErrorKind {
     #[error("cannot compile a module without a main function")]
     NoMainFunction,
 
+    #[error("main function not found")]
+    MainFunctionNotFound,
+
     #[error("invalid hexadecimal literal `${0}`")]
     InvalidHexLiteral(String),
 
