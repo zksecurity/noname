@@ -8,7 +8,7 @@ pub struct CryptoLib {}
 impl Module for CryptoLib {
     const MODULE: &'static str = "crypto";
 
-    fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>)> {
-        vec![(POSEIDON_FN, B::poseidon())]
+    fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>, bool)> {
+        vec![(POSEIDON_FN, B::poseidon(), false)]
     }
 }

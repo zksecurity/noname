@@ -74,7 +74,8 @@ where
     B: Backend,
 {
     /// A built-in is just a handle to a function written in Rust.
-    BuiltIn(FnSig, FnHandle<B>),
+    /// The boolean flag indicates whether to skip argument type checking for builtins
+    BuiltIn(FnSig, FnHandle<B>, bool),
 
     /// A native function is represented as an AST.
     Native(FunctionDef),
@@ -96,7 +97,7 @@ mod fn_kind_serde {
             S: Serializer,
         {
             let surrogate = match self {
-                FnKind::BuiltIn(sig, _handle) => {
+                FnKind::BuiltIn(sig, _handle, _) => {
                     FnKindSurrogate::BuiltIn(sig.clone(), "native function".to_string())
                 }
                 FnKind::Native(def) => FnKindSurrogate::Native(def.clone()),
