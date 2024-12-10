@@ -424,7 +424,7 @@ impl<B: Backend> CircuitWriter<B> {
 
                 match &fn_info.kind {
                     // assert() <-- for example
-                    FnKind::BuiltIn(sig, handle) => {
+                    FnKind::BuiltIn(sig, handle, _) => {
                         let res = handle(self, &sig.generics, &vars, expr.span);
                         res.map(|r| r.map(VarOrRef::Var))
                     }

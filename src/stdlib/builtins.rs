@@ -23,8 +23,6 @@ pub const BUILTIN_FN_NAMES: [&str; 3] = ["assert", "assert_eq", "log"];
 
 const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(lhs: Field, rhs: Field)";
-// todo: currently only supports a single field var
-// to support all the types, we can bypass the type check for this log function for now
 const LOG_FN: &str = "log(var: Field)";
 
 pub struct BuiltinsLib {}
@@ -32,11 +30,12 @@ pub struct BuiltinsLib {}
 impl Module for BuiltinsLib {
     const MODULE: &'static str = "builtins";
 
-    fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>)> {
+    fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>, bool)> {
         vec![
-            (ASSERT_FN, assert_fn),
-            (ASSERT_EQ_FN, assert_eq_fn),
-            (LOG_FN, log_fn),
+            (ASSERT_FN, assert_fn, false),
+            (ASSERT_EQ_FN, assert_eq_fn, false),
+            // true -> skip argument type checking for log
+            (LOG_FN, log_fn, true),
         ]
     }
 }
