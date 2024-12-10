@@ -66,7 +66,7 @@ impl<B: Backend> CompiledCircuit<B> {
         // get info on main
         let main_info = self.main_info();
         let main_sig = match &main_info.kind {
-            crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
+            crate::imports::FnKind::BuiltIn(_, _, _) => unreachable!(),
             crate::imports::FnKind::Native(fn_sig) => &fn_sig.sig,
         };
 
