@@ -64,7 +64,7 @@ At some point the [circuit-writer]() would have to go through an expression node
 
 ```rust
 ExprKind::Assignment {
-    lhs: /* the left hand side as an Expr */,
+    lhs: /* the left-hand side as an Expr */,
     rhs: Expr { kind: ExprKind::BigInt { value: 42 } },
 }
 ```
