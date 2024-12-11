@@ -38,7 +38,7 @@ In the example
 let a = b.c.d;
 ```
 
-the expression node representing the right hand side could be seen as:
+the expression node representing the right-hand side could be seen as:
 
 ```rust
 ExprKind::FieldAccess {
