@@ -189,7 +189,7 @@ let res = temp.some_field;
 </span><span class="boring">fn main() {
 </span>let a = b.c.d;
 <span class="boring">}</span></code></pre></pre>
-<p>the expression node representing the right hand side could be seen as:</p>
+<p>the expression node representing the right-hand side could be seen as:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>ExprKind::FieldAccess {
@@ -212,7 +212,7 @@ x[4] = 25;
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>ExprKind::Assignment {
-    lhs: /* the left hand side as an Expr */,
+    lhs: /* the left-hand side as an Expr */,
     rhs: Expr { kind: ExprKind::BigInt { value: 42 } },
 }
 <span class="boring">}</span></code></pre></pre>

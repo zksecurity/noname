@@ -199,7 +199,7 @@ pub struct VarInfo {
 </span><span class="boring">fn main() {
 </span>let thing = Thing { x: 1, y: 2 };
 <span class="boring">}</span></code></pre></pre>
-<p>the local variable <code>thing</code> is stored, but the right hand side is computed via the <code>compute_expr()</code> function which will go through the AST and potentially create different anonymous variables until it can compute a value.</p>
+<p>the local variable <code>thing</code> is stored, but the right-hand side is computed via the <code>compute_expr()</code> function which will go through the AST and potentially create different anonymous variables until it can compute a value.</p>
 <p>There’s three ways to solve this:</p>
 <ol>
 <li>Either the type checker stores type information about each expression it parses. This is what the Rust compiler does I believe: each <code>Expr</code> AST node has a unique node identifier that can be used to search type information in a map.</li>
