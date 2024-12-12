@@ -21,6 +21,8 @@ use self::{
     r1cs::{R1csBls12381Field, R1csBn254Field, R1CS},
 };
 
+use crate::mast::Mast;
+
 pub mod kimchi;
 pub mod r1cs;
 
@@ -365,10 +367,11 @@ pub trait Backend: Clone {
     ) -> Result<()>;
 
     /// Generate the witness for a backend.
-    fn generate_witness(
+    fn generate_witness<B: Backend>(
         &self,
         witness_env: &mut WitnessEnv<Self::Field>,
         sources: &Sources,
+        typed: &Mast<B>,
     ) -> Result<Self::GeneratedWitness>;
 
     /// Generate the asm for a backend.

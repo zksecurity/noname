@@ -39,6 +39,8 @@ pub const NUM_REGISTERS: usize = kimchi::circuits::wires::COLUMNS;
 
 use super::{Backend, BackendField, BackendVar};
 
+use crate::mast::Mast;
+
 impl BackendField for VestaField {}
 
 #[derive(Debug)]
@@ -389,10 +391,11 @@ impl Backend for KimchiVesta {
         self.compute_val(env, val, var.index)
     }
 
-    fn generate_witness(
+    fn generate_witness<B: Backend>(
         &self,
         witness_env: &mut WitnessEnv<VestaField>,
         sources: &Sources,
+        _typed: &Mast<B>,
     ) -> Result<GeneratedWitness> {
         if !self.finalized {
             unreachable!("the circuit must be finalized before generating a witness");
