@@ -6,6 +6,7 @@ use ark_ff::{One, Zero};
 use miette::Diagnostic;
 use num_bigint::BigUint;
 use thiserror::Error;
+use kimchi::o1_utils::FieldHelpers;
 
 use crate::{
     backends::{kimchi::VestaField, Backend},
@@ -170,7 +171,7 @@ pub trait ExtField /* : PrimeField*/ {
 
 impl ExtField for VestaField {
     fn to_dec_string(&self) -> String {
-        let biguint: BigUint = self.0.into();
+        let biguint: BigUint = self.to_biguint();
         biguint.to_str_radix(10)
     }
 }
