@@ -81,7 +81,7 @@ fn check_field_size<B: Backend>(
     span: Span,
 ) -> Result<Option<Var<B::Field, B::Var>>> {
     let var = &vars[0].var[0];
-    let bit_len = B::Field::size_in_bits() as u64;
+    let bit_len = B::Field::MODULUS_BIT_SIZE as u64;
 
     match var {
         ConstOrCell::Const(cst) => {

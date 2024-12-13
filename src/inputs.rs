@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, fs::File, io::Read, str::FromStr};
 
-use ark_ff::{One, PrimeField, Zero};
+use ark_ff::{One, Zero};
 use miette::Diagnostic;
 use num_bigint::BigUint;
 use thiserror::Error;
@@ -170,7 +170,7 @@ pub trait ExtField /* : PrimeField*/ {
 
 impl ExtField for VestaField {
     fn to_dec_string(&self) -> String {
-        let biguint: BigUint = self.into_repr().into();
+        let biguint: BigUint = self.0.into();
         biguint.to_str_radix(10)
     }
 }
