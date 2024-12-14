@@ -20,7 +20,7 @@ A path is represent like this internally:
 /// `module::A.a`.
 #[derive(Debug, Clone)]
 pub struct Path {
-    /// A module, if this is an foreign import.
+    /// A module, if this is a foreign import.
     pub module: Option<Ident>,
 
     /// The name of the type, function, method, or constant.

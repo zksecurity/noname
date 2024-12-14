@@ -2,7 +2,9 @@ pub mod asm;
 pub mod builtin;
 pub mod prover;
 
+use circ::cfg::{CircCfg, CircOpt};
 use educe::Educe;
+use rug::Integer;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Write,
@@ -10,7 +12,10 @@ use std::{
 };
 
 use itertools::{izip, Itertools};
-use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
+use kimchi::{
+    circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS},
+    o1_utils::FieldHelpers,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -41,7 +46,28 @@ use super::{Backend, BackendField, BackendVar};
 
 use crate::mast::Mast;
 
-impl BackendField for VestaField {}
+impl BackendField for VestaField {
+    fn to_circ_field(&self) -> circ_fields::FieldV {
+        let mut opt = CircOpt::default();
+
+        // define the modulus for the field
+        opt.field.custom_modulus = VestaField::modulus_biguint().to_str_radix(10);
+
+        let cfg = CircCfg::from(opt);
+
+        let cfg_f = cfg.field();
+        let int = Integer::from_str_radix(&self.to_biguint().to_str_radix(10), 10).unwrap();
+
+        cfg_f.new_v(int)
+    }
+
+    fn to_circ_type() -> circ_fields::FieldT {
+        let digits = VestaField::modulus_biguint().to_bytes_le();
+        circ_fields::FieldT::IntField(
+            Integer::from_digits::<u8>(&digits, rug::integer::Order::Lsf).into(),
+        )
+    }
+}
 
 #[derive(Debug)]
 pub struct Witness(Vec<[VestaField; NUM_REGISTERS]>);
@@ -311,6 +337,7 @@ impl Backend for KimchiVesta {
         &mut self,
         public_output: Option<Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<KimchiCellVar>>,
+        disable_safety_check: bool,
     ) -> Result<()> {
         // TODO: the current tests pass even this is commented out. Add a test case for this one.
         // important: there might still be a pending generic gate
@@ -333,7 +360,7 @@ impl Backend for KimchiVesta {
         }
 
         for var in 0..self.next_variable {
-            if !written_vars.contains(&var) {
+            if !written_vars.contains(&var) && !disable_safety_check {
                 if let Some(private_cell_var) = self
                     .private_input_cell_vars
                     .iter()

@@ -104,6 +104,9 @@ pub enum ErrorKind {
     #[error("invalid token, expected: {0}")]
     ExpectedToken(TokenKind),
 
+    #[error("invalid token, unexpected keyword: {0}, expected: {1}")]
+    ExpectedTokenNotKeyword(String, TokenKind),
+
     #[error("invalid path: {0}")]
     InvalidPath(&'static str),
 

@@ -269,7 +269,7 @@ mod tests {
         .unwrap();
 
         let kimchi_vesta = KimchiVesta::new(false);
-        let compiled_circuit = compile(&sources, tast, kimchi_vesta, &mut None)?;
+        let compiled_circuit = compile(&sources, tast, kimchi_vesta, &mut None, false)?;
 
         let (prover_index, _) = compiled_circuit.compile_to_indexes().unwrap();
 
