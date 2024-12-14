@@ -509,9 +509,9 @@ where
 
                 // Array
                 Some(TyKind::Array(b, s)) => {
-                    let mut offset = 0;
-                    let output =
-                        log_array_type(&var_info, b, *s, &witness, typed, span, &mut offset);
+                    let (output, remaining) =
+                        log_array_type(&var_info.var.cvars, b, *s, &witness, typed, span);
+                    assert!(remaining.is_empty());
                     println!("{dbg_msg}{}", output);
                 }
 
@@ -520,18 +520,17 @@ where
                     module,
                     name: struct_name,
                 }) => {
-                    let mut offset = 0;
                     let mut string_vec = Vec::new();
-                    let output = log_custom_type(
+                    let (output, remaining) = log_custom_type(
                         module,
                         struct_name,
                         typed,
-                        var_info,
+                        &var_info.var.cvars,
                         &witness,
                         span,
-                        &mut offset,
                         &mut string_vec,
                     );
+                    assert!(remaining.is_empty());
                     println!("{dbg_msg}{}{}", struct_name, output);
                 }
 
@@ -725,13 +724,12 @@ fn log_custom_type<F: BackendField, B: Backend>(
     module: &ModulePath,
     struct_name: &String,
     typed: &Mast<B>,
-    var_info: &VarInfo<F, LinearCombination<F>>,
+    var_info_var: &[ConstOrCell<F, LinearCombination<F>>],
     witness: &[F],
     span: &Span,
-    offset: &mut usize,
     string_vec: &mut Vec<String>,
-) -> String {
-    let qualified = FullyQualified::new(module, &struct_name);
+) -> (String, Vec<ConstOrCell<F, LinearCombination<F>>>) {
+    let qualified = FullyQualified::new(module, struct_name);
     let struct_info = typed
         .struct_info(&qualified)
         .ok_or(
@@ -741,37 +739,41 @@ fn log_custom_type<F: BackendField, B: Backend>(
         )
         .unwrap();
 
+    let mut remaining = var_info_var.to_vec();
+
     for (field_name, field_typ) in &struct_info.fields {
         let len = typed.size_of(field_typ);
         match field_typ {
-            TyKind::Field { .. } => match &var_info.var[*offset] {
+            TyKind::Field { .. } => match &remaining[0] {
                 ConstOrCell::Const(cst) => {
                     string_vec.push(format!("{field_name}: {}", cst.pretty()));
-                    *offset += len;
+                    remaining = remaining[len..].to_vec();
                 }
                 ConstOrCell::Cell(cell) => {
-                    let val = cell.evaluate(&witness);
+                    let val = cell.evaluate(witness);
                     string_vec.push(format!("{field_name}: {}", val.pretty()));
-                    *offset += len;
+                    remaining = remaining[len..].to_vec();
                 }
             },
 
-            TyKind::Bool => match &var_info.var[*offset] {
+            TyKind::Bool => match &remaining[0] {
                 ConstOrCell::Const(cst) => {
                     let val = *cst == F::one();
                     string_vec.push(format!("{field_name}: {}", val));
-                    *offset += len;
+                    remaining = remaining[len..].to_vec();
                 }
                 ConstOrCell::Cell(cell) => {
-                    let val = cell.evaluate(&witness) == F::one();
+                    let val = cell.evaluate(witness) == F::one();
                     string_vec.push(format!("{field_name}: {}", val));
-                    *offset += len;
+                    remaining = remaining[len..].to_vec();
                 }
             },
 
             TyKind::Array(b, s) => {
-                let output = log_array_type(&var_info, b, *s, &witness, typed, span, offset);
+                let (output, new_remaining) =
+                    log_array_type(&remaining, b, *s, witness, typed, span);
                 string_vec.push(format!("{field_name}: {}", output));
+                remaining = new_remaining;
             }
 
             TyKind::Custom {
@@ -779,17 +781,17 @@ fn log_custom_type<F: BackendField, B: Backend>(
                 name: struct_name,
             } => {
                 let mut custom_string_vec = Vec::new();
-                let output = log_custom_type(
+                let (output, new_remaining) = log_custom_type(
                     module,
                     struct_name,
                     typed,
-                    var_info,
-                    &witness,
+                    &remaining,
+                    witness,
                     span,
-                    offset,
                     &mut custom_string_vec,
                 );
                 string_vec.push(format!("{}: {}{}", field_name, struct_name, output));
+                remaining = new_remaining;
             }
 
             TyKind::GenericSizedArray(_, _) => {
@@ -798,24 +800,21 @@ fn log_custom_type<F: BackendField, B: Backend>(
         }
     }
 
-    format!("{{ {} }}", string_vec.join(", "))
+    (format!("{{ {} }}", string_vec.join(", ")), remaining)
 }
 
 fn log_array_type<F: BackendField, B: Backend>(
-    var_info: &VarInfo<F, LinearCombination<F>>,
+    var_info_var: &[ConstOrCell<F, LinearCombination<F>>],
     base_type: &TyKind,
     size: u32,
     witness: &[F],
     typed: &Mast<B>,
     span: &Span,
-    offset: &mut usize,
-) -> String {
+) -> (String, Vec<ConstOrCell<F, LinearCombination<F>>>) {
     match base_type {
         TyKind::Field { .. } => {
-            let values: Vec<String> = var_info
-                .var
+            let values: Vec<String> = var_info_var
                 .iter()
-                .skip(*offset)
                 .take(size as usize)
                 .map(|cvar| match cvar {
                     ConstOrCell::Const(cst) => cst.pretty(),
@@ -823,15 +822,13 @@ fn log_array_type<F: BackendField, B: Backend>(
                 })
                 .collect();
 
-            *offset += size as usize;
-            format!("[{}]", values.join(", "))
+            let remaining = var_info_var[size as usize..].to_vec();
+            (format!("[{}]", values.join(", ")), remaining)
         }
 
         TyKind::Bool => {
-            let values: Vec<String> = var_info
-                .var
+            let values: Vec<String> = var_info_var
                 .iter()
-                .skip(*offset)
                 .take(size as usize)
                 .map(|cvar| match cvar {
                     ConstOrCell::Const(cst) => {
@@ -839,31 +836,26 @@ fn log_array_type<F: BackendField, B: Backend>(
                         val.to_string()
                     }
                     ConstOrCell::Cell(cell) => {
-                        let val = cell.evaluate(&witness) == F::one();
+                        let val = cell.evaluate(witness) == F::one();
                         val.to_string()
                     }
                 })
                 .collect();
 
-            *offset += size as usize;
-            format!("[{}]", values.join(", "))
+            let remaining = var_info_var[size as usize..].to_vec();
+            (format!("[{}]", values.join(", ")), remaining)
         }
 
         TyKind::Array(inner_type, inner_size) => {
             let mut nested_result = Vec::new();
+            let mut remaining = var_info_var.to_vec();
             for _ in 0..size {
-                let chunk_result = log_array_type(
-                    var_info,
-                    inner_type,
-                    *inner_size as u32,
-                    witness,
-                    typed,
-                    span,
-                    offset,
-                );
+                let (chunk_result, new_remaining) =
+                    log_array_type(&remaining, inner_type, *inner_size, witness, typed, span);
                 nested_result.push(chunk_result);
+                remaining = new_remaining;
             }
-            format!("[{}]", nested_result.join(", "))
+            (format!("[{}]", nested_result.join(", ")), remaining)
         }
 
         TyKind::Custom {
@@ -871,21 +863,22 @@ fn log_array_type<F: BackendField, B: Backend>(
             name: struct_name,
         } => {
             let mut nested_result = Vec::new();
+            let mut remaining = var_info_var.to_vec();
             for _ in 0..size {
                 let mut string_vec = Vec::new();
-                let output = log_custom_type(
+                let (output, new_remaining) = log_custom_type(
                     module,
                     struct_name,
                     typed,
-                    var_info,
-                    &witness,
+                    &remaining,
+                    witness,
                     span,
-                    offset,
                     &mut string_vec,
                 );
                 nested_result.push(format!("{}{}", struct_name, output));
+                remaining = new_remaining;
             }
-            format!("[{}]", nested_result.join(", "))
+            (format!("[{}]", nested_result.join(", ")), remaining)
         }
 
         TyKind::GenericSizedArray(_, _) => {
