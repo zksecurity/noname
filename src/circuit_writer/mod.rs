@@ -232,7 +232,8 @@ impl<B: Backend> CircuitWriter<B> {
         witness_env: &mut WitnessEnv<B::Field>,
         sources: &Sources,
     ) -> Result<B::GeneratedWitness> {
-        self.backend.generate_witness(witness_env, sources)
+        self.backend
+            .generate_witness(witness_env, sources, &self.typed)
     }
 
     fn handle_arg(
