@@ -261,7 +261,7 @@ where
 }
 
 /// R1CS backend with bls12_381 field.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct R1CS<F>
 where
     F: BackendField,

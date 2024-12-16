@@ -467,11 +467,15 @@ pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
     let mut ctx = MastCtx::new(tast);
 
     let qualified = FullyQualified::local("main".to_string());
-    let mut main_fn = ctx
-        .tast
-        .fn_info(&qualified)
-        .expect("main function not found")
-        .clone();
+
+    let mut main_fn = match ctx.tast.fn_info(&qualified) {
+        Some(fn_info) => fn_info.clone(),
+        None => Err(Error::new(
+            "Backend - Monomorphize",
+            ErrorKind::MainFunctionNotFound,
+            Span::default(),
+        ))?,
+    };
 
     let mut func_def = match &main_fn.kind {
         // `fn main() { ... }`
