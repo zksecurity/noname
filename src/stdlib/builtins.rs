@@ -21,10 +21,6 @@ use super::{FnInfoType, Module};
 pub const QUALIFIED_BUILTINS: &str = "std/builtins";
 pub const BUILTIN_FN_NAMES: [&str; 3] = ["assert", "assert_eq", "log"];
 
-const ASSERT_FN: &str = "assert(condition: Bool)";
-const ASSERT_EQ_FN: &str = "assert_eq(lhs: Field, rhs: Field)";
-const LOG_FN: &str = "log(var: Field)";
-
 pub struct BuiltinsLib {}
 
 impl Module for BuiltinsLib {
@@ -32,136 +28,165 @@ impl Module for BuiltinsLib {
 
     fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>, bool)> {
         vec![
-            (ASSERT_FN, assert_fn, false),
-            (ASSERT_EQ_FN, assert_eq_fn, false),
+            (AssertEqFn::SIGNATURE, AssertEqFn::builtin, false),
+            (AssertFn::SIGNATURE, AssertFn::builtin, false),
             // true -> skip argument type checking for log
-            (LOG_FN, log_fn, true),
+            (LogFn::SIGNATURE, LogFn::builtin, true),
         ]
     }
 }
 
-/// Asserts that two vars are equal.
-fn assert_eq_fn<B: Backend>(
-    compiler: &mut CircuitWriter<B>,
-    _generics: &GenericParameters,
-    vars: &[VarInfo<B::Field, B::Var>],
-    span: Span,
-) -> Result<Option<Var<B::Field, B::Var>>> {
-    // we get two vars
-    assert_eq!(vars.len(), 2);
-    let lhs_info = &vars[0];
-    let rhs_info = &vars[1];
+pub trait Builtin {
+    const SIGNATURE: &'static str;
 
-    // they are both of type field
-    if !matches!(lhs_info.typ, Some(TyKind::Field { .. })) {
-        let lhs = lhs_info.typ.clone().ok_or_else(|| {
-            Error::new(
-                "constraint-generation",
-                ErrorKind::UnexpectedError("No type info for lhs of assertion"),
-                span,
-            )
-        })?;
+    fn builtin<B: Backend>(
+        compiler: &mut CircuitWriter<B>,
+        generics: &GenericParameters,
+        vars: &[VarInfo<B::Field, B::Var>],
+        span: Span,
+    ) -> Result<Option<Var<B::Field, B::Var>>>;
+}
 
-        Err(Error::new(
-            "constraint-generation",
-            ErrorKind::AssertTypeMismatch("rhs", lhs),
-            span,
-        ))?
-    }
+struct AssertEqFn {}
+struct AssertFn {}
+struct LogFn {}
 
-    if !matches!(rhs_info.typ, Some(TyKind::Field { .. })) {
-        let rhs = rhs_info.typ.clone().ok_or_else(|| {
-            Error::new(
-                "constraint-generation",
-                ErrorKind::UnexpectedError("No type info for rhs of assertion"),
-                span,
-            )
-        })?;
+impl Builtin for AssertEqFn {
+    const SIGNATURE: &'static str = "assert_eq(lhs: Field, rhs: Field)";
 
-        Err(Error::new(
-            "constraint-generation",
-            ErrorKind::AssertTypeMismatch("rhs", rhs),
-            span,
-        ))?
-    }
+    /// Asserts that two vars are equal.
+    fn builtin<B: Backend>(
+        compiler: &mut CircuitWriter<B>,
+        _generics: &GenericParameters,
+        vars: &[VarInfo<<B as Backend>::Field, <B as Backend>::Var>],
+        span: Span,
+    ) -> Result<Option<Var<<B as Backend>::Field, <B as Backend>::Var>>> {
+        // we get two vars
+        assert_eq!(vars.len(), 2);
+        let lhs_info = &vars[0];
+        let rhs_info = &vars[1];
 
-    // retrieve the values
-    let lhs_var = &lhs_info.var;
-    assert_eq!(lhs_var.len(), 1);
-    let lhs_cvar = &lhs_var[0];
-
-    let rhs_var = &rhs_info.var;
-    assert_eq!(rhs_var.len(), 1);
-    let rhs_cvar = &rhs_var[0];
-
-    match (lhs_cvar, rhs_cvar) {
-        // two constants
-        (ConstOrCell::Const(a), ConstOrCell::Const(b)) => {
-            if a != b {
-                Err(Error::new(
+        // they are both of type field
+        if !matches!(lhs_info.typ, Some(TyKind::Field { .. })) {
+            let lhs = lhs_info.typ.clone().ok_or_else(|| {
+                Error::new(
                     "constraint-generation",
-                    ErrorKind::AssertionFailed,
+                    ErrorKind::UnexpectedError("No type info for lhs of assertion"),
                     span,
-                ))?
+                )
+            })?;
+
+            Err(Error::new(
+                "constraint-generation",
+                ErrorKind::AssertTypeMismatch("rhs", lhs),
+                span,
+            ))?
+        }
+
+        if !matches!(rhs_info.typ, Some(TyKind::Field { .. })) {
+            let rhs = rhs_info.typ.clone().ok_or_else(|| {
+                Error::new(
+                    "constraint-generation",
+                    ErrorKind::UnexpectedError("No type info for rhs of assertion"),
+                    span,
+                )
+            })?;
+
+            Err(Error::new(
+                "constraint-generation",
+                ErrorKind::AssertTypeMismatch("rhs", rhs),
+                span,
+            ))?
+        }
+
+        // retrieve the values
+        let lhs_var = &lhs_info.var;
+        assert_eq!(lhs_var.len(), 1);
+        let lhs_cvar = &lhs_var[0];
+
+        let rhs_var = &rhs_info.var;
+        assert_eq!(rhs_var.len(), 1);
+        let rhs_cvar = &rhs_var[0];
+
+        match (lhs_cvar, rhs_cvar) {
+            // two constants
+            (ConstOrCell::Const(a), ConstOrCell::Const(b)) => {
+                if a != b {
+                    Err(Error::new(
+                        "constraint-generation",
+                        ErrorKind::AssertionFailed,
+                        span,
+                    ))?
+                }
+            }
+
+            // a const and a var
+            (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
+            | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
+                compiler.backend.assert_eq_const(cvar, *cst, span)
+            }
+            (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
+                compiler.backend.assert_eq_var(lhs, rhs, span)
             }
         }
 
-        // a const and a var
-        (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
-        | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            compiler.backend.assert_eq_const(cvar, *cst, span)
-        }
-        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            compiler.backend.assert_eq_var(lhs, rhs, span)
-        }
+        Ok(None)
     }
-
-    Ok(None)
 }
 
-/// Asserts that a condition is true.
-fn assert_fn<B: Backend>(
-    compiler: &mut CircuitWriter<B>,
-    _generics: &GenericParameters,
-    vars: &[VarInfo<B::Field, B::Var>],
-    span: Span,
-) -> Result<Option<Var<B::Field, B::Var>>> {
-    // we get a single var
-    assert_eq!(vars.len(), 1);
+impl Builtin for AssertFn {
+    const SIGNATURE: &'static str = "assert(condition: Bool)";
 
-    // of type bool
-    let var_info = &vars[0];
-    assert!(matches!(var_info.typ, Some(TyKind::Bool)));
+    /// Asserts that a condition is true.
+    fn builtin<B: Backend>(
+        compiler: &mut CircuitWriter<B>,
+        _generics: &GenericParameters,
+        vars: &[VarInfo<<B as Backend>::Field, <B as Backend>::Var>],
+        span: Span,
+    ) -> Result<Option<Var<<B as Backend>::Field, <B as Backend>::Var>>> {
+        // we get a single var
+        assert_eq!(vars.len(), 1);
 
-    // of only one field element
-    let var = &var_info.var;
-    assert_eq!(var.len(), 1);
-    let cond = &var[0];
+        // of type bool
+        let var_info = &vars[0];
+        assert!(matches!(var_info.typ, Some(TyKind::Bool)));
 
-    match cond {
-        ConstOrCell::Const(cst) => {
-            assert!(cst.is_one());
+        // of only one field element
+        let var = &var_info.var;
+        assert_eq!(var.len(), 1);
+        let cond = &var[0];
+
+        match cond {
+            ConstOrCell::Const(cst) => {
+                assert!(cst.is_one());
+            }
+            ConstOrCell::Cell(cvar) => {
+                let one = B::Field::one();
+                compiler.backend.assert_eq_const(cvar, one, span);
+            }
         }
-        ConstOrCell::Cell(cvar) => {
-            let one = B::Field::one();
-            compiler.backend.assert_eq_const(cvar, one, span);
-        }
+
+        Ok(None)
     }
-
-    Ok(None)
 }
 
-/// Logging
-fn log_fn<B: Backend>(
-    compiler: &mut CircuitWriter<B>,
-    generics: &GenericParameters,
-    vars: &[VarInfo<B::Field, B::Var>],
-    span: Span,
-) -> Result<Option<Var<B::Field, B::Var>>> {
-    for var in vars {
-        // todo: will need to support string argument in order to customize msg
-        compiler.backend.log_var(var, "log".to_owned(), span);
-    }
+impl Builtin for LogFn {
+    // todo: currently only supports a single field var
+    // to support all the types, we can bypass the type check for this log function for now
+    const SIGNATURE: &'static str = "log(var: Field)";
 
-    Ok(None)
+    /// Logging
+    fn builtin<B: Backend>(
+        compiler: &mut CircuitWriter<B>,
+        _generics: &GenericParameters,
+        vars: &[VarInfo<<B as Backend>::Field, <B as Backend>::Var>],
+        span: Span,
+    ) -> Result<Option<Var<<B as Backend>::Field, <B as Backend>::Var>>> {
+        for var in vars {
+            // todo: will need to support string argument in order to customize msg
+            compiler.backend.log_var(var, "log".to_owned(), span);
+        }
+
+        Ok(None)
+    }
 }
