@@ -5,14 +5,21 @@ pub mod snarkjs;
 use std::collections::{HashMap, HashSet};
 
 use ark_ff::FpParameters;
+use circ::cfg::{CircCfg, CircOpt};
+use circ_fields::FieldV;
 use itertools::{izip, Itertools as _};
+use kimchi::o1_utils::FieldHelpers;
 use num_bigint::BigUint;
+use rug::Integer;
 use serde::{Deserialize, Serialize};
 
 use crate::circuit_writer::VarInfo;
 use crate::compiler::Sources;
 use crate::constants::Span;
 use crate::error::{Error, ErrorKind, Result};
+use crate::mast::Mast;
+use crate::parser::types::{ModulePath, TyKind};
+use crate::type_checker::FullyQualified;
 use crate::var::ConstOrCell;
 use crate::{circuit_writer::DebugInfo, var::Value};
 
@@ -22,8 +29,45 @@ pub type R1csBls12381Field = ark_bls12_381::Fr;
 pub type R1csBn254Field = ark_bn254::Fr;
 
 // Because the associated field type is BackendField, we need to implement it for the actual field types in order to use them.
-impl BackendField for R1csBls12381Field {}
-impl BackendField for R1csBn254Field {}
+impl BackendField for R1csBls12381Field {
+    fn to_circ_field(&self) -> FieldV {
+        let mut opt = CircOpt::default();
+
+        // define the modulus for the field
+        opt.field.custom_modulus = R1csBls12381Field::modulus_biguint().to_str_radix(10);
+
+        let cfg = CircCfg::from(opt);
+
+        let cfg_f = cfg.field();
+        let int = Integer::from_str_radix(&self.to_biguint().to_str_radix(10), 10).unwrap();
+
+        cfg_f.new_v(int)
+    }
+
+    fn to_circ_type() -> circ_fields::FieldT {
+        circ_fields::FieldT::FBls12381
+    }
+}
+
+impl BackendField for R1csBn254Field {
+    fn to_circ_field(&self) -> FieldV {
+        let mut opt = CircOpt::default();
+
+        // define the modulus for the field
+        opt.field.custom_modulus = R1csBn254Field::modulus_biguint().to_str_radix(10);
+
+        let cfg = CircCfg::from(opt);
+
+        let cfg_f = cfg.field();
+        let int = Integer::from_str_radix(&self.to_biguint().to_str_radix(10), 10).unwrap();
+
+        cfg_f.new_v(int)
+    }
+
+    fn to_circ_type() -> circ_fields::FieldT {
+        circ_fields::FieldT::FBn254
+    }
+}
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CellVar {
@@ -366,6 +410,7 @@ where
         &mut self,
         public_output: Option<crate::var::Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<LinearCombination<F>>>,
+        disable_safety_check: bool,
     ) -> crate::error::Result<()> {
         // store the return value in the public input that was created for that
         if let Some(public_output) = public_output {
@@ -399,7 +444,7 @@ where
                 continue;
             }
 
-            if !written_vars.contains(&index) {
+            if !written_vars.contains(&index) && !disable_safety_check {
                 if let Some(private_cell_var) = self
                     .private_input_cell_vars
                     .iter()
@@ -443,10 +488,11 @@ where
 
     /// Generate the witnesses
     /// This process should check if the constraints are satisfied.
-    fn generate_witness(
+    fn generate_witness<B: Backend>(
         &self,
         witness_env: &mut crate::witness::WitnessEnv<F>,
         sources: &Sources,
+        typed: &Mast<B>,
     ) -> crate::error::Result<Self::GeneratedWitness> {
         assert!(self.finalized, "the circuit is not finalized yet!");
 
@@ -478,8 +524,10 @@ where
             let (line, _, line_str) = crate::utils::find_exact_line(source, *span);
             let line_str = line_str.trim_start();
             let dbg_msg = format!("[{filename}:{line}] `{line_str}` -> ");
-            for cvar in var_info.var.iter() {
-                match cvar {
+
+            match &var_info.typ {
+                // Field
+                Some(TyKind::Field { .. }) => match &var_info.var[0] {
                     ConstOrCell::Const(cst) => {
                         println!("{dbg_msg}{}", cst.pretty());
                     }
@@ -487,6 +535,58 @@ where
                         let val = cell.evaluate(&witness);
                         println!("{dbg_msg}{}", val.pretty());
                     }
+                },
+
+                // Bool
+                Some(TyKind::Bool) => match &var_info.var[0] {
+                    ConstOrCell::Const(cst) => {
+                        let val = *cst == F::one();
+                        println!("{dbg_msg}{}", val);
+                    }
+                    ConstOrCell::Cell(cell) => {
+                        let val = cell.evaluate(&witness) == F::one();
+                        println!("{dbg_msg}{}", val);
+                    }
+                },
+
+                // Array
+                Some(TyKind::Array(b, s)) => {
+                    let (output, remaining) =
+                        log_array_type(&var_info.var.cvars, b, *s, &witness, typed, span);
+                    assert!(remaining.is_empty());
+                    println!("{dbg_msg}{}", output);
+                }
+
+                // Custom types
+                Some(TyKind::Custom {
+                    module,
+                    name: struct_name,
+                }) => {
+                    let mut string_vec = Vec::new();
+                    let (output, remaining) = log_custom_type(
+                        module,
+                        struct_name,
+                        typed,
+                        &var_info.var.cvars,
+                        &witness,
+                        span,
+                        &mut string_vec,
+                    );
+                    assert!(remaining.is_empty());
+                    println!("{dbg_msg}{}{}", struct_name, output);
+                }
+
+                // GenericSizedArray
+                Some(TyKind::GenericSizedArray(_, _)) => {
+                    unreachable!("GenericSizedArray should be monomorphized")
+                }
+
+                None => {
+                    return Err(Error::new(
+                        "log",
+                        ErrorKind::UnexpectedError("No type info for logging"),
+                        *span,
+                    ))
                 }
             }
         }
@@ -659,6 +759,173 @@ where
 
     fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, msg: String, span: Span) {
         self.log_info.push((msg, span, var.clone()));
+    }
+}
+
+fn log_custom_type<F: BackendField, B: Backend>(
+    module: &ModulePath,
+    struct_name: &String,
+    typed: &Mast<B>,
+    var_info_var: &[ConstOrCell<F, LinearCombination<F>>],
+    witness: &[F],
+    span: &Span,
+    string_vec: &mut Vec<String>,
+) -> (String, Vec<ConstOrCell<F, LinearCombination<F>>>) {
+    let qualified = FullyQualified::new(module, struct_name);
+    let struct_info = typed
+        .struct_info(&qualified)
+        .ok_or(
+            typed
+                .0
+                .error(ErrorKind::UnexpectedError("struct not found"), *span),
+        )
+        .unwrap();
+
+    let mut remaining = var_info_var.to_vec();
+
+    for (field_name, field_typ) in &struct_info.fields {
+        let len = typed.size_of(field_typ);
+        match field_typ {
+            TyKind::Field { .. } => match &remaining[0] {
+                ConstOrCell::Const(cst) => {
+                    string_vec.push(format!("{field_name}: {}", cst.pretty()));
+                    remaining = remaining[len..].to_vec();
+                }
+                ConstOrCell::Cell(cell) => {
+                    let val = cell.evaluate(witness);
+                    string_vec.push(format!("{field_name}: {}", val.pretty()));
+                    remaining = remaining[len..].to_vec();
+                }
+            },
+
+            TyKind::Bool => match &remaining[0] {
+                ConstOrCell::Const(cst) => {
+                    let val = *cst == F::one();
+                    string_vec.push(format!("{field_name}: {}", val));
+                    remaining = remaining[len..].to_vec();
+                }
+                ConstOrCell::Cell(cell) => {
+                    let val = cell.evaluate(witness) == F::one();
+                    string_vec.push(format!("{field_name}: {}", val));
+                    remaining = remaining[len..].to_vec();
+                }
+            },
+
+            TyKind::Array(b, s) => {
+                let (output, new_remaining) =
+                    log_array_type(&remaining, b, *s, witness, typed, span);
+                string_vec.push(format!("{field_name}: {}", output));
+                remaining = new_remaining;
+            }
+
+            TyKind::Custom {
+                module,
+                name: struct_name,
+            } => {
+                let mut custom_string_vec = Vec::new();
+                let (output, new_remaining) = log_custom_type(
+                    module,
+                    struct_name,
+                    typed,
+                    &remaining,
+                    witness,
+                    span,
+                    &mut custom_string_vec,
+                );
+                string_vec.push(format!("{}: {}{}", field_name, struct_name, output));
+                remaining = new_remaining;
+            }
+
+            TyKind::GenericSizedArray(_, _) => {
+                unreachable!("GenericSizedArray should be monomorphized")
+            }
+        }
+    }
+
+    (format!("{{ {} }}", string_vec.join(", ")), remaining)
+}
+
+fn log_array_type<F: BackendField, B: Backend>(
+    var_info_var: &[ConstOrCell<F, LinearCombination<F>>],
+    base_type: &TyKind,
+    size: u32,
+    witness: &[F],
+    typed: &Mast<B>,
+    span: &Span,
+) -> (String, Vec<ConstOrCell<F, LinearCombination<F>>>) {
+    match base_type {
+        TyKind::Field { .. } => {
+            let values: Vec<String> = var_info_var
+                .iter()
+                .take(size as usize)
+                .map(|cvar| match cvar {
+                    ConstOrCell::Const(cst) => cst.pretty(),
+                    ConstOrCell::Cell(cell) => cell.evaluate(witness).pretty(),
+                })
+                .collect();
+
+            let remaining = var_info_var[size as usize..].to_vec();
+            (format!("[{}]", values.join(", ")), remaining)
+        }
+
+        TyKind::Bool => {
+            let values: Vec<String> = var_info_var
+                .iter()
+                .take(size as usize)
+                .map(|cvar| match cvar {
+                    ConstOrCell::Const(cst) => {
+                        let val = *cst == F::one();
+                        val.to_string()
+                    }
+                    ConstOrCell::Cell(cell) => {
+                        let val = cell.evaluate(witness) == F::one();
+                        val.to_string()
+                    }
+                })
+                .collect();
+
+            let remaining = var_info_var[size as usize..].to_vec();
+            (format!("[{}]", values.join(", ")), remaining)
+        }
+
+        TyKind::Array(inner_type, inner_size) => {
+            let mut nested_result = Vec::new();
+            let mut remaining = var_info_var.to_vec();
+            for _ in 0..size {
+                let (chunk_result, new_remaining) =
+                    log_array_type(&remaining, inner_type, *inner_size, witness, typed, span);
+                nested_result.push(chunk_result);
+                remaining = new_remaining;
+            }
+            (format!("[{}]", nested_result.join(", ")), remaining)
+        }
+
+        TyKind::Custom {
+            module,
+            name: struct_name,
+        } => {
+            let mut nested_result = Vec::new();
+            let mut remaining = var_info_var.to_vec();
+            for _ in 0..size {
+                let mut string_vec = Vec::new();
+                let (output, new_remaining) = log_custom_type(
+                    module,
+                    struct_name,
+                    typed,
+                    &remaining,
+                    witness,
+                    span,
+                    &mut string_vec,
+                );
+                nested_result.push(format!("{}{}", struct_name, output));
+                remaining = new_remaining;
+            }
+            (format!("[{}]", nested_result.join(", ")), remaining)
+        }
+
+        TyKind::GenericSizedArray(_, _) => {
+            unreachable!("GenericSizedArray should be monomorphized")
+        }
     }
 }
 

@@ -210,6 +210,7 @@ pub fn compile<B: Backend>(
     tast: TypeChecker<B>,
     backend: B,
     server_mode: &mut Option<crate::server::ServerShim>,
+    disable_safety_check: bool,
 ) -> miette::Result<CompiledCircuit<B>> {
     // monomorphization pass
     let mast = mast::monomorphize(tast)?;
@@ -228,7 +229,7 @@ pub fn compile<B: Backend>(
     serde_json::to_string(&mast).unwrap();
 
     // synthesizer pass
-    CircuitWriter::generate_circuit(mast, backend).into_miette(sources)
+    CircuitWriter::generate_circuit(mast, backend, disable_safety_check).into_miette(sources)
 }
 
 pub fn generate_witness<B: Backend>(

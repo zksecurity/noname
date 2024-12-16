@@ -1,7 +1,9 @@
-use std::{fmt::Debug, hash::Hash, str::FromStr};
+use std::{fmt::Debug, str::FromStr};
 
 use ::kimchi::o1_utils::FieldHelpers;
-use ark_ff::{Field, One, Zero};
+use ark_ff::{Field, One, PrimeField, Zero};
+use circ::ir::term::precomp::PreComp;
+use fxhash::FxHashMap;
 use num_bigint::BigUint;
 
 use crate::{
@@ -11,7 +13,6 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
-    parser::FunctionDef,
     var::{ConstOrCell, Value, Var},
     witness::WitnessEnv,
 };
@@ -21,6 +22,8 @@ use self::{
     r1cs::{R1csBls12381Field, R1csBn254Field, R1CS},
 };
 
+use crate::mast::Mast;
+
 pub mod kimchi;
 pub mod r1cs;
 
@@ -28,6 +31,8 @@ pub mod r1cs;
 pub trait BackendField:
     Field + FromStr + TryFrom<BigUint> + TryInto<BigUint> + Into<BigUint> + PrettyField
 {
+    fn to_circ_field(&self) -> circ_fields::FieldV;
+    fn to_circ_type() -> circ_fields::FieldT;
 }
 
 /// This trait allows different backends to have different cell var types.
@@ -199,6 +204,48 @@ pub trait Backend: Clone {
 
                 Ok(res)
             }
+            Value::HintIR(t, named_vars) => {
+                let mut precomp = PreComp::new();
+                // For hint evaluation purpose, precomp only has only one output and no connections with other parts,
+                // so just use a dummy output var name.
+                precomp.add_output("x".to_string(), t.clone());
+
+                // map the named vars to env
+                let env = named_vars
+                    .iter()
+                    .map(|(name, var)| {
+                        let val = match var {
+                            crate::var::ConstOrCell::Const(cst) => cst.to_circ_field(),
+                            crate::var::ConstOrCell::Cell(var) => {
+                                let val = self.compute_var(env, var).unwrap();
+                                val.to_circ_field()
+                            }
+                        };
+                        (name.clone(), circ::ir::term::Value::Field(val))
+                    })
+                    .collect::<FxHashMap<String, circ::ir::term::Value>>();
+
+                // evaluate and get the only one output
+                let eval_map = precomp.eval(&env);
+                let value = eval_map.get("x").unwrap();
+                // convert to field
+                let res = match value {
+                    circ::ir::term::Value::Field(f) => {
+                        let bytes = f.i().to_digits::<u8>(rug::integer::Order::Lsf);
+                        Self::Field::from_le_bytes_mod_order(&bytes)
+                    }
+                    circ::ir::term::Value::Bool(b) => {
+                        if *b {
+                            Self::Field::one()
+                        } else {
+                            Self::Field::zero()
+                        }
+                    }
+                    _ => panic!("unexpected output type"),
+                };
+
+                Ok(res)
+            }
             Value::Div(lhs, rhs) => {
                 let res = match (lhs, rhs) {
                     (ConstOrCell::Const(lhs), ConstOrCell::Const(rhs)) => {
@@ -362,13 +409,15 @@ pub trait Backend: Clone {
         &mut self,
         public_output: Option<Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<Self::Var>>,
+        disable_safety_check: bool,
     ) -> Result<()>;
 
     /// Generate the witness for a backend.
-    fn generate_witness(
+    fn generate_witness<B: Backend>(
         &self,
         witness_env: &mut WitnessEnv<Self::Field>,
         sources: &Sources,
+        typed: &Mast<B>,
     ) -> Result<Self::GeneratedWitness>;
 
     /// Generate the asm for a backend.

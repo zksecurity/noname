@@ -1,0 +1,16 @@
+fn main(pub xx: Field, yy: Field) -> Field {
+    let mut zz = xx + yy;
+    let mut zz2 = xx + yy;
+
+    zz += 1;
+    zz2 = zz2 + 1;
+    
+    zz *= zz;
+    zz2 = zz2 * zz2;
+    
+    zz -= yy;
+    zz2 = zz2 - yy;
+    assert_eq(zz, zz2);
+    
+    return zz;
+}

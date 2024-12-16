@@ -71,6 +71,11 @@ pub struct CmdBuild {
     /// Run in server mode to help debug and understand the compiler passes.
     #[clap(long)]
     server_mode: bool,
+
+    /// WARNING: This option disables safety checks that ensure each variable is properly constrained.
+    /// Do not check that every variable is in a constraint
+    #[arg(long = "disable-safety-check", global = true)]
+    disable_safety_check: bool,
 }
 
 pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
@@ -87,8 +92,13 @@ pub fn cmd_build(args: CmdBuild) -> miette::Result<()> {
     };
 
     // build
-    let (sources, prover_index, verifier_index) =
-        build(&curr_dir, args.asm, args.debug, &mut server_mode)?;
+    let (sources, prover_index, verifier_index) = build(
+        &curr_dir,
+        args.asm,
+        args.debug,
+        &mut server_mode,
+        args.disable_safety_check,
+    )?;
 
     // create COMPILED_DIR
     let compiled_path = curr_dir.join(COMPILED_DIR);
@@ -255,6 +265,7 @@ pub fn build(
     asm: bool,
     debug: bool,
     server_mode: &mut Option<crate::server::ServerShim>,
+    disable_safety_check: bool,
 ) -> miette::Result<(Sources, ProverIndex, VerifierIndex)> {
     // produce all TASTs
     let (sources, tast) = produce_all_asts(curr_dir, server_mode)?;
@@ -263,7 +274,13 @@ pub fn build(
     let double_generic_gate_optimization = false;
 
     let kimchi_vesta = KimchiVesta::new(double_generic_gate_optimization);
-    let compiled_circuit = compile(&sources, tast, kimchi_vesta, server_mode)?;
+    let compiled_circuit = compile(
+        &sources,
+        tast,
+        kimchi_vesta,
+        server_mode,
+        disable_safety_check,
+    )?;
 
     if asm {
         println!("{}", compiled_circuit.asm(&sources, debug));
@@ -304,6 +321,11 @@ pub struct CmdTest {
     /// enable the double generic gate optimization of kimchi (by default noname uses that optimization)
     #[clap(long)]
     double: bool,
+
+    /// WARNING: This option disables safety checks that ensure each variable is properly constrained.
+    /// Do not check that every variable is in a constraint
+    #[arg(long = "disable-safety-check", global = true)]
+    disable_safety_check: bool,
 }
 
 pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
@@ -324,7 +346,13 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
         BackendKind::KimchiVesta(_) => {
             let (tast, sources) = typecheck_file(&args.path)?;
             let kimchi_vesta = KimchiVesta::new(args.double);
-            let compiled_circuit = compile(&sources, tast, kimchi_vesta, &mut None)?;
+            let compiled_circuit = compile(
+                &sources,
+                tast,
+                kimchi_vesta,
+                &mut None,
+                args.disable_safety_check,
+            )?;
 
             let (prover_index, verifier_index) = compiled_circuit.compile_to_indexes()?;
             println!("successfully compiled");
@@ -343,10 +371,24 @@ pub fn cmd_test(args: CmdTest) -> miette::Result<()> {
             println!("proof verified");
         }
         BackendKind::R1csBls12_381(r1cs) => {
-            test_r1cs_backend(r1cs, &args.path, public_inputs, private_inputs, args.debug)?;
+            test_r1cs_backend(
+                r1cs,
+                &args.path,
+                public_inputs,
+                private_inputs,
+                args.debug,
+                args.disable_safety_check,
+            )?;
         }
         BackendKind::R1csBn254(r1cs) => {
-            test_r1cs_backend(r1cs, &args.path, public_inputs, private_inputs, args.debug)?;
+            test_r1cs_backend(
+                r1cs,
+                &args.path,
+                public_inputs,
+                private_inputs,
+                args.debug,
+                args.disable_safety_check,
+            )?;
         }
     }
 
@@ -371,6 +413,11 @@ pub struct CmdRun {
     /// JSON encoding of the private inputs. Similar to `--public-inputs` but for private inputs.
     #[clap(long, value_parser, default_value = "{}")]
     private_inputs: Option<String>,
+
+    /// WARNING: This option disables safety checks that ensure each variable is properly constrained.
+    /// Do not check that every variable is in a constraint
+    #[arg(long = "disable-safety-check", global = true)]
+    disable_safety_check: bool,
 }
 
 pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
@@ -395,12 +442,20 @@ pub fn cmd_run(args: CmdRun) -> miette::Result<()> {
         BackendKind::KimchiVesta(_) => {
             unimplemented!("kimchi-vesta backend is not yet supported for this command")
         }
-        BackendKind::R1csBls12_381(r1cs) => {
-            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
-        }
-        BackendKind::R1csBn254(r1cs) => {
-            run_r1cs_backend(r1cs, &curr_dir, public_inputs, private_inputs)?
-        }
+        BackendKind::R1csBls12_381(r1cs) => run_r1cs_backend(
+            r1cs,
+            &curr_dir,
+            public_inputs,
+            private_inputs,
+            args.disable_safety_check,
+        )?,
+        BackendKind::R1csBn254(r1cs) => run_r1cs_backend(
+            r1cs,
+            &curr_dir,
+            public_inputs,
+            private_inputs,
+            args.disable_safety_check,
+        )?,
     }
 
     Ok(())
@@ -411,6 +466,7 @@ fn run_r1cs_backend<F>(
     curr_dir: &PathBuf,
     public_inputs: JsonInputs,
     private_inputs: JsonInputs,
+    disable_safety_check: bool,
 ) -> miette::Result<()>
 where
     F: BackendField,
@@ -418,7 +474,7 @@ where
     // Assuming `curr_dir`, `public_inputs`, and `private_inputs` are available in the scope
     let (sources, tast) = produce_all_asts(curr_dir, &mut None)?;
 
-    let compiled_circuit = compile(&sources, tast, r1cs, &mut None)?;
+    let compiled_circuit = compile(&sources, tast, r1cs, &mut None, disable_safety_check)?;
 
     let generated_witness =
         generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
@@ -445,6 +501,7 @@ fn test_r1cs_backend<F: BackendField>(
     public_inputs: JsonInputs,
     private_inputs: JsonInputs,
     debug: bool,
+    disable_safety_check: bool,
 ) -> miette::Result<()>
 where
     F: BackendField,
@@ -471,7 +528,7 @@ where
         &mut None,
     )?;
 
-    let compiled_circuit = compile(&sources, tast, r1cs, &mut None)?;
+    let compiled_circuit = compile(&sources, tast, r1cs, &mut None, disable_safety_check)?;
 
     generate_witness(&compiled_circuit, &sources, public_inputs, private_inputs)?;
 

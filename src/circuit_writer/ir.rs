@@ -1,123 +1,381 @@
-use std::fmt::{self, Display, Formatter};
-
-use ark_ff::{One, Zero};
-use kimchi::circuits::wires::Wire;
+use ark_ff::Zero;
+use circ::{
+    ir::term::{leaf_term, term, BoolNaryOp, Op, PfNaryOp, PfUnOp, Sort, Term, Value},
+    term,
+};
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::{
-    backends::{kimchi::VestaField, Backend},
-    circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
+    backends::{Backend, BackendField},
     constants::Span,
-    constraints::{boolean, field},
     error::{Error, ErrorKind, Result},
     imports::FnKind,
+    mast::Mast,
     parser::{
         types::{ForLoopArgument, FunctionDef, Stmt, StmtKind, TyKind},
         Expr, ExprKind, Op2,
     },
     syntax::is_type,
-    type_checker::FullyQualified,
-    var::{ConstOrCell, Value, Var, VarOrRef},
+    type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo},
 };
 
-//
-// Data structures
-//
+/// Same as [crate::var::Var], but with Term instead of ConstOrCell.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Var {
+    pub cvars: Vec<Term>,
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum GateKind {
-    Zero,
-    DoubleGeneric,
-    Poseidon,
+    pub span: Span,
 }
 
-impl From<GateKind> for kimchi::circuits::gate::GateType {
-    fn from(gate_kind: GateKind) -> Self {
-        use kimchi::circuits::gate::GateType::*;
-        match gate_kind {
-            GateKind::Zero => Zero,
-            GateKind::DoubleGeneric => Generic,
-            GateKind::Poseidon => Poseidon,
+impl Var {
+    pub fn new(cvars: Vec<Term>, span: Span) -> Self {
+        Self { cvars, span }
+    }
+
+    pub fn new_cvar(cvar: Term, span: Span) -> Self {
+        Self {
+            cvars: vec![cvar],
+            span,
+        }
+    }
+
+    pub fn new_var(cvar: Term, span: Span) -> Self {
+        Self {
+            cvars: vec![cvar],
+            span,
+        }
+    }
+
+    pub fn new_constant<F: BackendField>(cst: F, span: Span) -> Self {
+        let cvar = leaf_term(Op::new_const(Value::Field(cst.to_circ_field())));
+
+        Self {
+            cvars: vec![cvar],
+            span,
+        }
+    }
+
+    pub fn new_bool(b: bool, span: Span) -> Self {
+        let cvar = leaf_term(Op::new_const(Value::Bool(b)));
+
+        Self {
+            cvars: vec![cvar],
+            span,
+        }
+    }
+
+    pub fn new_constant_typ<F: BackendField>(cst_info: &ConstInfo<F>, span: Span) -> Self {
+        let ConstInfo { value, typ: _ } = cst_info;
+        let cvars = value
+            .iter()
+            .cloned()
+            .map(|f| leaf_term(Op::new_const(Value::Field(f.to_circ_field()))))
+            .collect();
+
+        Self { cvars, span }
+    }
+
+    pub fn len(&self) -> usize {
+        self.cvars.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.cvars.is_empty()
+    }
+
+    pub fn get(&self, idx: usize) -> Option<&Term> {
+        if idx < self.cvars.len() {
+            Some(&self.cvars[idx])
+        } else {
+            None
+        }
+    }
+
+    pub fn constant(&self) -> Option<BigUint> {
+        if self.cvars.len() == 1 {
+            self.cvars[0]
+                .as_value_opt()
+                .map(|v| BigUint::from(v.as_pf().i().to_u64_wrapping()))
+        } else {
+            None
+        }
+    }
+
+    pub fn range(&self, start: usize, len: usize) -> &[Term] {
+        &self.cvars[start..(start + len)]
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, Term> {
+        self.cvars.iter()
+    }
+}
+
+/// Same as [crate::var::VarInfo], but with Term based Var.
+pub enum VarOrRef {
+    Var(Var),
+
+    Ref {
+        var_name: String,
+        start: usize,
+        len: usize,
+    },
+}
+
+impl VarOrRef {
+    pub(crate) fn constant(&self) -> Option<BigUint> {
+        match self {
+            VarOrRef::Var(var) => var.constant(),
+            VarOrRef::Ref { .. } => None,
+        }
+    }
+
+    pub(crate) fn value<B: Backend>(self, ir_writer: &IRWriter<B>, fn_env: &FnEnv) -> Var {
+        match self {
+            VarOrRef::Var(var) => var,
+            VarOrRef::Ref {
+                var_name,
+                start,
+                len,
+            } => {
+                let var_info = ir_writer.get_local_var(fn_env, &var_name);
+                let cvars = var_info.var.range(start, len).to_vec();
+                Var::new(cvars, var_info.var.span)
+            }
+        }
+    }
+
+    pub(crate) fn from_var_info(var_name: String, var_info: VarInfo) -> Self {
+        if var_info.mutable {
+            Self::Ref {
+                var_name,
+                start: 0,
+                len: var_info.var.len(),
+            }
+        } else {
+            Self::Var(var_info.var)
+        }
+    }
+
+    pub(crate) fn narrow(&self, start: usize, len: usize) -> Self {
+        match self {
+            VarOrRef::Var(var) => {
+                let cvars = var.range(start, len).to_vec();
+                VarOrRef::Var(Var::new(cvars, var.span))
+            }
+
+            //      old_start
+            //      |
+            //      v
+            // |----[-----------]-----| <-- var.cvars
+            //       <--------->
+            //         old_len
+            //
+            //
+            //          start
+            //          |
+            //          v
+            //      |---[-----]-|
+            //           <--->
+            //            len
+            //
+            VarOrRef::Ref {
+                var_name,
+                start: old_start,
+                len: old_len,
+            } => {
+                // ensure that the new range is contained in the older range
+                assert!(start < *old_len); // lower bound
+                assert!(start + len <= *old_len); // upper bound
+                assert!(len > 0); // empty range not allowed
+
+                Self::Ref {
+                    var_name: var_name.clone(),
+                    start: old_start + start,
+                    len,
+                }
+            }
+        }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            VarOrRef::Var(var) => var.len(),
+            VarOrRef::Ref { len, .. } => *len,
         }
     }
 }
 
-// TODO: this could also contain the span that defined the gate!
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Gate {
-    /// Type of gate
-    pub typ: GateKind,
+/// Same as [crate::fn_env::VarInfo], but with Term based Var.
+/// Information about a variable.
+#[derive(Debug, Clone)]
+pub struct VarInfo {
+    /// The variable.
+    pub var: Var,
 
-    /// Coefficients
-    #[serde(skip)]
-    pub coeffs: Vec<VestaField>,
+    pub mutable: bool,
+
+    /// We keep track of the type of variables, eventhough we're not in the typechecker anymore,
+    /// because we need to know the type for method calls.
+    pub typ: Option<TyKind>,
 }
 
-impl Gate {
-    pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<VestaField> {
-        kimchi::circuits::gate::CircuitGate {
-            typ: self.typ.into(),
-            wires: Wire::for_row(row),
-            coeffs: self.coeffs.clone(),
+impl VarInfo {
+    pub fn new(var: Var, mutable: bool, typ: Option<TyKind>) -> Self {
+        Self { var, mutable, typ }
+    }
+
+    pub fn reassign(&self, var: Var) -> Self {
+        Self {
+            var,
+            mutable: self.mutable,
+            typ: self.typ.clone(),
+        }
+    }
+
+    pub fn reassign_range(&self, var: Var, start: usize, len: usize) -> Self {
+        // sanity check
+        assert_eq!(var.len(), len);
+
+        // create new cvars by modifying a specific range
+        let mut cvars = self.var.cvars.clone();
+        let cvars_range = &mut cvars[start..start + len];
+        cvars_range.clone_from_slice(&var.cvars);
+
+        let var = Var::new(cvars, self.var.span);
+
+        Self {
+            var,
+            mutable: self.mutable,
+            typ: self.typ.clone(),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct Cell {
-    pub row: usize,
-    pub col: usize,
+/// Same as [crate::fn_env::FnEnv], but with Term based VarInfo.
+#[derive(Default, Debug, Clone)]
+pub struct FnEnv {
+    current_scope: usize,
+
+    vars: HashMap<String, (usize, VarInfo)>,
 }
 
-impl Display for Cell {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "({},{})", self.row, self.col)
+impl FnEnv {
+    /// Creates a new FnEnv
+    pub fn new() -> Self {
+        Self {
+            current_scope: 0,
+            vars: HashMap::new(),
+        }
+    }
+
+    /// Enters a scoped block.
+    pub fn nest(&mut self) {
+        self.current_scope += 1;
+    }
+
+    /// Exits a scoped block.
+    pub fn pop(&mut self) {
+        self.current_scope = self.current_scope.checked_sub(1).expect("scope bug");
+
+        // remove variables as we exit the scope
+        // (we don't need to keep them around to detect shadowing,
+        // as we already did that in type checker)
+        let mut to_delete = vec![];
+        for (name, (scope, _)) in self.vars.iter() {
+            if *scope > self.current_scope {
+                to_delete.push(name.clone());
+            }
+        }
+        for d in to_delete {
+            self.vars.remove(&d);
+        }
+    }
+
+    /// Returns true if a scope is a prefix of our scope.
+    fn is_in_scope(&self, prefix_scope: usize) -> bool {
+        self.current_scope >= prefix_scope
+    }
+
+    /// Stores type information about a local variable.
+    /// Note that we forbid shadowing at all scopes.
+    pub fn add_local_var(&mut self, var_name: String, var_info: VarInfo) {
+        let scope = self.current_scope;
+
+        if self
+            .vars
+            .insert(var_name.clone(), (scope, var_info))
+            .is_some()
+        {
+            panic!("type checker error: var `{var_name}` already exists");
+        }
+    }
+
+    /// Retrieves type information on a variable, given a name.
+    /// If the variable is not in scope, return false.
+    pub fn get_local_var(&self, var_name: &str) -> VarInfo {
+        let (scope, var_info) = self
+            .vars
+            .get(var_name)
+            .unwrap_or_else(|| panic!("type checking bug: local variable `{var_name}` not found"));
+        if !self.is_in_scope(*scope) {
+            panic!("type checking bug: local variable `{var_name}` not in scope");
+        }
+
+        var_info.clone()
+    }
+
+    pub fn reassign_local_var(&mut self, var_name: &str, var: Var) {
+        // get the scope first, we don't want to modify that
+        let (scope, var_info) = self
+            .vars
+            .get(var_name)
+            .expect("type checking bug: local variable for reassigning not found");
+
+        if !self.is_in_scope(*scope) {
+            panic!("type checking bug: local variable for reassigning not in scope");
+        }
+
+        if !var_info.mutable {
+            panic!("type checking bug: local variable for reassigning is not mutable");
+        }
+
+        let var_info = var_info.reassign(var);
+        self.vars.insert(var_name.to_string(), (*scope, var_info));
+    }
+
+    /// Same as [Self::reassign_var], but only reassigns a specific range of the variable.
+    pub fn reassign_var_range(&mut self, var_name: &str, var: Var, start: usize, len: usize) {
+        // get the scope first, we don't want to modify that
+        let (scope, var_info) = self
+            .vars
+            .get(var_name)
+            .expect("type checking bug: local variable for reassigning not found");
+
+        if !self.is_in_scope(*scope) {
+            panic!("type checking bug: local variable for reassigning not in scope");
+        }
+
+        if !var_info.mutable {
+            panic!("type checking bug: local variable for reassigning is not mutable");
+        }
+
+        let var_info = var_info.reassign_range(var, start, len);
+        self.vars.insert(var_name.to_string(), (*scope, var_info));
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Wiring {
-    /// Not yet wired (just indicates the position of the cell itself)
-    NotWired(AnnotatedCell),
-    /// The wiring (associated to different spans)
-    Wired(Vec<AnnotatedCell>),
+#[derive(Debug)]
+/// This converts the MAST to circ IR.
+/// Currently it is only for hint functions.
+pub(crate) struct IRWriter<B: Backend> {
+    pub(crate) typed: Mast<B>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq)]
-pub struct AnnotatedCell {
-    pub(crate) cell: Cell,
-    pub(crate) debug: DebugInfo,
-}
-
-impl PartialEq for AnnotatedCell {
-    fn eq(&self, other: &Self) -> bool {
-        self.cell == other.cell
-    }
-}
-
-impl PartialOrd for AnnotatedCell {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.cell.partial_cmp(&other.cell)
-    }
-}
-
-impl Ord for AnnotatedCell {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.cell.cmp(&other.cell)
-    }
-}
-
-//
-// Circuit Writer (also used by witness generation)
-//
-
-impl<B: Backend> CircuitWriter<B> {
-    fn compile_stmt(
-        &mut self,
-        fn_env: &mut FnEnv<B::Field, B::Var>,
-        stmt: &Stmt,
-    ) -> Result<Option<VarOrRef<B>>> {
+impl<B: Backend> IRWriter<B> {
+    /// Same as circuit_writer::compile_stmt
+    fn compile_stmt(&mut self, fn_env: &mut FnEnv, stmt: &Stmt) -> Result<Option<VarOrRef>> {
         match &stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } => {
                 // compute the rhs
@@ -132,7 +390,6 @@ impl<B: Backend> CircuitWriter<B> {
                 let var_info = VarInfo::new(rhs_var, *mutable, typ);
 
                 // store the new variable
-                // TODO: do we really need to store that in the scope? That's not an actual var in the scope that's an internal var...
                 self.add_local_var(fn_env, lhs.value.clone(), var_info)?;
             }
 
@@ -172,7 +429,7 @@ impl<B: Backend> CircuitWriter<B> {
                         for ii in start..end {
                             fn_env.nest();
 
-                            let cst_var = Var::new_constant(ii.into(), var.span);
+                            let cst_var = Var::new_constant(B::Field::from(ii), var.span);
                             let var_info = VarInfo::new(
                                 cst_var,
                                 false,
@@ -249,12 +506,9 @@ impl<B: Backend> CircuitWriter<B> {
         Ok(None)
     }
 
+    /// Same as circuit_writer::compile_block
     /// might return something?
-    fn compile_block(
-        &mut self,
-        fn_env: &mut FnEnv<B::Field, B::Var>,
-        stmts: &[Stmt],
-    ) -> Result<Option<Var<B::Field, B::Var>>> {
+    fn compile_block(&mut self, fn_env: &mut FnEnv, stmts: &[Stmt]) -> Result<Option<Var>> {
         fn_env.nest();
         for stmt in stmts {
             let res = self.compile_stmt(fn_env, stmt)?;
@@ -270,11 +524,69 @@ impl<B: Backend> CircuitWriter<B> {
         Ok(None)
     }
 
+    pub fn compile_hint_function_call(
+        &mut self,
+        function: &FunctionDef,
+        args: Vec<crate::circuit_writer::fn_env::VarInfo<B::Field, B::Var>>,
+    ) -> Result<Vec<crate::var::Value<B>>> {
+        assert!(!function.is_main());
+
+        // create new fn_env
+        let fn_env = &mut FnEnv::new();
+
+        // set arguments
+        assert_eq!(function.sig.arguments.len(), args.len());
+
+        // create circ var terms for the arguments
+        let mut named_args = vec![];
+        for (arg, observed) in function.sig.arguments.iter().zip(args) {
+            let name = &arg.name.value;
+            // create a list of terms corresponding to the observed
+            let cvars = observed.var.cvars.iter().enumerate().map(|(i, v)| {
+                // internal var name for IR
+                let name = format!("{}_{}", name, i);
+                // map between circ IR variables and noname [ConstOrCell]
+                named_args.push((name.clone(), v.clone()));
+
+                match v {
+                    crate::var::ConstOrCell::Const(cst) => {
+                        leaf_term(Op::new_const(Value::Field(cst.to_circ_field())))
+                    }
+                    crate::var::ConstOrCell::Cell(_) => leaf_term(Op::new_var(
+                        name.clone(),
+                        Sort::Field(B::Field::to_circ_type()),
+                    )),
+                }
+            });
+
+            let var = Var::new(cvars.collect(), observed.var.span);
+
+            // add as local var
+            let var_info = VarInfo::new(var, false, Some(arg.typ.kind.clone()));
+            self.add_local_var(fn_env, name.clone(), var_info)?;
+        }
+
+        // compile it and potentially return a return value
+        let ir = self.compile_block(fn_env, &function.body)?;
+        if ir.is_none() {
+            return Ok(vec![]);
+        }
+
+        let res = ir.unwrap().cvars.into_iter().map(|v| {
+            // With the current setup to calculate symbolic values, the [compute_val] can only compute for one symbolic variable,
+            // thus it has to evaluate each symbolic variable separately from a hint function.
+            // Thus, this could introduce some performance overhead if the hint returns multiple symbolic variables.
+            crate::var::Value::HintIR(v, named_args.clone())
+        });
+
+        Ok(res.collect())
+    }
+
     fn compile_native_function_call(
         &mut self,
         function: &FunctionDef,
-        args: Vec<VarInfo<B::Field, B::Var>>,
-    ) -> Result<Option<Var<B::Field, B::Var>>> {
+        args: Vec<VarInfo>,
+    ) -> Result<Option<Var>> {
         assert!(!function.is_main());
 
         // create new fn_env
@@ -291,92 +603,7 @@ impl<B: Backend> CircuitWriter<B> {
         self.compile_block(fn_env, &function.body)
     }
 
-    pub(crate) fn constrain_inputs_to_main(
-        &mut self,
-        input: &[ConstOrCell<B::Field, B::Var>],
-        input_typ: &TyKind,
-        span: Span,
-    ) -> Result<()> {
-        match input_typ {
-            TyKind::Field { constant: false } => (),
-            TyKind::Bool => {
-                assert_eq!(input.len(), 1);
-                boolean::check(self, &input[0], span);
-            }
-            TyKind::Array(tykind, _) => {
-                let el_size = self.size_of(tykind);
-                for el in input.chunks(el_size) {
-                    self.constrain_inputs_to_main(el, tykind, span)?;
-                }
-            }
-            TyKind::Custom {
-                module,
-                name: struct_name,
-            } => {
-                let qualified = FullyQualified::new(module, &struct_name);
-                let struct_info = self
-                    .struct_info(&qualified)
-                    .ok_or(self.error(ErrorKind::UnexpectedError("struct not found"), span))?
-                    .clone();
-
-                let mut offset = 0;
-                for (_field_name, field_typ) in &struct_info.fields {
-                    let len = self.size_of(field_typ);
-                    let range = offset..(offset + len);
-                    self.constrain_inputs_to_main(&input[range], field_typ, span)?;
-                    offset += len;
-                }
-            }
-            TyKind::Field { constant: true } => unreachable!(),
-            TyKind::GenericSizedArray(_, _) => {
-                unreachable!("generic array should have been resolved")
-            }
-        };
-        Ok(())
-    }
-
-    /// Compile a function. Used to compile `main()` only for now
-    pub(crate) fn compile_main_function(
-        &mut self,
-        fn_env: &mut FnEnv<B::Field, B::Var>,
-        function: &FunctionDef,
-    ) -> Result<Option<Vec<B::Var>>> {
-        assert!(function.is_main());
-
-        // compile the block
-        let returned = self.compile_block(fn_env, &function.body)?;
-
-        // we're expecting something returned?
-        match (function.sig.return_type.as_ref(), returned) {
-            (None, None) => Ok(None),
-            (Some(expected), None) => Err(self.error(ErrorKind::MissingReturn, expected.span)),
-            (None, Some(returned)) => Err(self.error(ErrorKind::UnexpectedReturn, returned.span)),
-            (Some(_expected), Some(returned)) => {
-                // make sure there are no constants in the returned value
-                let mut returned_cells = vec![];
-                for r in &returned.cvars {
-                    match r {
-                        ConstOrCell::Cell(c) => returned_cells.push(c.clone()),
-                        ConstOrCell::Const(_) => {
-                            Err(self.error(ErrorKind::ConstantInOutput, returned.span))?
-                        }
-                    }
-                }
-
-                self.public_output
-                    .as_ref()
-                    .expect("bug in the compiler: missing public output");
-
-                Ok(Some(returned_cells))
-            }
-        }
-    }
-
-    fn compute_expr(
-        &mut self,
-        fn_env: &mut FnEnv<B::Field, B::Var>,
-        expr: &Expr,
-    ) -> Result<Option<VarOrRef<B>>> {
+    fn compute_expr(&mut self, fn_env: &mut FnEnv, expr: &Expr) -> Result<Option<VarOrRef>> {
         match &expr.kind {
             // `module::fn_name(args)`
             ExprKind::FnCall {
@@ -416,7 +643,7 @@ impl<B: Backend> CircuitWriter<B> {
                     let var = var.value(self, fn_env);
 
                     let typ = self.expr_type(arg).cloned();
-                    let mutable = false; // TODO: mut keyword in arguments?
+                    let mutable = false;
                     let var_info = VarInfo::new(var, mutable, typ);
 
                     vars.push(var_info);
@@ -424,39 +651,27 @@ impl<B: Backend> CircuitWriter<B> {
 
                 match &fn_info.kind {
                     // assert() <-- for example
-                    FnKind::BuiltIn(sig, handle, _) => {
-                        let res = handle(self, &sig.generics, &vars, expr.span);
-                        res.map(|r| r.map(VarOrRef::Var))
-                    }
-
+                    FnKind::BuiltIn(..) => Err(self.error(
+                        ErrorKind::InvalidFnCall(
+                            "builtin functions not allowed in hint functions.",
+                        ),
+                        expr.span,
+                    )),
                     // fn_name(args)
                     // ^^^^^^^
                     FnKind::Native(func) => {
                         // module::fn_name(args)
                         // ^^^^^^
-                        if func.is_hint {
-                            self.ir_writer
-                                .compile_hint_function_call(func, vars)
-                                .map(|r| {
-                                    let cvars: Vec<_> = r
-                                        .into_iter()
-                                        .map(|r| {
-                                            ConstOrCell::Cell(
-                                                self.backend.new_internal_var(r, expr.span),
-                                            )
-                                        })
-                                        .collect();
-
-                                    if cvars.is_empty() {
-                                        return None;
-                                    }
-
-                                    Some(VarOrRef::Var(Var::new(cvars, expr.span)))
-                                })
-                        } else {
-                            self.compile_native_function_call(func, vars)
-                                .map(|r| r.map(VarOrRef::Var))
+                        // only allow calling hint functions
+                        if !func.is_hint {
+                            return Err(self.error(
+                                ErrorKind::InvalidFnCall("only hint functions allowed"),
+                                expr.span,
+                            ));
                         }
+
+                        self.compile_native_function_call(func, vars)
+                            .map(|r| r.map(VarOrRef::Var))
                     }
                 }
             }
@@ -550,7 +765,6 @@ impl<B: Backend> CircuitWriter<B> {
                             self.error(ErrorKind::NotAStaticMethod, method_name.span)
                         })?;
 
-                        // TODO: for now we pass `self` by value as well
                         let mutable = false;
                         let self_var = self_var.value(self, fn_env);
 
@@ -567,7 +781,6 @@ impl<B: Backend> CircuitWriter<B> {
                         .compute_expr(fn_env, arg)?
                         .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, arg.span))?;
 
-                    // TODO: for now we pass `self` by value as well
                     let mutable = false;
                     let var = var.value(self, fn_env);
 
@@ -586,18 +799,25 @@ impl<B: Backend> CircuitWriter<B> {
                 let cond = self
                     .compute_expr(fn_env, cond)?
                     .unwrap()
-                    .value(self, fn_env);
+                    .value(self, fn_env)
+                    .cvars[0]
+                    .clone();
                 let then_ = self
                     .compute_expr(fn_env, then_)?
                     .unwrap()
-                    .value(self, fn_env);
+                    .value(self, fn_env)
+                    .cvars[0]
+                    .clone();
                 let else_ = self
                     .compute_expr(fn_env, else_)?
                     .unwrap()
-                    .value(self, fn_env);
+                    .value(self, fn_env)
+                    .cvars[0]
+                    .clone();
 
-                let res = field::if_else(self, &cond, &then_, &else_, expr.span);
+                let ite_ir = term![Op::Ite; cond, then_, else_];
 
+                let res = Var::new_cvar(ite_ir, expr.span);
                 Ok(Some(VarOrRef::Var(res)))
             }
 
@@ -647,14 +867,42 @@ impl<B: Backend> CircuitWriter<B> {
                 let rhs = rhs.value(self, fn_env);
 
                 let res = match op {
-                    Op2::Addition => field::add(self, &lhs[0], &rhs[0], expr.span),
-                    Op2::Subtraction => field::sub(self, &lhs[0], &rhs[0], expr.span),
-                    Op2::Multiplication => field::mul(self, &lhs[0], &rhs[0], expr.span),
-                    Op2::Equality => field::equal(self, &lhs, &rhs, expr.span),
-                    Op2::Inequality => field::not_equal(self, &lhs, &rhs, expr.span),
-                    Op2::BoolAnd => boolean::and(self, &lhs[0], &rhs[0], expr.span),
-                    Op2::BoolOr => boolean::or(self, &lhs[0], &rhs[0], expr.span),
-                    Op2::Division => todo!(),
+                    Op2::Addition => {
+                        let t: Term = term![Op::PfNaryOp(PfNaryOp::Add); lhs.cvars[0].clone(), rhs.cvars[0].clone()];
+                        Var::new_cvar(t, expr.span)
+                    }
+                    Op2::Subtraction => {
+                        let t: Term = term![Op::PfNaryOp(PfNaryOp::Add); lhs.cvars[0].clone(), term![Op::PfUnOp(PfUnOp::Neg); rhs.cvars[0].clone()]];
+                        Var::new_cvar(t, expr.span)
+                    }
+                    Op2::Multiplication => {
+                        let t: Term = term![Op::PfNaryOp(PfNaryOp::Mul); lhs.cvars[0].clone(), rhs.cvars[0].clone()];
+                        Var::new_cvar(t, expr.span)
+                    }
+                    Op2::Equality => {
+                        let t: Term = term![Op::Eq; lhs.cvars[0].clone(), rhs.cvars[0].clone()];
+                        Var::new_cvar(t, expr.span)
+                    }
+                    Op2::Inequality => {
+                        let t: Term = term![Op::Not; term![Op::Eq; lhs.cvars[0].clone(), rhs.cvars[0].clone()]];
+                        Var::new_cvar(t, expr.span)
+                    }
+                    Op2::BoolAnd => {
+                        let t: Term = term![Op::BoolNaryOp(BoolNaryOp::And); lhs.cvars[0].clone(), rhs.cvars[0].clone()];
+                        Var::new_cvar(t, expr.span)
+                    }
+                    Op2::BoolOr => {
+                        let t: Term = term![Op::BoolNaryOp(BoolNaryOp::Or); lhs.cvars[0].clone(), rhs.cvars[0].clone()];
+                        Var::new_cvar(t, expr.span)
+                    }
+                    Op2::Division => {
+                        let t: Term = term![
+                            Op::PfNaryOp(PfNaryOp::Mul); lhs.cvars[0].clone(),
+                            term![Op::PfUnOp(PfUnOp::Recip); rhs.cvars[0].clone()]
+                        ];
+                        Var::new_cvar(t, expr.span)
+                    }
+                    _ => todo!(),
                 };
 
                 Ok(Some(VarOrRef::Var(res)))
@@ -665,35 +913,30 @@ impl<B: Backend> CircuitWriter<B> {
 
                 let var = var.value(self, fn_env);
 
-                todo!()
+                let t: Term = term![Op::PfUnOp(PfUnOp::Neg); var.cvars[0].clone()];
+                let res = Var::new_cvar(t, expr.span);
+                Ok(Some(VarOrRef::Var(res)))
             }
 
             ExprKind::Not(b) => {
                 let var = self.compute_expr(fn_env, b)?.unwrap();
-
                 let var = var.value(self, fn_env);
 
-                let res = boolean::not(self, &var[0], expr.span.merge_with(b.span));
+                let t: Term = term![Op::Not; var.cvars[0].clone()];
+                let res = Var::new_cvar(t, expr.span);
                 Ok(Some(VarOrRef::Var(res)))
             }
 
             ExprKind::BigUInt(b) => {
-                let ff = B::Field::try_from(b.to_owned()).map_err(|_| {
-                    self.error(ErrorKind::CannotConvertToField(b.to_string()), expr.span)
-                })?;
+                let ff = B::Field::from(b.to_owned());
 
-                let res = VarOrRef::Var(Var::new_constant(ff, expr.span));
-                Ok(Some(res))
+                let v = Var::new_constant(ff, expr.span);
+                Ok(Some(VarOrRef::Var(v)))
             }
 
             ExprKind::Bool(b) => {
-                let value = if *b {
-                    B::Field::one()
-                } else {
-                    B::Field::zero()
-                };
-                let res = VarOrRef::Var(Var::new_constant(value, expr.span));
-                Ok(Some(res))
+                let v = Var::new_bool(*b, expr.span);
+                Ok(Some(VarOrRef::Var(v)))
             }
 
             ExprKind::Variable { module, name } => {
@@ -731,7 +974,6 @@ impl<B: Backend> CircuitWriter<B> {
                 let idx = idx_var
                     .constant()
                     .ok_or_else(|| self.error(ErrorKind::ExpectedConstant, expr.span))?;
-                let idx: BigUint = idx.into();
                 let idx: usize = idx.try_into().unwrap();
 
                 // retrieve the type of the elements in the array
@@ -809,7 +1051,6 @@ impl<B: Backend> CircuitWriter<B> {
                 let size = size
                     .constant()
                     .ok_or_else(|| self.error(ErrorKind::ExpectedConstant, expr.span))?;
-                let size: BigUint = size.into();
                 let size: usize = size.try_into().unwrap();
 
                 let mut cvars = vec![];
@@ -825,65 +1066,54 @@ impl<B: Backend> CircuitWriter<B> {
         }
     }
 
-    pub fn add_public_inputs(
-        &mut self,
-        name: String,
-        num: usize,
-        span: Span,
-    ) -> Var<B::Field, B::Var> {
-        let mut cvars = Vec::with_capacity(num);
-
-        for idx in 0..num {
-            let cvar = self
-                .backend
-                .add_public_input(Value::External(name.clone(), idx), span);
-            cvars.push(ConstOrCell::Cell(cvar));
-        }
-
-        Var::new(cvars, span)
+    pub fn expr_type(&self, expr: &Expr) -> Option<&TyKind> {
+        self.typed.expr_type(expr)
     }
 
-    pub fn add_public_outputs(&mut self, num: usize, span: Span) {
-        assert!(self.public_output.is_none());
-
-        let mut cvars = Vec::with_capacity(num);
-        for _ in 0..num {
-            let cvar = self
-                .backend
-                .add_public_output(Value::PublicOutput(None), span);
-            cvars.push(ConstOrCell::Cell(cvar));
-        }
-
-        // store it
-        let res = Var::new(cvars, span);
-        self.public_output = Some(res);
+    pub fn struct_info(&self, qualified: &FullyQualified) -> Option<&StructInfo> {
+        self.typed.struct_info(qualified)
     }
 
-    pub fn add_private_inputs(
-        &mut self,
-        name: String,
-        num: usize,
-        span: Span,
-    ) -> Var<B::Field, B::Var> {
-        let mut cvars = Vec::with_capacity(num);
+    pub fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<B>> {
+        self.typed.fn_info(qualified)
+    }
 
-        for idx in 0..num {
-            // create the var
-            let cvar = self
-                .backend
-                .add_private_input(Value::External(name.clone(), idx), span);
-            cvars.push(ConstOrCell::Cell(cvar));
+    pub fn const_info(&self, qualified: &FullyQualified) -> Option<&ConstInfo<B::Field>> {
+        self.typed.const_info(qualified)
+    }
+
+    pub fn size_of(&self, typ: &TyKind) -> usize {
+        self.typed.size_of(typ)
+    }
+
+    pub fn add_local_var(
+        &self,
+        fn_env: &mut FnEnv,
+        var_name: String,
+        var_info: VarInfo,
+    ) -> Result<()> {
+        // check for consts first
+        let qualified = FullyQualified::local(var_name.clone());
+        if let Some(_cst_info) = self.typed.const_info(&qualified) {
+            Err(Error::new("add-local-var", ErrorKind::UnexpectedError("type checker bug: we already have a constant with the same name (`{var_name}`)!"), Span::default()))?
+        }
+        fn_env.add_local_var(var_name, var_info);
+        Ok(())
+    }
+
+    pub fn get_local_var(&self, fn_env: &FnEnv, var_name: &str) -> VarInfo {
+        // check for consts first
+        let qualified = FullyQualified::local(var_name.to_string());
+        if let Some(cst_info) = self.typed.const_info(&qualified) {
+            let var = Var::new_constant_typ(cst_info, cst_info.typ.span);
+            return VarInfo::new(var, false, Some(TyKind::Field { constant: true }));
         }
 
-        Var::new(cvars, span)
+        // then check for local variables
+        fn_env.get_local_var(var_name)
     }
-}
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub(crate) struct PendingGate {
-    pub label: &'static str,
-    #[serde(skip)]
-    pub coeffs: Vec<VestaField>,
-    pub vars: Vec<Option<crate::backends::kimchi::KimchiCellVar>>,
-    pub span: Span,
+    pub fn error(&self, kind: ErrorKind, span: Span) -> Error {
+        Error::new("ir-generation", kind, span)
+    }
 }
