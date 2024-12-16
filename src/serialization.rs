@@ -38,7 +38,8 @@ pub mod ser {
         D: serde::Deserializer<'de>,
     {
         let bytes: Vec<u8> = Bytes::deserialize_as(deserializer)?;
-        T::deserialize_with_mode(&mut &bytes[..], Compress::Yes, Validate::Yes).map_err(serde::de::Error::custom)
+        T::deserialize_with_mode(&mut &bytes[..], Compress::Yes, Validate::Yes)
+            .map_err(serde::de::Error::custom)
     }
 }
 
@@ -77,6 +78,7 @@ where
         D: serde::Deserializer<'de>,
     {
         let bytes: Vec<u8> = Bytes::deserialize_as(deserializer)?;
-        T::deserialize_with_mode(&mut &bytes[..], Compress::Yes, Validate::Yes).map_err(serde::de::Error::custom)
+        T::deserialize_with_mode(&mut &bytes[..], Compress::Yes, Validate::Yes)
+            .map_err(serde::de::Error::custom)
     }
 }

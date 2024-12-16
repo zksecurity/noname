@@ -11,7 +11,6 @@ use crate::{
 };
 
 use itertools::chain;
-use kimchi::{mina_curves::pasta::{Vesta, VestaParameters}, poly_commitment::SRS as _};
 use kimchi::mina_poseidon::constants::PlonkSpongeConstantsKimchi;
 use kimchi::mina_poseidon::sponge::{DefaultFqSponge, DefaultFrSponge};
 use kimchi::poly_commitment::commitment::CommitmentCurve;
@@ -20,6 +19,10 @@ use kimchi::proof::ProverProof;
 use kimchi::{
     circuits::constraints::ConstraintSystem, groupmap::GroupMap, mina_curves::pasta::Pallas,
     poly_commitment::ipa::SRS,
+};
+use kimchi::{
+    mina_curves::pasta::{Vesta, VestaParameters},
+    poly_commitment::SRS as _,
 };
 
 use miette::{Context, IntoDiagnostic};
@@ -107,7 +110,7 @@ impl KimchiVesta {
             .wrap_err("kimchi: could not create a constraint system with the given circuit and public input size")?;
 
         // create SRS (for vesta, as the circuit is in Fp)
-        let mut srs = SRS::<Curve>::create(cs.domain.d1.size as usize);
+        let srs = SRS::<Curve>::create(cs.domain.d1.size as usize);
         srs.get_lagrange_basis(cs.domain.d1);
         let srs = std::sync::Arc::new(srs);
 
@@ -198,12 +201,15 @@ impl ProverIndex {
         }
 
         // create proof
-        let proof =
-            ProverProof::create::<BaseSponge, ScalarSponge, _>(&GROUP_MAP, witness, &[], &self.index, &mut rand::rngs::OsRng)
-                //.map_err(|e| miette!(e))
-                .into_diagnostic()
-                .wrap_err("kimchi: could not create a proof with the given inputs")?;
-
+        let proof = ProverProof::create::<BaseSponge, ScalarSponge, _>(
+            &GROUP_MAP,
+            witness,
+            &[],
+            &self.index,
+            &mut rand::rngs::OsRng,
+        )
+        .into_diagnostic()
+        .wrap_err("kimchi: could not create a proof with the given inputs")?;
 
         // return proof + public output
         Ok((

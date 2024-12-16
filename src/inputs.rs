@@ -3,10 +3,10 @@
 use std::{collections::HashMap, fs::File, io::Read, str::FromStr};
 
 use ark_ff::{One, Zero};
+use kimchi::o1_utils::FieldHelpers;
 use miette::Diagnostic;
 use num_bigint::BigUint;
 use thiserror::Error;
-use kimchi::o1_utils::FieldHelpers;
 
 use crate::{
     backends::{kimchi::VestaField, Backend},
