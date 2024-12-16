@@ -32,7 +32,7 @@ camino = "1.1.1" # to replace Path and PathBuf
 clap = { version = "4.0.5", features = ["derive"] } # CLI library
 dirs = "4.0.0" # helper functions (e.g. getting the home directory)
 itertools = "0.10.3" # useful iter traits
-kimchi = { git = "https://github.com/o1-labs/proof-systems", rev = "483bd5bd918ebbc1d5e008ce892d7a0023b50ed1" } # ZKP
+kimchi = { git = "https://github.com/o1-labs/proof-systems"} # ZKP
 miette = { version = "5.0.0", features = ["fancy"] }                                 # nice errors
 num-traits = "0.2.15"                                                                # useful traits on big ints
 once_cell = "1.15.0"                                                                 # for lazy statics
@@ -45,6 +45,7 @@ thiserror = "1.0.31"                                                            
 toml = "0.8.8"                                                                       # to parse manifest files
 constraint_writers = { git = "https://github.com/iden3/circom.git", tag = "v2.1.8" } # to generate r1cs file
 num-bigint-dig = "0.6.0"                                                             # to adapt for circom lib
+rand = "0.8.5"
 rstest = "0.19.0"                                                                    # for testing different backend cases
 rug = "1.26.1"                                                                       # circ uses this for integer type
 circ = { git = "https://github.com/circify/circ", rev = "8140b1369edd5992ede038d2e9e5721510ae7065" }                                # for compiling to circ IR
