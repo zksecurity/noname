@@ -1,4 +1,5 @@
 use crate::backends::BackendField;
+use ark_ff::BigInteger;
 use constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
 use miette::Diagnostic;
 use thiserror::Error;
@@ -191,7 +192,7 @@ where
     fn convert_to_bigint(value: &F) -> BigInt {
         BigInt::from_bytes_le(
             num_bigint_dig::Sign::Plus,
-            &ark_ff::BigInteger::to_bytes_le(&value.into_repr()),
+            &value.into_bigint().to_bytes_le(),
         )
     }
 }

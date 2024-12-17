@@ -1,7 +1,7 @@
 //! This adds a few utility functions for serializing and deserializing
 //! [arkworks](http://arkworks.rs/) types that implement [CanonicalSerialize] and [CanonicalDeserialize].
 
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
 use serde_with::Bytes;
 
 //
@@ -14,6 +14,7 @@ pub mod ser {
     //! `#[serde(with = "o1_utils::serialization::ser") attribute"]`
 
     use super::*;
+    use ark_serialize::{Compress, Validate};
     use serde_with::{DeserializeAs, SerializeAs};
 
     /// You can use this to serialize an arkworks type with serde and the "serialize_with" attribute.
@@ -23,7 +24,7 @@ pub mod ser {
         S: serde::Serializer,
     {
         let mut bytes = vec![];
-        val.serialize(&mut bytes)
+        val.serialize_with_mode(&mut bytes, Compress::Yes)
             .map_err(serde::ser::Error::custom)?;
 
         Bytes::serialize_as(&bytes, serializer)
@@ -37,7 +38,8 @@ pub mod ser {
         D: serde::Deserializer<'de>,
     {
         let bytes: Vec<u8> = Bytes::deserialize_as(deserializer)?;
-        T::deserialize(&mut &bytes[..]).map_err(serde::de::Error::custom)
+        T::deserialize_with_mode(&mut &bytes[..], Compress::Yes, Validate::Yes)
+            .map_err(serde::de::Error::custom)
     }
 }
 
@@ -60,7 +62,7 @@ where
         S: serde::Serializer,
     {
         let mut bytes = vec![];
-        val.serialize(&mut bytes)
+        val.serialize_with_mode(&mut bytes, Compress::Yes)
             .map_err(serde::ser::Error::custom)?;
 
         Bytes::serialize_as(&bytes, serializer)
@@ -76,6 +78,7 @@ where
         D: serde::Deserializer<'de>,
     {
         let bytes: Vec<u8> = Bytes::deserialize_as(deserializer)?;
-        T::deserialize(&mut &bytes[..]).map_err(serde::de::Error::custom)
+        T::deserialize_with_mode(&mut &bytes[..], Compress::Yes, Validate::Yes)
+            .map_err(serde::de::Error::custom)
     }
 }

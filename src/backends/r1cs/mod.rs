@@ -4,7 +4,6 @@ pub mod snarkjs;
 
 use std::collections::{HashMap, HashSet};
 
-use ark_ff::FpParameters;
 use circ::cfg::{CircCfg, CircOpt};
 use circ_fields::FieldV;
 use itertools::{izip, Itertools as _};
@@ -306,7 +305,7 @@ where
 
     /// Returns the prime for snarkjs based on the curve field.
     fn prime(&self) -> BigUint {
-        F::Params::MODULUS.into()
+        F::MODULUS.into()
     }
 
     /// Add an r1cs constraint that is 3 linear combinations.
