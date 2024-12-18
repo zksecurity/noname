@@ -1,0 +1,64 @@
+const size = 2;
+struct Thing {
+    xx: Field,
+    yy: [Field; 2],
+}
+
+struct Nestedthing {
+    xx: Field,
+    another: [Another; 2],
+}
+
+struct Another {
+    aa: Field,
+    bb: [Field; 2],
+}
+
+fn init_arr(element: Field, const LEN: Field) -> [Field; LEN] {
+    let arr = [element; LEN];
+    return arr;
+}
+
+fn main(pub public_arr: [Field; 2], pub public_input: Field) {
+    let generic_arr = init_arr(public_input, size);
+    let arr = [3, 3];
+    
+    assert_eq(generic_arr, arr);
+    let mut concrete_arr = [1, 2];
+
+    // instead of the following:
+    // assert_eq(public_arr[0], concrete_arr[0]);
+    // assert_eq(public_arr[1], concrete_arr[1]);
+    // we can write:
+    assert_eq(public_arr, concrete_arr);
+
+    let thing = Thing { xx: 5, yy: [1, 2] };
+    let other_thing = Thing { xx: generic_arr[0] + 2, yy: public_arr };
+
+    // instead of the following:
+    // assert_eq(thing.xx, other_thing.xx);
+    // assert_eq(thing.yy[0], other_thing.yy[0]);
+    // assert_eq(thing.yy[1], other_thing.yy[1]);
+    // we can write:
+    assert_eq(thing, other_thing);
+
+    let nested_thing = Nestedthing { xx: 5, another: [
+        Another { aa: public_arr[0], bb: [1, 2] }, 
+        Another { aa: generic_arr[1], bb: [4, 5] }
+    ] };
+    let other_nested_thing = Nestedthing { xx: generic_arr[0] + 2, another: [
+        Another { aa: 1, bb: public_arr }, 
+        Another { aa: 3, bb: [public_arr[0] + (public_input * public_arr[0]), public_arr[1] + public_input] }
+    ] };
+    
+    // instead of the following:
+    // assert_eq(nested_thing.xx, other_nested_thing.xx);
+    // assert_eq(nested_thing.another[0].aa, other_nested_thing.another[0].aa);
+    // assert_eq(nested_thing.another[0].bb[0], other_nested_thing.another[0].bb[0]);
+    // assert_eq(nested_thing.another[0].bb[1], other_nested_thing.another[0].bb[1]);
+    // assert_eq(nested_thing.another[1].aa, other_nested_thing.another[1].aa);
+    // assert_eq(nested_thing.another[1].bb[0], other_nested_thing.another[1].bb[0]);
+    // assert_eq(nested_thing.another[1].bb[1], other_nested_thing.another[1].bb[1]);
+    // we can write:
+    assert_eq(nested_thing, other_nested_thing);
+}
