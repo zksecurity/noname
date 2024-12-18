@@ -852,6 +852,7 @@ fn test_generic_assert_eq(#[case] backend: BackendKind) -> miette::Result<()> {
         private_inputs,
         vec![],
         backend,
+        DEFAULT_OPTIONS,
     )?;
 
     Ok(())
