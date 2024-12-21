@@ -587,6 +587,8 @@ fn monomorphize_expr<B: Backend>(
             }
 
             // retrieve the function signature
+            dbg!(module);
+            dbg!(&fn_name.value);
             let old_qualified = FullyQualified::new(module, &fn_name.value);
             let mut fn_info = ctx
                 .tast

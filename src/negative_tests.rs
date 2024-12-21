@@ -50,7 +50,7 @@ fn tast_pass(code: &str) -> (Result<usize>, TypeChecker<R1csBackend>, Sources) {
     (res, tast, source)
 }
 
-fn mast_pass(code: &str) -> Result<Mast<R1csBackend>> {
+pub fn mast_pass(code: &str) -> Result<Mast<R1csBackend>> {
     let (_, tast, _) = tast_pass(code);
     crate::mast::monomorphize(tast)
 }
@@ -800,23 +800,4 @@ fn test_monomorphize_returntype_mismatch() {
         res.unwrap_err().kind,
         ErrorKind::ReturnTypeMismatch(..),
     ));
-}
-
-
-#[test]
-fn test_simple_mast() {
-    let code = r#"
-    struct Thing {
-        val: Field,
-    }
-    fn main(xx: Field) -> Thing {
-        let mut thing = Thing { val: 3 };
-        thing.val = xx;
-        return thing;
-    }
-    "#;
-
-    let mast = mast_pass(code).unwrap();
-
-    insta::assert_snapshot!(serde_json::to_string(&mast).unwrap());
 }

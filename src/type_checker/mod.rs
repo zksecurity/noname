@@ -96,6 +96,7 @@ where
     /// Mapping from node id to TyKind.
     /// This can be used by the circuit-writer when it needs type information.
     // TODO: I think we should get rid of this if we can
+    #[serde_as(as = "Vec<(_, _)>")]
     pub node_types: HashMap<usize, TyKind>,
 
     /// The last node id for the MAST phase to reference.
