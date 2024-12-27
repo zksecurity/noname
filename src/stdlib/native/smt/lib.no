@@ -1,0 +1,446 @@
+use std::mimc;
+use std::bits;
+
+// SMT 
+// This is an implementation of sparse merkle tree according to the circom specification
+// learn more about it here - https://docs.iden3.io/publications/pdfs/Merkle-Tree.pdf 
+
+// A new_root computation is computed as follows
+// state       
+// top             old_root                                        new_root
+//                 /      \                                       /        \
+// top        [sibling]   [<val>]                            [sibling]    [<update_val>]
+//                         /      \                                         /      \ 
+// new                [sibling]   [old_key] <-                         [sibling]  [<new-val>] --> this will change in case of update or del
+// The key we are doing         -----------                                       /    \ 
+// operation follows this path and this key will be                          [old_key] [new-key]
+
+// verfication is more simpler we just compute roots using the siblings and keys , values
+
+
+
+
+// Both during computing new roots and producing (non-)membership proofs each level in the tree has a state a boolean array
+// State Constants for computing new roots
+//  `top` : The insert level for the key which we are replacing (in our path ) 
+//  `upd` : The insert level is reached and we are performing an update operation on the tree
+//  `old_zero` : The insert level is reached and the old key is zero
+//  `btn`  : The insert level is reached but the xor of old key and new key is same i.e they are on the same
+//  `new`  : The insert level is reached the xor of old key and new key is different therefore we add the new leaf and old leaf here
+//  `na` : All the change to the tree has happend and now we just don't care about the states
+const st_top        = 0;
+const st_upd        = 1;
+const st_old_zero   = 2;
+const st_new        = 3;
+const st_btn        = 4;
+const st_na         = 5;
+
+
+// State Constants for the verification states 
+const v_st_top= 0; // the level inserted has not been reached
+const v_st_iz = 1; // level inserted reach and the not found key,val are zero and we have to verify non inclustion
+const v_st_inz = 2;  // level inserted reached and the not found key,val are non zero and we have to verify non inclustion
+const v_st_inew = 3; // level inserated reached and have verify inclusion
+const v_st_na = 4; // not applicable state
+
+
+
+/// Computes the hash for a leaf in the Sparse Merkle tree
+/// `hash = H ( 1 | key | value )` 
+///
+/// # Parameters
+/// `key`: key for the node
+/// `value`:  Value for the node
+///
+/// # Returns
+/// Field: mimc7 hash for key = 1 and values = [key,value]
+fn compute_leaf_hash(key: Field, value: Field) -> Field {
+    let hash_values = [key, value];
+    return mimc::mimc7_hash(hash_values, 1);
+}
+
+/// Computes the hash for the internal nodes in the SMT
+/// `Hash = H(lh | rh)`
+///
+/// # Parameters
+/// `left_child_hash`: The hash of the left child node
+/// `right_child_hash`: The hash of the right child node
+///
+/// # Returns
+/// Field: mimc7  hash for key = 0 and values = [lh , rh]
+fn compute_internal_node_hash(left_child_hash: Field , right_child_hash: Field) -> Field {
+    let hash_values = [left_child_hash,right_child_hash];
+    return mimc::mimc7_hash(hash_values,0);
+}
+
+
+/// Computers the xor of two bits
+fn calculate_xor(bit1: Bool, bit2: Bool) -> Bool{
+    return ((bit1 && !bit2) || (!bit1 && bit2));
+} 
+/// computes the value of boolean
+fn get_val(bool: Bool) -> Field {
+    let zero = 0;
+    let one = 1;
+    let val = if bool { one } else { zero };
+    return val; 
+}
+
+/// switches left and right inputs based on the insert sel bool 
+/// if self bool is true we switch l and r else same
+fn switcher(sel: Bool,left: Field, right: Field) -> [Field;2] {
+    let sel_val = get_val(sel);
+    let aux = sel_val * (left - right);  
+    let new_left = left - aux;
+    let new_right = right + aux;
+    return [new_left,new_right];
+}
+
+/// This function get the old level where the old key was inserted. level 0 is the root , 1 is next and so on..
+/// To find this level all the child level must have a sibling of 0 and
+/// the parent level has a sibling != 0. The root is assumed to have a parent level with a sibling != 0
+fn old_level_inserted(
+    enabled: Bool, // is true when there is a insert/update in the smt
+    siblings: [Field;LEN] 
+) -> [Bool; LEN] {
+    let mut level_inserted = [false;LEN];
+    let mut done = [false; LEN];
+
+    // last level must be empty for any inserted to happend
+    let last_level_empty = enabled && (siblings[LEN - 1] == 0);
+    assert(last_level_empty);
+
+    level_inserted[(LEN - 1)] = !(siblings[LEN- 2] == 0);
+    done[LEN - 2] = level_inserted[LEN - 1];
+
+    for idx in 1..(LEN-1) {
+        let is_sibling_zero = siblings[(LEN - 2) - idx] == 0;
+        level_inserted[(LEN - 1) - idx] = (!done[(LEN - 1) - idx]) && (!is_sibling_zero);
+        done[(LEN-2) - idx] = level_inserted[(LEN - 1) - idx] || done[(LEN - 1) - idx]; 
+    }
+    level_inserted[0] = !done[0];
+    return level_inserted;
+}
+
+
+/// Only 1 state boolean should be true at a time as a level can only have 1 state boolean
+fn assert_state_valid(state: [Bool;6]) {
+    let mut sum  = 0;
+    for idx in 0..6 {
+        sum = sum + get_val(state[idx]);
+    }
+    assert_eq(sum , 1);
+} 
+
+
+/// calculates the next state
+/// # Parameters
+///     `prev_level_state`: state of the previous level
+///     `xor`:  the xor value for the old key  and new key if same we just add a sibling
+///     `is_old_zero`: indicates whethere we are inserting in an zero leaf
+///     `level_inserted`: indicates that is this the level inserted
+///     `is_update`:  whether the operation is an update operation
+/// # Returns
+///     `[Bool;6]`: the next state
+fn next_state(
+    prev_level_state: [Bool;6],
+    xor: Bool, 
+    is_old_zero: Bool, 
+    level_inserted: Bool, 
+    is_update: Bool, 
+) -> [Bool;6] {
+    let mut new_states = [false;6];
+    new_states[st_na]       = prev_level_state[st_na] || ((!prev_level_state[st_top]) && (!prev_level_state[st_btn]));
+    new_states[st_top]      = prev_level_state[st_top] && (!level_inserted);
+    new_states[st_upd]      = prev_level_state[st_top] && (level_inserted && is_update);
+    new_states[st_old_zero] = prev_level_state[st_top] && (is_old_zero && level_inserted);
+    new_states[st_new]      = ((prev_level_state[st_top] && ((level_inserted && xor) && !is_old_zero) ) ||(prev_level_state[st_btn] && xor)) && (!is_update);
+    new_states[st_btn]      = ((prev_level_state[st_top] && ((level_inserted && !xor) && !is_old_zero) )||((prev_level_state[st_btn] && !xor)))  && (!is_update);
+    assert_state_valid(new_states);
+    return new_states;
+}
+
+
+
+
+/// Computes the roots given old leafs and new leafs for different level based on the state
+fn compute_roots(
+    old_leaf: Field,
+    new_leaf: Field,
+    old_child: Field,
+    new_child: Field,
+    sibling: Field,
+    new_lrbit: Bool, // left right bit of where the new leaf goes
+    state: [Bool;6],
+) -> [Field;2] {
+    let is_btn = get_val(state[st_btn]);
+    let is_top = get_val(state[st_top]);
+    let is_new =  get_val(state[st_new]);
+    let is_upd = get_val(state[st_upd]);
+    let is_old_zero = get_val(state[st_old_zero]);
+
+
+    let is_top_or_btn  = is_top + is_btn;
+    let is_top_or_btn_or_new = is_top_or_btn + is_new;
+
+    let is_leaf  = is_btn + (is_new + is_upd);
+    let old_chilren  =  switcher(new_lrbit , old_child , sibling);
+    let node_val =  compute_internal_node_hash(old_chilren[0],old_chilren[1]); 
+
+    // if it is a leaf the root becomes the old_leaf and node_val in case of top i.e we are above the level
+    // where old key was inserted 
+    let old_root = (is_leaf * old_leaf ) + (node_val * is_top); 
+
+    let new_leaf_cond = is_upd + is_old_zero;
+
+    // calculate left child and right child based on new_lrbit = 1 i.e true
+    let possible_left_child = (is_top_or_btn * new_child) + (is_new * new_leaf); 
+    let possible_right_child = (is_top * sibling)  + (is_new * old_leaf); 
+
+
+    let new_children = switcher(new_lrbit , possible_left_child, possible_right_child);
+    let new_node_val = compute_internal_node_hash(new_children[0],new_children[1]);
+    let new_root = (new_node_val*is_top_or_btn_or_new)  + (new_leaf * new_leaf_cond);
+
+    return [ old_root, new_root];
+}
+
+
+/// A new_root computation is computed as follows
+/// state       
+/// top             old_root                                        new_root
+///                 /      \                                       /        \
+/// top        [sibling]   [<val>]                            [sibling]    [<update_val>]
+///                         /      \                                         /      \ 
+/// new                [sibling]   [old_key] <-                         [sibling]  [<new-val>] --> this will change in case of update or del
+/// The key we are doing         -----------                                       /    \ 
+/// operation follows this path and this key will be                          [old_key] [new-key]
+
+
+/// It computes a new root for the smt given an operations
+/// as for every hash as the bottom level there is a node
+/// # Parameteres
+///     - `old_root` : the root before the operation
+///     - `old_key`  : the key we are replacing or which is in our path
+///     - `old_value`: the value for the old key
+///     - `new_key`  : the new key in case of insert
+///     - `new_value`: the new value for the key
+///     - `siblings` : siblings for the path 
+///     - `isold_zero` : whether we are inserting in zero leaf
+///     - `operation`: 
+///             false false - NOP
+///             false true  - Update
+///             true  false - Insert
+///             true  true  - Delete
+/// # Returns
+///     - `Field` The new computed root
+fn compute_new_root(
+    old_root: Field,
+    old_key: Field,
+    old_value: Field,
+    new_key: Field,
+    new_value: Field,
+    siblings: [Field; LEN], // the number of siblings is equal to the number of hash
+    isold_zero : Bool, // indicates that we are inserting in a empty leaf
+    operation: [Bool; 2]
+) -> Field  {
+
+    // if it is a update then old and new key should be equal
+    let is_upd = get_val((!operation[0]) && operation[1]);
+    assert_eq( (is_upd * old_key) , (is_upd * new_key) );
+
+    // is there even any change to the tree
+    let enabled = operation[0] || operation[1];
+
+
+    let old_leaf = compute_leaf_hash(old_key,old_value);
+    let new_leaf = compute_leaf_hash(new_key,new_value);
+   
+    let old_key_bits = bits::to_bits(LEN , old_key);
+    let new_key_bits = bits::to_bits(LEN , new_key);
+
+    let mut level_inserted = old_level_inserted(enabled,siblings);
+    let mut states = [[false;6]; LEN];
+    // state above the root_state is assumed to be the top state 
+    let mut abv_root_state  = [false;6];
+    abv_root_state[st_top] = true;
+    states[0] = next_state(
+        abv_root_state,
+        false,  
+        isold_zero,
+        level_inserted[0],
+        !operation[0]
+    );
+    
+    for idx in 1..LEN {
+        let xor  = calculate_xor(old_key_bits[idx] , new_key_bits[idx]);
+        states[idx] = next_state(
+            states[idx - 1],   
+            xor,  
+            isold_zero, 
+            level_inserted[idx], 
+            !operation[0],
+        );
+    }
+    // last state should be na or new2 or old2 or upd  i.e it should not be top or btn
+    let last_state_valid =  (!states[LEN - 1][st_btn]) || (!states[LEN-1][st_top]);
+    assert(last_state_valid);    
+
+    let mut roots = [0,0];
+    for idx in 0..LEN {
+        let new_roots = compute_roots(
+            old_leaf,
+            new_leaf,
+            roots[0],
+            roots[1],
+            siblings[(LEN - 1) - idx],
+            new_key_bits[(LEN - 1) -idx],
+            states[(LEN - 1) - idx]
+        );
+        roots = new_roots;
+    }
+
+
+    // if there is delete then switch the old root and new root
+    let is_delete = operation[0] && operation[1];
+    roots = switcher(is_delete , roots[0] , roots[1]);
+
+    let is_ins_del_upd = get_val(enabled);
+    let new_root = (is_ins_del_upd * (roots[1] - old_root)) + old_root;
+
+
+    // in case of NOP both the roots shouls be equal also
+    let calc_old_root = roots[0] * is_ins_del_upd;
+    let actual_old_root = old_root * is_ins_del_upd;
+    // that our calculation are correct
+    assert_eq(calc_old_root, actual_old_root);
+
+    return new_root;
+}
+
+
+
+// =========  VERIFICAION ===== 
+
+// returns the index of non zero sibling
+fn level_inserted(siblings: [Field;LEN]) ->  [Bool;LEN] {
+    let mut level_inserted = [false;LEN];
+    let mut done = [false; LEN];
+
+
+    level_inserted[(LEN - 1)] = !(siblings[LEN- 2] == 0);
+    done[LEN - 2] = level_inserted[LEN - 1];
+
+    for idx in 1..(LEN-1) {
+        let is_sibling_zero = siblings[(LEN - 2) - idx] == 0;
+        level_inserted[(LEN - 1) - idx] = (!done[(LEN - 1) - idx]) && (!is_sibling_zero);
+        done[(LEN-2) - idx] = level_inserted[(LEN - 1) - idx] || done[(LEN - 1) - idx]; 
+    }
+    level_inserted[0] = !done[0];
+    return level_inserted;
+}
+
+
+fn assert_vstate_valid(state:[Bool;5]) {
+    let mut sum = 0;
+    for ii in 0..5 {
+        sum = sum + get_val(state[ii]);
+    }
+    assert_eq(sum , 1);
+}
+
+fn v_next_state(
+    prev_level_state: [Bool;5],
+    is_old_zero: Bool,
+    is_insert_level: Bool,
+    inclusion_proof: Bool
+)  -> [Bool;5] {
+    let mut new_states = [false;5];
+    new_states[v_st_na]       = prev_level_state[v_st_na] || (!prev_level_state[v_st_top]);
+    new_states[v_st_top]      = prev_level_state[v_st_top] && (!is_insert_level);
+    new_states[v_st_iz]       = prev_level_state[v_st_top] && ((is_old_zero && is_insert_level) && !inclusion_proof);
+    new_states[v_st_inz]      = prev_level_state[v_st_top] && ((is_insert_level && (!is_old_zero)) && !inclusion_proof);
+    new_states[v_st_inew]     = prev_level_state[v_st_top] && (is_insert_level && inclusion_proof);
+    assert_vstate_valid(new_states);
+    return new_states;  
+}
+
+fn compute_root(
+    state: [Bool;5],
+    child: Field,
+    sibling: Field,
+    lrbit: Bool,
+    not_found_leaf: Field,
+    leaf: Field
+) -> Field {
+    let children = switcher(lrbit, child, sibling);
+    let node_hash = compute_internal_node_hash(children[0],children[1]);
+
+    let is_top = get_val(state[v_st_top]);
+    let is_inz = get_val(state[v_st_inz]);
+    let is_inew = get_val(state[v_st_inew]);
+    
+    let root = (is_top * node_hash) + ((is_inz * not_found_leaf) + (is_inew * leaf));
+    return root;
+}
+
+
+fn verify(
+    root: Field,
+    siblings: [Field;LEN],
+    not_found_key: Field, // when testing for non membership proofs the key and val found where the (key,val) should be
+    not_found_val: Field,
+    inclusion_proof: Bool, // true for memebership proofs and false for non-member ship proofs
+    is_old_zero: Bool,
+    key: Field,
+    value: Field
+){
+
+    // for non inclusion proofs and is_old_zero false `not_found_key` and `key` should not be equal
+    let valid_keys = (inclusion_proof || (not_found_key != key)) && !is_old_zero;
+    assert(valid_keys);
+
+    let not_found_leaf = compute_leaf_hash(not_found_key,not_found_val);
+    let leaf = compute_leaf_hash(key,value);
+
+    let nfk_bits = bits::to_bits(LEN , not_found_key);
+    let key_bits = bits::to_bits(LEN , key);
+
+    let insertion_level = level_inserted(siblings);
+
+    let mut states = [[false;5];LEN];
+
+    // state above the root is assumed to be in top state
+    let abv_root_state = [true , false, false, false, false];
+    states[0]  = v_next_state(
+        abv_root_state,
+        is_old_zero,
+        insertion_level[0],
+        inclusion_proof
+    );
+
+    for idx in 1..LEN {
+        states[idx] =   v_next_state(
+            states[idx - 1],
+            is_old_zero,
+            insertion_level[idx],
+            inclusion_proof
+        ); 
+    }
+    let last_state_valid =  (!states[LEN-1][v_st_top]);
+    let mut computed_root = 0;
+
+    for idx in 0..LEN {
+        let new_root = compute_root(
+            states[(LEN - 1) - idx],
+            computed_root,
+            siblings[(LEN - 1) - idx],
+            key_bits[(LEN - 1) - idx],
+            not_found_leaf,
+            leaf
+        );
+        computed_root = new_root;
+    }
+
+    assert_eq(computed_root , root);
+}

@@ -1,0 +1,21 @@
+use std::smt;
+
+fn main(pub siblings: [Field;254], values: [Field;7]) {
+    let root = values[0];
+    let not_found_key = values[1];
+    let not_found_val = values[2];
+    let key = values[3];
+    let value = values[4];
+    let is_old_zero = values[5] == 0;
+    let inclusion_proof = values[6] == 0;
+    smt::verify(
+        root,
+        siblings,
+        not_found_key, // when testing for non membership proofs the key and val found where the (key,val) should be
+        not_found_val,
+        inclusion_proof, // true for memebership proofs and false for non-member ship proofs
+        is_old_zero,
+        key,
+        value
+    );
+}
