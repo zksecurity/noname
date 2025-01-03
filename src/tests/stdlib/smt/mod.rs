@@ -1,9 +1,6 @@
-
-use rstest::rstest;
-use crate::error::Result;
-
 use super::test_stdlib;
-
+use crate::error::Result;
+use rstest::rstest;
 
 #[rstest]
 #[case::empty_insert(
@@ -65,7 +62,8 @@ use super::test_stdlib;
     true,
     "18811865073273086230239721237564240209328819936273238864031238045766843861603"
 )]
-fn test_smt_cr( #[case] key: &str,
+fn test_smt_cr(
+    #[case] key: &str,
     #[case] val: &str,
     #[case] non_zero_sibling: Vec<&str>,
     #[case] non_zero_sibling_index: Vec<usize>,
@@ -132,7 +130,7 @@ fn test_smt_cr( #[case] key: &str,
     "0",
     "0",
     false,
-    true, 
+    true,
 )]
 #[case::exclusion(
     "1000",
@@ -150,21 +148,8 @@ fn test_smt_cr( #[case] key: &str,
     "1960",
     "1760",
     false,
-    false, 
+    false,
 )]
-// #[case::exclusion(
-//     "1000",
-//     "0",
-//     vec![
-//         "1402313415709587747982543895575939953883341534384801453808620065757550163407",
-//     ],
-//     vec![0],
-//     "15205282206141502300292258700778556893530295755680072411953942685602587317569",
-//     "0",
-//     "0",
-//     false,
-//     false, 
-// )]
 fn test_smt_ie(
     #[case] key: &str,
     #[case] val: &str,

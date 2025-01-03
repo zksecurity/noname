@@ -99,7 +99,7 @@ pub fn init_stdlib_dep<B: Backend>(
     server_mode: &mut Option<crate::server::ServerShim>,
 ) -> usize {
     // list the stdlib dependency in order
-    let libs = vec!["bits", "comparator", "multiplexer", "mimc", "int" , "smt"];
+    let libs = vec!["bits", "comparator", "multiplexer", "mimc", "int", "smt"];
 
     let mut node_id = node_id;
 
