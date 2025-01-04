@@ -397,10 +397,14 @@ impl<B: Backend> TypeChecker<B> {
                 let typ = match op {
                     Op2::Equality => TyKind::Bool,
                     Op2::Inequality => TyKind::Bool,
+                    Op2::LessThan => TyKind::Bool,
                     Op2::Addition
                     | Op2::Subtraction
                     | Op2::Multiplication
                     | Op2::Division
+                    | Op2::Rem
+                    | Op2::LShift
+                    | Op2::Pow
                     | Op2::BoolAnd
                     | Op2::BoolOr => lhs_node.typ,
                 };

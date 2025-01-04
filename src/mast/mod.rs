@@ -798,10 +798,14 @@ fn monomorphize_expr<B: Backend>(
             let typ = match op {
                 Op2::Equality => Some(TyKind::Bool),
                 Op2::Inequality => Some(TyKind::Bool),
+                Op2::LessThan => Some(TyKind::Bool),
                 Op2::Addition
                 | Op2::Subtraction
                 | Op2::Multiplication
                 | Op2::Division
+                | Op2::Rem
+                | Op2::LShift
+                | Op2::Pow
                 | Op2::BoolAnd
                 | Op2::BoolOr => lhs_mono.typ,
             };

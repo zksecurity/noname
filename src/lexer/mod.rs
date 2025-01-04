@@ -142,6 +142,8 @@ pub enum TokenKind {
     RightCurlyBracket,  // }
     SemiColon,          // ;
     Slash,              // /
+    Percent,            // %
+    LeftDoubleArrow,    // <<
     Comment(String),    // // comment
     Greater,            // >
     Less,               // <
@@ -152,6 +154,7 @@ pub enum TokenKind {
     Minus,              // -
     RightArrow,         // ->
     Star,               // *
+    DoubleStar,         // **
     Ampersand,          // &
     DoubleAmpersand,    // &&
     Pipe,               // |
@@ -186,6 +189,8 @@ impl Display for TokenKind {
             RightCurlyBracket => "`}`",
             SemiColon => "`;`",
             Slash => "`/`",
+            Percent => "`%`",
+            LeftDoubleArrow => "`<<`",
             Comment(_) => "`//`",
             Greater => "`>`",
             Less => "`<`",
@@ -196,6 +201,7 @@ impl Display for TokenKind {
             Minus => "`-`",
             RightArrow => "`->`",
             Star => "`*`",
+            DoubleStar => "`**`",
             Ampersand => "`&`",
             DoubleAmpersand => "`&&`",
             Pipe => "`|`",
@@ -377,6 +383,18 @@ impl Token {
                         tokens.push(TokenKind::Slash.new_token(ctx, 1));
                     }
                 }
+                '%' => {
+                    tokens.push(TokenKind::Percent.new_token(ctx, 1));
+                }
+                '<' => {
+                    let next_c = chars.peek();
+                    if matches!(next_c, Some(&'<')) {
+                        tokens.push(TokenKind::LeftDoubleArrow.new_token(ctx, 2));
+                        chars.next();
+                    } else {
+                        tokens.push(TokenKind::Less.new_token(ctx, 1));
+                    }
+                }
                 '>' => {
                     tokens.push(TokenKind::Greater.new_token(ctx, 1));
                 }
@@ -421,6 +439,9 @@ impl Token {
                     let next_c = chars.peek();
                     if matches!(next_c, Some(&'=')) {
                         tokens.push(TokenKind::StarEqual.new_token(ctx, 2));
+                        chars.next();
+                    } else if matches!(next_c, Some(&'*')) {
+                        tokens.push(TokenKind::DoubleStar.new_token(ctx, 2));
                         chars.next();
                     } else {
                         tokens.push(TokenKind::Star.new_token(ctx, 1));
