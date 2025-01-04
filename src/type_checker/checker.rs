@@ -530,23 +530,6 @@ impl<B: Backend> TypeChecker<B> {
                 }
 
                 // then_ and else_ can only be variables, field accesses, or array accesses
-                if !matches!(
-                    &then_.kind,
-                    ExprKind::Variable { .. }
-                        | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
-                ) {
-                    return Err(self.error(ErrorKind::IfElseInvalidIfBranch(), then_.span));
-                }
-
-                if !matches!(
-                    &else_.kind,
-                    ExprKind::Variable { .. }
-                        | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
-                ) {
-                    return Err(self.error(ErrorKind::IfElseInvalidElseBranch(), else_.span));
-                }
 
                 // compute type of if/else branches
                 let then_node = self
@@ -558,7 +541,15 @@ impl<B: Backend> TypeChecker<B> {
 
                 // make sure that the type of then_ and else_ match
                 if then_node.typ != else_node.typ {
-                    return Err(self.error(ErrorKind::IfElseMismatchingBranchesTypes(), expr.span));
+                    // allow both to be fields, no matter if they are constant or not
+                    let is_both_fields = matches!(then_node.typ, TyKind::Field { .. })
+                        && matches!(else_node.typ, TyKind::Field { .. });
+
+                    if !is_both_fields {
+                        return Err(
+                            self.error(ErrorKind::IfElseMismatchingBranchesTypes(), expr.span)
+                        );
+                    }
                 }
 
                 Some(ExprTyInfo::new_anon(then_node.typ))

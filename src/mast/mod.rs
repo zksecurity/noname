@@ -1002,13 +1002,21 @@ fn monomorphize_expr<B: Backend>(
 
             // make sure that the type of then_ and else_ match
             if then_mono.typ != else_mono.typ {
-                Err(Error::new(
-                    "If-Else Monomorphization",
-                    ErrorKind::UnexpectedError(
-                        "`if` branch and `else` branch must have matching types",
-                    ),
-                    expr.span,
-                ))?
+                // allow fields no matter if they are constant or not
+                let both_fields = matches!(
+                    (&then_mono.typ, &else_mono.typ),
+                    (Some(TyKind::Field { .. }), Some(TyKind::Field { .. }))
+                );
+
+                if !both_fields {
+                    Err(Error::new(
+                        "If-Else Monomorphization",
+                        ErrorKind::UnexpectedError(
+                            "`if` branch and `else` branch must have matching types",
+                        ),
+                        expr.span,
+                    ))?
+                }
             }
 
             let mexpr = expr.to_mast(

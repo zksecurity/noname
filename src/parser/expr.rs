@@ -236,23 +236,6 @@ impl Expr {
                 //           ^^^^^
                 let then_ = Box::new(Expr::parse(ctx, tokens)?);
 
-                if !matches!(
-                    &then_.kind,
-                    ExprKind::Variable { .. }
-                        | ExprKind::Bool { .. }
-                        | ExprKind::BigUInt { .. }
-                        | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
-                ) {
-                    Err(Error::new(
-                        "parse - if keyword",
-                        ErrorKind::UnexpectedError(
-                            "_then_ branch of ternary operator cannot be more than a variable",
-                        ),
-                        span,
-                    ))?
-                }
-
                 // if cond { expr1 } else { expr2 }
                 //                 ^
                 tokens.bump_expected(ctx, TokenKind::RightCurlyBracket)?;
@@ -268,23 +251,6 @@ impl Expr {
                 // if cond { expr1 } else { expr2 }
                 //                          ^^^^^
                 let else_ = Box::new(Expr::parse(ctx, tokens)?);
-
-                if !matches!(
-                    &else_.kind,
-                    ExprKind::Variable { .. }
-                        | ExprKind::Bool { .. }
-                        | ExprKind::BigUInt { .. }
-                        | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
-                ) {
-                    Err(Error::new(
-                        "parse - if keyword",
-                        ErrorKind::UnexpectedError(
-                            "_else_ branch of ternary operator cannot be more than a variable",
-                        ),
-                        span,
-                    ))?
-                }
 
                 // if cond { expr1 } else { expr2 }
                 //                                ^
