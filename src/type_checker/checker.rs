@@ -154,8 +154,9 @@ impl<B: Backend> TypeChecker<B> {
                 let fn_sig = fn_info.sig().clone();
                 let all_constants = fn_sig.arguments.iter().all(|arg| arg.is_constant());
 
-                // check if the function is a hint
-                if fn_info.is_hint && !unsafe_attr {
+                // check if the function is a hint.
+                // ignore the unsafe attribute if we are in a hint function.
+                if !typed_fn_env.is_in_hint_fn() && fn_info.is_hint && !unsafe_attr {
                     return Err(self.error(ErrorKind::ExpectedUnsafeAttribute, expr.span));
                 }
 
@@ -275,7 +276,7 @@ impl<B: Backend> TypeChecker<B> {
                 if let Some(var_name) = &lhs_node.var_name {
                     typed_fn_env.invalidate_cst_var(var_name);
                 }
-                
+
                 // todo: check and update the const field type for other cases
                 // lhs can be a local variable or a path to an array
                 let lhs_name = match &lhs.kind {
