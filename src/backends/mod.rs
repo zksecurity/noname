@@ -1,13 +1,12 @@
 use std::{fmt::Debug, str::FromStr};
 
 use ::kimchi::o1_utils::FieldHelpers;
-use ark_ff::{Field, One, PrimeField, Zero};
-use circ::ir::term::precomp::PreComp;
+use ark_ff::{Field, One, Zero};
 use fxhash::FxHashMap;
 use num_bigint::BigUint;
 
 use crate::{
-    circuit_writer::VarInfo,
+    circuit_writer::{ir::IRWriter, VarInfo},
     compiler::Sources,
     constants::Span,
     error::{Error, ErrorKind, Result},
@@ -204,14 +203,9 @@ pub trait Backend: Clone {
 
                 Ok(res)
             }
-            Value::HintIR(t, named_vars) => {
-                let mut precomp = PreComp::new();
-                // For hint evaluation purpose, precomp only has only one output and no connections with other parts,
-                // so just use a dummy output var name.
-                precomp.add_output("x".to_string(), t.clone());
-
+            Value::HintIR(t, named_vars, logs) => {
                 // map the named vars to env
-                let env = named_vars
+                let ir_env = named_vars
                     .iter()
                     .map(|(name, var)| {
                         let val = match var {
@@ -225,24 +219,21 @@ pub trait Backend: Clone {
                     })
                     .collect::<FxHashMap<String, circ::ir::term::Value>>();
 
-                // evaluate and get the only one output
-                let eval_map = precomp.eval(&env);
-                let value = eval_map.get("x").unwrap();
-                // convert to field
-                let res = match value {
-                    circ::ir::term::Value::Field(f) => {
-                        let bytes = f.i().to_digits::<u8>(rug::integer::Order::Lsf);
-                        Self::Field::from_le_bytes_mod_order(&bytes)
-                    }
-                    circ::ir::term::Value::Bool(b) => {
-                        if *b {
-                            Self::Field::one()
-                        } else {
-                            Self::Field::zero()
-                        }
-                    }
-                    _ => panic!("unexpected output type"),
-                };
+                // evaluate logs
+                for log in logs {
+                    // check the cache on env and log, and only evaluate if not in cache
+                    let res: Vec<Self::Field> = IRWriter::<Self>::eval_ir(&ir_env, log);
+                    // format and print out array
+                    println!(
+                        "log: {:#?}",
+                        res.iter().map(|f| f.pretty()).collect::<Vec<String>>()
+                    );
+                }
+
+                // evaluate the term
+                let res = IRWriter::<Self>::eval_ir(&ir_env, t)[0];
+
+                env.cached_values.insert(cache_key, res); // cache
 
                 Ok(res)
             }

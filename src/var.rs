@@ -71,7 +71,11 @@ where
     PublicOutput(Option<B::Var>),
 
     /// Resulted IR term and the (name, variable) for arugments of the hint function
-    HintIR(Term, Vec<(String, ConstOrCell<B::Field, B::Var>)>),
+    HintIR(
+        Term,
+        Vec<(String, ConstOrCell<B::Field, B::Var>)>,
+        Vec<Term>,
+    ),
 }
 
 impl<B: Backend> std::fmt::Debug for Value<B> {
@@ -88,7 +92,7 @@ impl<B: Backend> std::fmt::Debug for Value<B> {
             Value::PublicOutput(..) => write!(f, "PublicOutput"),
             Value::Scale(..) => write!(f, "Scaling"),
             Value::NthBit(_, _) => write!(f, "NthBit"),
-            Value::HintIR(..) => write!(f, "HintIR"),
+            Value::HintIR(t, args, logs) => write!(f, "HintIR: {}, {:?}, {:?}", t, args, logs),
         }
     }
 }
