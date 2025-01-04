@@ -261,6 +261,10 @@ impl<B: Backend> TypeChecker<B> {
                     .compute_type(lhs, typed_fn_env)?
                     .expect("type-checker bug: lhs access on an empty var");
 
+                if let Some(var_name) = &lhs_node.var_name {
+                    typed_fn_env.invalidate_cst_var(var_name);
+                }
+                
                 // todo: check and update the const field type for other cases
                 // lhs can be a local variable or a path to an array
                 let lhs_name = match &lhs.kind {
