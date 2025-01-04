@@ -1,0 +1,19 @@
+use std::biguint;
+use std::int;
+
+fn main(pub lhs: [Field; 3], rhs: [Field; 3]) -> [Field; 6] {
+    let registers = 3;
+    let val = int::Uint8.new(0);
+    // todo: bug: when assigning using [int::Uint8.new(0); registers], it throws error "method call only work on custom types"
+    let mut lhs_uint8 = [val; registers];
+    let mut rhs_uint8 = [val; registers];
+
+    for ii in 0..registers {
+        lhs_uint8[ii] = int::Uint8.new(lhs[ii]);
+        rhs_uint8[ii] = int::Uint8.new(rhs[ii]);
+    }
+
+    let res_uint8 = biguint::uint8_mult(lhs_uint8, rhs_uint8);
+    let res = biguint::uint8_to_fields(res_uint8);
+    return res;
+}

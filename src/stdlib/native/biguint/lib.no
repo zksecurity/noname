@@ -1,0 +1,709 @@
+use std::bits;
+use std::builtins;
+use std::comparator;
+use std::int;
+
+struct Result {
+    sum: Field,
+    carry: Field,
+}
+
+hint fn pow(base: Field, exp: Field) -> Field {
+    let res = base ** exp;
+
+    return res;
+}
+
+hint fn left_shift(val: Field, shift: Field) -> Field {
+    return val << shift;
+}
+
+hint fn right_shift(val: Field, shift: Field) -> Field {
+    return val / (1 << shift);
+}
+
+hint fn div(val: Field, divisor: Field) -> Field {
+    return val / divisor;
+}
+
+// log2
+hint fn log2(const val: Field) -> Field {
+    let mut res = 0;
+    let mut remainder = val;
+    
+    // assume max bits of val is 256
+    // todo: with the support of early return or break in the loop will remove this assumption
+    for bit in 0..256 {
+        res = if remainder == 0 { res } else { bit + 1 };
+        remainder = remainder / 2;
+    }
+
+    return res;
+}
+
+hint fn split_fn(in_val: Field, const small_bitlen: Field, const big_bitlen: Field) -> [Field; 2] {
+    let small = in_val % (1 << small_bitlen);
+
+    // right shift by small_bitlen to get the remaining bits
+    let right_shifted = in_val / (1 << small_bitlen);
+    let big = right_shifted % (1 << big_bitlen);
+
+    return [small, big];
+}
+
+hint fn split_three_fn(in_val: Field, const small_bitlen: Field, const mid_bitlen: Field, const big_bitlen: Field) -> [Field; 3] {
+    let small = in_val % (1 << small_bitlen);
+
+    // right shift by small_bitlen to get the remaining bits
+    let right_shifted_mid = in_val / (1 << small_bitlen);
+    let mid = right_shifted_mid % (1 << mid_bitlen);
+
+    // right shift by small_bitlen + mid_bitlen to get the remaining bits
+    let right_shifted_big = in_val / (1 << (small_bitlen + mid_bitlen));
+    let big = right_shifted_big % (1 << big_bitlen);
+
+    return [small, mid, big];
+}
+
+hint fn long_gt(lhs: [Field; SIZE], rhs: [Field; SIZE]) -> Bool {
+    // init with 2
+    // 1 means  lhs > rhs
+    // 0 means lhs <= rhs
+    let mut res = 2;
+    for ii in 0..SIZE {
+        let reversed_index = (SIZE - ii) - 1;
+
+        res = if (res == 2) && (rhs[reversed_index] < lhs[reversed_index]) { 1 } else { res };
+        res = if (res == 2) && (lhs[reversed_index] < rhs[reversed_index]) { 0 } else { res };
+    }
+
+    let out = if res == 1 { true } else { false };
+    return out;
+}
+
+// assume lhs >= rhs
+hint fn sub_limbs(const BITLEN: Field, lhs: [Field; SIZE], rhs: [Field; SIZE]) -> [Field; SIZE] {
+    let mut out = [0; SIZE];
+    let mut borrow = 0;
+
+    for ii in 0..SIZE {
+        // todo: enhance ite to allow multiple expressions, so this line can be merged with the below ite
+        let mut next_borrow = if lhs[ii] < (rhs[ii] + borrow) { 1 } else { 0 };
+
+        out[ii] = if next_borrow == 0 {
+            (lhs[ii] - rhs[ii]) - borrow
+        } else {
+            ((lhs[ii] - rhs[ii]) - borrow) + (1 << BITLEN)
+        };
+
+        borrow = next_borrow;
+    }
+
+    return out;
+}
+
+hint fn scale_limbs(const BITLEN: Field, scalar: Field, limbs: [Field; SIZE]) -> [Field; SIZE + 1] {
+    let mut out = [0; SIZE + 1];
+
+    for ii in 0..SIZE {
+        let temp = out[ii] + (scalar * limbs[ii]);
+        out[ii] = temp % (1 << BITLEN);
+
+        out[ii + 1] = temp / (1 << BITLEN);
+    }
+
+    return out;
+}
+
+hint fn long_gt(lhs: [Field; SIZE], rhs: [Field; SIZE]) -> Bool {
+    // init with 2
+    // 1 means  lhs > rhs
+    // 0 means lhs <= rhs
+    let mut res = 2;
+    for ii in 0..SIZE {
+        let reversed_index = (SIZE - ii) - 1;
+
+        res = if (res == 2) && (rhs[reversed_index] < lhs[reversed_index]) { 1 } else { res };
+        res = if (res == 2) && (lhs[reversed_index] < rhs[reversed_index]) { 0 } else { res };
+    }
+
+    let out = if res == 1 { true } else { false };
+    return out;
+}
+
+hint fn calculate_quotient_limb(const BITLEN: Field, dividend: [Field; DVDLEN], divisor: [Field; DVSLEN]) -> Field {
+    let mut quotient = ((dividend[DVDLEN - 1] * (1 << BITLEN)) + dividend[DVDLEN - 2]) / divisor[DVSLEN - 1];
+    quotient = if ((1 << BITLEN) - 1) < quotient { (1 << BITLEN) - 1 } else { quotient };
+    
+    // todo: really have to support statements in ite
+    // Flattened version without nested ITE and no direct return in if:
+    // let mut out = 0;
+    
+    // 1) scale the divisor by the quotient to compare with the dividend
+    let mut div_to_check = scale_limbs(BITLEN, quotient, divisor);
+    
+    // 2) Check first condition c1: "Is mult > dividend?"
+    let c1 = long_gt(div_to_check, dividend);  // either 0 or 1
+    
+    // potential correction: (q - 1) * b = q*b - b
+    // padding the divisor with 0s to the left to align with the length of dividend
+    let mut padded_divisor = [0; DVSLEN + 1];
+    for ii in 0..DVSLEN {
+        padded_divisor[ii] = divisor[ii];
+    }
+
+
+    // log(div_to_check);
+    // log(padded_divisor);
+    div_to_check = sub_limbs(BITLEN, div_to_check, padded_divisor);
+    // log(div_to_check);
+    // 3) If c1 == 1, do the subtraction, then compute second condition c2
+    let c2 = if c1 { long_gt(div_to_check, dividend) } else { false };
+
+    // 4) Combine c1 and c2 into an integer cond = 2*c1 + c2
+    //    Possible values of cond: 
+    //       - 0 (c1=0, c2=0), 
+    //       - 2 (c1=1, c2=0), 
+    //       - 3 (c1=1, c2=1).
+    
+    // convert c1 to number
+    let c1_num = if c1 { 1 } else { 0 };
+    let c2_num = if c2 { 1 } else { 0 };
+    let cond = (2 * c1_num) + c2_num;
+
+    // 5) Determine out based on cond in "flat" if-statements
+    // quotient = if cond == 0 {
+    //     // c1=0 => mult <= dividend => quotient is correct
+    //     quotient
+    // }
+    quotient = if cond == 2 { quotient - 1 } else { quotient };
+
+    quotient = if cond == 3 { quotient - 2 } else { quotient };
+
+
+    // 6) One final return
+    return quotient;
+}
+
+hint fn normalize_div(const BITLEN: Field, dividend: [Field; DVDLEN], divisor: [Field; DVSLEN]) -> Field {
+    // todo: do we need to check if the top limb of divisor is zero and scale it? or we just assume it is non zero?
+    // scale both dividend and divisor
+    // let scale = (1 << BITLEN) / (divisor[DVSLEN - 1] + 1);
+    // let dvd = scale_limbs(BITLEN, scale, dividend);
+    // let dvs = scale_limbs(BITLEN, scale, divisor);
+    // log(dvd);
+
+    // calculate the quotient
+    let quotient = calculate_quotient_limb(BITLEN, dividend, divisor);
+    return quotient;
+}
+
+// Calculate the division of two arrays of fields representing big integers.
+// return the quotient limbs
+hint fn calculate_quotient_limbs(const BITLEN: Field, dividend: [Field; DVDLEN], divisor: [Field; DVSLEN]) -> [Field; (DVDLEN - DVSLEN) + 1] {
+    // the top limb of divisor has to be non-zero
+    // todo: allow builtin assert in hint functions
+    // assert(divisor[DVSLEN - 1] != 0);
+
+    // init remainder from dividend
+    let mut remainder = dividend;
+
+    let quotient_limb_len = (DVDLEN - DVSLEN) + 1;
+    let mut quotient_limbs = [0; quotient_limb_len];
+
+    // calculate quotient limbs
+    // todo: check why can't these be initialized inside the loop
+    let mut dividend_limbs = [0; DVSLEN + 1];
+    let mut divisor_limbs = [0; DVSLEN];
+    let mut shifted_limbs = [0; DVDLEN];
+    
+    for quotient_limb_index in 0..quotient_limb_len {
+        let q_index = (quotient_limb_len - quotient_limb_index) - 1;
+
+        for ii in 1..(DVSLEN + 1) {
+            let reversed_divisor_index = DVSLEN - ii;
+
+            let r_index = q_index + reversed_divisor_index;
+            dividend_limbs[reversed_divisor_index] = 
+                // for most significant limb
+                if q_index == (quotient_limb_len - 1) { 0 } 
+                else { remainder[r_index] };
+        }
+
+        // estimate the quotient limb
+        let quotient_limb = normalize_div(BITLEN, dividend_limbs, divisor);
+
+        // restore the limbs that are dividing out
+        let limbs_to_remove = scale_limbs(BITLEN, quotient_limb, divisor);
+
+        // shift the limbs to remove to the correct position
+        for ii in 0..DVSLEN {
+            let reversed_divisor_index = (DVSLEN - ii) - 1;
+            shifted_limbs[q_index + reversed_divisor_index] = limbs_to_remove[reversed_divisor_index];
+        }
+
+        // subtract the limbs that are dividing out
+        remainder = sub_limbs(BITLEN, remainder, shifted_limbs);
+        quotient_limbs[q_index] = quotient_limb;
+
+        // reset limbs for the next iteration
+        dividend_limbs = [0; DVSLEN + 1];
+        divisor_limbs = [0; DVSLEN];
+        shifted_limbs = [0; DVDLEN];
+    }
+
+    return quotient_limbs;
+}
+
+// Mostly duplicated code from calculate_quotient_limbs.
+// Instead of returning the quotient limbs, it returns the remainder limbs.
+// todo: we avoid this duplication once tuple return type or generic struct is supported.
+hint fn rem_limbs(const BITLEN: Field, dividend: [Field; DVDLEN], divisor: [Field; DVSLEN]) -> [Field; DVSLEN] {
+    // init remainder from dividend
+    let mut remainder = dividend;
+
+    let quotient_limb_len = (DVDLEN - DVSLEN) + 1;
+    let mut quotient_limbs = [0; quotient_limb_len];
+
+    // calculate quotient limbs
+    let mut dividend_limbs = [0; DVSLEN + 1];
+    let mut divisor_limbs = [0; DVSLEN];
+    let mut shifted_limbs = [0; DVDLEN];
+    
+    for quotient_limb_index in 0..quotient_limb_len {
+        let q_index = (quotient_limb_len - quotient_limb_index) - 1;
+
+        for ii in 1..(DVSLEN + 1) {
+            let reversed_divisor_index = DVSLEN - ii;
+
+            let r_index = q_index + reversed_divisor_index;
+            dividend_limbs[reversed_divisor_index] = 
+                // for most significant limb
+                if q_index == (quotient_limb_len - 1) { 0 } 
+                else { remainder[r_index] };
+        }
+
+        // estimate the quotient limb
+        let quotient_limb = normalize_div(BITLEN, dividend_limbs, divisor);
+
+        // restore the limbs that are dividing out
+        let limbs_to_remove = scale_limbs(BITLEN, quotient_limb, divisor);
+
+        // shift the limbs to remove to the correct position
+        for ii in 0..DVSLEN {
+            let reversed_divisor_index = (DVSLEN - ii) - 1;
+            shifted_limbs[q_index + reversed_divisor_index] = limbs_to_remove[reversed_divisor_index];
+        }
+
+        // subtract the limbs that are dividing out
+        remainder = sub_limbs(BITLEN, remainder, shifted_limbs);
+        quotient_limbs[q_index] = quotient_limb;
+
+        // reset limbs for the next iteration
+        dividend_limbs = [0; DVSLEN + 1];
+        divisor_limbs = [0; DVSLEN];
+        shifted_limbs = [0; DVDLEN];
+    }
+
+    let mut res_remainder = [0; DVSLEN];
+    for ii in 0..DVSLEN {
+        res_remainder[ii] = remainder[ii];
+    }
+
+    return res_remainder;
+}
+
+fn pad_limbs(const PADLEN: Field, limbs: [Field; SIZE]) -> [Field; PADLEN] {
+    // assume bit len of SIZE and PADLEN are not greater than 8 bits.
+    // less_eq_than also covers the range check.
+    assert(comparator::less_eq_than(8, SIZE, PADLEN));
+    let mut out = [0; PADLEN];
+    for ii in 0..SIZE {
+        out[ii] = limbs[ii];
+    }
+    return out;
+}
+
+// n bits per register
+// a has k + 1 registers
+// b has k registers
+// assumes leading digit of b is at least 2 ** (n - 1)
+// 0 <= a < (2**n) * b
+// function short_div_norm(n, k, a, b) {
+//     var qhat = (a[k] * (1 << n) + a[k - 1]) \ b[k - 1];
+//     if (qhat > (1 << n) - 1) {
+//        qhat = (1 << n) - 1;
+//     }
+ 
+//     var mult[100] = long_scalar_mult(n, k, qhat, b);
+//     if (long_gt(n, k + 1, mult, a) == 1) {
+//        mult = long_sub(n, k + 1, mult, b);
+//        if (long_gt(n, k + 1, mult, a) == 1) {
+//           return qhat - 2;
+//        } else {
+//           return qhat - 1;
+//        }
+//     } else {
+//         return qhat;
+//     }
+//  }
+
+// 1 if true, 0 if false
+// function long_gt(n, k, a, b) {
+//     for (var i = k - 1; i >= 0; i--) {
+//         if (a[i] > b[i]) {
+//             return 1;
+//         }
+//         if (a[i] < b[i]) {
+//             return 0;
+//         }
+//     }
+//     return 0;
+// }
+
+// sum % 2**LEN with carry bit
+fn module_sum(const LEN: Field, lhs: Field, rhs: Field) -> Result {
+    // assumptions:
+    // 1. LEN has to be less than the size of fields lhs and rhs
+    //    otherwise the sum of lhs and rhs is always less than the max value of LEN bits.
+    // 2. the size of a b value have to be upper bounded by LEN
+
+    let one = 1;
+    let zero = 0;
+
+    // absolute sum
+    let abs_sum = lhs + rhs;
+
+    // one more bit for the carry
+    let carry_len = LEN + 1;
+
+    // convert the sum to bits
+    // this also does the range check for the assumption 2
+    let abs_bits = bits::to_bits(carry_len, abs_sum);
+
+    // extract the carry bit
+    let carry_bit = abs_bits[LEN];
+    let carry_num = if carry_bit { one } else { zero };
+
+    // calculate the module sum by removing contributions from carries
+    let mod_sum = abs_sum - (carry_num * unsafe left_shift(1, LEN));
+
+    return Result {
+        sum: mod_sum,
+        carry: carry_num
+    };
+}
+
+// todo: encapsulate module_sum* functions into a single function, eg:
+// fn module_sum(const LEN: Field, elms: [Field; SIZE]) -> Result 
+// LEN is the number of bits of the modulo, SIZE is the number of elements
+// according to the math: a + b + c <= SIZE * (2**LEN - 1)
+// the number of carries can be determined by ceil(SIZE/2)
+fn module_sum_three (const LEN: Field, aa: Field, bb: Field, cc: Field) -> Result {
+    let one = 1;
+    let zero = 0;
+
+    // absolute sum
+    let abs_sum = (aa + bb) + cc;
+
+    // carry bits
+    let carry_len = LEN + 2;
+
+    // convert the sum to bits
+    let abs_bits = bits::to_bits(carry_len, abs_sum);
+
+    // extract the carry bit
+    let first_carry_num = if abs_bits[LEN] { one } else { zero };
+    let second_carry_num = if abs_bits[LEN + 1] { one } else { zero };
+
+    // total carry in sum
+    let total_carry_num = first_carry_num + (2 * second_carry_num);
+
+    // calculate the module sum by removing contributions from carries
+    let mod_sum = abs_sum - (total_carry_num * unsafe left_shift(1, LEN));
+    
+    return Result {
+        sum: mod_sum,
+        carry: total_carry_num
+    };
+}
+
+fn add_limbs(const LEN: Field, aa: [Field; SIZE], bb: [Field; SIZE]) -> [Field; SIZE + 1] {
+    let mut out = [0; SIZE + 1];
+
+    let mut res = module_sum(LEN, aa[0], bb[0]);
+    out[0] = res.sum;
+
+    let mut carry = res.carry;
+
+    for ii in 1..SIZE {
+        res = module_sum_three(LEN, aa[ii], bb[ii], carry);
+        out[ii] = res.sum;
+        carry = res.carry;
+    }
+
+    out[SIZE] = carry;
+    return out;
+}
+
+fn eq_limbs(const LEN: Field, lhs: [Field; SIZE], rhs: [Field; SIZE]) -> Bool {
+    let mut res = true;
+    for ii in 0..SIZE {
+        res = res && (lhs[ii] == rhs[ii]);
+    }
+
+    return res;
+}
+
+fn less_than_limbs(const LEN: Field, lhs: [Field; SIZE], rhs: [Field; SIZE]) -> Bool {
+    // an flag init with 2
+    // 1 means lhs < rhs
+    // 0 means lhs >= rhs
+    let mut res = 2;
+    for ii in 0..SIZE {
+        let reversed_index = (SIZE - ii) - 1;
+
+        let is_lt = comparator::less_than(LEN, lhs[reversed_index], rhs[reversed_index]);
+        let is_eq = lhs[reversed_index] == rhs[reversed_index];
+
+        res = if (res == 2) && is_lt { 1 } else { res };
+        // if encountered neither equal or less than condition, then it is greater than 
+        res = if (res == 2) && !is_eq { 0 } else { res };
+    }
+
+    let out = if res == 1 { true } else { false };
+    return out;
+}
+
+fn mult_limbs_no_carry(const BITLEN: Field, lhs: [Field; REGLHS], rhs: [Field; REGRHS]) -> [Field; (REGLHS + REGRHS) - 1] {
+    let mut prod_val = [0; REGLHS + REGRHS];
+    for ii in 0..REGLHS {
+        for jj in 0..REGRHS {
+            prod_val[ii + jj] = prod_val[ii + jj] + (lhs[ii] * rhs[jj]);
+        }
+    }
+
+    let mut prod = [0; (REGLHS + REGRHS) - 1];
+    // is the value or prod[REGLHS + REGRHS] always 0?
+    for ii in 0..(REGLHS + REGRHS) - 1 {
+        prod[ii] = prod_val[ii];
+    }
+
+    // prove prod_val calculated correctly via polynomial convolution
+    // P_out(x) = P_lhs(x) * P_rhs(x)
+    // lhs[i] and rhs[j] are the coefficients of P_lhs(x) and P_rhs(x) respectively
+    // coefficients of P_out(x), which is out[i], are the convolution of lhs and rhs
+    let mut lhs_poly = [0; (REGLHS + REGRHS) - 1];
+    let mut rhs_poly = [0; (REGLHS + REGRHS) - 1];
+    let mut prod_poly = [0; (REGLHS + REGRHS) - 1];
+    for point in 0..(REGLHS + REGRHS) - 1 {
+        for limb_idx in 0..(REGLHS + REGRHS) - 1 {
+            prod_poly[point] = prod_poly[point] + (prod[limb_idx] * unsafe pow(point, limb_idx));
+        }
+        for limb_idx in 0..REGLHS {
+            lhs_poly[point] = lhs_poly[point] + (lhs[limb_idx] * unsafe pow(point, limb_idx));
+        }
+        for limb_idx in 0..REGRHS {
+            rhs_poly[point] = rhs_poly[point] + (rhs[limb_idx] * unsafe pow(point, limb_idx));
+        }
+    }
+
+    for ii in 0..(REGLHS + REGRHS) - 1 {
+        assert_eq(prod_poly[ii], lhs_poly[ii] * rhs_poly[ii]);
+    }
+
+    return prod;
+}
+
+hint fn long_to_short(const SHORTLEN: Field, long_ints: [Field; SIZE]) -> [Field; SIZE + 1] {
+    let zero = 0;
+    let mut short_ints = [0; SIZE + 1];
+
+    let mut split = [[0; 3]; SIZE];
+    for ii in 0..SIZE {
+        split[ii] = split_three_fn(long_ints[ii], SHORTLEN, SHORTLEN, SHORTLEN);
+    }
+
+    let mut carry = [0; SIZE];
+    short_ints[0] = split[0][0];
+
+    // Compute the short integers and carries
+    // each of long ints are split into 3 short ints
+    // then they align diagonally to compute the sum vertically
+    // the reason to align diagonally is to align with the bit magnitude in each long int
+    // each long int has left shifted SHORTLEN bits compared to the previous long int
+    // l0: s0, s1, s2
+    // l1:     s0, s1, s2
+    // l2:         s0, s1, s2
+    // assumption: no carry is possible in the highest order register
+    // for example, 
+    // a * b = l1, then l1.s3 won't have carry bits more than len(a) + len(b)
+
+    short_ints[0] = split[0][0];
+    let short_ints_1_sum = split_fn(split[0][1] + split[1][0], SHORTLEN, SHORTLEN);
+    short_ints[1] = short_ints_1_sum[0];
+    carry[1] = short_ints_1_sum[1];
+
+    for ii in 2..SIZE {
+        // relatively, this is from the last long int
+        let l2_s0 = split[ii][0];
+        // relatively, this is from the middle long int
+        // todo: without branching, ii - 1 could overview the range when ii is 0
+        // todo: thus for now, enforce SIZE >= 3
+        let l1_s1 = split[ii - 1][1];
+        // relatively, this is from the first long int
+        let l0_s2 = split[ii - 2][2];
+        let c_prev = carry[ii - 1];
+
+        // Compute sum and carry for indices less than SIZE
+        let sum = ((l2_s0 + l1_s1) + l0_s2) + c_prev;
+        let sum_and_carry = split_fn(sum, SHORTLEN, SHORTLEN);
+        short_ints[ii] = sum_and_carry[0];
+        carry[ii] = sum_and_carry[1];
+    }
+
+    // Compute the l2_s1 and l1_s2
+    let l2_s1 = split[SIZE - 1][1];
+    let l1_s2 = split[SIZE - 2][2];
+
+    short_ints[SIZE] = (l2_s1 + l1_s2) + carry[SIZE - 1];
+
+    return short_ints;    
+}
+
+fn normalize_limbs(const SHORTLEN: Field, long_ints: [Field; SIZE]) -> [Field; SIZE + 1] {
+    let short_ints = unsafe long_to_short(SHORTLEN, long_ints);
+
+    // range checks
+    for ii in 0..SIZE + 1 {
+        // todo: update the type checker to allow unused return value?
+        // or a wrapper function to simply do the range check without return?
+        let ignore = bits::to_bits(SHORTLEN, short_ints[ii]);
+    }
+
+    // prove the relationship between long ints and short ints
+    // the running carry should be the same as the last short int
+    let mut running_carry = [0; SIZE];
+    // this can be also seen as a right shift
+    running_carry[0] = unsafe right_shift(long_ints[0] - short_ints[0], SHORTLEN);
+    // range check
+    let carry_len = SHORTLEN + unsafe log2(SIZE);
+
+    let ignore = bits::to_bits(carry_len, running_carry[0]);
+    assert_eq(running_carry[0] * (unsafe left_shift(1, SHORTLEN)), long_ints[0] - short_ints[0]);
+
+    for ii in 1..SIZE {
+        let remaining = (long_ints[ii] - short_ints[ii]) + running_carry[ii - 1];
+        running_carry[ii] = unsafe right_shift(remaining, SHORTLEN);
+        // range check
+        let ignore_ = bits::to_bits(carry_len, running_carry[ii]);
+        assert_eq(running_carry[ii] * (unsafe left_shift(1, SHORTLEN)), remaining);
+    }
+
+    assert_eq(running_carry[SIZE - 1], short_ints[SIZE]);
+
+    return short_ints;
+}
+
+fn mult_limbs(const BITLEN: Field, lhs: [Field; SIZE], rhs: [Field; SIZE]) -> [Field; 2 * SIZE] {
+    let mut out = [0; 2 * SIZE];
+
+    let longs = mult_limbs_no_carry(BITLEN, lhs, rhs);
+    let shorts = normalize_limbs(BITLEN, longs);
+
+    return shorts;
+}
+
+// 
+fn mod_limbs(const BITLEN: Field, dividend: [Field; DVDLEN], divisor: [Field; DVSLEN]) -> [Field; DVSLEN] {
+    let quotient_limbs = unsafe calculate_quotient_limbs(BITLEN, dividend, divisor);
+    let rem_limbs = unsafe rem_limbs(BITLEN, dividend, divisor);
+    
+    let pad_quotient_limbs = pad_limbs(DVSLEN, quotient_limbs);
+    let prod_limbs = mult_limbs(BITLEN, pad_quotient_limbs, divisor);
+
+    // padding the remainder with 0s to align with the length of prod
+    let pad_rem_limbs = pad_limbs(2 * DVSLEN, rem_limbs);
+    
+    // prod + rem = dividend
+    let sum_limbs = add_limbs(BITLEN, prod_limbs, pad_rem_limbs);
+
+    // padding the dividend with 0s to align with the length of sum
+    let padded_div_limbs = pad_limbs((2 * DVSLEN) + 1, dividend);
+
+    assert(eq_limbs(BITLEN, sum_limbs, padded_div_limbs));
+
+    // rem < divisor
+    assert(less_than_limbs(BITLEN, rem_limbs, divisor));
+
+    return rem_limbs;
+}
+
+// Divide two arrays of fields representing big integers.
+// Assumptions:
+// - The top limb of divisor has to be non-zero
+// - The number of divisor limbs has to be greater than or equal to the number of quotient limbs. 
+//   This assumption could be removed if the MAST phase supports folding constants in ITE and comparison,
+//   such that it can determine how to pad either the quotient limbs or divisor limbs for `mult_limbs`.
+
+fn div_limbs(const BITLEN: Field, dividend: [Field; DVDLEN], divisor: [Field; DVSLEN]) -> [Field; (DVDLEN - DVSLEN) + 1] {
+    let quotient_limbs = unsafe calculate_quotient_limbs(BITLEN, dividend, divisor);
+    let rem_limbs = unsafe rem_limbs(BITLEN, dividend, divisor);
+    
+    let pad_quotient_limbs = pad_limbs(DVSLEN, quotient_limbs);
+    let prod_limbs = mult_limbs(BITLEN, pad_quotient_limbs, divisor);
+
+    // padding the remainder with 0s to align with the length of prod
+    let pad_rem_limbs = pad_limbs(2 * DVSLEN, rem_limbs);
+    
+    // prod + rem = dividend
+    let sum_limbs = add_limbs(BITLEN, prod_limbs, pad_rem_limbs);
+
+    // padding the dividend with 0s to align with the length of sum
+    let padded_div_limbs = pad_limbs((2 * DVSLEN) + 1, dividend);
+
+    assert(eq_limbs(BITLEN, sum_limbs, padded_div_limbs));
+
+    // rem < divisor
+    assert(less_than_limbs(BITLEN, rem_limbs, divisor));
+
+    return quotient_limbs;
+}
+
+fn uint8_to_fields(val: [int::Uint8; REGISTERS]) -> [Field; REGISTERS] {
+    let mut out = [0; REGISTERS];
+    for ii in 0..REGISTERS {
+        out[ii] = val[ii].inner;
+    }
+    return out;
+}
+
+fn uint8_add(lhs: [int::Uint8; REGISTERS], rhs: [int::Uint8; REGISTERS]) -> [int::Uint8; REGISTERS + 1] {
+    let mut res = [int::Uint8.new(0); REGISTERS + 1];
+    
+    let lhs_fields = uint8_to_fields(lhs);
+    let rhs_fields = uint8_to_fields(rhs);
+
+    let raw_res = add_limbs(8, lhs_fields, rhs_fields);
+
+    for ii in 0..REGISTERS + 1 {
+        res[ii] = int::Uint8.new(raw_res[ii]);
+    }
+
+    return res;
+}
+
+fn uint8_mult(lhs: [int::Uint8; REGISTERS], rhs: [int::Uint8; REGISTERS]) -> [int::Uint8; REGISTERS * 2] {
+    let mut res = [int::Uint8.new(0); REGISTERS * 2];
+    
+    let lhs_fields = uint8_to_fields(lhs);
+    let rhs_fields = uint8_to_fields(rhs);
+
+    let raw_res = mult_limbs(8, lhs_fields, rhs_fields);
+
+    for ii in 0..REGISTERS * 2 {
+        res[ii] = int::Uint8.new(raw_res[ii]);
+    }
+
+    return res;
+}
