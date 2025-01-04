@@ -221,9 +221,7 @@ impl Symbolic {
             Symbolic::Generic(ident) => {
                 generics.insert(ident.value.clone());
             }
-            Symbolic::Add(lhs, rhs) | 
-            Symbolic::Mul(lhs, rhs) |
-            Symbolic::Sub(lhs, rhs) => {
+            Symbolic::Add(lhs, rhs) | Symbolic::Mul(lhs, rhs) | Symbolic::Sub(lhs, rhs) => {
                 generics.extend(lhs.extract_generics());
                 generics.extend(rhs.extract_generics());
             }
