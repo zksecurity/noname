@@ -365,4 +365,7 @@ pub enum ErrorKind {
 
     #[error("division by zero")]
     DivisionByZero,
+
+    #[error("lhs `{0}` is less than rhs `{1}`")]
+    NegativeLhsLessThanRhs(String, String),
 }

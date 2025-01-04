@@ -10,6 +10,8 @@ fn main(pub one: Field) {
     let four = add(one, 3);
     assert_eq(four, 4);
 
+    // double() should not be folded to return 8
+    // the asm test will catch the missing constraint if it is folded
     let eight = double(4);
     assert_eq(eight, double(four));
 }
