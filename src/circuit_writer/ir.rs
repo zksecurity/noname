@@ -1043,15 +1043,69 @@ impl<B: Backend> IRWriter<B> {
                         Var::new_cvar(t, expr.span)
                     }
                     Op2::Division => {
-                        let t: Term = term![
-                            Op::PfNaryOp(PfNaryOp::Mul); lhs.cvars[0].clone(),
-                            term![Op::PfUnOp(PfUnOp::Recip); rhs.cvars[0].clone()]
-                        ];
+                        // convert to int
+                        let a_int = term![Op::PfToInt; lhs.cvars[0].clone()];
+                        let b_int = term![Op::PfToInt; rhs.cvars[0].clone()];
+                        // division
+                        let t = term![Op::IntBinOp(IntBinOp::Div); a_int, b_int];
+
+                        // convert back to field
+                        let t = term![Op::IntToPf(B::Field::to_circ_type()); t];
+
                         Var::new_cvar(t, expr.span)
                     }
-                    _ => todo!(),
-                };
+                    Op2::Rem => {
+                        let bit_len = B::Field::MODULUS_BIT_SIZE as usize;
+                        let a_bv = term![Op::PfToBv(bit_len); lhs.cvars[0].clone()];
+                        let b_bv = term![Op::PfToBv(bit_len); rhs.cvars[0].clone()];
+                        let t = term![Op::BvBinOp(BvBinOp::Urem); a_bv.clone(), b_bv.clone()];
+                        let t = term![Op::UbvToPf(Box::new(B::Field::to_circ_type())); t];
 
+                        Var::new_var(t, expr.span)
+                    }
+                    Op2::LShift => {
+                        let bit_len = B::Field::MODULUS_BIT_SIZE as usize;
+                        let a_bv = term![Op::PfToBv(bit_len); lhs.cvars[0].clone()];
+                        let b_bv = term![Op::PfToBv(bit_len); rhs.cvars[0].clone()];
+                        // if the shift result is larger than the bit length, it will be truncated:
+                        // https://github.com/circify/circ/blob/4aa36e479fe15fb444cc9190e0cb5a1a493ee221/src/ir/term/bv.rs#L96
+                        // todo: should we allow field overflow in the hint calculation?
+                        let t = term![Op::BvBinOp(BvBinOp::Shl); a_bv, b_bv];
+                        // convert back to field
+                        let t = term![Op::UbvToPf(Box::new(B::Field::to_circ_type())); t];
+                        Var::new_var(t, expr.span)
+                    }
+                    Op2::LessThan => {
+                        let a_int = term![Op::PfToInt; lhs.cvars[0].clone()];
+                        let b_int = term![Op::PfToInt; rhs.cvars[0].clone()];
+                        let t = term![Op::IntBinPred(IntBinPred::Lt); a_int, b_int];
+                        Var::new_var(t, expr.span)
+                    }
+                    Op2::Pow => {
+                        let base_int = term![Op::PfToInt; lhs.cvars[0].clone()];
+                        let folded = circ::ir::opt::cfold::fold(&rhs.cvars[0].clone(), &[]);
+                        let exp = match &folded.as_value_opt().unwrap() {
+                            v => {
+                                (**v).as_pf().i().to_u32().unwrap()
+                            }
+                            _ => unreachable!(),
+                        };
+
+                        let result = if exp == 0 {
+                            let var = Var::new_constant(B::Field::from(1u32), expr.span);
+                            term![Op::PfToInt; var.cvars[0].clone()]
+                        } else {
+                            let mut acc = base_int.clone();
+                            for _ in 1..exp {
+                                acc = term![Op::IntNaryOp(IntNaryOp::Mul); acc, base_int.clone()];
+                            }
+                            acc
+                        };
+                        // convert back to field
+                        let converted = term![Op::IntToPf(B::Field::to_circ_type()); result];
+                        Var::new_var(converted, expr.span)
+                    }
+                };
                 Ok(Some(VarOrRef::Var(res)))
             }
 

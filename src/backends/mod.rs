@@ -1,8 +1,7 @@
 use std::{fmt::Debug, str::FromStr};
 
 use ::kimchi::o1_utils::FieldHelpers;
-use ark_ff::{Field, One, PrimeField, Zero};
-use circ::ir::term::precomp::PreComp;
+use ark_ff::{Field, One, Zero};
 use fxhash::FxHashMap;
 use num_bigint::BigUint;
 
