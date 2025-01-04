@@ -150,7 +150,9 @@ impl<B: Backend> TypeChecker<B> {
                         fn_name.span,
                     )
                 })?;
+                let is_hint = fn_info.is_hint;
                 let fn_sig = fn_info.sig().clone();
+                let all_constants = fn_sig.arguments.iter().all(|arg| arg.is_constant());
 
                 // check if the function is a hint
                 if fn_info.is_hint && !unsafe_attr {
@@ -182,7 +184,16 @@ impl<B: Backend> TypeChecker<B> {
 
                 // type check the function call
                 let method_call = false;
-                let res = self.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)?;
+                let mut res =
+                    self.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)?;
+
+                // if it is a hint function and only accept constant arguments, then its return can be assumed to be constants
+                if is_hint && all_constants {
+                    res = res.map(|ty| match ty {
+                        TyKind::Field { constant: _ } => TyKind::Field { constant: true },
+                        _ => unimplemented!("only field return type is supported for now"),
+                    });
+                }
 
                 res.map(ExprTyInfo::new_anon)
             }

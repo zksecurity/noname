@@ -7,7 +7,7 @@ use fxhash::FxHashMap;
 use num_bigint::BigUint;
 
 use crate::{
-    circuit_writer::VarInfo,
+    circuit_writer::{ir::IRWriter, VarInfo},
     compiler::Sources,
     constants::Span,
     error::{Error, ErrorKind, Result},

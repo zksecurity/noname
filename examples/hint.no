@@ -3,6 +3,14 @@ struct Thing {
     yy: Field,
 }
 
+fn init_arr(const LEN: Field) -> [Field; LEN] {
+    return [0; LEN];
+}
+
+hint fn cst_div(const lhs: Field, const rhs: Field) -> Field {
+    return lhs / rhs;
+}
+
 hint fn mul(lhs: Field, rhs: Field) -> Field {
     return lhs * rhs;
 }
@@ -82,5 +90,9 @@ fn main(pub public_input: Field, private_input: Field) -> Field {
     assert(!oo[1]);
     assert(oo[2]);
 
+    // mast phase can fold the constant value using hint functions
+    let one = unsafe cst_div(2, 2);
+    let arr = init_arr(one);
+    assert_eq(arr[0], 0);
     return xx;
 }
