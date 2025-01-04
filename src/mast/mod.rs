@@ -875,6 +875,22 @@ fn monomorphize_expr<B: Backend>(
             ExprMonoInfo::new(mexpr, Some(TyKind::Bool), None)
         }
 
+        ExprKind::StringLiteral(inner) => {
+            let mexpr = expr.to_mast(ctx, &ExprKind::StringLiteral(inner.clone()));
+            let string_literal_val: Vec<PropagatedConstant> = inner
+                .chars()
+                .map(|char| PropagatedConstant::Single(BigUint::from(char as u8)))
+                .collect();
+            ExprMonoInfo::new(
+                mexpr,
+                Some(TyKind::Array(
+                    Box::new(TyKind::Field { constant: true }),
+                    inner.len() as u32,
+                )),
+                Some(PropagatedConstant::Array(string_literal_val)),
+            )
+        }
+
         // mod::path.of.var
         // it could be also a generic variable
         ExprKind::Variable { module, name } => {

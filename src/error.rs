@@ -365,4 +365,7 @@ pub enum ErrorKind {
 
     #[error("division by zero")]
     DivisionByZero,
+
+    #[error("String literal not closed")]
+    LiteralNotClosed,
 }

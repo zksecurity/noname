@@ -1,0 +1,12 @@
+
+fn main(pub public_input: Field) -> Field {
+    // log("stuff here"); 
+
+    log(1234);
+    log(true);
+
+    let arr = [1,2,3];
+    log(arr);
+
+    return public_input + 1;
+}

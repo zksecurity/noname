@@ -696,6 +696,13 @@ impl<B: Backend> CircuitWriter<B> {
                 Ok(Some(res))
             }
 
+            ExprKind::StringLiteral(s) => {
+                let chars_in_ff: Vec<B::Field> =
+                    s.chars().map(|char| B::Field::from(char as u8)).collect();
+                let cvars = chars_in_ff.iter().map(|&f| ConstOrCell::Const(f)).collect();
+                Ok(Some(VarOrRef::Var(Var::new(cvars, expr.span))))
+            }
+
             ExprKind::Variable { module, name } => {
                 // if it's a type we return nothing
                 // (most likely what follows is a static method call)
