@@ -17,7 +17,7 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     imports::FnKind,
-    mast::Mast,
+    mast::PropagatedConstant,
     parser::{
         types::{ForLoopArgument, FunctionDef, Stmt, StmtKind, TyKind},
         Expr, ExprKind, Op2,
@@ -373,8 +373,9 @@ impl FnEnv {
 #[derive(Debug)]
 /// This converts the MAST to circ IR.
 /// Currently it is only for hint functions.
-pub(crate) struct IRWriter<B: Backend> {
-    pub(crate) typed: Mast<B>,
+pub struct IRWriter<B: Backend> {
+    pub typed: TypeChecker<B>,
+    pub logs: Vec<VarInfo>,
 }
 
 impl<B: Backend> IRWriter<B> {
@@ -574,11 +575,29 @@ impl<B: Backend> IRWriter<B> {
             return Ok(vec![]);
         }
 
-        let res = ir.unwrap().cvars.into_iter().map(|v| {
+        let logs = self.logs.clone();
+        let logs_terms: Vec<Term> = logs
+            .into_iter()
+            .map(|v| term(Op::Tuple, v.var.cvars))
+            .collect();
+
+        self.logs.clear();
+
+        let res = ir.unwrap().cvars.into_iter().enumerate().map(|(i, v)| {
             // With the current setup to calculate symbolic values, the [compute_val] can only compute for one symbolic variable,
-            // thus it has to evaluate each symbolic variable separately from a hint function.
+            // it has to evaluate each symbolic variable separately from a hint function.
             // Thus, this could introduce some performance overhead if the hint returns multiple symbolic variables.
-            crate::var::Value::HintIR(v, named_args.clone())
+            // Maybe this can be batched and cached in the [compute_val] function.
+
+            // Each compiled IR can contain multiple terms, as hint function output could be array or struct.
+            // Each term needs to be evaluated separately.
+            // For logs, there could be multiple logs for a compiled hint function.
+            // To avoid redundant logs, here we only evaluate log terms once with the first term.
+            if i == 0 {
+                crate::var::Value::HintIR(v, named_args.clone(), logs_terms.clone())
+            } else {
+                crate::var::Value::HintIR(v, named_args.clone(), Vec::new())
+            }
         });
 
         Ok(res.collect())
@@ -593,7 +612,6 @@ impl<B: Backend> IRWriter<B> {
         // For hint evaluation purpose, precomp only has only one output and no connections with other parts,
         // so just use a dummy output var name.
         precomp.add_output("x".to_string(), t.clone());
-
         // evaluate and get the only one output
         let eval_map = precomp.eval(env);
         let value = eval_map.get("x").unwrap();
@@ -724,12 +742,20 @@ impl<B: Backend> IRWriter<B> {
 
                 match &fn_info.kind {
                     // assert() <-- for example
-                    FnKind::BuiltIn(..) => Err(self.error(
-                        ErrorKind::InvalidFnCall(
-                            "builtin functions not allowed in hint functions.",
-                        ),
-                        expr.span,
-                    )),
+                    FnKind::BuiltIn(sig, ..) => {
+                        if sig.name.value == "log" {
+                            self.logs.push(vars[0].clone());
+
+                            Ok(None)
+                        } else {
+                            Err(self.error(
+                                ErrorKind::InvalidFnCall(
+                                    "builtin functions not allowed in hint functions.",
+                                ),
+                                expr.span,
+                            ))
+                        }
+                    }
                     // fn_name(args)
                     // ^^^^^^^
                     FnKind::Native(func) => {
