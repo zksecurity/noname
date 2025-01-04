@@ -124,6 +124,32 @@ impl<B: Backend> TypeChecker<B> {
         self.constants.get(&qualified)
     }
 
+    /// Returns the number of field elements contained in the given type.
+    pub(crate) fn size_of(&self, typ: &TyKind) -> usize {
+        match typ {
+            TyKind::Field { .. } => 1,
+            TyKind::Custom { module, name } => {
+                let qualified = FullyQualified::new(module, name);
+                let struct_info = self
+                    .struct_info(&qualified)
+                    .expect("bug in the mast: cannot find struct info");
+
+                let mut sum = 0;
+
+                for (_, t) in &struct_info.fields {
+                    sum += self.size_of(t);
+                }
+
+                sum
+            }
+            TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
+            TyKind::GenericSizedArray(_, _) => {
+                unreachable!("generic arrays should have been resolved")
+            }
+            TyKind::Bool => 1,
+        }
+    }
+
     pub fn last_node_id(&self) -> usize {
         self.node_id
     }
@@ -132,8 +158,8 @@ impl<B: Backend> TypeChecker<B> {
         self.node_id = node_id;
     }
 
-    pub fn add_monomorphized_fn(&mut self, qualified: FullyQualified, fn_info: FnInfo<B>) {
-        self.functions.insert(qualified, fn_info);
+    pub fn add_monomorphized_fn(&mut self, qualified: FullyQualified, fn_info: &FnInfo<B>) {
+        self.functions.insert(qualified, fn_info.clone());
     }
 
     pub fn add_monomorphized_type(&mut self, node_id: usize, typ: TyKind) {

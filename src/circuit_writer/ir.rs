@@ -673,6 +673,54 @@ impl<B: Backend> IRWriter<B> {
         }
     }
 
+
+    /// This is used in MAST phase to fold constant values.
+    pub fn evaluate(
+        &mut self,
+        function: &FunctionDef,
+        args: Vec<PropagatedConstant>,
+    ) -> Result<PropagatedConstant> {
+        assert!(!function.is_main());
+
+        // create new fn_env
+        let fn_env = &mut FnEnv::new();
+
+        // set arguments
+        assert_eq!(function.sig.arguments.len(), args.len());
+
+        // create circ var terms for the arguments
+        for (arg, observed) in function.sig.arguments.iter().zip(args) {
+            let name = &arg.name.value;
+            match observed {
+                PropagatedConstant::Single(cst) => {
+                    let f = B::Field::from(cst);
+                    let cvar = leaf_term(Op::new_const(Value::Field(f.to_circ_field())));
+                    let var = Var::new(vec![cvar], arg.name.span);
+                    let var_info = VarInfo::new(var, false, Some(arg.typ.kind.clone()));
+                    self.add_local_var(fn_env, name.clone(), var_info).unwrap();
+                }
+                _ => unimplemented!(),
+            }
+        }
+
+        // compile it and potentially return a return value
+        let ir = self.compile_block(fn_env, &function.body)?;
+
+        let res: Vec<_> = ir
+            .unwrap()
+            .cvars
+            .into_iter()
+            .flat_map(|f| {
+                // because all the arguments are assumed to be constants,
+                // so no need to pass the arguments in env
+                let env = fxhash::FxHashMap::default();
+                Self::eval_ir(&env, &f)
+            })
+            .collect();
+
+        Ok(PropagatedConstant::from(res[0].to_biguint()))
+    }
+
     fn compile_native_function_call(
         &mut self,
         function: &FunctionDef,
