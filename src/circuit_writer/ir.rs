@@ -1,8 +1,13 @@
-use ark_ff::Zero;
+use ark_ff::{One, PrimeField, Zero};
 use circ::{
-    ir::term::{leaf_term, term, BoolNaryOp, Op, PfNaryOp, PfUnOp, Sort, Term, Value},
+    ir::term::{
+        leaf_term, precomp::PreComp, term, BoolNaryOp, BvBinOp, IntBinOp, IntBinPred, IntNaryOp,
+        Op, PfNaryOp, PfUnOp, Sort, Term, Value,
+    },
     term,
 };
+use fxhash::FxHashMap;
+use kimchi::o1_utils::FieldHelpers;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -18,7 +23,7 @@ use crate::{
         Expr, ExprKind, Op2,
     },
     syntax::is_type,
-    type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo},
+    type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
 };
 
 /// Same as [crate::var::Var], but with Term instead of ConstOrCell.
@@ -93,11 +98,10 @@ impl Var {
         }
     }
 
-    pub fn constant(&self) -> Option<BigUint> {
+    pub fn constant<B: Backend>(&self) -> Option<BigUint> {
         if self.cvars.len() == 1 {
-            self.cvars[0]
-                .as_value_opt()
-                .map(|v| BigUint::from(v.as_pf().i().to_u64_wrapping()))
+            let env = fxhash::FxHashMap::default();
+            Some(IRWriter::<B>::eval_ir(&env, &self.cvars[0])[0].to_biguint())
         } else {
             None
         }
@@ -124,9 +128,9 @@ pub enum VarOrRef {
 }
 
 impl VarOrRef {
-    pub(crate) fn constant(&self) -> Option<BigUint> {
+    pub(crate) fn constant<B: Backend>(&self) -> Option<BigUint> {
         match self {
-            VarOrRef::Var(var) => var.constant(),
+            VarOrRef::Var(var) => var.constant::<B>(),
             VarOrRef::Ref { .. } => None,
         }
     }
@@ -406,9 +410,8 @@ impl<B: Backend> IRWriter<B> {
                             .ok_or_else(|| {
                                 self.error(ErrorKind::CannotComputeExpression, range.start.span)
                             })?
-                            .constant()
-                            .expect("expected constant")
-                            .into();
+                            .constant::<B>()
+                            .expect("expected constant");
                         let start: u32 = start_bg.try_into().map_err(|_| {
                             self.error(ErrorKind::InvalidRangeSize, range.start.span)
                         })?;
@@ -418,9 +421,8 @@ impl<B: Backend> IRWriter<B> {
                             .ok_or_else(|| {
                                 self.error(ErrorKind::CannotComputeExpression, range.end.span)
                             })?
-                            .constant()
-                            .expect("expected constant")
-                            .into();
+                            .constant::<B>()
+                            .expect("expected constant");
                         let end: u32 = end_bg
                             .try_into()
                             .map_err(|_| self.error(ErrorKind::InvalidRangeSize, range.end.span))?;
@@ -580,6 +582,77 @@ impl<B: Backend> IRWriter<B> {
         });
 
         Ok(res.collect())
+    }
+
+    /// Evaluate a single IR term.
+    pub fn eval_ir(
+        env: &FxHashMap<String, circ::ir::term::Value>,
+        t: &circ::ir::term::Term,
+    ) -> Vec<B::Field> {
+        let mut precomp = PreComp::new();
+        // For hint evaluation purpose, precomp only has only one output and no connections with other parts,
+        // so just use a dummy output var name.
+        precomp.add_output("x".to_string(), t.clone());
+
+        // evaluate and get the only one output
+        let eval_map = precomp.eval(env);
+        let value = eval_map.get("x").unwrap();
+        // convert to field
+        match value {
+            circ::ir::term::Value::Field(f) => {
+                let bytes = f.i().to_digits::<u8>(rug::integer::Order::Lsf);
+                // todo: should we allow field overflow in hint evaluation?
+                vec![B::Field::from_le_bytes_mod_order(&bytes)]
+            }
+            circ::ir::term::Value::Bool(b) => {
+                if *b {
+                    vec![B::Field::one()]
+                } else {
+                    vec![B::Field::zero()]
+                }
+            }
+            circ::ir::term::Value::BitVector(bv) => {
+                let bytes = bv.uint().to_digits::<u8>(rug::integer::Order::Lsf);
+                // todo: should we allow field overflow in hint evaluation?
+                vec![B::Field::from_le_bytes_mod_order(&bytes)]
+            }
+            circ::ir::term::Value::Int(int) => {
+                let bytes = int.to_digits::<u8>(rug::integer::Order::Lsf);
+                vec![B::Field::from_le_bytes_mod_order(&bytes)]
+            }
+            circ::ir::term::Value::Tuple(v) => {
+                let mut res = Vec::new();
+                for v in v {
+                    match v {
+                        circ::ir::term::Value::Field(f) => {
+                            let bytes = f.i().to_digits::<u8>(rug::integer::Order::Lsf);
+                            res.push(B::Field::from_le_bytes_mod_order(&bytes));
+                        }
+                        circ::ir::term::Value::Bool(b) => {
+                            if *b {
+                                res.push(B::Field::one());
+                            } else {
+                                res.push(B::Field::zero());
+                            }
+                        }
+                        circ::ir::term::Value::BitVector(bv) => {
+                            let bytes = bv.uint().to_digits::<u8>(rug::integer::Order::Lsf);
+                            res.push(B::Field::from_le_bytes_mod_order(&bytes));
+                        }
+                        circ::ir::term::Value::Int(int) => {
+                            let bytes = int.to_digits::<u8>(rug::integer::Order::Lsf);
+                            res.push(B::Field::from_le_bytes_mod_order(&bytes));
+                        }
+                        circ::ir::term::Value::Tuple(_) => {
+                            panic!("nested tuple is not supported");
+                        }
+                        _ => panic!("unexpected output type"),
+                    }
+                }
+                res
+            }
+            _ => panic!("unexpected output type"),
+        }
     }
 
     fn compile_native_function_call(
@@ -972,7 +1045,7 @@ impl<B: Backend> IRWriter<B> {
                     .compute_expr(fn_env, idx)?
                     .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, expr.span))?;
                 let idx = idx_var
-                    .constant()
+                    .constant::<B>()
                     .ok_or_else(|| self.error(ErrorKind::ExpectedConstant, expr.span))?;
                 let idx: usize = idx.try_into().unwrap();
 
@@ -1049,7 +1122,7 @@ impl<B: Backend> IRWriter<B> {
                     .compute_expr(fn_env, size)?
                     .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, expr.span))?;
                 let size = size
-                    .constant()
+                    .constant::<B>()
                     .ok_or_else(|| self.error(ErrorKind::ExpectedConstant, expr.span))?;
                 let size: usize = size.try_into().unwrap();
 
