@@ -1,3 +1,4 @@
+mod biguint;
 mod comparator;
 mod mimc;
 mod multiplexer;

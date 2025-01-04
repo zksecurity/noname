@@ -55,12 +55,21 @@ pub struct TypedFnEnv {
 
     /// Determines if forloop variables are allowed to be accessed.
     forbid_forloop_scope: bool,
+
+    /// Indicates if the function is a hint function.
+    in_hint_fn: bool,
 }
 
 impl TypedFnEnv {
     /// Creates a new TypeEnv
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(is_hint: bool) -> Self {
+        Self {
+            current_scope: 0,
+            vars: HashMap::new(),
+            forloop_scopes: Vec::new(),
+            forbid_forloop_scope: false,
+            in_hint_fn: is_hint,
+        }
     }
 
     /// Enters a scoped block.
@@ -105,9 +114,36 @@ impl TypedFnEnv {
         self.forloop_scopes.pop();
     }
 
+    /// Returns whether it is in a hint function.
+    pub fn is_in_hint_fn(&self) -> bool {
+        self.in_hint_fn
+    }
+
     /// Returns true if a scope is a prefix of our scope.
     pub fn is_in_scope(&self, prefix_scope: usize) -> bool {
         self.current_scope >= prefix_scope
+    }
+
+    /// Because we don't support forloop unrolling,
+    /// we should invalidate the constant value behind a mutable variable, which is used in a forloop.
+    /// ```ignore
+    /// let mut pow2 = 1;
+    /// for ii in 0..LEN {
+    ///     pow2 = pow2 + pow2;
+    /// }
+    /// ```
+    /// Instead of folding the constant value to the mutable variable in this case,
+    /// the actual value will be calculated during synthesizer phase.
+    pub fn invalidate_cst_var(&mut self, ident: &str) {
+        // only applies to the variables in the parent scopes
+        // remove the constant value
+        if let Some((scope, info)) = self.vars.get_mut(ident) {
+            if scope < &mut self.current_scope
+                && matches!(info.typ, TyKind::Field { constant: true })
+            {
+                info.typ = TyKind::Field { constant: false };
+            }
+        }
     }
 
     /// Since currently we don't support unrolling, the generic function calls are assumed to target a same instance.

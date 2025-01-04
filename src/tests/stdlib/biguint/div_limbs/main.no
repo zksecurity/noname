@@ -1,0 +1,8 @@
+use std::biguint;
+use std::int;
+
+fn main(pub lhs: [Field; 3], rhs: [Field; 2]) -> [Field; 2] {
+    let bit_len = 2;
+    let res = biguint::div_limbs(bit_len, lhs, rhs);
+    return res;
+}

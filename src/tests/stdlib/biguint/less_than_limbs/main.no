@@ -1,0 +1,9 @@
+use std::biguint;
+use std::int;
+
+fn main(pub lhs: [Field; 3], rhs: [Field; 3]) -> Bool {
+    let bit_len = 2;
+    let res = biguint::less_than_limbs(bit_len, lhs, rhs);
+    log(res);
+    return res;
+}

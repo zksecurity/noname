@@ -150,10 +150,13 @@ impl<B: Backend> TypeChecker<B> {
                         fn_name.span,
                     )
                 })?;
+                let is_hint = fn_info.is_hint;
                 let fn_sig = fn_info.sig().clone();
+                let all_constants = fn_sig.arguments.iter().all(|arg| arg.is_constant());
 
-                // check if the function is a hint
-                if fn_info.is_hint && !unsafe_attr {
+                // check if the function is a hint.
+                // ignore the unsafe attribute if we are in a hint function.
+                if !typed_fn_env.is_in_hint_fn() && fn_info.is_hint && !unsafe_attr {
                     return Err(self.error(ErrorKind::ExpectedUnsafeAttribute, expr.span));
                 }
 
@@ -182,7 +185,16 @@ impl<B: Backend> TypeChecker<B> {
 
                 // type check the function call
                 let method_call = false;
-                let res = self.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)?;
+                let mut res =
+                    self.check_fn_call(typed_fn_env, method_call, fn_sig, args, expr.span)?;
+
+                // if it is a hint function and only accept constant arguments, then its return can be assumed to be constants
+                if is_hint && all_constants {
+                    res = res.map(|ty| match ty {
+                        TyKind::Field { constant: _ } => TyKind::Field { constant: true },
+                        _ => unimplemented!("only field return type is supported for now"),
+                    });
+                }
 
                 res.map(ExprTyInfo::new_anon)
             }
@@ -260,6 +272,10 @@ impl<B: Backend> TypeChecker<B> {
                 let lhs_node = self
                     .compute_type(lhs, typed_fn_env)?
                     .expect("type-checker bug: lhs access on an empty var");
+
+                if let Some(var_name) = &lhs_node.var_name {
+                    typed_fn_env.invalidate_cst_var(var_name);
+                }
 
                 // todo: check and update the const field type for other cases
                 // lhs can be a local variable or a path to an array
@@ -386,10 +402,14 @@ impl<B: Backend> TypeChecker<B> {
                 let typ = match op {
                     Op2::Equality => TyKind::Bool,
                     Op2::Inequality => TyKind::Bool,
+                    Op2::LessThan => TyKind::Bool,
                     Op2::Addition
                     | Op2::Subtraction
                     | Op2::Multiplication
                     | Op2::Division
+                    | Op2::Rem
+                    | Op2::LShift
+                    | Op2::Pow
                     | Op2::BoolAnd
                     | Op2::BoolOr => lhs_node.typ,
                 };
@@ -530,23 +550,6 @@ impl<B: Backend> TypeChecker<B> {
                 }
 
                 // then_ and else_ can only be variables, field accesses, or array accesses
-                if !matches!(
-                    &then_.kind,
-                    ExprKind::Variable { .. }
-                        | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
-                ) {
-                    return Err(self.error(ErrorKind::IfElseInvalidIfBranch(), then_.span));
-                }
-
-                if !matches!(
-                    &else_.kind,
-                    ExprKind::Variable { .. }
-                        | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
-                ) {
-                    return Err(self.error(ErrorKind::IfElseInvalidElseBranch(), else_.span));
-                }
 
                 // compute type of if/else branches
                 let then_node = self
@@ -558,7 +561,15 @@ impl<B: Backend> TypeChecker<B> {
 
                 // make sure that the type of then_ and else_ match
                 if then_node.typ != else_node.typ {
-                    return Err(self.error(ErrorKind::IfElseMismatchingBranchesTypes(), expr.span));
+                    // allow both to be fields, no matter if they are constant or not
+                    let is_both_fields = matches!(then_node.typ, TyKind::Field { .. })
+                        && matches!(else_node.typ, TyKind::Field { .. });
+
+                    if !is_both_fields {
+                        return Err(
+                            self.error(ErrorKind::IfElseMismatchingBranchesTypes(), expr.span)
+                        );
+                    }
                 }
 
                 Some(ExprTyInfo::new_anon(then_node.typ))

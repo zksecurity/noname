@@ -253,13 +253,19 @@ impl FnSig {
                 }
                 // const NN: Field
                 _ => {
-                    let cst = observed_arg.constant.clone();
-                    if is_generic_parameter(sig_arg.name.value.as_str()) && cst.is_some() {
-                        self.generics.assign(
-                            &sig_arg.name.value,
-                            cst.unwrap().as_single(),
-                            observed_arg.expr.span,
-                        )?;
+                    if is_generic_parameter(sig_arg.name.value.as_str()) {
+                        if let Some(cst) = &observed_arg.constant {
+                            self.generics.assign(
+                                &sig_arg.name.value,
+                                cst.as_single(),
+                                observed_arg.expr.span,
+                            )?;
+                        } else {
+                            return Err(error(
+                                ErrorKind::GenericValueExpected(sig_arg.name.value.clone()),
+                                observed_arg.expr.span,
+                            ));
+                        }
                     }
                 }
             }
@@ -342,7 +348,7 @@ impl<B: Backend> MastCtx<B> {
         &mut self,
         old_qualified: FullyQualified,
         new_qualified: FullyQualified,
-        fn_info: FnInfo<B>,
+        fn_info: &FnInfo<B>,
     ) {
         self.tast
             .add_monomorphized_fn(new_qualified.clone(), fn_info);
@@ -398,6 +404,7 @@ impl Symbolic {
             }
             Symbolic::Generic(g) => gens.get(&g.value),
             Symbolic::Add(a, b) => a.eval(gens, tast) + b.eval(gens, tast),
+            Symbolic::Sub(a, b) => a.eval(gens, tast) - b.eval(gens, tast),
             Symbolic::Mul(a, b) => a.eval(gens, tast) * b.eval(gens, tast),
         }
     }
@@ -433,31 +440,8 @@ impl<B: Backend> Mast<B> {
         self.0.fn_info(qualified)
     }
 
-    // TODO: might want to memoize that at some point
-    /// Returns the number of field elements contained in the given type.
-    pub(crate) fn size_of(&self, typ: &TyKind) -> usize {
-        match typ {
-            TyKind::Field { .. } => 1,
-            TyKind::Custom { module, name } => {
-                let qualified = FullyQualified::new(module, name);
-                let struct_info = self
-                    .struct_info(&qualified)
-                    .expect("bug in the mast: cannot find struct info");
-
-                let mut sum = 0;
-
-                for (_, t) in &struct_info.fields {
-                    sum += self.size_of(t);
-                }
-
-                sum
-            }
-            TyKind::Array(typ, len) => (*len as usize) * self.size_of(typ),
-            TyKind::GenericSizedArray(_, _) => {
-                unreachable!("generic arrays should have been resolved")
-            }
-            TyKind::Bool => 1,
-        }
+    pub fn size_of(&self, typ: &TyKind) -> usize {
+        self.0.size_of(typ)
     }
 }
 /// Monomorphize the main function.
@@ -507,7 +491,7 @@ pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
     func_def.body = stmts;
     main_fn.kind = FnKind::Native(func_def);
 
-    ctx.tast.add_monomorphized_fn(qualified, main_fn.clone());
+    ctx.tast.add_monomorphized_fn(qualified, &main_fn);
 
     ctx.clear_generic_fns();
 
@@ -597,7 +581,7 @@ fn monomorphize_expr<B: Backend>(
             let mono_qualified = FullyQualified::new(module, &resolved_sig.name.value);
 
             // check if this function is already monomorphized
-            if ctx.functions_instantiated.contains_key(&mono_qualified) {
+            let res = if ctx.functions_instantiated.contains_key(&mono_qualified) {
                 let mexpr = expr.to_mast(
                     ctx,
                     &ExprKind::FnCall {
@@ -616,7 +600,7 @@ fn monomorphize_expr<B: Backend>(
                 // retrieve the constant value from the cache
                 let cst = ctx.cst_fn_cache.get(&mono_qualified).cloned();
 
-                ExprMonoInfo::new(mexpr, typ, cst)
+                (ExprMonoInfo::new(mexpr, typ, cst), fn_info)
             } else {
                 // monomorphize the function call
                 let (fn_info_mono, typ, cst) =
@@ -639,9 +623,28 @@ fn monomorphize_expr<B: Backend>(
                 );
 
                 let new_qualified = FullyQualified::new(module, &fn_name_mono.value);
-                ctx.add_monomorphized_fn(old_qualified, new_qualified, fn_info_mono);
+                ctx.add_monomorphized_fn(old_qualified, new_qualified, &fn_info_mono);
 
-                ExprMonoInfo::new(mexpr, typ, cst)
+                (ExprMonoInfo::new(mexpr, typ, cst), fn_info_mono)
+            };
+
+            // check if all observed args are constants
+            let all_cst_args = observed.iter().all(|f| f.constant.is_some());
+            // IR writer to evaluate hints that only require constant inputs
+            if res.1.is_hint && all_cst_args {
+                let mut ir = crate::circuit_writer::ir::IRWriter::<B> {
+                    typed: ctx.tast.clone(),
+                    logs: vec![],
+                };
+                let cst_args = observed.into_iter().map(|f| f.constant.unwrap()).collect();
+                let fn_def = res.1.native().unwrap();
+                let val = ir.evaluate(fn_def, cst_args)?;
+                let mut mono_info: ExprMonoInfo = res.0;
+
+                mono_info.constant = Some(val);
+                mono_info
+            } else {
+                res.0
             }
         }
 
@@ -796,10 +799,14 @@ fn monomorphize_expr<B: Backend>(
             let typ = match op {
                 Op2::Equality => Some(TyKind::Bool),
                 Op2::Inequality => Some(TyKind::Bool),
+                Op2::LessThan => Some(TyKind::Bool),
                 Op2::Addition
                 | Op2::Subtraction
                 | Op2::Multiplication
                 | Op2::Division
+                | Op2::Rem
+                | Op2::LShift
+                | Op2::Pow
                 | Op2::BoolAnd
                 | Op2::BoolOr => lhs_mono.typ,
             };
@@ -808,20 +815,42 @@ fn monomorphize_expr<B: Backend>(
             let ExprMonoInfo { expr: rhs_expr, .. } = rhs_mono;
 
             // fold constants
-            let cst = match (&lhs_expr.kind, &rhs_expr.kind) {
-                (ExprKind::BigUInt(lhs), ExprKind::BigUInt(rhs)) => match op {
-                    Op2::Addition => Some(lhs + rhs),
-                    Op2::Subtraction => Some(lhs - rhs),
-                    Op2::Multiplication => Some(lhs * rhs),
-                    Op2::Division => Some(lhs / rhs),
-                    _ => None,
-                },
+            let cst = match (&lhs_mono.constant, &rhs_mono.constant) {
+                (Some(PropagatedConstant::Single(lhs)), Some(PropagatedConstant::Single(rhs))) => {
+                    match op {
+                        Op2::Addition => Some(lhs + rhs),
+                        Op2::Subtraction => {
+                            if lhs < rhs {
+                                // throw error
+                                return Err(error(
+                                    ErrorKind::NegativeLhsLessThanRhs(
+                                        lhs.to_string(),
+                                        rhs.to_string(),
+                                    ),
+                                    expr.span,
+                                ));
+                            }
+                            Some(lhs - rhs)
+                        }
+                        Op2::Multiplication => Some(lhs * rhs),
+                        Op2::Division => Some(lhs / rhs),
+                        _ => None,
+                    }
+                }
                 _ => None,
             };
 
             match cst {
                 Some(v) => {
-                    let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(v.clone()));
+                    let mexpr = expr.to_mast(
+                        ctx,
+                        &ExprKind::BinaryOp {
+                            op: op.clone(),
+                            protected: *protected,
+                            lhs: Box::new(lhs_expr),
+                            rhs: Box::new(rhs_expr),
+                        },
+                    );
 
                     ExprMonoInfo::new(mexpr, typ, Some(PropagatedConstant::from(v)))
                 }
@@ -1002,13 +1031,21 @@ fn monomorphize_expr<B: Backend>(
 
             // make sure that the type of then_ and else_ match
             if then_mono.typ != else_mono.typ {
-                Err(Error::new(
-                    "If-Else Monomorphization",
-                    ErrorKind::UnexpectedError(
-                        "`if` branch and `else` branch must have matching types",
-                    ),
-                    expr.span,
-                ))?
+                // allow fields no matter if they are constant or not
+                let both_fields = matches!(
+                    (&then_mono.typ, &else_mono.typ),
+                    (Some(TyKind::Field { .. }), Some(TyKind::Field { .. }))
+                );
+
+                if !both_fields {
+                    Err(Error::new(
+                        "If-Else Monomorphization",
+                        ErrorKind::UnexpectedError(
+                            "`if` branch and `else` branch must have matching types",
+                        ),
+                        expr.span,
+                    ))?
+                }
             }
 
             let mexpr = expr.to_mast(

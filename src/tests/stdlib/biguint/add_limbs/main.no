@@ -1,0 +1,24 @@
+use std::biguint;
+use std::builtins;
+use std::int;
+
+// todo: allow constant var be symbolic value in main function sig
+fn main(pub lhs: [Field; 3], rhs: [Field; 3]) -> [Field; 4] {
+    let registers = 3;
+    let mut lhs_uint8 = [int::Uint8.new(0); registers];
+    let mut rhs_uint8 = [int::Uint8.new(0); registers];
+    // todo: the following throws error, might due to parsing issue
+    // this happens when int::Uint8.new() returns a struct
+    // update the log to print out the type to debug
+    // let mut rhs_uint8 = [int::Uint8.new(0); 32];
+
+    for ii in 0..registers {
+        lhs_uint8[ii] = int::Uint8.new(lhs[ii]);
+        rhs_uint8[ii] = int::Uint8.new(rhs[ii]);
+    }
+
+    let res_biguint = biguint::uint8_add(lhs_uint8, rhs_uint8);
+    let res = biguint::uint8_to_fields(res_biguint);
+
+    return res;
+}
