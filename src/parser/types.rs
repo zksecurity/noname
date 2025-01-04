@@ -188,6 +188,7 @@ pub enum Symbolic {
     /// Generic parameter
     Generic(Ident),
     Add(Box<Symbolic>, Box<Symbolic>),
+    Sub(Box<Symbolic>, Box<Symbolic>),
     Mul(Box<Symbolic>, Box<Symbolic>),
 }
 
@@ -198,6 +199,7 @@ impl Display for Symbolic {
             Symbolic::Constant(ident) => write!(f, "{}", ident.value),
             Symbolic::Generic(ident) => write!(f, "{}", ident.value),
             Symbolic::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
+            Symbolic::Sub(lhs, rhs) => write!(f, "{} - {}", lhs, rhs),
             Symbolic::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
         }
     }
@@ -219,7 +221,9 @@ impl Symbolic {
             Symbolic::Generic(ident) => {
                 generics.insert(ident.value.clone());
             }
-            Symbolic::Add(lhs, rhs) | Symbolic::Mul(lhs, rhs) => {
+            Symbolic::Add(lhs, rhs) | 
+            Symbolic::Mul(lhs, rhs) |
+            Symbolic::Sub(lhs, rhs) => {
                 generics.extend(lhs.extract_generics());
                 generics.extend(rhs.extract_generics());
             }
@@ -251,6 +255,7 @@ impl Symbolic {
                 // no protected flags are needed, as this is based on expression nodes which already ordered the operations
                 match op {
                     Op2::Addition => Ok(Symbolic::Add(Box::new(lhs), Box::new(rhs?))),
+                    Op2::Subtraction => Ok(Symbolic::Sub(Box::new(lhs), Box::new(rhs?))),
                     Op2::Multiplication => Ok(Symbolic::Mul(Box::new(lhs), Box::new(rhs?))),
                     _ => Err(Error::new(
                         "mast",
