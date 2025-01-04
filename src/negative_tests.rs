@@ -654,7 +654,7 @@ fn test_hint_builtin_fn(qualified: &FullyQualified, code: &str) -> Result<usize>
     // add the mocked builtin function
     // note that this should happen in the tast phase, instead of mast phase.
     // currently this function is the only way to mock a builtin function.
-    tast.add_monomorphized_fn(qualified.clone(), &fn_info);
+    tast.add_monomorphized_fn(qualified.clone(), fn_info);
 
     typecheck_next_file_inner(
         &mut tast,
