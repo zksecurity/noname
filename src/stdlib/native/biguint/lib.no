@@ -258,7 +258,7 @@ hint fn calculate_quotient_limbs(const BITLEN: Field, dividend: [Field; DVDLEN],
 // Mostly duplicated code from calculate_quotient_limbs.
 // Instead of returning the quotient limbs, it returns the remainder limbs.
 // todo: we avoid this duplication once tuple return type or generic struct is supported.
-hint fn rem_limbs(const BITLEN: Field, dividend: [Field; DVDLEN], divisor: [Field; DVSLEN]) -> [Field; DVSLEN] {
+hint fn calculate_rem_limbs(const BITLEN: Field, dividend: [Field; DVDLEN], divisor: [Field; DVSLEN]) -> [Field; DVSLEN] {
     // init remainder from dividend
     let mut remainder = dividend;
 
@@ -617,7 +617,7 @@ fn mult_limbs(const BITLEN: Field, lhs: [Field; SIZE], rhs: [Field; SIZE]) -> [F
 // 
 fn mod_limbs(const BITLEN: Field, dividend: [Field; DVDLEN], divisor: [Field; DVSLEN]) -> [Field; DVSLEN] {
     let quotient_limbs = unsafe calculate_quotient_limbs(BITLEN, dividend, divisor);
-    let rem_limbs = unsafe rem_limbs(BITLEN, dividend, divisor);
+    let rem_limbs = unsafe calculate_rem_limbs(BITLEN, dividend, divisor);
     
     let pad_quotient_limbs = pad_limbs(DVSLEN, quotient_limbs);
     let prod_limbs = mult_limbs(BITLEN, pad_quotient_limbs, divisor);
@@ -648,7 +648,7 @@ fn mod_limbs(const BITLEN: Field, dividend: [Field; DVDLEN], divisor: [Field; DV
 
 fn div_limbs(const BITLEN: Field, dividend: [Field; DVDLEN], divisor: [Field; DVSLEN]) -> [Field; (DVDLEN - DVSLEN) + 1] {
     let quotient_limbs = unsafe calculate_quotient_limbs(BITLEN, dividend, divisor);
-    let rem_limbs = unsafe rem_limbs(BITLEN, dividend, divisor);
+    let rem_limbs = unsafe calculate_rem_limbs(BITLEN, dividend, divisor);
     
     let pad_quotient_limbs = pad_limbs(DVSLEN, quotient_limbs);
     let prod_limbs = mult_limbs(BITLEN, pad_quotient_limbs, divisor);
