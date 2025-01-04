@@ -673,7 +673,6 @@ impl<B: Backend> IRWriter<B> {
         }
     }
 
-
     /// This is used in MAST phase to fold constant values.
     pub fn evaluate(
         &mut self,
@@ -1085,9 +1084,7 @@ impl<B: Backend> IRWriter<B> {
                         let base_int = term![Op::PfToInt; lhs.cvars[0].clone()];
                         let folded = circ::ir::opt::cfold::fold(&rhs.cvars[0].clone(), &[]);
                         let exp = match &folded.as_value_opt().unwrap() {
-                            v => {
-                                (**v).as_pf().i().to_u32().unwrap()
-                            }
+                            v => (**v).as_pf().i().to_u32().unwrap(),
                             _ => unreachable!(),
                         };
 
