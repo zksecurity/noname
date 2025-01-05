@@ -22,7 +22,7 @@ use crate::{
     backends::kimchi::asm::parse_coeffs,
     circuit_writer::{
         writer::{AnnotatedCell, Cell, PendingGate},
-        DebugInfo, Gate, GateKind, Wiring,
+        DebugInfo, Gate, GateKind, VarInfo, Wiring,
     },
     compiler::Sources,
     constants::Span,
@@ -128,6 +128,9 @@ pub struct KimchiVesta {
     /// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
     pub(crate) private_input_cell_vars: Vec<KimchiCellVar>,
+
+    /// mapping to containt log_info
+    pub(crate) log_info: Vec<(String, Span, VarInfo<VestaField, KimchiCellVar>)>,
 }
 
 impl Witness {
@@ -174,6 +177,7 @@ impl KimchiVesta {
             finalized: false,
             public_input_size: 0,
             private_input_cell_vars: vec![],
+            log_info: vec![],
         }
     }
 
@@ -471,6 +475,7 @@ impl Backend for KimchiVesta {
             }
             public_outputs.push(val);
         }
+        self.print_log(witness_env, &self.log_info, sources, _typed)?;
 
         // sanity check the witness
         for (row, (gate, witness_row, debug_info)) in
@@ -802,6 +807,6 @@ impl Backend for KimchiVesta {
         msg: String,
         span: Span,
     ) {
-        println!("todo: implement log_var for kimchi backend");
+        self.log_info.push((msg, span, var.clone()));
     }
 }

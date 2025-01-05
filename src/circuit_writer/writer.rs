@@ -331,6 +331,7 @@ impl<B: Backend> CircuitWriter<B> {
             TyKind::GenericSizedArray(_, _) => {
                 unreachable!("generic array should have been resolved")
             }
+            TyKind::String(_) => todo!("String type is not supported for constraints"),
         };
         Ok(())
     }

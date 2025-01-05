@@ -496,6 +496,9 @@ impl<B: Backend> TypeChecker<B> {
                                 }
                                 TyKind::Field { constant: true } => unreachable!(),
                                 TyKind::GenericSizedArray(_, _) => unreachable!(),
+                                TyKind::String(_) => {
+                                    todo!("String Type for circuits is not implemented")
+                                }
                             }
                         }
                     }

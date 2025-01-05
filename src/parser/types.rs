@@ -291,6 +291,9 @@ pub enum TyKind {
     /// This is an intermediate type.
     /// After monomorphized, it will be converted to `Array`.
     GenericSizedArray(Box<TyKind>, Symbolic),
+
+    /// A string  type current purpose it to pass around for logging
+    String(String),
 }
 
 impl TyKind {
@@ -334,6 +337,7 @@ impl TyKind {
                     name: expected_name,
                 },
             ) => module == expected_module && name == expected_name,
+            (TyKind::String { .. }, TyKind::String { .. }) => true,
             (x, y) if x == y => true,
             _ => false,
         }
@@ -356,6 +360,7 @@ impl TyKind {
                 generics.extend(ty.extract_generics());
                 generics.extend(sym.extract_generics());
             }
+            TyKind::String { .. } => (),
         }
 
         generics
@@ -395,6 +400,7 @@ impl Display for TyKind {
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
             TyKind::GenericSizedArray(ty, size) => write!(f, "[{}; {}]", ty, size),
+            TyKind::String(S) => write!(f, "String"),
         }
     }
 }

@@ -13,6 +13,8 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
+    parser::types::{ModulePath, TyKind},
+    type_checker::FullyQualified,
     var::{ConstOrCell, Value, Var},
     witness::WitnessEnv,
 };
@@ -424,4 +426,276 @@ pub trait Backend: Clone {
     fn generate_asm(&self, sources: &Sources, debug: bool) -> String;
 
     fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, msg: String, span: Span);
+
+    /// print the log given the log_info
+    fn print_log<B: Backend>(
+        &self,
+        witness_env: &mut WitnessEnv<Self::Field>,
+        logs: &[(String, Span, VarInfo<Self::Field, Self::Var>)],
+        sources: &Sources,
+        typed: &Mast<B>,
+    ) -> Result<()> {
+        for (_, span, var_info) in logs {
+            let (filename, source) = sources.get(&span.filename_id).unwrap();
+            let (line, _, line_str) = crate::utils::find_exact_line(source, *span);
+            let line_str = line_str.trim_start();
+            let dbg_msg = format!("[{filename}:{line}] `{line_str}` -> ");
+
+            match &var_info.typ {
+                // Field
+                Some(TyKind::Field { .. }) => match &var_info.var[0] {
+                    ConstOrCell::Const(cst) => {
+                        println!("{dbg_msg}{}", cst.pretty());
+                    }
+                    ConstOrCell::Cell(cell) => {
+                        let val = self.compute_var(witness_env, cell)?;
+                        println!("{dbg_msg}{}", val.pretty());
+                    }
+                },
+
+                // Bool
+                Some(TyKind::Bool) => match &var_info.var[0] {
+                    ConstOrCell::Const(cst) => {
+                        let val = *cst == Self::Field::one();
+                        println!("{dbg_msg}{}", val);
+                    }
+                    ConstOrCell::Cell(cell) => {
+                        let val = self.compute_var(witness_env, cell)? == Self::Field::one();
+                        println!("{dbg_msg}{}", val);
+                    }
+                },
+
+                // Array
+                Some(TyKind::Array(b, s)) => {
+                    let (output, remaining) =
+                        log_array_type(self, &var_info.var.cvars, b, *s, witness_env, typed, span)?;
+                    assert!(remaining.is_empty());
+                    println!("{dbg_msg}{}", output);
+                }
+
+                // Custom types
+                Some(TyKind::Custom {
+                    module,
+                    name: struct_name,
+                }) => {
+                    let mut string_vec = Vec::new();
+                    let (output, remaining) = log_custom_type(
+                        self,
+                        module,
+                        struct_name,
+                        typed,
+                        &var_info.var.cvars,
+                        witness_env,
+                        span,
+                        &mut string_vec,
+                    )?;
+                    assert!(remaining.is_empty());
+                    println!("{dbg_msg}{}{}", struct_name, output);
+                }
+
+                // GenericSizedArray
+                Some(TyKind::GenericSizedArray(_, _)) => {
+                    unreachable!("GenericSizedArray should be monomorphized")
+                }
+
+                Some(TyKind::String(s)) => {
+                    println!("{dbg_msg}{}", s);
+                }
+
+                None => {
+                    return Err(Error::new(
+                        "log",
+                        ErrorKind::UnexpectedError("No type info for logging"),
+                        *span,
+                    ))
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+fn log_custom_type<B: Backend, B1: Backend>(
+    backend: &B,
+    module: &ModulePath,
+    struct_name: &String,
+    typed: &Mast<B1>,
+    var_info_var: &[ConstOrCell<B::Field, B::Var>],
+    witness: &mut WitnessEnv<B::Field>,
+    span: &Span,
+    string_vec: &mut Vec<String>,
+) -> Result<(String, Vec<ConstOrCell<B::Field, B::Var>>)> {
+    let qualified = FullyQualified::new(module, struct_name);
+    let struct_info = typed
+        .struct_info(&qualified)
+        .ok_or(
+            typed
+                .0
+                .error(ErrorKind::UnexpectedError("struct not found"), *span),
+        )
+        .unwrap();
+
+    let mut remaining = var_info_var.to_vec();
+
+    for (field_name, field_typ) in &struct_info.fields {
+        let len = typed.size_of(field_typ);
+        match field_typ {
+            TyKind::Field { .. } => match &remaining[0] {
+                ConstOrCell::Const(cst) => {
+                    string_vec.push(format!("{field_name}: {}", cst.pretty()));
+                    remaining = remaining[len..].to_vec();
+                }
+                ConstOrCell::Cell(cell) => {
+                    let val = backend.compute_var(witness, cell)?;
+                    string_vec.push(format!("{field_name}: {}", val.pretty()));
+                    remaining = remaining[len..].to_vec();
+                }
+            },
+
+            TyKind::Bool => match &remaining[0] {
+                ConstOrCell::Const(cst) => {
+                    let val = *cst == B::Field::one();
+                    string_vec.push(format!("{field_name}: {}", val));
+                    remaining = remaining[len..].to_vec();
+                }
+                ConstOrCell::Cell(cell) => {
+                    let val = backend.compute_var(witness, cell)? == B::Field::one();
+                    string_vec.push(format!("{field_name}: {}", val));
+                    remaining = remaining[len..].to_vec();
+                }
+            },
+
+            TyKind::Array(b, s) => {
+                let (output, new_remaining) =
+                    log_array_type(backend, &remaining, b, *s, witness, typed, span)?;
+                string_vec.push(format!("{field_name}: {}", output));
+                remaining = new_remaining;
+            }
+
+            TyKind::Custom {
+                module,
+                name: struct_name,
+            } => {
+                let mut custom_string_vec = Vec::new();
+                let (output, new_remaining) = log_custom_type(
+                    backend,
+                    module,
+                    struct_name,
+                    typed,
+                    &remaining,
+                    witness,
+                    span,
+                    &mut custom_string_vec,
+                )?;
+                string_vec.push(format!("{}: {}{}", field_name, struct_name, output));
+                remaining = new_remaining;
+            }
+
+            TyKind::GenericSizedArray(_, _) => {
+                unreachable!("GenericSizedArray should be monomorphized")
+            }
+            TyKind::String(s) => {
+                todo!("String cannot be a type for customs it is only for logging")
+            }
+        }
+    }
+
+    Ok((format!("{{ {} }}", string_vec.join(", ")), remaining))
+}
+
+// this takes two generics because of the Mast is generic
+fn log_array_type<B: Backend, B1: Backend>(
+    backend: &B,
+    var_info_var: &[ConstOrCell<B::Field, B::Var>],
+    base_type: &TyKind,
+    size: u32,
+    witness: &mut WitnessEnv<B::Field>,
+    typed: &Mast<B1>,
+    span: &Span,
+) -> Result<(String, Vec<ConstOrCell<B::Field, B::Var>>)> {
+    match base_type {
+        TyKind::Field { .. } => {
+            let values: Vec<String> = var_info_var
+                .iter()
+                .take(size as usize)
+                .map(|cvar| match cvar {
+                    ConstOrCell::Const(cst) => cst.pretty(),
+                    ConstOrCell::Cell(cell) => backend.compute_var(witness, cell).unwrap().pretty(),
+                })
+                .collect();
+
+            let remaining = var_info_var[size as usize..].to_vec();
+            Ok((format!("[{}]", values.join(", ")), remaining))
+        }
+
+        TyKind::Bool => {
+            let values: Vec<String> = var_info_var
+                .iter()
+                .take(size as usize)
+                .map(|cvar| match cvar {
+                    ConstOrCell::Const(cst) => {
+                        let val = *cst == B::Field::one();
+                        val.to_string()
+                    }
+                    ConstOrCell::Cell(cell) => {
+                        let val = backend.compute_var(witness, cell).unwrap() == B::Field::one();
+                        val.to_string()
+                    }
+                })
+                .collect();
+
+            let remaining = var_info_var[size as usize..].to_vec();
+            Ok((format!("[{}]", values.join(", ")), remaining))
+        }
+
+        TyKind::Array(inner_type, inner_size) => {
+            let mut nested_result = Vec::new();
+            let mut remaining = var_info_var.to_vec();
+            for _ in 0..size {
+                let (chunk_result, new_remaining) = log_array_type(
+                    backend,
+                    &remaining,
+                    inner_type,
+                    *inner_size,
+                    witness,
+                    typed,
+                    span,
+                )?;
+                nested_result.push(chunk_result);
+                remaining = new_remaining;
+            }
+            Ok((format!("[{}]", nested_result.join(", ")), remaining))
+        }
+
+        TyKind::Custom {
+            module,
+            name: struct_name,
+        } => {
+            let mut nested_result = Vec::new();
+            let mut remaining = var_info_var.to_vec();
+            for _ in 0..size {
+                let mut string_vec = Vec::new();
+                let (output, new_remaining) = log_custom_type(
+                    backend,
+                    module,
+                    struct_name,
+                    typed,
+                    &remaining,
+                    witness,
+                    span,
+                    &mut string_vec,
+                )?;
+                nested_result.push(format!("{}{}", struct_name, output));
+                remaining = new_remaining;
+            }
+            Ok((format!("[{}]", nested_result.join(", ")), remaining))
+        }
+
+        TyKind::GenericSizedArray(_, _) => {
+            unreachable!("GenericSizedArray should be monomorphized")
+        }
+
+        TyKind::String(_) => todo!("String type cannot be used in circuits!"),
+    }
 }

@@ -1,6 +1,6 @@
 
 fn main(pub public_input: Field) -> Field {
-    // log("stuff here"); 
+    log("stuff here");
 
     log(1234);
     log(true);

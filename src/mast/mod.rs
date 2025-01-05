@@ -457,6 +457,7 @@ impl<B: Backend> Mast<B> {
                 unreachable!("generic arrays should have been resolved")
             }
             TyKind::Bool => 1,
+            TyKind::String(s) => s.len(),
         }
     }
 }
@@ -883,10 +884,7 @@ fn monomorphize_expr<B: Backend>(
                 .collect();
             ExprMonoInfo::new(
                 mexpr,
-                Some(TyKind::Array(
-                    Box::new(TyKind::Field { constant: true }),
-                    inner.len() as u32,
-                )),
+                Some(TyKind::String(inner.clone())),
                 Some(PropagatedConstant::Array(string_literal_val)),
             )
         }
