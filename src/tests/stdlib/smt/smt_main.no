@@ -1,12 +1,12 @@
 use std::smt;
 
-fn main(pub siblings: [Field;254], values: [Field;8]) -> Field {
+fn main(pub siblings: [Field;254], values: [Field;7]) -> Field {
     let old_root = values[0];
     let old_key = values[3];
     let old_val = values[4];
     let key = values[1];
     let val = values[2];
-    let operation = [values[6] == 0,values[7] == 0]; // true false -> insert 
+    let operation = values[6]; // true false -> insert 
     let is_old_zero = values[5] == 0;
     let new_root = smt::compute_new_root(
         old_root,

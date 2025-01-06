@@ -13,7 +13,7 @@ fn main(pub siblings: [Field;254], values: [Field;7]) {
         siblings,
         not_found_key, // when testing for non membership proofs the key and val found where the (key,val) should be
         not_found_val,
-        inclusion_proof, // true for memebership proofs and false for non-member ship proofs
+        inclusion_proof, // true for memebership proofs and false for non-membership proofs
         is_old_zero,
         key,
         value

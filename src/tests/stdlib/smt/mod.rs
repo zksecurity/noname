@@ -12,8 +12,7 @@ use rstest::rstest;
     "0",
     "0",
     true,
-    true,
-    false,
+    "0",
     "10729541595941744696255200734832925648647334864637393545770039840405438557214"
 )]
 #[case::insert(
@@ -32,8 +31,7 @@ use rstest::rstest;
     "3492",
     "3168",
     false,
-    true,
-    false,
+    "0",
     "17713115569734927279694966589149598343072771273196461675493145305311861382883"
 )]
 #[case::delete(
@@ -45,8 +43,7 @@ use rstest::rstest;
     "555",
     "666",
     false,
-    true,
-    true,
+    "2",
     "3039938863220546817637150518308754073715763397170404924604005494776416658714"
 )]
 #[case::update(
@@ -58,8 +55,7 @@ use rstest::rstest;
     "555",
     "666",
     false,
-    false, // update operation
-    true,
+    "1", // update operation
     "18811865073273086230239721237564240209328819936273238864031238045766843861603"
 )]
 fn test_smt_cr(
@@ -71,8 +67,7 @@ fn test_smt_cr(
     #[case] old_key: &str,
     #[case] old_val: &str,
     #[case] is_old_zero: bool,
-    #[case] operation_1: bool,
-    #[case] operation_2: bool,
+    #[case] operation: &str,
     #[case] expected_new_root: &str,
 ) -> Result<()> {
     let mut siblings = vec!["0"; 254];
@@ -89,15 +84,14 @@ fn test_smt_cr(
             .collect::<Vec<String>>()
     );
 
-    let mut values = vec!["0"; 8]; // 0 , 1 -> key ,val
+    let mut values = vec!["0"; 7]; // 0 , 1 -> key ,val
     values[0] = old_root;
     values[1] = key;
     values[2] = val;
     values[3] = old_key;
     values[4] = old_val;
     values[5] = if is_old_zero { "0" } else { "1" };
-    values[6] = if operation_1 { "0" } else { "1" };
-    values[7] = if operation_2 { "0" } else { "1" };
+    values[6] = operation;
 
     let private_inputs = format!(
         r#"{{"values": {:?}}}"#,
