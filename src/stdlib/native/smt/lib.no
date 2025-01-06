@@ -83,11 +83,10 @@ fn bool_to_field(bool: Bool) -> Field {
 /// switches left and right inputs based on the insert sel bool 
 /// if self bool is true we switch l and r else same
 fn switcher(sel: Bool,left: Field, right: Field) -> [Field;2] {
-    let sel_val = bool_to_field(sel);
-    let aux = sel_val * (left - right);  
-    let new_left = left - aux;
-    let new_right = right + aux;
-    return [new_left,new_right];
+    let mut outputs = [0;2];
+    outputs[0] = if sel { right } else { left };
+    outputs[1] = if sel { left } else { right };
+    return outputs;
 }
 
 /// This function get the level where the key will be inserted. level 0 is the root , 1 is next and so on..
@@ -242,8 +241,7 @@ fn compute_new_root(
     let mut states = [[false;6]; LEN];
 
     // state above the root_state is assumed to be the top state 
-    let mut abv_root_state  = [false;6];
-    abv_root_state[st_top] = true;
+    let mut abv_root_state  = [true , false, false, false, false, false];
     states[0] = next_state(
         abv_root_state,
         false,  
@@ -251,7 +249,9 @@ fn compute_new_root(
         level_inserted[0],
         operation == 1
     );
-    
+
+    // compute states of each level the reason for different loops is that in this loop we transition from top to other states
+    // as while computing the roots we need to know the child of the level below  thus both the loops run in the opposite direction  
     for idx in 1..LEN {
         let xor  = calculate_xor(old_key_bits[idx] , new_key_bits[idx]);
         states[idx] = next_state(
@@ -267,6 +267,8 @@ fn compute_new_root(
     assert(last_state_valid);    
 
     let mut roots = [0,0];
+
+    // compute the roots for each level the child for the level is the last computed root
     for idx in 0..LEN {
         let new_roots = compute_roots(
             old_leaf,
@@ -305,7 +307,7 @@ fn assert_vstate_valid(state:[Bool;5]) {
 /// `top` : The insert level for our key is not reached 
 /// `iz`  : level inserted reach and the notFound key,val are zero and we have to verify non inclustion
 /// `inz` : level inserted reach and the notFound key,val are non zero and we have to verify non inclustion
-/// `inew`: level inserated reached and we have verify inclusions
+/// `inew`: level inserated reached and we have verify inclusion
 /// `na`  : All the verification has been done and now we just don't care about the states
 /// when we generate (non-)membership proofs we have a state for each level this is helpful in computing the root
 /// # Parameters
@@ -331,6 +333,15 @@ fn v_next_state(
     return new_states;  
 }
 
+
+/// compute the root for verification given the state and the siblings
+/// # Parameters
+///    `state`: the state for the level
+///    `child`: the child of the level as we iterate from the bottom to the top we pass in the last computed root
+///    `sibling`: the sibling for the key
+///    `lrbit`: the bit for the key deciding whether it is left or right in the path
+///    `not_found_leaf`: the leaf hash for the not found key
+///    `leaf`: the leaf hash for the key we are creating (non-)membership proof for
 fn compute_root(
     state: [Bool;5],
     child: Field,
@@ -351,19 +362,29 @@ fn compute_root(
 }
 
 
+/// Verifies the (non-)membership proof for the SMT
+/// # Parameters
+///     `root`: the root of the tree
+///     `siblings`: the siblings for the path
+///     `not_found_key`: when testing for non membership proofs the key and val found where the (key,val) should be
+///     `not_found_val`: the value for the not found key
+///     `inclusion_proof`: whether we are verifying a membership proof or non-membership proof
+///     `is_nf_zero`: whether the not found key i.e the key val where the (key,val) should be is zero
+///     `key`: the key for which we are verifying the proof
+///     `value`: the value for the key
 fn verify(
     root: Field,
     siblings: [Field;LEN],
-    not_found_key: Field, // when testing for non membership proofs the key and val found where the (key,val) should be
+    not_found_key: Field, // 
     not_found_val: Field,
     inclusion_proof: Bool, // true for memebership proofs and false for non-membership proofs
-    is_old_zero: Bool,
+    is_nf_zero: Bool,
     key: Field,
     value: Field
 ){
 
-    // for non inclusion proofs and is_old_zero false `not_found_key` and `key` should not be equal
-    let valid_keys = (inclusion_proof || (not_found_key != key)) && !is_old_zero;
+    // for non inclusion proofs and is_nf_zero false `not_found_key` and `key` should not be equal
+    let valid_keys = (inclusion_proof || (not_found_key != key)) && !is_nf_zero;
     assert(valid_keys);
 
     let not_found_leaf = compute_leaf_hash(not_found_key,not_found_val);
@@ -380,7 +401,7 @@ fn verify(
     let abv_root_state = [true , false, false, false, false];
     states[0]  = v_next_state(
         abv_root_state,
-        is_old_zero,
+        is_nf_zero,
         insertion_level[0],
         inclusion_proof
     );
@@ -388,7 +409,7 @@ fn verify(
     for idx in 1..LEN {
         states[idx] =   v_next_state(
             states[idx - 1],
-            is_old_zero,
+            is_nf_zero,
             insertion_level[idx],
             inclusion_proof
         ); 
@@ -408,5 +429,6 @@ fn verify(
         computed_root = new_root;
     }
 
+    // whether the computed root is equal to the root of the tree
     assert_eq(computed_root , root);
 }
