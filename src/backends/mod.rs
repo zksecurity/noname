@@ -5,6 +5,7 @@ use ark_ff::{Field, One, PrimeField, Zero};
 use circ::ir::term::precomp::PreComp;
 use fxhash::FxHashMap;
 use num_bigint::BigUint;
+use regex::Regex;
 
 use crate::{
     circuit_writer::VarInfo,
@@ -499,6 +500,12 @@ pub trait Backend: Clone {
                 }
 
                 Some(TyKind::String(s)) => {
+                    let re = Regex::new(r"\{([^}]+)\}").unwrap();
+                    let variables: Vec<String> = re
+                        .captures_iter(s)
+                        .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
+                        .collect();
+
                     println!("{dbg_msg}{}", s);
                 }
 

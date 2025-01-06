@@ -24,7 +24,6 @@ pub const BUILTIN_FN_NAMES: [&str; 3] = ["assert", "assert_eq", "log"];
 const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(lhs: Field, rhs: Field)";
 const LOG_FN: &str = "log(var: Field)";
-
 pub struct BuiltinsLib {}
 
 impl Module for BuiltinsLib {
@@ -158,6 +157,7 @@ fn log_fn<B: Backend>(
     vars: &[VarInfo<B::Field, B::Var>],
     span: Span,
 ) -> Result<Option<Var<B::Field, B::Var>>> {
+    println!("{:?}", vars);
     for var in vars {
         // todo: will need to support string argument in order to customize msg
         compiler.backend.log_var(var, "log".to_owned(), span);

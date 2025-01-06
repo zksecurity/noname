@@ -1,6 +1,7 @@
 
 fn main(pub public_input: Field) -> Field {
-    log("stuff here");
+    let some_arr = [123,234,456];
+    log("stuff here {some_arr}", some_arr);
 
     log(1234);
     log(true);

@@ -207,6 +207,7 @@ impl<B: Backend> TypeChecker<B> {
             let module_path =
                 ModulePath::Absolute(UserRepo::new(&format!("std/{}", module_impl.get_name())));
             for fn_info in module_impl.get_parsed_fns() {
+                println!("{:?}", fn_info.sig().name.value);
                 let qualified = FullyQualified::new(&module_path, &fn_info.sig().name.value);
                 if type_checker
                     .functions
