@@ -400,7 +400,7 @@ impl Display for TyKind {
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
             TyKind::GenericSizedArray(ty, size) => write!(f, "[{}; {}]", ty, size),
-            TyKind::String(S) => write!(f, "String"),
+            TyKind::String(s) => write!(f, "String({})", s),
         }
     }
 }

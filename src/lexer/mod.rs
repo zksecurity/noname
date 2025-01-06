@@ -126,41 +126,41 @@ impl Display for Keyword {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum TokenKind {
-    Keyword(Keyword),      // reserved keywords
-    Identifier(String),    // [a-zA-Z](A-Za-z0-9_)*
-    BigUInt(BigUint),      // (0-9)*
-    Dot,                   // .
-    DoubleDot,             // ..
-    Comma,                 // ,
-    Colon,                 // :
-    DoubleColon,           // ::
-    LeftParen,             // (
-    RightParen,            // )
-    LeftBracket,           // [
-    RightBracket,          // ]
-    LeftCurlyBracket,      // {
-    RightCurlyBracket,     // }
-    SemiColon,             // ;
-    Slash,                 // /
-    Comment(String),       // // comment
-    Greater,               // >
-    Less,                  // <
-    Equal,                 // =
-    DoubleEqual,           // ==
-    NotEqual,              // !=
-    Plus,                  // +
-    Minus,                 // -
-    RightArrow,            // ->
-    Star,                  // *
-    Ampersand,             // &
-    DoubleAmpersand,       // &&
-    Pipe,                  // |
-    DoublePipe,            // ||
-    Exclamation,           // !
-    Question,              // ?
-    PlusEqual,             // +=
-    MinusEqual,            // -=
-    StarEqual,             // *=
+    Keyword(Keyword),   // reserved keywords
+    Identifier(String), // [a-zA-Z](A-Za-z0-9_)*
+    BigUInt(BigUint),   // (0-9)*
+    Dot,                // .
+    DoubleDot,          // ..
+    Comma,              // ,
+    Colon,              // :
+    DoubleColon,        // ::
+    LeftParen,          // (
+    RightParen,         // )
+    LeftBracket,        // [
+    RightBracket,       // ]
+    LeftCurlyBracket,   // {
+    RightCurlyBracket,  // }
+    SemiColon,          // ;
+    Slash,              // /
+    Comment(String),    // // comment
+    Greater,            // >
+    Less,               // <
+    Equal,              // =
+    DoubleEqual,        // ==
+    NotEqual,           // !=
+    Plus,               // +
+    Minus,              // -
+    RightArrow,         // ->
+    Star,               // *
+    Ampersand,          // &
+    DoubleAmpersand,    // &&
+    Pipe,               // |
+    DoublePipe,         // ||
+    Exclamation,        // !
+    Question,           // ?
+    PlusEqual,          // +=
+    MinusEqual,         // -=
+    StarEqual,          // *=
     StringLiteral(String), // "thing"
 }
 
@@ -298,7 +298,7 @@ impl Token {
                 break;
             };
 
-            // where we in the middle of parsing an ident or number ?
+            // where we in the middle of parsing an ident or number?
             if !c.is_alphanumeric() && c != '_' {
                 if let Some(ident_or_number) = ident_or_number.take() {
                     add_thing(ctx, &mut tokens, ident_or_number)?;
@@ -450,7 +450,7 @@ impl Token {
                         tokens.push(TokenKind::NotEqual.new_token(ctx, 2));
                         chars.next();
                     } else {
-                        tokens.push(TokenKind::Exclamation.new_token(ctx, 1))
+                        tokens.push(TokenKind::Exclamation.new_token(ctx, 1));
                     }
                 }
 

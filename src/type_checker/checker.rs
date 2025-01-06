@@ -427,10 +427,7 @@ impl<B: Backend> TypeChecker<B> {
 
             ExprKind::Bool(_) => Some(ExprTyInfo::new_anon(TyKind::Bool)),
 
-            ExprKind::StringLiteral(s) => Some(ExprTyInfo::new_anon(TyKind::Array(
-                Box::new(TyKind::Field { constant: true }),
-                s.len() as u32,
-            ))),
+            ExprKind::StringLiteral(s) => Some(ExprTyInfo::new_anon(TyKind::String(s.clone()))),
 
             // mod::path.of.var
             ExprKind::Variable { module, name } => {

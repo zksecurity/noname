@@ -422,11 +422,11 @@ impl Backend for KimchiVesta {
         self.compute_val(env, val, var.index)
     }
 
-    fn generate_witness<B: Backend>(
+    fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<VestaField>,
         sources: &Sources,
-        _typed: &Mast<B>,
+        typed: &Mast<Self>,
     ) -> Result<GeneratedWitness> {
         if !self.finalized {
             unreachable!("the circuit must be finalized before generating a witness");
@@ -475,7 +475,7 @@ impl Backend for KimchiVesta {
             }
             public_outputs.push(val);
         }
-        self.print_log(witness_env, &self.log_info, sources, _typed)?;
+        self.print_log(witness_env, &self.log_info, sources, typed)?;
 
         // sanity check the witness
         for (row, (gate, witness_row, debug_info)) in

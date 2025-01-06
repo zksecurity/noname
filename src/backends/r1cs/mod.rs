@@ -487,11 +487,11 @@ where
 
     /// Generate the witnesses
     /// This process should check if the constraints are satisfied.
-    fn generate_witness<B: Backend>(
+    fn generate_witness(
         &self,
         witness_env: &mut crate::witness::WitnessEnv<F>,
         sources: &Sources,
-        typed: &Mast<B>,
+        typed: &Mast<Self>,
     ) -> crate::error::Result<Self::GeneratedWitness> {
         assert!(self.finalized, "the circuit is not finalized yet!");
 
