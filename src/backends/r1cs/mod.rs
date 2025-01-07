@@ -271,7 +271,7 @@ where
     /// Debug information for each constraint.
     debug_info: Vec<DebugInfo>,
     /// Debug information for var info.
-    log_info: Vec<(String, Span, VarInfo<F, LinearCombination<F>>)>,
+    log_info: Vec<(Span, VarInfo<F, LinearCombination<F>>)>,
     /// Record the public inputs for reordering the witness vector
     public_inputs: Vec<CellVar>,
     /// Record the private inputs for checking
@@ -685,8 +685,8 @@ where
         var
     }
 
-    fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, msg: String, span: Span) {
-        self.log_info.push((msg, span, var.clone()));
+    fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, span: Span) {
+        self.log_info.push((span, var.clone()));
     }
 }
 

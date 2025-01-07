@@ -124,7 +124,7 @@ fn replace_all(
 
 pub fn log_string_type<B: Backend>(
     backend: &B,
-    logs_iter: &mut Iter<'_, (String, Span, VarInfo<B::Field, B::Var>)>,
+    logs_iter: &mut Iter<'_, (Span, VarInfo<B::Field, B::Var>)>,
     str: &str,
     witness: &mut WitnessEnv<B::Field>,
     typed: &Mast<B>,
@@ -132,8 +132,8 @@ pub fn log_string_type<B: Backend>(
 ) -> Result<String> {
     let re = Regex::new(r"\{\s*\}").unwrap();
     let replacer = |_: &Captures| {
-        let (_, span, var) = match logs_iter.next() {
-            Some((str, span, var)) => (str, span, var),
+        let (span, var) = match logs_iter.next() {
+            Some((span, var)) => (span, var),
             None => return Err(Error::new("log", ErrorKind::InsufficientVariables, *span)),
         };
         let replacement = match &var.typ {
@@ -190,7 +190,6 @@ pub fn log_string_type<B: Backend>(
                 unreachable!("GenericSizedArray should be monomorphized")
             }
             Some(TyKind::String(_)) => todo!("String cannot be in circuit yet"),
-            // I cannot return an error here
             None => {
                 return Err(Error::new(
                     "log",

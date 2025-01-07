@@ -135,7 +135,7 @@ pub struct KimchiVesta {
     pub(crate) private_input_cell_vars: Vec<KimchiCellVar>,
 
     /// Log information
-    pub(crate) log_info: Vec<(String, Span, VarInfo<VestaField, KimchiCellVar>)>,
+    pub(crate) log_info: Vec<(Span, VarInfo<VestaField, KimchiCellVar>)>,
 }
 
 impl Witness {
@@ -482,36 +482,6 @@ impl Backend for KimchiVesta {
         }
         self.print_log(witness_env, &self.log_info, sources, typed)?;
 
-        // output log values to the console
-        for (_, span, var_info) in &self.log_info {
-            let (filename, source) = sources.get(&span.filename_id).unwrap();
-            let (line, _, line_str) = crate::utils::find_exact_line(source, *span);
-            let line_str = line_str.trim_start();
-            let dbg_msg = format!("[{filename}:{line}] `{line_str}` -> ");
-            match &var_info.typ {
-                Some(TyKind::Field { .. }) => match &var_info.var[0] {
-                    ConstOrCell::Const(cst) => {
-                        println!("{dbg_msg}{}", cst.pretty());
-                    }
-                    ConstOrCell::Cell(cell) => {
-                        let val = self.compute_var(witness_env, cell)?;
-                        println!("{dbg_msg}{}", val.pretty());
-                    }
-                },
-                Some(TyKind::Bool) => match &var_info.var[0] {
-                    ConstOrCell::Const(cst) => {
-                        let val = *cst == VestaField::one();
-                        println!("{dbg_msg}{}", val);
-                    }
-                    ConstOrCell::Cell(cell) => {
-                        let val = self.compute_var(witness_env, cell)? == VestaField::one();
-                        println!("{dbg_msg}{}", val);
-                    }
-                },
-                _ => todo!("Type not implemented yet"),
-            }
-        }
-
         // sanity check the witness
         for (row, (gate, witness_row, debug_info)) in
             izip!(self.gates.iter(), &witness, &self.debug_info).enumerate()
@@ -839,9 +809,8 @@ impl Backend for KimchiVesta {
     fn log_var(
         &mut self,
         var: &crate::circuit_writer::VarInfo<Self::Field, Self::Var>,
-        msg: String,
         span: Span,
     ) {
-        self.log_info.push((msg, span, var.clone()));
+        self.log_info.push((span, var.clone()));
     }
 }

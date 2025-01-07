@@ -160,7 +160,7 @@ fn log_fn<B: Backend>(
 ) -> Result<Option<Var<B::Field, B::Var>>> {
     for var in vars {
         // todo: will need to support string argument in order to customize msg
-        compiler.backend.log_var(var, "log".to_owned(), span);
+        compiler.backend.log_var(var, span);
     }
 
     Ok(None)

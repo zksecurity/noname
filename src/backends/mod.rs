@@ -425,18 +425,18 @@ pub trait Backend: Clone {
     /// Generate the asm for a backend.
     fn generate_asm(&self, sources: &Sources, debug: bool) -> String;
 
-    fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, msg: String, span: Span);
+    fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, span: Span);
 
     /// print the log given the log_info
     fn print_log(
         &self,
         witness_env: &mut WitnessEnv<Self::Field>,
-        logs: &[(String, Span, VarInfo<Self::Field, Self::Var>)],
+        logs: &[(Span, VarInfo<Self::Field, Self::Var>)],
         sources: &Sources,
         typed: &Mast<Self>,
     ) -> Result<()> {
         let mut logs_iter = logs.into_iter();
-        while let Some((_, span, var_info)) = logs_iter.next() {
+        while let Some((span, var_info)) = logs_iter.next() {
             let (filename, source) = sources.get(&span.filename_id).unwrap();
             let (line, _, _) = crate::utils::find_exact_line(source, *span);
             let dbg_msg = format!("[{filename}:{line}] -> ");
