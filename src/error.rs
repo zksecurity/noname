@@ -1,3 +1,4 @@
+use clap::error;
 use miette::Diagnostic;
 use thiserror::Error;
 
@@ -365,4 +366,7 @@ pub enum ErrorKind {
 
     #[error("division by zero")]
     DivisionByZero,
+
+    #[error("Not enough variables provided to fill placeholders in the formatted string")]
+    InsufficientVariables,
 }

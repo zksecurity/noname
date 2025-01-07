@@ -2,7 +2,11 @@ pub mod asm;
 pub mod builtin;
 pub mod prover;
 
-use circ::cfg::{CircCfg, CircOpt};
+use circ::{
+    cfg::{CircCfg, CircOpt},
+    circify::Val,
+    ir::term::serde_mods::vec,
+};
 use educe::Educe;
 use rug::Integer;
 use std::{
@@ -28,7 +32,8 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
-    var::{Value, Var},
+    parser::types::TyKind,
+    var::{ConstOrCell, Value, Var},
     witness::WitnessEnv,
 };
 
@@ -129,7 +134,7 @@ pub struct KimchiVesta {
     /// (this is useful to check that they appear in the circuit)
     pub(crate) private_input_cell_vars: Vec<KimchiCellVar>,
 
-    /// mapping to containt log_info
+    /// Log information
     pub(crate) log_info: Vec<(String, Span, VarInfo<VestaField, KimchiCellVar>)>,
 }
 
@@ -476,6 +481,36 @@ impl Backend for KimchiVesta {
             public_outputs.push(val);
         }
         self.print_log(witness_env, &self.log_info, sources, typed)?;
+
+        // output log values to the console
+        for (_, span, var_info) in &self.log_info {
+            let (filename, source) = sources.get(&span.filename_id).unwrap();
+            let (line, _, line_str) = crate::utils::find_exact_line(source, *span);
+            let line_str = line_str.trim_start();
+            let dbg_msg = format!("[{filename}:{line}] `{line_str}` -> ");
+            match &var_info.typ {
+                Some(TyKind::Field { .. }) => match &var_info.var[0] {
+                    ConstOrCell::Const(cst) => {
+                        println!("{dbg_msg}{}", cst.pretty());
+                    }
+                    ConstOrCell::Cell(cell) => {
+                        let val = self.compute_var(witness_env, cell)?;
+                        println!("{dbg_msg}{}", val.pretty());
+                    }
+                },
+                Some(TyKind::Bool) => match &var_info.var[0] {
+                    ConstOrCell::Const(cst) => {
+                        let val = *cst == VestaField::one();
+                        println!("{dbg_msg}{}", val);
+                    }
+                    ConstOrCell::Cell(cell) => {
+                        let val = self.compute_var(witness_env, cell)? == VestaField::one();
+                        println!("{dbg_msg}{}", val);
+                    }
+                },
+                _ => todo!("Type not implemented yet"),
+            }
+        }
 
         // sanity check the witness
         for (row, (gate, witness_row, debug_info)) in

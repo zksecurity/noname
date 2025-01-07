@@ -1,9 +1,8 @@
-use std::fmt::Write;
-
 use crate::{
     backends::Backend,
+    circuit_writer::VarInfo,
     constants::Span,
-    error::{ErrorKind, Result},
+    error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     mast::Mast,
     parser::types::{ModulePath, TyKind},
@@ -11,8 +10,11 @@ use crate::{
     var::ConstOrCell,
     witness::WitnessEnv,
 };
+use std::fmt::Write;
+use std::slice::Iter;
 
 use num_traits::One;
+use regex::{Captures, Regex};
 
 pub fn noname_version() -> String {
     format!("@ noname.{}\n", env!("CARGO_PKG_VERSION"))
@@ -101,7 +103,107 @@ yz
     }
 }
 
-// logging utils
+// for failable replacer this is the recommended approach by the author of regex lib https://github.com/rust-lang/regex/issues/648#issuecomment-590072186
+// I have made Fn -> FnMut because our replace mutates the iterator by moving it forward
+fn replace_all(
+    re: &Regex,
+    haystack: &str,
+    mut replacement: impl FnMut(&Captures) -> Result<String>,
+) -> Result<String> {
+    let mut new = String::with_capacity(haystack.len());
+    let mut last_match = 0;
+    for caps in re.captures_iter(haystack) {
+        let m = caps.get(0).unwrap();
+        new.push_str(&haystack[last_match..m.start()]);
+        new.push_str(&replacement(&caps)?);
+        last_match = m.end();
+    }
+    new.push_str(&haystack[last_match..]);
+    Ok(new)
+}
+
+pub fn log_string_type<B: Backend>(
+    backend: &B,
+    logs_iter: &mut Iter<'_, (String, Span, VarInfo<B::Field, B::Var>)>,
+    str: &str,
+    witness: &mut WitnessEnv<B::Field>,
+    typed: &Mast<B>,
+    span: &Span,
+) -> Result<String> {
+    let re = Regex::new(r"\{\s*\}").unwrap();
+    let replacer = |_: &Captures| {
+        let (_, span, var) = match logs_iter.next() {
+            Some((str, span, var)) => (str, span, var),
+            None => return Err(Error::new("log", ErrorKind::InsufficientVariables, *span)),
+        };
+        let replacement = match &var.typ {
+            Some(TyKind::Field { .. }) => match &var.var[0] {
+                ConstOrCell::Const(cst) => Ok(cst.pretty()),
+                ConstOrCell::Cell(cell) => {
+                    let val = backend.compute_var(witness, cell).unwrap();
+                    Ok(val.pretty())
+                }
+            },
+            // Bool
+            Some(TyKind::Bool) => match &var.var[0] {
+                ConstOrCell::Const(cst) => {
+                    let val = *cst == B::Field::one();
+                    Ok(val.to_string())
+                }
+                ConstOrCell::Cell(cell) => {
+                    let val = backend.compute_var(witness, cell)? == B::Field::one();
+                    Ok(val.to_string())
+                }
+            },
+
+            // Array
+            Some(TyKind::Array(b, s)) => {
+                let (output, remaining) =
+                    log_array_type(backend, &var.var.cvars, b, *s, witness, typed, span).unwrap();
+                assert!(remaining.is_empty());
+                Ok(output)
+            }
+
+            // Custom types
+            Some(TyKind::Custom {
+                module,
+                name: struct_name,
+            }) => {
+                let mut string_vec = Vec::new();
+                let (output, remaining) = log_custom_type(
+                    backend,
+                    module,
+                    struct_name,
+                    typed,
+                    &var.var.cvars,
+                    witness,
+                    span,
+                    &mut string_vec,
+                )
+                .unwrap();
+                assert!(remaining.is_empty());
+                Ok(output)
+            }
+
+            // GenericSizedArray
+            Some(TyKind::GenericSizedArray(_, _)) => {
+                unreachable!("GenericSizedArray should be monomorphized")
+            }
+            Some(TyKind::String(_)) => todo!("String cannot be in circuit yet"),
+            // I cannot return an error here
+            None => {
+                return Err(Error::new(
+                    "log",
+                    ErrorKind::UnexpectedError("No type info for logging"),
+                    *span,
+                ))
+            }
+        };
+        replacement
+    };
+    replace_all(&re, str, replacer)
+}
+
 pub fn log_array_type<B: Backend>(
     backend: &B,
     var_info_var: &[ConstOrCell<B::Field, B::Var>],

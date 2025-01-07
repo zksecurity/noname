@@ -5,6 +5,7 @@ use std::sync::Arc;
 use ark_ff::{One, Zero};
 use kimchi::o1_utils::FieldHelpers;
 use num_bigint::BigUint;
+use regex::Regex;
 
 use crate::{
     backends::Backend,
@@ -157,7 +158,6 @@ fn log_fn<B: Backend>(
     vars: &[VarInfo<B::Field, B::Var>],
     span: Span,
 ) -> Result<Option<Var<B::Field, B::Var>>> {
-    println!("{:?}", vars);
     for var in vars {
         // todo: will need to support string argument in order to customize msg
         compiler.backend.log_var(var, "log".to_owned(), span);

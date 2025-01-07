@@ -874,10 +874,12 @@ impl<B: Backend> TypeChecker<B> {
 
         // check argument length
         if expected.len() != observed.len() {
-            return Err(self.error(
-                ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
-                span,
-            ));
+            if !ignore_arg_types {
+                return Err(self.error(
+                    ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
+                    span,
+                ));
+            }
         }
 
         // skip argument type checking if ignore_arg_types is true

@@ -1332,12 +1332,19 @@ pub fn instantiate_fn_call<B: Backend>(
     // canonicalize the arguments depending on method call or not
     let expected: Vec<_> = fn_sig.arguments.iter().collect();
 
+    let ignore_arg_types = match fn_info.kind {
+        FnKind::BuiltIn(_, _, ignore) => ignore,
+        FnKind::Native(_) => false,
+    };
+
     // check argument length
     if expected.len() != args.len() {
-        return Err(error(
-            ErrorKind::MismatchFunctionArguments(args.len(), expected.len()),
-            span,
-        ));
+        if !ignore_arg_types {
+            return Err(error(
+                ErrorKind::MismatchFunctionArguments(args.len(), expected.len()),
+                span,
+            ));
+        }
     }
 
     // create a context for the function call

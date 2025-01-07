@@ -5,7 +5,6 @@ use ark_ff::{Field, One, PrimeField, Zero};
 use circ::ir::term::precomp::PreComp;
 use fxhash::FxHashMap;
 use num_bigint::BigUint;
-use regex::Regex;
 
 use crate::{
     circuit_writer::VarInfo,
@@ -15,7 +14,7 @@ use crate::{
     helpers::PrettyField,
     imports::FnHandle,
     parser::types::TyKind,
-    utils::{log_array_type, log_custom_type},
+    utils::{log_array_type, log_custom_type, log_string_type},
     var::{ConstOrCell, Value, Var},
     witness::WitnessEnv,
 };
@@ -436,11 +435,11 @@ pub trait Backend: Clone {
         sources: &Sources,
         typed: &Mast<Self>,
     ) -> Result<()> {
-        for (_, span, var_info) in logs {
+        let mut logs_iter = logs.into_iter();
+        while let Some((_, span, var_info)) = logs_iter.next() {
             let (filename, source) = sources.get(&span.filename_id).unwrap();
-            let (line, _, line_str) = crate::utils::find_exact_line(source, *span);
-            let line_str = line_str.trim_start();
-            let dbg_msg = format!("[{filename}:{line}] `{line_str}` -> ");
+            let (line, _, _) = crate::utils::find_exact_line(source, *span);
+            let dbg_msg = format!("[{filename}:{line}] -> ");
 
             match &var_info.typ {
                 // Field
@@ -500,13 +499,9 @@ pub trait Backend: Clone {
                 }
 
                 Some(TyKind::String(s)) => {
-                    let re = Regex::new(r"\{([^}]+)\}").unwrap();
-                    let variables: Vec<String> = re
-                        .captures_iter(s)
-                        .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
-                        .collect();
-
-                    println!("{dbg_msg}{}", s);
+                    let output =
+                        log_string_type(self, &mut logs_iter, s, witness_env, typed, span)?;
+                    println!("{dbg_msg}{}", output);
                 }
 
                 None => {

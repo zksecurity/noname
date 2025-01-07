@@ -1,16 +1,16 @@
 pub mod arkworks;
 pub mod builtin;
 pub mod snarkjs;
-
-use std::collections::{HashMap, HashSet};
-
+use crate::helpers::PrettyField;
 use circ::cfg::{CircCfg, CircOpt};
 use circ_fields::FieldV;
 use itertools::{izip, Itertools as _};
 use kimchi::o1_utils::FieldHelpers;
 use num_bigint::BigUint;
+use num_traits::One;
 use rug::Integer;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 
 use crate::circuit_writer::VarInfo;
 use crate::compiler::Sources;
