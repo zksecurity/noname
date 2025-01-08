@@ -2,11 +2,7 @@ pub mod asm;
 pub mod builtin;
 pub mod prover;
 
-use circ::{
-    cfg::{CircCfg, CircOpt},
-    circify::Val,
-    ir::term::serde_mods::vec,
-};
+use circ::cfg::{CircCfg, CircOpt};
 use educe::Educe;
 use rug::Integer;
 use std::{
@@ -32,8 +28,7 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
-    parser::types::TyKind,
-    var::{ConstOrCell, Value, Var},
+    var::{Value, Var},
     witness::WitnessEnv,
 };
 

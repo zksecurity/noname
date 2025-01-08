@@ -126,41 +126,41 @@ impl Display for Keyword {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum TokenKind {
-    Keyword(Keyword),   // reserved keywords
-    Identifier(String), // [a-zA-Z](A-Za-z0-9_)*
-    BigUInt(BigUint),   // (0-9)*
-    Dot,                // .
-    DoubleDot,          // ..
-    Comma,              // ,
-    Colon,              // :
-    DoubleColon,        // ::
-    LeftParen,          // (
-    RightParen,         // )
-    LeftBracket,        // [
-    RightBracket,       // ]
-    LeftCurlyBracket,   // {
-    RightCurlyBracket,  // }
-    SemiColon,          // ;
-    Slash,              // /
-    Comment(String),    // // comment
-    Greater,            // >
-    Less,               // <
-    Equal,              // =
-    DoubleEqual,        // ==
-    NotEqual,           // !=
-    Plus,               // +
-    Minus,              // -
-    RightArrow,         // ->
-    Star,               // *
-    Ampersand,          // &
-    DoubleAmpersand,    // &&
-    Pipe,               // |
-    DoublePipe,         // ||
-    Exclamation,        // !
-    Question,           // ?
-    PlusEqual,          // +=
-    MinusEqual,         // -=
-    StarEqual,          // *=
+    Keyword(Keyword),      // reserved keywords
+    Identifier(String),    // [a-zA-Z](A-Za-z0-9_)*
+    BigUInt(BigUint),      // (0-9)*
+    Dot,                   // .
+    DoubleDot,             // ..
+    Comma,                 // ,
+    Colon,                 // :
+    DoubleColon,           // ::
+    LeftParen,             // (
+    RightParen,            // )
+    LeftBracket,           // [
+    RightBracket,          // ]
+    LeftCurlyBracket,      // {
+    RightCurlyBracket,     // }
+    SemiColon,             // ;
+    Slash,                 // /
+    Comment(String),       // // comment
+    Greater,               // >
+    Less,                  // <
+    Equal,                 // =
+    DoubleEqual,           // ==
+    NotEqual,              // !=
+    Plus,                  // +
+    Minus,                 // -
+    RightArrow,            // ->
+    Star,                  // *
+    Ampersand,             // &
+    DoubleAmpersand,       // &&
+    Pipe,                  // |
+    DoublePipe,            // ||
+    Exclamation,           // !
+    Question,              // ?
+    PlusEqual,             // +=
+    MinusEqual,            // -=
+    StarEqual,             // *=
     StringLiteral(String), // "thing"
 }
 
