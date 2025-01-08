@@ -99,6 +99,7 @@ impl NameResCtx {
                 }
             }
             ExprKind::Bool(_) => {}
+            ExprKind::StringLiteral(_) => {}
             ExprKind::IfElse { cond, then_, else_ } => {
                 self.resolve_expr(cond)?;
                 self.resolve_expr(then_)?;

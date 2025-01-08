@@ -122,6 +122,8 @@ pub enum ExprKind {
         then_: Box<Expr>,
         else_: Box<Expr>,
     },
+    /// Any string literal
+    StringLiteral(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -243,6 +245,7 @@ impl Expr {
                         | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
                         | ExprKind::ArrayAccess { .. }
+                        | ExprKind::StringLiteral { .. }
                 ) {
                     Err(Error::new(
                         "parse - if keyword",
@@ -276,6 +279,7 @@ impl Expr {
                         | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
                         | ExprKind::ArrayAccess { .. }
+                        | ExprKind::StringLiteral { .. }
                 ) {
                     Err(Error::new(
                         "parse - if keyword",
@@ -410,6 +414,7 @@ impl Expr {
 
                 fn_call
             }
+            TokenKind::StringLiteral(s) => Expr::new(ctx, ExprKind::StringLiteral(s), span),
 
             // unrecognized pattern
             _ => {

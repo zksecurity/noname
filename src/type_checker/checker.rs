@@ -427,6 +427,8 @@ impl<B: Backend> TypeChecker<B> {
 
             ExprKind::Bool(_) => Some(ExprTyInfo::new_anon(TyKind::Bool)),
 
+            ExprKind::StringLiteral(s) => Some(ExprTyInfo::new_anon(TyKind::String(s.clone()))),
+
             // mod::path.of.var
             ExprKind::Variable { module, name } => {
                 let qualified = FullyQualified::new(module, &name.value);
@@ -872,10 +874,12 @@ impl<B: Backend> TypeChecker<B> {
 
         // check argument length
         if expected.len() != observed.len() {
-            return Err(self.error(
-                ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
-                span,
-            ));
+            if !ignore_arg_types {
+                return Err(self.error(
+                    ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
+                    span,
+                ));
+            }
         }
 
         // skip argument type checking if ignore_arg_types is true

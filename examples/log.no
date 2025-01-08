@@ -1,0 +1,19 @@
+
+struct Thing {
+    xx: Field,
+    yy: Field
+}
+
+fn main(pub public_input: Field) -> Field {
+
+    log(1234);
+    log(true);
+
+    let arr = [1,2,3];
+    log(arr);
+
+    let thing = Thing { xx : public_input , yy: public_input + 1};
+    log("formatted string with a number {} boolean {} arr {} struct {}" , 1234,true, arr , thing);
+
+    return public_input + 1;
+}

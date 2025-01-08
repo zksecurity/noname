@@ -331,6 +331,7 @@ impl<B: Backend> CircuitWriter<B> {
             TyKind::GenericSizedArray(_, _) => {
                 unreachable!("generic array should have been resolved")
             }
+            TyKind::String(_) => todo!("String type is not supported for constraints"),
         };
         Ok(())
     }
@@ -694,6 +695,13 @@ impl<B: Backend> CircuitWriter<B> {
                 };
                 let res = VarOrRef::Var(Var::new_constant(value, expr.span));
                 Ok(Some(res))
+            }
+
+            ExprKind::StringLiteral(s) => {
+                let chars_in_ff: Vec<B::Field> =
+                    s.chars().map(|char| B::Field::from(char as u8)).collect();
+                let cvars = chars_in_ff.iter().map(|&f| ConstOrCell::Const(f)).collect();
+                Ok(Some(VarOrRef::Var(Var::new(cvars, expr.span))))
             }
 
             ExprKind::Variable { module, name } => {

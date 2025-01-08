@@ -5,6 +5,7 @@ use std::sync::Arc;
 use ark_ff::{One, Zero};
 use kimchi::o1_utils::FieldHelpers;
 use num_bigint::BigUint;
+use regex::Regex;
 
 use crate::{
     backends::Backend,
@@ -24,7 +25,6 @@ pub const BUILTIN_FN_NAMES: [&str; 3] = ["assert", "assert_eq", "log"];
 const ASSERT_FN: &str = "assert(condition: Bool)";
 const ASSERT_EQ_FN: &str = "assert_eq(lhs: Field, rhs: Field)";
 const LOG_FN: &str = "log(var: Field)";
-
 pub struct BuiltinsLib {}
 
 impl Module for BuiltinsLib {
@@ -160,7 +160,7 @@ fn log_fn<B: Backend>(
 ) -> Result<Option<Var<B::Field, B::Var>>> {
     for var in vars {
         // todo: will need to support string argument in order to customize msg
-        compiler.backend.log_var(var, "log".to_owned(), span);
+        compiler.backend.log_var(var, span);
     }
 
     Ok(None)

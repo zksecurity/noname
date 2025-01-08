@@ -13,6 +13,8 @@ use crate::{
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
     imports::FnHandle,
+    parser::types::TyKind,
+    utils::{log_array_type, log_custom_type, log_string_type},
     var::{ConstOrCell, Value, Var},
     witness::WitnessEnv,
 };
@@ -413,15 +415,105 @@ pub trait Backend: Clone {
     ) -> Result<()>;
 
     /// Generate the witness for a backend.
-    fn generate_witness<B: Backend>(
+    fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<Self::Field>,
         sources: &Sources,
-        typed: &Mast<B>,
+        typed: &Mast<Self>,
     ) -> Result<Self::GeneratedWitness>;
 
     /// Generate the asm for a backend.
     fn generate_asm(&self, sources: &Sources, debug: bool) -> String;
 
-    fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, msg: String, span: Span);
+    fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, span: Span);
+
+    /// print the log given the log_info
+    fn print_log(
+        &self,
+        witness_env: &mut WitnessEnv<Self::Field>,
+        logs: &[(Span, VarInfo<Self::Field, Self::Var>)],
+        sources: &Sources,
+        typed: &Mast<Self>,
+    ) -> Result<()> {
+        let mut logs_iter = logs.into_iter();
+        while let Some((span, var_info)) = logs_iter.next() {
+            let (filename, source) = sources.get(&span.filename_id).unwrap();
+            let (line, _, _) = crate::utils::find_exact_line(source, *span);
+            let dbg_msg = format!("[{filename}:{line}] -> ");
+
+            match &var_info.typ {
+                // Field
+                Some(TyKind::Field { .. }) => match &var_info.var[0] {
+                    ConstOrCell::Const(cst) => {
+                        println!("{dbg_msg}{}", cst.pretty());
+                    }
+                    ConstOrCell::Cell(cell) => {
+                        let val = self.compute_var(witness_env, cell)?;
+                        println!("{dbg_msg}{}", val.pretty());
+                    }
+                },
+
+                // Bool
+                Some(TyKind::Bool) => match &var_info.var[0] {
+                    ConstOrCell::Const(cst) => {
+                        let val = *cst == Self::Field::one();
+                        println!("{dbg_msg}{}", val);
+                    }
+                    ConstOrCell::Cell(cell) => {
+                        let val = self.compute_var(witness_env, cell)? == Self::Field::one();
+                        println!("{dbg_msg}{}", val);
+                    }
+                },
+
+                // Array
+                Some(TyKind::Array(b, s)) => {
+                    let (output, remaining) =
+                        log_array_type(self, &var_info.var.cvars, b, *s, witness_env, typed, span)?;
+                    assert!(remaining.is_empty());
+                    println!("{dbg_msg}{}", output);
+                }
+
+                // Custom types
+                Some(TyKind::Custom {
+                    module,
+                    name: struct_name,
+                }) => {
+                    let mut string_vec = Vec::new();
+                    let (output, remaining) = log_custom_type(
+                        self,
+                        module,
+                        struct_name,
+                        typed,
+                        &var_info.var.cvars,
+                        witness_env,
+                        span,
+                        &mut string_vec,
+                    )?;
+                    assert!(remaining.is_empty());
+                    println!("{dbg_msg}{}{}", struct_name, output);
+                }
+
+                // GenericSizedArray
+                Some(TyKind::GenericSizedArray(_, _)) => {
+                    unreachable!("GenericSizedArray should be monomorphized")
+                }
+
+                Some(TyKind::String(s)) => {
+                    let output =
+                        log_string_type(self, &mut logs_iter, s, witness_env, typed, span)?;
+                    println!("{dbg_msg}{}", output);
+                }
+
+                None => {
+                    return Err(Error::new(
+                        "log",
+                        ErrorKind::UnexpectedError("No type info for logging"),
+                        *span,
+                    ))
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
