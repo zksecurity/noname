@@ -45,6 +45,8 @@ pub enum ErrorKind {
     AssignmentToImmutableVariable,
     #[error("the {0} of assert_eq must be of type Field or BigInt. It was of type {1}")]
     AssertTypeMismatch(&'static str, TyKind),
+    #[error("the types in assert_eq don't match: expected {0} but got {1}")]
+    AssertEqTypeMismatch(TyKind, TyKind),
     #[error(
         "the dependency `{0}` does not appear to be listed in your manifest file `Noname.toml`"
     )]

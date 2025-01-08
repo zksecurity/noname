@@ -13,7 +13,8 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
-    parser::types::{GenericParameters, TyKind},
+    parser::types::{GenericParameters, ModulePath, TyKind},
+    type_checker::FullyQualified,
     var::{ConstOrCell, Value, Var},
 };
 
@@ -33,11 +34,116 @@ impl Module for BuiltinsLib {
     fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>, bool)> {
         vec![
             (ASSERT_FN, assert_fn, false),
-            (ASSERT_EQ_FN, assert_eq_fn, false),
+            (ASSERT_EQ_FN, assert_eq_fn, true),
             // true -> skip argument type checking for log
             (LOG_FN, log_fn, true),
         ]
     }
+}
+
+/// Represents a comparison that needs to be made
+enum Comparison<B: Backend> {
+    /// Compare two variables
+    Vars(B::Var, B::Var),
+    /// Compare a variable with a constant
+    VarConst(B::Var, B::Field),
+    /// Compare two constants
+    Constants(B::Field, B::Field),
+}
+
+/// Helper function to generate all comparisons
+fn assert_eq_values<B: Backend>(
+    compiler: &CircuitWriter<B>,
+    lhs_info: &VarInfo<B::Field, B::Var>,
+    rhs_info: &VarInfo<B::Field, B::Var>,
+    typ: &TyKind,
+    span: Span,
+) -> Vec<Comparison<B>> {
+    let mut comparisons = Vec::new();
+
+    match typ {
+        // Field and Bool has the same logic
+        TyKind::Field { .. } | TyKind::Bool => {
+            let lhs_var = &lhs_info.var[0];
+            let rhs_var = &rhs_info.var[0];
+            match (lhs_var, rhs_var) {
+                (ConstOrCell::Const(a), ConstOrCell::Const(b)) => {
+                    comparisons.push(Comparison::Constants(a.clone(), b.clone()));
+                }
+                (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
+                | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
+                    comparisons.push(Comparison::VarConst(cvar.clone(), cst.clone()));
+                }
+                (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
+                    comparisons.push(Comparison::Vars(lhs.clone(), rhs.clone()));
+                }
+            }
+        }
+
+        // Arrays (fixed size)
+        TyKind::Array(element_type, size) => {
+            let size = *size as usize;
+            let element_size = compiler.size_of(element_type);
+
+            // compare each element recursively
+            for i in 0..size {
+                let start = i * element_size;
+                let mut element_comparisons = assert_eq_values(
+                    compiler,
+                    &VarInfo::new(
+                        Var::new(lhs_info.var.range(start, element_size).to_vec(), span),
+                        false,
+                        Some(*element_type.clone()),
+                    ),
+                    &VarInfo::new(
+                        Var::new(rhs_info.var.range(start, element_size).to_vec(), span),
+                        false,
+                        Some(*element_type.clone()),
+                    ),
+                    element_type,
+                    span,
+                );
+                comparisons.append(&mut element_comparisons);
+            }
+        }
+
+        // Custom types (structs)
+        TyKind::Custom { module, name } => {
+            let qualified = FullyQualified::new(module, name);
+            let struct_info = compiler.struct_info(&qualified).expect("struct not found");
+
+            // compare each field recursively
+            let mut offset = 0;
+            for (_, field_type) in &struct_info.fields {
+                let field_size = compiler.size_of(field_type);
+                let mut field_comparisons = assert_eq_values(
+                    compiler,
+                    &VarInfo::new(
+                        Var::new(lhs_info.var.range(offset, field_size).to_vec(), span),
+                        false,
+                        Some(field_type.clone()),
+                    ),
+                    &VarInfo::new(
+                        Var::new(rhs_info.var.range(offset, field_size).to_vec(), span),
+                        false,
+                        Some(field_type.clone()),
+                    ),
+                    field_type,
+                    span,
+                );
+                comparisons.append(&mut field_comparisons);
+                offset += field_size;
+            }
+        }
+
+        // GenericSizedArray should be monomorphized to Array before reaching here
+        // no need to handle it seperately
+        TyKind::GenericSizedArray(_, _) => {
+            unreachable!("GenericSizedArray should be monomorphized")
+        }
+    }
+
+    comparisons
 }
 
 /// Asserts that two vars are equal.
@@ -52,67 +158,53 @@ fn assert_eq_fn<B: Backend>(
     let lhs_info = &vars[0];
     let rhs_info = &vars[1];
 
-    // they are both of type field
-    if !matches!(lhs_info.typ, Some(TyKind::Field { .. })) {
-        let lhs = lhs_info.typ.clone().ok_or_else(|| {
-            Error::new(
-                "constraint-generation",
-                ErrorKind::UnexpectedError("No type info for lhs of assertion"),
-                span,
-            )
-        })?;
-
-        Err(Error::new(
+    // get types of both arguments
+    let lhs_type = lhs_info.typ.as_ref().ok_or_else(|| {
+        Error::new(
             "constraint-generation",
-            ErrorKind::AssertTypeMismatch("rhs", lhs),
+            ErrorKind::UnexpectedError("No type info for lhs of assertion"),
             span,
-        ))?
+        )
+    })?;
+
+    let rhs_type = rhs_info.typ.as_ref().ok_or_else(|| {
+        Error::new(
+            "constraint-generation",
+            ErrorKind::UnexpectedError("No type info for rhs of assertion"),
+            span,
+        )
+    })?;
+
+    // they have the same type
+    if !lhs_type.match_expected(rhs_type, false) {
+        return Err(Error::new(
+            "constraint-generation",
+            ErrorKind::AssertEqTypeMismatch(lhs_type.clone(), rhs_type.clone()),
+            span,
+        ));
     }
 
-    if !matches!(rhs_info.typ, Some(TyKind::Field { .. })) {
-        let rhs = rhs_info.typ.clone().ok_or_else(|| {
-            Error::new(
-                "constraint-generation",
-                ErrorKind::UnexpectedError("No type info for rhs of assertion"),
-                span,
-            )
-        })?;
+    // first collect all comparisons needed
+    let comparisons = assert_eq_values(compiler, lhs_info, rhs_info, lhs_type, span);
 
-        Err(Error::new(
-            "constraint-generation",
-            ErrorKind::AssertTypeMismatch("rhs", rhs),
-            span,
-        ))?
-    }
-
-    // retrieve the values
-    let lhs_var = &lhs_info.var;
-    assert_eq!(lhs_var.len(), 1);
-    let lhs_cvar = &lhs_var[0];
-
-    let rhs_var = &rhs_info.var;
-    assert_eq!(rhs_var.len(), 1);
-    let rhs_cvar = &rhs_var[0];
-
-    match (lhs_cvar, rhs_cvar) {
-        // two constants
-        (ConstOrCell::Const(a), ConstOrCell::Const(b)) => {
-            if a != b {
-                Err(Error::new(
-                    "constraint-generation",
-                    ErrorKind::AssertionFailed,
-                    span,
-                ))?
+    // then add all the constraints
+    for comparison in comparisons {
+        match comparison {
+            Comparison::Vars(lhs, rhs) => {
+                compiler.backend.assert_eq_var(&lhs, &rhs, span);
             }
-        }
-
-        // a const and a var
-        (ConstOrCell::Const(cst), ConstOrCell::Cell(cvar))
-        | (ConstOrCell::Cell(cvar), ConstOrCell::Const(cst)) => {
-            compiler.backend.assert_eq_const(cvar, *cst, span)
-        }
-        (ConstOrCell::Cell(lhs), ConstOrCell::Cell(rhs)) => {
-            compiler.backend.assert_eq_var(lhs, rhs, span)
+            Comparison::VarConst(var, constant) => {
+                compiler.backend.assert_eq_const(&var, constant, span);
+            }
+            Comparison::Constants(a, b) => {
+                if a != b {
+                    return Err(Error::new(
+                        "constraint-generation",
+                        ErrorKind::AssertionFailed,
+                        span,
+                    ));
+                }
+            }
         }
     }
 
