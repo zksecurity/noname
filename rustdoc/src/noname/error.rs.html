@@ -370,7 +370,9 @@
 <a href="#369" id="369">369</a>
 <a href="#370" id="370">370</a>
 <a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::error;
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::error;
 <span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
@@ -417,6 +419,8 @@
     </span>AssignmentToImmutableVariable,
     <span class="attr">#[error(<span class="string">"the {0} of assert_eq must be of type Field or BigInt. It was of type {1}"</span>)]
     </span>AssertTypeMismatch(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, TyKind),
+    <span class="attr">#[error(<span class="string">"the types in assert_eq don't match: expected {0} but got {1}"</span>)]
+    </span>AssertEqTypeMismatch(TyKind, TyKind),
     <span class="attr">#[error(
         <span class="string">"the dependency `{0}` does not appear to be listed in your manifest file `Noname.toml`"
     </span>)]
