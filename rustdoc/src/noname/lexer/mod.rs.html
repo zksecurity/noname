@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lexer/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0-nightly (6d9f6ae36 2024-12-16)" data-channel="nightly" data-search-js="search-036cda7a.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/lexer/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lexer/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (ad211ced8 2025-01-07)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/lexer/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -508,7 +508,13 @@
 <a href="#507" id="507">507</a>
 <a href="#508" id="508">508</a>
 <a href="#509" id="509">509</a>
-<a href="#510" id="510">510</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use crate</span>::{
     constants::Span,
@@ -636,42 +642,42 @@
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 </span><span class="kw">pub enum </span>TokenKind {
-    Keyword(Keyword),   <span class="comment">// reserved keywords
-    </span>Identifier(String), <span class="comment">// [a-zA-Z](A-Za-z0-9_)*
-    </span>BigUInt(BigUint),   <span class="comment">// (0-9)*
-    </span>Dot,                <span class="comment">// .
-    </span>DoubleDot,          <span class="comment">// ..
-    </span>Comma,              <span class="comment">// ,
-    </span>Colon,              <span class="comment">// :
-    </span>DoubleColon,        <span class="comment">// ::
-    </span>LeftParen,          <span class="comment">// (
-    </span>RightParen,         <span class="comment">// )
-    </span>LeftBracket,        <span class="comment">// [
-    </span>RightBracket,       <span class="comment">// ]
-    </span>LeftCurlyBracket,   <span class="comment">// {
-    </span>RightCurlyBracket,  <span class="comment">// }
-    </span>SemiColon,          <span class="comment">// ;
-    </span>Slash,              <span class="comment">// /
-    </span>Comment(String),    <span class="comment">// // comment
-    </span>Greater,            <span class="comment">// &gt;
-    </span>Less,               <span class="comment">// &lt;
-    </span>Equal,              <span class="comment">// =
-    </span>DoubleEqual,        <span class="comment">// ==
-    </span>NotEqual,           <span class="comment">// !=
-    </span>Plus,               <span class="comment">// +
-    </span>Minus,              <span class="comment">// -
-    </span>RightArrow,         <span class="comment">// -&gt;
-    </span>Star,               <span class="comment">// *
-    </span>Ampersand,          <span class="comment">// &amp;
-    </span>DoubleAmpersand,    <span class="comment">// &amp;&amp;
-    </span>Pipe,               <span class="comment">// |
-    </span>DoublePipe,         <span class="comment">// ||
-    </span>Exclamation,        <span class="comment">// !
-    </span>Question,           <span class="comment">// ?
-    </span>PlusEqual,          <span class="comment">// +=
-    </span>MinusEqual,         <span class="comment">// -=
-    </span>StarEqual,          <span class="comment">// *=
-                        //    Literal,               // "thing"
+    Keyword(Keyword),      <span class="comment">// reserved keywords
+    </span>Identifier(String),    <span class="comment">// [a-zA-Z](A-Za-z0-9_)*
+    </span>BigUInt(BigUint),      <span class="comment">// (0-9)*
+    </span>Dot,                   <span class="comment">// .
+    </span>DoubleDot,             <span class="comment">// ..
+    </span>Comma,                 <span class="comment">// ,
+    </span>Colon,                 <span class="comment">// :
+    </span>DoubleColon,           <span class="comment">// ::
+    </span>LeftParen,             <span class="comment">// (
+    </span>RightParen,            <span class="comment">// )
+    </span>LeftBracket,           <span class="comment">// [
+    </span>RightBracket,          <span class="comment">// ]
+    </span>LeftCurlyBracket,      <span class="comment">// {
+    </span>RightCurlyBracket,     <span class="comment">// }
+    </span>SemiColon,             <span class="comment">// ;
+    </span>Slash,                 <span class="comment">// /
+    </span>Comment(String),       <span class="comment">// // comment
+    </span>Greater,               <span class="comment">// &gt;
+    </span>Less,                  <span class="comment">// &lt;
+    </span>Equal,                 <span class="comment">// =
+    </span>DoubleEqual,           <span class="comment">// ==
+    </span>NotEqual,              <span class="comment">// !=
+    </span>Plus,                  <span class="comment">// +
+    </span>Minus,                 <span class="comment">// -
+    </span>RightArrow,            <span class="comment">// -&gt;
+    </span>Star,                  <span class="comment">// *
+    </span>Ampersand,             <span class="comment">// &amp;
+    </span>DoubleAmpersand,       <span class="comment">// &amp;&amp;
+    </span>Pipe,                  <span class="comment">// |
+    </span>DoublePipe,            <span class="comment">// ||
+    </span>Exclamation,           <span class="comment">// !
+    </span>Question,              <span class="comment">// ?
+    </span>PlusEqual,             <span class="comment">// +=
+    </span>MinusEqual,            <span class="comment">// -=
+    </span>StarEqual,             <span class="comment">// *=
+    </span>StringLiteral(String), <span class="comment">// "thing"
 </span>}
 
 <span class="kw">impl </span>Display <span class="kw">for </span>TokenKind {
@@ -715,8 +721,8 @@
             PlusEqual =&gt; <span class="string">"`+=`"</span>,
             MinusEqual =&gt; <span class="string">"`-=`"</span>,
             StarEqual =&gt; <span class="string">"`*=`"</span>,
-            <span class="comment">//            TokenType::Literal =&gt; "`\"something\"",
-        </span>};
+            StringLiteral(<span class="kw">_</span>) =&gt; <span class="string">"`\"something\""</span>,
+        };
 
         <span class="macro">write!</span>(f, <span class="string">"{}"</span>, desc)
     }
@@ -966,6 +972,12 @@
 
                 <span class="string">'?' </span>=&gt; {
                     tokens.push(TokenKind::Question.new_token(ctx, <span class="number">1</span>));
+                }
+                <span class="string">'"' </span>=&gt; {
+                    <span class="comment">//TODO: Add error handling if qoute not closed
+                    </span><span class="kw">let </span>literal: String = chars.by_ref().take_while(|<span class="kw-2">&amp;</span>char| char != <span class="string">'"'</span>).collect();
+                    <span class="kw">let </span>len = literal.len();
+                    tokens.push(TokenKind::StringLiteral(literal).new_token(ctx, len));
                 }
                 <span class="string">' ' </span>=&gt; ctx.offset += <span class="number">1</span>,
                 <span class="kw">_ </span>=&gt; {

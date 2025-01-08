@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["display_source","noname_version","title"]};
+window.SIDEBAR_ITEMS = {"fn":["display_source","log_array_type","log_custom_type","log_string_type","noname_version","title"]};

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0-nightly (6d9f6ae36 2024-12-16)" data-channel="nightly" data-search-js="search-036cda7a.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/backends/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (ad211ced8 2025-01-07)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/backends/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -425,7 +425,99 @@
 <a href="#424" id="424">424</a>
 <a href="#425" id="425">425</a>
 <a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fmt::Debug, str::FromStr};
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fmt::Debug, str::FromStr};
 
 <span class="kw">use </span>::kimchi::o1_utils::FieldHelpers;
 <span class="kw">use </span>ark_ff::{Field, One, PrimeField, Zero};
@@ -440,6 +532,8 @@
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
     helpers::PrettyField,
     imports::FnHandle,
+    parser::types::TyKind,
+    utils::{log_array_type, log_custom_type, log_string_type},
     var::{ConstOrCell, Value, Var},
     witness::WitnessEnv,
 };
@@ -840,16 +934,106 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 
     <span class="doccomment">/// Generate the witness for a backend.
-    </span><span class="kw">fn </span>generate_witness&lt;B: Backend&gt;(
+    </span><span class="kw">fn </span>generate_witness(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         witness_env: <span class="kw-2">&amp;mut </span>WitnessEnv&lt;<span class="self">Self</span>::Field&gt;,
         sources: <span class="kw-2">&amp;</span>Sources,
-        typed: <span class="kw-2">&amp;</span>Mast&lt;B&gt;,
+        typed: <span class="kw-2">&amp;</span>Mast&lt;<span class="self">Self</span>&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::GeneratedWitness&gt;;
 
     <span class="doccomment">/// Generate the asm for a backend.
     </span><span class="kw">fn </span>generate_asm(<span class="kw-2">&amp;</span><span class="self">self</span>, sources: <span class="kw-2">&amp;</span>Sources, debug: bool) -&gt; String;
 
-    <span class="kw">fn </span>log_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: <span class="kw-2">&amp;</span>VarInfo&lt;<span class="self">Self</span>::Field, <span class="self">Self</span>::Var&gt;, msg: String, span: Span);
+    <span class="kw">fn </span>log_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: <span class="kw-2">&amp;</span>VarInfo&lt;<span class="self">Self</span>::Field, <span class="self">Self</span>::Var&gt;, span: Span);
+
+    <span class="doccomment">/// print the log given the log_info
+    </span><span class="kw">fn </span>print_log(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        witness_env: <span class="kw-2">&amp;mut </span>WitnessEnv&lt;<span class="self">Self</span>::Field&gt;,
+        logs: <span class="kw-2">&amp;</span>[(Span, VarInfo&lt;<span class="self">Self</span>::Field, <span class="self">Self</span>::Var&gt;)],
+        sources: <span class="kw-2">&amp;</span>Sources,
+        typed: <span class="kw-2">&amp;</span>Mast&lt;<span class="self">Self</span>&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>logs_iter = logs.into_iter();
+        <span class="kw">while let </span><span class="prelude-val">Some</span>((span, var_info)) = logs_iter.next() {
+            <span class="kw">let </span>(filename, source) = sources.get(<span class="kw-2">&amp;</span>span.filename_id).unwrap();
+            <span class="kw">let </span>(line, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw">crate</span>::utils::find_exact_line(source, <span class="kw-2">*</span>span);
+            <span class="kw">let </span>dbg_msg = <span class="macro">format!</span>(<span class="string">"[{filename}:{line}] -&gt; "</span>);
+
+            <span class="kw">match </span><span class="kw-2">&amp;</span>var_info.typ {
+                <span class="comment">// Field
+                </span><span class="prelude-val">Some</span>(TyKind::Field { .. }) =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span>var_info.var[<span class="number">0</span>] {
+                    ConstOrCell::Const(cst) =&gt; {
+                        <span class="macro">println!</span>(<span class="string">"{dbg_msg}{}"</span>, cst.pretty());
+                    }
+                    ConstOrCell::Cell(cell) =&gt; {
+                        <span class="kw">let </span>val = <span class="self">self</span>.compute_var(witness_env, cell)<span class="question-mark">?</span>;
+                        <span class="macro">println!</span>(<span class="string">"{dbg_msg}{}"</span>, val.pretty());
+                    }
+                },
+
+                <span class="comment">// Bool
+                </span><span class="prelude-val">Some</span>(TyKind::Bool) =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span>var_info.var[<span class="number">0</span>] {
+                    ConstOrCell::Const(cst) =&gt; {
+                        <span class="kw">let </span>val = <span class="kw-2">*</span>cst == <span class="self">Self</span>::Field::one();
+                        <span class="macro">println!</span>(<span class="string">"{dbg_msg}{}"</span>, val);
+                    }
+                    ConstOrCell::Cell(cell) =&gt; {
+                        <span class="kw">let </span>val = <span class="self">self</span>.compute_var(witness_env, cell)<span class="question-mark">? </span>== <span class="self">Self</span>::Field::one();
+                        <span class="macro">println!</span>(<span class="string">"{dbg_msg}{}"</span>, val);
+                    }
+                },
+
+                <span class="comment">// Array
+                </span><span class="prelude-val">Some</span>(TyKind::Array(b, s)) =&gt; {
+                    <span class="kw">let </span>(output, remaining) =
+                        log_array_type(<span class="self">self</span>, <span class="kw-2">&amp;</span>var_info.var.cvars, b, <span class="kw-2">*</span>s, witness_env, typed, span)<span class="question-mark">?</span>;
+                    <span class="macro">assert!</span>(remaining.is_empty());
+                    <span class="macro">println!</span>(<span class="string">"{dbg_msg}{}"</span>, output);
+                }
+
+                <span class="comment">// Custom types
+                </span><span class="prelude-val">Some</span>(TyKind::Custom {
+                    module,
+                    name: struct_name,
+                }) =&gt; {
+                    <span class="kw">let </span><span class="kw-2">mut </span>string_vec = Vec::new();
+                    <span class="kw">let </span>(output, remaining) = log_custom_type(
+                        <span class="self">self</span>,
+                        module,
+                        struct_name,
+                        typed,
+                        <span class="kw-2">&amp;</span>var_info.var.cvars,
+                        witness_env,
+                        span,
+                        <span class="kw-2">&amp;mut </span>string_vec,
+                    )<span class="question-mark">?</span>;
+                    <span class="macro">assert!</span>(remaining.is_empty());
+                    <span class="macro">println!</span>(<span class="string">"{dbg_msg}{}{}"</span>, struct_name, output);
+                }
+
+                <span class="comment">// GenericSizedArray
+                </span><span class="prelude-val">Some</span>(TyKind::GenericSizedArray(<span class="kw">_</span>, <span class="kw">_</span>)) =&gt; {
+                    <span class="macro">unreachable!</span>(<span class="string">"GenericSizedArray should be monomorphized"</span>)
+                }
+
+                <span class="prelude-val">Some</span>(TyKind::String(s)) =&gt; {
+                    <span class="kw">let </span>output =
+                        log_string_type(<span class="self">self</span>, <span class="kw-2">&amp;mut </span>logs_iter, s, witness_env, typed, span)<span class="question-mark">?</span>;
+                    <span class="macro">println!</span>(<span class="string">"{dbg_msg}{}"</span>, output);
+                }
+
+                <span class="prelude-val">None </span>=&gt; {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        <span class="string">"log"</span>,
+                        ErrorKind::UnexpectedError(<span class="string">"No type info for logging"</span>),
+                        <span class="kw-2">*</span>span,
+                    ))
+                }
+            }
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
 }
 </code></pre></div></section></main></body></html>
