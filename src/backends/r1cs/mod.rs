@@ -1,22 +1,24 @@
 pub mod arkworks;
 pub mod builtin;
 pub mod snarkjs;
-
-use std::collections::{HashMap, HashSet};
-
-use ark_ff::FpParameters;
+use crate::helpers::PrettyField;
 use circ::cfg::{CircCfg, CircOpt};
 use circ_fields::FieldV;
 use itertools::{izip, Itertools as _};
 use kimchi::o1_utils::FieldHelpers;
 use num_bigint::BigUint;
+use num_traits::One;
 use rug::Integer;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 
 use crate::circuit_writer::VarInfo;
 use crate::compiler::Sources;
 use crate::constants::Span;
 use crate::error::{Error, ErrorKind, Result};
+use crate::mast::Mast;
+use crate::parser::types::{ModulePath, TyKind};
+use crate::type_checker::FullyQualified;
 use crate::var::ConstOrCell;
 use crate::{circuit_writer::DebugInfo, var::Value};
 
@@ -269,7 +271,7 @@ where
     /// Debug information for each constraint.
     debug_info: Vec<DebugInfo>,
     /// Debug information for var info.
-    log_info: Vec<(String, Span, VarInfo<F, LinearCombination<F>>)>,
+    log_info: Vec<(Span, VarInfo<F, LinearCombination<F>>)>,
     /// Record the public inputs for reordering the witness vector
     public_inputs: Vec<CellVar>,
     /// Record the private inputs for checking
@@ -303,7 +305,7 @@ where
 
     /// Returns the prime for snarkjs based on the curve field.
     fn prime(&self) -> BigUint {
-        F::Params::MODULUS.into()
+        F::MODULUS.into()
     }
 
     /// Add an r1cs constraint that is 3 linear combinations.
@@ -407,6 +409,7 @@ where
         &mut self,
         public_output: Option<crate::var::Var<Self::Field, Self::Var>>,
         returned_cells: Option<Vec<LinearCombination<F>>>,
+        disable_safety_check: bool,
     ) -> crate::error::Result<()> {
         // store the return value in the public input that was created for that
         if let Some(public_output) = public_output {
@@ -440,7 +443,7 @@ where
                 continue;
             }
 
-            if !written_vars.contains(&index) {
+            if !written_vars.contains(&index) && !disable_safety_check {
                 if let Some(private_cell_var) = self
                     .private_input_cell_vars
                     .iter()
@@ -488,6 +491,7 @@ where
         &self,
         witness_env: &mut crate::witness::WitnessEnv<F>,
         sources: &Sources,
+        typed: &Mast<Self>,
     ) -> crate::error::Result<Self::GeneratedWitness> {
         assert!(self.finalized, "the circuit is not finalized yet!");
 
@@ -513,24 +517,7 @@ where
             witness[var.index] = val;
         }
 
-        // print out the log info
-        for (_, span, var_info) in &self.log_info {
-            let (filename, source) = sources.get(&span.filename_id).unwrap();
-            let (line, _, line_str) = crate::utils::find_exact_line(source, *span);
-            let line_str = line_str.trim_start();
-            let dbg_msg = format!("[{filename}:{line}] `{line_str}` -> ");
-            for cvar in var_info.var.iter() {
-                match cvar {
-                    ConstOrCell::Const(cst) => {
-                        println!("{dbg_msg}{}", cst.pretty());
-                    }
-                    ConstOrCell::Cell(cell) => {
-                        let val = cell.evaluate(&witness);
-                        println!("{dbg_msg}{}", val.pretty());
-                    }
-                }
-            }
-        }
+        self.print_log(witness_env, &self.log_info, sources, typed)?;
 
         for (index, (constraint, debug_info)) in
             izip!(&self.constraints, &self.debug_info).enumerate()
@@ -698,8 +685,8 @@ where
         var
     }
 
-    fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, msg: String, span: Span) {
-        self.log_info.push((msg, span, var.clone()));
+    fn log_var(&mut self, var: &VarInfo<Self::Field, Self::Var>, span: Span) {
+        self.log_info.push((span, var.clone()));
     }
 }
 

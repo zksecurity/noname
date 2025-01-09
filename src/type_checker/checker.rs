@@ -5,16 +5,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     backends::Backend,
+    cli::packages::UserRepo,
     constants::Span,
     error::{ErrorKind, Result},
     imports::FnKind,
     parser::{
         types::{
             is_numeric, Attribute, AttributeKind, FnSig, ForLoopArgument, FuncOrMethod,
-            FunctionDef, Stmt, StmtKind, Symbolic, Ty, TyKind,
+            FunctionDef, Stmt, StmtKind, Symbolic, Ty, TyKind, ModulePath,
         },
         CustomType, Expr, ExprKind, Op2,
     },
+    stdlib::builtins::QUALIFIED_BUILTINS,
     syntax::is_type,
 };
 
@@ -39,7 +41,7 @@ where
 impl<B: Backend> FnInfo<B> {
     pub fn sig(&self) -> &FnSig {
         match &self.kind {
-            FnKind::BuiltIn(sig, _) => sig,
+            FnKind::BuiltIn(sig, _, _) => sig,
             FnKind::Native(func) => &func.sig,
         }
     }
@@ -446,6 +448,8 @@ impl<B: Backend> TypeChecker<B> {
             ExprKind::BigUInt(_) => Some(ExprTyInfo::new_anon(TyKind::Field { constant: true })),
 
             ExprKind::Bool(_) => Some(ExprTyInfo::new_anon(TyKind::Bool)),
+
+            ExprKind::StringLiteral(s) => Some(ExprTyInfo::new_anon(TyKind::String(s.clone()))),
 
             // mod::path.of.var
             ExprKind::Variable { module, name } => {
@@ -856,6 +860,19 @@ impl<B: Backend> TypeChecker<B> {
             None => (),
         };
 
+        // get the ignore_arg_types flag from the function info if it's a builtin
+        let ignore_arg_types = match self
+            .fn_info(&FullyQualified::new(
+                &ModulePath::Absolute(UserRepo::new(QUALIFIED_BUILTINS)),
+                &fn_sig.name.value,
+            ))
+            .map(|info| &info.kind)
+        {
+            // check builtin
+            Some(FnKind::BuiltIn(_, _, ignore)) => *ignore,
+            _ => false,
+        };
+
         // canonicalize the arguments depending on method call or not
         let expected: Vec<_> = if method_call {
             fn_sig
@@ -879,27 +896,32 @@ impl<B: Backend> TypeChecker<B> {
 
         // check argument length
         if expected.len() != observed.len() {
-            return Err(self.error(
-                ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
-                span,
-            ));
-        }
-
-        // compare argument types with the function signature
-        for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
-            // when const attribute presented, the argument must be a constant
-            if sig_arg.is_constant() && !matches!(typ, TyKind::Field { constant: true }) {
+            if !ignore_arg_types {
                 return Err(self.error(
-                    ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
+                    ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
                     span,
                 ));
             }
+        }
 
-            if !typ.match_expected(&sig_arg.typ.kind, false) {
-                return Err(self.error(
-                    ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
-                    span,
-                ));
+        // skip argument type checking if ignore_arg_types is true
+        if !ignore_arg_types {
+            // compare argument types with the function signature
+            for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
+                // when const attribute presented, the argument must be a constant
+                if sig_arg.is_constant() && !matches!(typ, TyKind::Field { constant: true }) {
+                    return Err(self.error(
+                        ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
+                        span,
+                    ));
+                }
+
+                if !typ.match_expected(&sig_arg.typ.kind, false) {
+                    return Err(self.error(
+                        ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
+                        span,
+                    ));
+                }
             }
         }
 

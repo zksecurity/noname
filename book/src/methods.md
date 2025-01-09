@@ -47,7 +47,7 @@ This still doesn't fix our problem. In the line:
 let thing = Thing { x: 1, y: 2 };
 ```
 
-the local variable `thing` is stored, but the right hand side is computed via the `compute_expr()` function which will go through the AST and potentially create different anonymous variables until it can compute a value.
+the local variable `thing` is stored, but the right-hand side is computed via the `compute_expr()` function which will go through the AST and potentially create different anonymous variables until it can compute a value.
 
 There's three ways to solve this:
 

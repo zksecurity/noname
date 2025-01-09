@@ -139,7 +139,11 @@ impl<B: Backend> CircuitWriter<B> {
         }
     }
 
-    pub fn generate_circuit(typed: Mast<B>, backend: B) -> Result<CompiledCircuit<B>> {
+    pub fn generate_circuit(
+        typed: Mast<B>,
+        backend: B,
+        disable_safety_check: bool,
+    ) -> Result<CompiledCircuit<B>> {
         // create circuit writer
         let mut circuit_writer = CircuitWriter::new(typed, backend);
 
@@ -148,7 +152,7 @@ impl<B: Backend> CircuitWriter<B> {
         let main_fn_info = circuit_writer.main_info()?;
 
         let function = match &main_fn_info.kind {
-            crate::imports::FnKind::BuiltIn(_, _) => unreachable!(),
+            crate::imports::FnKind::BuiltIn(_, _, _) => unreachable!(),
             crate::imports::FnKind::Native(fn_sig) => fn_sig.clone(),
         };
 
@@ -212,9 +216,11 @@ impl<B: Backend> CircuitWriter<B> {
             }
         }
 
-        circuit_writer
-            .backend
-            .finalize_circuit(public_output, returned_cells)?;
+        circuit_writer.backend.finalize_circuit(
+            public_output,
+            returned_cells,
+            disable_safety_check,
+        )?;
 
         //
         Ok(CompiledCircuit::new(circuit_writer))
@@ -226,7 +232,8 @@ impl<B: Backend> CircuitWriter<B> {
         witness_env: &mut WitnessEnv<B::Field>,
         sources: &Sources,
     ) -> Result<B::GeneratedWitness> {
-        self.backend.generate_witness(witness_env, sources)
+        self.backend
+            .generate_witness(witness_env, sources, &self.typed)
     }
 
     fn handle_arg(

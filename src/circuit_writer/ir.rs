@@ -939,6 +939,17 @@ impl<B: Backend> IRWriter<B> {
                 Ok(Some(VarOrRef::Var(v)))
             }
 
+            ExprKind::StringLiteral(s) => {
+                // chars as field elements from asci;;
+                let fr: Vec<B::Field> = s.chars().map(|char| B::Field::from(char as u8)).collect();
+                let cvars = fr
+                    .iter()
+                    .map(|&f| leaf_term(Op::new_const(Value::Field(f.to_circ_field()))))
+                    .collect();
+
+                Ok(Some(VarOrRef::Var(Var::new(cvars, expr.span))))
+            }
+
             ExprKind::Variable { module, name } => {
                 // if it's a type we return nothing
                 // (most likely what follows is a static method call)

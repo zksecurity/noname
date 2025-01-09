@@ -14,7 +14,8 @@ struct Uint8 {
 fn Uint8.new(val: Field) -> Uint8 {
     let bit_len = 8;
 
-    bits::check_field_size(bit_len);
+    // has to ensure multiply won't overflow prime field
+    bits::check_field_size(bit_len * 2);
 
     // range check
     let ignore_ = bits::to_bits(bit_len, val);
@@ -33,7 +34,8 @@ struct Uint16 {
 fn Uint16.new(val: Field) -> Uint16 {
     let bit_len = 16;
 
-    bits::check_field_size(bit_len);
+    // has to ensure multiply won't overflow prime field
+    bits::check_field_size(bit_len * 2);
 
     // range check
     let ignore_ = bits::to_bits(bit_len, val);
@@ -52,7 +54,8 @@ struct Uint32 {
 fn Uint32.new(val: Field) -> Uint32 {
     let bit_len = 32;
 
-    bits::check_field_size(bit_len);
+    // has to ensure multiply won't overflow prime field
+    bits::check_field_size(bit_len * 2);
 
     // range check
     let ignore_ = bits::to_bits(bit_len, val);
@@ -71,7 +74,8 @@ struct Uint64 {
 fn Uint64.new(val: Field) -> Uint64 {
     let bit_len = 64;
 
-    bits::check_field_size(bit_len);
+    // has to ensure multiply won't overflow prime field
+    bits::check_field_size(bit_len * 2);
 
     // range check
     let ignore_ = bits::to_bits(bit_len, val);

@@ -188,7 +188,7 @@ impl<B: Backend> FnInfo<B> {
         ctx: &mut MastCtx<B>,
     ) -> Result<FnSig> {
         match self.kind {
-            FnKind::BuiltIn(ref mut sig, _) => {
+            FnKind::BuiltIn(ref mut sig, _, _) => {
                 sig.resolve_generic_values(observed_args, ctx)?;
             }
             FnKind::Native(ref mut func) => {
@@ -457,6 +457,7 @@ impl<B: Backend> Mast<B> {
                 unreachable!("generic arrays should have been resolved")
             }
             TyKind::Bool => 1,
+            TyKind::String(s) => s.len(),
         }
     }
 }
@@ -873,6 +874,19 @@ fn monomorphize_expr<B: Backend>(
             let mexpr = expr.to_mast(ctx, &ExprKind::Bool(*inner));
 
             ExprMonoInfo::new(mexpr, Some(TyKind::Bool), None)
+        }
+
+        ExprKind::StringLiteral(inner) => {
+            let mexpr = expr.to_mast(ctx, &ExprKind::StringLiteral(inner.clone()));
+            let string_literal_val: Vec<PropagatedConstant> = inner
+                .chars()
+                .map(|char| PropagatedConstant::Single(BigUint::from(char as u8)))
+                .collect();
+            ExprMonoInfo::new(
+                mexpr,
+                Some(TyKind::String(inner.clone())),
+                Some(PropagatedConstant::Array(string_literal_val)),
+            )
         }
 
         // mod::path.of.var
@@ -1318,12 +1332,19 @@ pub fn instantiate_fn_call<B: Backend>(
     // canonicalize the arguments depending on method call or not
     let expected: Vec<_> = fn_sig.arguments.iter().collect();
 
+    let ignore_arg_types = match fn_info.kind {
+        FnKind::BuiltIn(_, _, ignore) => ignore,
+        FnKind::Native(_) => false,
+    };
+
     // check argument length
     if expected.len() != args.len() {
-        return Err(error(
-            ErrorKind::MismatchFunctionArguments(args.len(), expected.len()),
-            span,
-        ));
+        if !ignore_arg_types {
+            return Err(error(
+                ErrorKind::MismatchFunctionArguments(args.len(), expected.len()),
+                span,
+            ));
+        }
     }
 
     // create a context for the function call
@@ -1363,9 +1384,9 @@ pub fn instantiate_fn_call<B: Backend>(
 
     // construct the monomorphized function AST
     let (func_def, mono_info) = match fn_info.kind {
-        FnKind::BuiltIn(_, handle) => (
+        FnKind::BuiltIn(_, handle, ignore_arg_types) => (
             FnInfo {
-                kind: FnKind::BuiltIn(sig_typed, handle),
+                kind: FnKind::BuiltIn(sig_typed, handle, ignore_arg_types),
                 ..fn_info
             },
             // todo: we will need to propagate the constant value from builtin function as well

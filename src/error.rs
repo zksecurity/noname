@@ -1,3 +1,4 @@
+use clap::error;
 use miette::Diagnostic;
 use thiserror::Error;
 
@@ -44,6 +45,8 @@ pub enum ErrorKind {
     AssignmentToImmutableVariable,
     #[error("the {0} of assert_eq must be of type Field or BigInt. It was of type {1}")]
     AssertTypeMismatch(&'static str, TyKind),
+    #[error("the types in assert_eq don't match: expected {0} but got {1}")]
+    AssertEqTypeMismatch(TyKind, TyKind),
     #[error(
         "the dependency `{0}` does not appear to be listed in your manifest file `Noname.toml`"
     )]
@@ -103,6 +106,9 @@ pub enum ErrorKind {
 
     #[error("invalid token, expected: {0}")]
     ExpectedToken(TokenKind),
+
+    #[error("invalid token, unexpected keyword: {0}, expected: {1}")]
+    ExpectedTokenNotKeyword(String, TokenKind),
 
     #[error("invalid path: {0}")]
     InvalidPath(&'static str),
@@ -365,4 +371,8 @@ pub enum ErrorKind {
 
     #[error("cannot access private field `{1}` of struct `{0}` from outside its methods.")]
     PrivateFieldAccess(String, String),
+
+    #[error("Not enough variables provided to fill placeholders in the formatted string")]
+    InsufficientVariables,
+
 }

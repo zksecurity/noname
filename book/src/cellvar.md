@@ -55,7 +55,7 @@ Note: a `CellVar` is potentially not directly added to the rows of the execution
 For example, a private input is converted directly to a (number of) `CellVar`(s), 
 but only added to the rows when it appears in a constraint for the first time.
 
-As the final step of the compilation, we double check that all `CellVar`s have appeared in the rows of the execution trace at some point. If they haven't, it can mean two things:
+As the final step of the compilation, we double-check that all `CellVar`s have appeared in the rows of the execution trace at some point. If they haven't, it can mean two things:
 
 * A private or public input was never used in the circuit. In this case we return an error to the user.
 * There is a bug in the compiler. In this case we panic.

@@ -80,7 +80,7 @@ fn test_stdlib_code(
     .unwrap();
 
     let mast = mast::monomorphize(tast)?;
-    let compiled_circuit = CircuitWriter::generate_circuit(mast, r1cs)?;
+    let compiled_circuit = CircuitWriter::generate_circuit(mast, r1cs, false)?;
 
     // this should check the constraints
     let generated_witness = compiled_circuit.generate_witness(
