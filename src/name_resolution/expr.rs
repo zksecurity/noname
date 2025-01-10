@@ -71,8 +71,8 @@ impl NameResCtx {
             ExprKind::Variable { module, name: _ } => {
                 self.resolve(module, false)?;
             }
-            ExprKind::ArrayAccess { array, idx } => {
-                self.resolve_expr(array)?;
+            ExprKind::ArrayOrTupleAccess { container, idx } => {
+                self.resolve_expr(container)?;
                 self.resolve_expr(idx)?;
             }
             ExprKind::ArrayDeclaration(items) => {

@@ -327,8 +327,8 @@ pub enum ErrorKind {
     #[error("field access can only be applied on custom structs")]
     FieldAccessOnNonCustomStruct,
 
-    #[error("array access can only be performed on arrays")]
-    ArrayAccessOnNonArray,
+    #[error("array like access can only be performed on arrays or tuples")]
+    AccessOnNonCollection,
 
     #[error("struct `{0}` does not exist (are you sure it is defined?)")]
     UndefinedStruct(String),

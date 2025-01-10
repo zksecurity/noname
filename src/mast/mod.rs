@@ -53,7 +53,7 @@ impl PropagatedConstant {
     pub fn as_array(&self) -> Vec<BigUint> {
         match self {
             PropagatedConstant::Array(v) => v.iter().map(|c| c.as_single()).collect(),
-            _ => panic!("expected array value"),
+            _ => panic!("expected container value"),
         }
     }
 
@@ -227,7 +227,7 @@ impl FnSig {
                 let val = sym.eval(&self.generics, &ctx.tast);
                 TyKind::Array(
                     Box::new(self.resolve_type(ty, ctx)),
-                    val.to_u32().expect("array size exceeded u32"),
+                    val.to_u32().expect("container size exceeded u32"),
                 )
             }
             _ => typ.clone(),
@@ -944,18 +944,26 @@ fn monomorphize_expr<B: Backend>(
             res
         }
 
-        ExprKind::ArrayAccess { array, idx } => {
+        ExprKind::ArrayOrTupleAccess { container, idx } => {
             // get type of lhs
-            let array_mono = monomorphize_expr(ctx, array, mono_fn_env)?;
+            let array_mono = monomorphize_expr(ctx, container, mono_fn_env)?;
             let id_mono = monomorphize_expr(ctx, idx, mono_fn_env)?;
 
             // get type of element
             let el_typ = match array_mono.typ {
                 Some(TyKind::Array(typkind, _)) => Some(*typkind),
+                Some(TyKind::Tuple(typs)) => match &idx.kind {
+                    ExprKind::BigUInt(index) => Some(typs[index.to_usize().unwrap()].clone()),
+                    _ => Err(Error::new(
+                        "Non constant container access",
+                        ErrorKind::ExpectedConstant,
+                        expr.span,
+                    ))?,
+                },
                 _ => Err(Error::new(
-                    "Array Access",
+                    "Container Access",
                     ErrorKind::UnexpectedError(
-                        "Attempting to access array when type is not an array",
+                        "Attempting to access container when type is not an container",
                     ),
                     expr.span,
                 ))?,
@@ -963,8 +971,8 @@ fn monomorphize_expr<B: Backend>(
 
             let mexpr = expr.to_mast(
                 ctx,
-                &ExprKind::ArrayAccess {
-                    array: Box::new(array_mono.expr),
+                &ExprKind::ArrayOrTupleAccess {
+                    container: Box::new(array_mono.expr),
                     idx: Box::new(id_mono.expr),
                 },
             );
@@ -1287,7 +1295,7 @@ pub fn monomorphize_stmt<B: Backend>(
                         _ => Err(Error::new(
                             "Monomorphize Stmt - ForLoopArgument",
                             ErrorKind::UnexpectedError(
-                                "Expected array while monomorphizing iterator's type",
+                                "Expected container while monomorphizing iterator's type",
                             ),
                             stmt.span,
                         ))?,

@@ -97,9 +97,14 @@ pub enum ExprKind {
     // TODO: change to `identifier` or `path`?
     Variable { module: ModulePath, name: Ident },
 
-    /// An array access, for example:
+    /// An array or tuple access, for example:
     /// `lhs[idx]`
-    ArrayAccess { array: Box<Expr>, idx: Box<Expr> },
+    /// As both almost work identical to each other expersion level we handle the cases for each container in the
+    /// circuit writers and typecheckers
+    ArrayOrTupleAccess {
+        container: Box<Expr>,
+        idx: Box<Expr>,
+    },
 
     /// `[ ... ]`
     ArrayDeclaration(Vec<Expr>),
@@ -127,6 +132,8 @@ pub enum ExprKind {
 
     ///Tuple Declaration
     TupleDeclaration(Vec<Expr>),
+    // A tuple access through tuple[idx]
+    // TupleAccess { tuple: Box<Expr>, idx: Box<Expr> },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -281,7 +288,7 @@ impl Expr {
                         | ExprKind::Bool { .. }
                         | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                         | ExprKind::StringLiteral { .. }
                 ) {
                     Err(Error::new(
@@ -315,7 +322,7 @@ impl Expr {
                         | ExprKind::Bool { .. }
                         | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                         | ExprKind::StringLiteral { .. }
                 ) {
                     Err(Error::new(
@@ -486,7 +493,7 @@ impl Expr {
                 if !matches!(
                     &self.kind,
                     ExprKind::Variable { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                         | ExprKind::FieldAccess { .. },
                 ) {
                     return Err(ctx.error(
@@ -633,7 +640,7 @@ impl Expr {
                 parse_type_declaration(ctx, tokens, ident)?
             }
 
-            // array access
+            // array or tuple access
             Some(Token {
                 kind: TokenKind::LeftBracket,
                 ..
@@ -645,7 +652,7 @@ impl Expr {
                     self.kind,
                     ExprKind::Variable { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                 ) {
                     Err(Error::new(
                         "parse_rhs - left bracket",
@@ -665,8 +672,8 @@ impl Expr {
 
                 Expr::new(
                     ctx,
-                    ExprKind::ArrayAccess {
-                        array: Box::new(self),
+                    ExprKind::ArrayOrTupleAccess {
+                        container: Box::new(self),
                         idx: Box::new(idx),
                     },
                     span,
@@ -719,7 +726,7 @@ impl Expr {
                     &self.kind,
                     ExprKind::FieldAccess { .. }
                         | ExprKind::Variable { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                 ) {
                     let span = self.span.merge_with(period.span);
                     return Err(ctx.error(ErrorKind::InvalidFieldAccessExpression, span));

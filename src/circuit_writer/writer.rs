@@ -188,23 +188,23 @@ impl<B: Backend> CircuitWriter<B> {
                     ForLoopArgument::Iterator(iterator) => {
                         let iterator_var = self
                             .compute_expr(fn_env, iterator)?
-                            .expect("array access on non-array");
+                            .expect("container access on non-container");
 
                         let array_typ = self
                             .expr_type(iterator)
                             .cloned()
-                            .expect("cannot find type of array");
+                            .expect("cannot find type of container");
 
                         let (elem_type, array_len) = match array_typ {
                             TyKind::Array(ty, array_len) => (ty, array_len),
                             _ => Err(Error::new(
                                 "compile-stmt",
-                                ErrorKind::UnexpectedError("expected array"),
+                                ErrorKind::UnexpectedError("expected container"),
                                 stmt.span,
                             ))?,
                         };
 
-                        // compute the size of each element in the array
+                        // compute the size of each element in the container
                         let len = self.size_of(&elem_type);
 
                         for idx in 0..array_len {
@@ -329,7 +329,7 @@ impl<B: Backend> CircuitWriter<B> {
             }
             TyKind::Field { constant: true } => unreachable!(),
             TyKind::GenericSizedArray(_, _) => {
-                unreachable!("generic array should have been resolved")
+                unreachable!("generic container should have been resolved")
             }
             TyKind::String(_) => todo!("String type is not supported for constraints"),
             TyKind::Tuple(types) => {
@@ -735,11 +735,11 @@ impl<B: Backend> CircuitWriter<B> {
                 Ok(Some(res))
             }
 
-            ExprKind::ArrayAccess { array, idx } => {
-                // retrieve var of array
+            ExprKind::ArrayOrTupleAccess { container, idx } => {
+                // retrieve var of container
                 let var = self
-                    .compute_expr(fn_env, array)?
-                    .expect("array access on non-array");
+                    .compute_expr(fn_env, container)?
+                    .expect("container access on non-container");
 
                 // compute the index
                 let idx_var = self
@@ -751,8 +751,10 @@ impl<B: Backend> CircuitWriter<B> {
                 let idx: BigUint = idx.into();
                 let idx: usize = idx.try_into().unwrap();
 
-                // retrieve the type of the elements in the array
-                let array_typ = self.expr_type(array).expect("cannot find type of array");
+                // retrieve the type of the elements in the container
+                let array_typ = self
+                    .expr_type(container)
+                    .expect("cannot find type of container");
 
                 let elem_type = match array_typ {
                     TyKind::Array(ty, array_len) => {
@@ -762,17 +764,19 @@ impl<B: Backend> CircuitWriter<B> {
                                 expr.span,
                             ));
                         }
-                        ty
+                        (**ty).clone()
                     }
+
+                    TyKind::Tuple(typs) => typs[idx].clone(),
                     _ => Err(Error::new(
                         "compute-expr",
-                        ErrorKind::UnexpectedError("expected array"),
+                        ErrorKind::UnexpectedError("expected container"),
                         expr.span,
                     ))?,
                 };
 
-                // compute the size of each element in the array
-                let len = self.size_of(elem_type);
+                // compute the size of each element in the container
+                let len = self.size_of(&elem_type);
 
                 // compute the real index
                 let start = idx * len;
