@@ -141,6 +141,32 @@ fn assert_eq_values<B: Backend>(
         TyKind::GenericSizedArray(_, _) => {
             unreachable!("GenericSizedArray should be monomorphized")
         }
+
+        TyKind::String(_) => todo!("String is not implemented yet"),
+
+        TyKind::Tuple(typs) => {
+            let mut offset = 0;
+            for ty in typs {
+                let element_size = compiler.size_of(ty);
+                let mut element_comparisions = assert_eq_values(
+                    compiler,
+                    &VarInfo::new(
+                        Var::new(lhs_info.var.range(offset, element_size).to_vec(), span),
+                        false,
+                        Some(ty.clone()),
+                    ),
+                    &VarInfo::new(
+                        Var::new(rhs_info.var.range(offset, element_size).to_vec(), span),
+                        false,
+                        Some(ty.clone()),
+                    ),
+                    ty,
+                    span,
+                );
+                comparisons.append(&mut element_comparisions);
+                offset += element_size;
+            }
+        }
     }
 
     comparisons

@@ -12,7 +12,7 @@ fn main(pub xx: Field, pub yy: Field) {
         xx: 3,
         yy: 4,
     };
-    let things = [thing1, thing2];
+    let things = [thing1, thing2 , 22];
     
     assert_eq(things[0].xx, xx);
     assert_eq(things[1].yy, yy);

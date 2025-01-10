@@ -105,6 +105,11 @@ impl NameResCtx {
                 self.resolve_expr(then_)?;
                 self.resolve_expr(else_)?;
             }
+            ExprKind::TupleDeclaration(items) => {
+                for expr in items {
+                    self.resolve_expr(expr)?;
+                }
+            }
         };
 
         Ok(())

@@ -518,6 +518,21 @@ impl<B: Backend> TypeChecker<B> {
                 let res = ExprTyInfo::new_anon(TyKind::Array(Box::new(tykind), len));
                 Some(res)
             }
+            ExprKind::TupleDeclaration(items) => {
+                // restricting tupple len as array len
+                let _: u32 = items.len().try_into().expect("tupple too large");
+                let typs: Vec<TyKind> = items
+                    .iter()
+                    .map(|item| {
+                        //some better error handling here in case type_not found
+                        self.compute_type(item, typed_fn_env)
+                            .unwrap()
+                            .expect("expected some val")
+                            .typ
+                    })
+                    .collect();
+                Some(ExprTyInfo::new_anon(TyKind::Tuple(typs)))
+            }
 
             ExprKind::IfElse { cond, then_, else_ } => {
                 // cond can only be a boolean

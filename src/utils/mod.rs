@@ -190,6 +190,8 @@ pub fn log_string_type<B: Backend>(
                 unreachable!("GenericSizedArray should be monomorphized")
             }
             Some(TyKind::String(_)) => todo!("String cannot be in circuit yet"),
+
+            Some(TyKind::Tuple(_)) => todo!("logging is not implemented in tuple"),
             None => {
                 return Err(Error::new(
                     "log",
@@ -295,6 +297,8 @@ pub fn log_array_type<B: Backend>(
         }
 
         TyKind::String(_) => todo!("String type cannot be used in circuits!"),
+
+        TyKind::Tuple(_) => todo!("Logging is not implemented for tupple"),
     }
 }
 pub fn log_custom_type<B: Backend>(
@@ -379,6 +383,7 @@ pub fn log_custom_type<B: Backend>(
             TyKind::String(s) => {
                 todo!("String cannot be a type for customs it is only for logging")
             }
+            TyKind::Tuple(_) => todo!("Logging for tuple type is not implemented"),
         }
     }
 

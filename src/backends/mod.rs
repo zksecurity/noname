@@ -504,6 +504,8 @@ pub trait Backend: Clone {
                     println!("{dbg_msg}{}", output);
                 }
 
+                Some(TyKind::Tuple(_)) => todo!("Logging of tupple is not implemented yet"),
+
                 None => {
                     return Err(Error::new(
                         "log",

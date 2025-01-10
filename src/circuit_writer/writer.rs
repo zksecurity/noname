@@ -332,6 +332,15 @@ impl<B: Backend> CircuitWriter<B> {
                 unreachable!("generic array should have been resolved")
             }
             TyKind::String(_) => todo!("String type is not supported for constraints"),
+            TyKind::Tuple(types) => {
+                let mut offset = 0;
+                for ty in types {
+                    let size = self.size_of(ty);
+                    let slice = &input[offset..(offset + size)];
+                    self.constrain_inputs_to_main(slice, input_typ, span)?;
+                    offset += size;
+                }
+            }
         };
         Ok(())
     }
@@ -828,6 +837,20 @@ impl<B: Backend> CircuitWriter<B> {
                 }
 
                 let var = VarOrRef::Var(Var::new(cvars, expr.span));
+                Ok(Some(var))
+            }
+            // exact copy of Array Declration there nothing really differnt at expersion level
+            ExprKind::TupleDeclaration(items) => {
+                let mut cvars = vec![];
+
+                for item in items {
+                    let var = self.compute_expr(fn_env, item)?.unwrap();
+                    let to_extend = var.value(self, fn_env).cvars.clone();
+                    cvars.extend(to_extend);
+                }
+
+                let var = VarOrRef::Var(Var::new(cvars, expr.span));
+
                 Ok(Some(var))
             }
         }

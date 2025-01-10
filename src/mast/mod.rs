@@ -458,6 +458,7 @@ impl<B: Backend> Mast<B> {
             }
             TyKind::Bool => 1,
             TyKind::String(s) => s.len(),
+            TyKind::Tuple(typs) => typs.iter().map(|ty| self.size_of(ty)).sum(),
         }
     }
 }
@@ -1136,6 +1137,30 @@ fn monomorphize_expr<B: Backend>(
             } else {
                 return Err(error(ErrorKind::InvalidArraySize, expr.span));
             }
+        }
+
+        ExprKind::TupleDeclaration(items) => {
+            // forcing for the same size as the max size for array
+            let _: u32 = items.len().try_into().expect("tuple too large");
+
+            let items_mono: Vec<ExprMonoInfo> = items
+                .iter()
+                .map(|item| monomorphize_expr(ctx, item, mono_fn_env).unwrap())
+                .collect();
+
+            let typs: Vec<TyKind> = items_mono
+                .iter()
+                .cloned()
+                .map(|item_mono| item_mono.typ.unwrap())
+                .collect();
+
+            let mexpr = expr.to_mast(
+                ctx,
+                &ExprKind::ArrayDeclaration(items_mono.into_iter().map(|e| e.expr).collect()),
+            );
+
+            let typ = TyKind::Tuple(typs);
+            ExprMonoInfo::new(mexpr, Some(typ), None)
         }
     };
 

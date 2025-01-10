@@ -1,0 +1,13 @@
+
+
+struct Thing {
+    xx: Field,
+    tuple_field: (Field,Field)
+}
+
+fn main(pub xx: Field) -> (Field , Thing){
+    // let some = dummy_fn(1,2);
+    // let tup = (1, true);
+    let thing = Thing {xx : xx , tuple_field: (xx , xx+1)};
+    return (xx ,thing);
+}

@@ -124,6 +124,9 @@ pub enum ExprKind {
     },
     /// Any string literal
     StringLiteral(String),
+
+    ///Tuple Declaration
+    TupleDeclaration(Vec<Expr>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -208,6 +211,40 @@ impl Expr {
             // parenthesis
             TokenKind::LeftParen => {
                 let mut expr = Expr::parse(ctx, tokens)?;
+
+                // check if it is a tuple declaration
+                let second_token = tokens.peek();
+
+                match second_token {
+                    // this means a tuple declaration
+                    Some(Token {
+                        kind: TokenKind::Comma,
+                        span: _,
+                    }) => {
+                        let mut items = vec![expr];
+                        let last_span: Span;
+                        loop {
+                            let token = tokens.bump_err(ctx, ErrorKind::InvalidEndOfLine)?;
+                            match token.kind {
+                                TokenKind::RightParen => {
+                                    last_span = token.span;
+                                    break;
+                                }
+                                TokenKind::Comma => (),
+                                _ => return Err(ctx.error(ErrorKind::InvalidEndOfLine, token.span)),
+                            }
+                            let item = Expr::parse(ctx, tokens)?;
+                            items.push(item);
+                        }
+                        return Ok(Expr::new(
+                            ctx,
+                            ExprKind::TupleDeclaration(items),
+                            span.merge_with(last_span),
+                        ));
+                    }
+                    _ => (),
+                }
+
                 tokens.bump_expected(ctx, TokenKind::RightParen)?;
 
                 if let ExprKind::BinaryOp { protected, .. } = &mut expr.kind {

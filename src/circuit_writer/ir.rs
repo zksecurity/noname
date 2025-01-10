@@ -1074,6 +1074,20 @@ impl<B: Backend> IRWriter<B> {
                 let var = VarOrRef::Var(Var::new(cvars, expr.span));
                 Ok(Some(var))
             }
+
+            ExprKind::TupleDeclaration(items) => {
+                let mut cvars = vec![];
+
+                for item in items {
+                    let var = self.compute_expr(fn_env, item)?.unwrap();
+                    let to_extend = var.value(self, fn_env).cvars.clone();
+                    cvars.extend(to_extend);
+                }
+
+                let var = VarOrRef::Var(Var::new(cvars, expr.span));
+
+                Ok(Some(var))
+            }
         }
     }
 
