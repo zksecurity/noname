@@ -445,23 +445,23 @@ impl<B: Backend> IRWriter<B> {
                     ForLoopArgument::Iterator(iterator) => {
                         let iterator_var = self
                             .compute_expr(fn_env, iterator)?
-                            .expect("container access on non-container");
+                            .expect("array access on non-array");
 
                         let array_typ = self
                             .expr_type(iterator)
                             .cloned()
-                            .expect("cannot find type of container");
+                            .expect("cannot find type of array");
 
                         let (elem_type, array_len) = match array_typ {
                             TyKind::Array(ty, array_len) => (ty, array_len),
                             _ => Err(Error::new(
                                 "compile-stmt",
-                                ErrorKind::UnexpectedError("expected container"),
+                                ErrorKind::UnexpectedError("expected array"),
                                 stmt.span,
                             ))?,
                         };
 
-                        // compute the size of each element in the container
+                        // compute the size of each element in the array
                         let len = self.size_of(&elem_type);
 
                         for idx in 0..array_len {
@@ -1002,8 +1002,15 @@ impl<B: Backend> IRWriter<B> {
                         }
                         (**ty).clone()
                     }
-                    //TODO: Add tuple index out of bounds error
-                    TyKind::Tuple(typs) => typs[idx].clone(),
+                    TyKind::Tuple(typs) => {
+                        if idx >= typs.len() {
+                            return Err(self.error(
+                                ErrorKind::TupleIndexOutofBounds(idx, typs.len()),
+                                expr.span,
+                            ));
+                        }
+                        typs[idx].clone()
+                    }
                     _ => Err(Error::new(
                         "compute-expr",
                         ErrorKind::UnexpectedError("expected container"),

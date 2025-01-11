@@ -343,7 +343,7 @@ impl TyKind {
             (TyKind::String { .. }, TyKind::String { .. }) => true,
             (x, y) if x == y => true,
             (TyKind::Tuple(lhs), TyKind::Tuple(rhs)) => {
-                // if len is not eqaul do not to do the match computation just return false
+                // early exit the lenght do not match
                 if lhs.len() == rhs.len() {
                     let match_items = lhs
                         .iter()

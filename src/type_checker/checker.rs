@@ -281,16 +281,16 @@ impl<B: Backend> TypeChecker<B> {
                         name.value.clone()
                     }
 
-                    // `array[idx] = <rhs>`
+                    // `array[idx] = <rhs>` or `tuple[idx] = rhs`
                     ExprKind::ArrayOrTupleAccess { container, idx } => {
-                        // get variable behind array
+                        // get variable behind container
                         let cotainer_node = self
                             .compute_type(container, typed_fn_env)?
-                            .expect("type-checker bug: array access on an empty var");
+                            .expect("type-checker bug: array or tuple access on an empty var");
 
                         cotainer_node
                             .var_name
-                            .expect("anonymous array access cannot be mutated")
+                            .expect("anonymous array or tuple access cannot be mutated")
                     }
 
                     // `struct.field = <rhs>`
@@ -531,7 +531,6 @@ impl<B: Backend> TypeChecker<B> {
                 let typs: Vec<TyKind> = items
                     .iter()
                     .map(|item| {
-                        //some better error handling here in case type_not found
                         self.compute_type(item, typed_fn_env)
                             .unwrap()
                             .expect("expected some val")

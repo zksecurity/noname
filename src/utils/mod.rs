@@ -158,8 +158,21 @@ pub fn log_string_type<B: Backend>(
 
             // Array
             Some(TyKind::Array(b, s)) => {
-                let (output, remaining) =
-                    log_array_type(backend, &var.var.cvars, b, *s, witness, typed, span).unwrap();
+                let mut typs = Vec::with_capacity(*s as usize);
+                for _ in 0..(*s) {
+                    typs.push((**b).clone());
+                }
+                let (output, remaining) = log_array_or_tuple_type(
+                    backend,
+                    &var.var.cvars,
+                    &typs[..],
+                    *s,
+                    witness,
+                    typed,
+                    span,
+                    false,
+                )
+                .unwrap();
                 assert!(remaining.is_empty());
                 Ok(output)
             }
@@ -191,7 +204,23 @@ pub fn log_string_type<B: Backend>(
             }
             Some(TyKind::String(_)) => todo!("String cannot be in circuit yet"),
 
-            Some(TyKind::Tuple(_)) => todo!("logging is not implemented in tuple"),
+            Some(TyKind::Tuple(typs)) => {
+                println!("{:?}", typs);
+                let len = typs.len();
+                let (output, remaining) = log_array_or_tuple_type(
+                    backend,
+                    &var.var.cvars,
+                    &typs,
+                    len as u32,
+                    witness,
+                    typed,
+                    span,
+                    true,
+                )
+                .unwrap();
+                assert!(remaining.is_empty());
+                Ok(output)
+            }
             None => {
                 return Err(Error::new(
                     "log",
@@ -205,76 +234,72 @@ pub fn log_string_type<B: Backend>(
     replace_all(&re, str, replacer)
 }
 
-pub fn log_array_type<B: Backend>(
+pub fn log_array_or_tuple_type<B: Backend>(
     backend: &B,
     var_info_var: &[ConstOrCell<B::Field, B::Var>],
-    base_type: &TyKind,
+    typs: &[TyKind],
     size: u32,
     witness: &mut WitnessEnv<B::Field>,
     typed: &Mast<B>,
     span: &Span,
+    is_tuple: bool,
 ) -> Result<(String, Vec<ConstOrCell<B::Field, B::Var>>)> {
-    match base_type {
-        TyKind::Field { .. } => {
-            let values: Vec<String> = var_info_var
-                .iter()
-                .take(size as usize)
-                .map(|cvar| match cvar {
+    let mut remaining = var_info_var.to_vec();
+    let mut nested_result = Vec::new();
+
+    for i in 0..size {
+        let base_type = &typs[i as usize];
+        let (chunk_result, new_remaining) = match base_type {
+            TyKind::Field { .. } => {
+                let value = match &remaining[0] {
                     ConstOrCell::Const(cst) => cst.pretty(),
-                    ConstOrCell::Cell(cell) => backend.compute_var(witness, cell).unwrap().pretty(),
-                })
-                .collect();
-
-            let remaining = var_info_var[size as usize..].to_vec();
-            Ok((format!("[{}]", values.join(", ")), remaining))
-        }
-
-        TyKind::Bool => {
-            let values: Vec<String> = var_info_var
-                .iter()
-                .take(size as usize)
-                .map(|cvar| match cvar {
+                    ConstOrCell::Cell(cell) => {
+                        let val = backend.compute_var(witness, cell).unwrap();
+                        val.pretty()
+                    }
+                };
+                (value, remaining[1..].to_vec())
+            }
+            // Bool
+            TyKind::Bool => {
+                let value = match &remaining[0] {
                     ConstOrCell::Const(cst) => {
                         let val = *cst == B::Field::one();
                         val.to_string()
                     }
                     ConstOrCell::Cell(cell) => {
-                        let val = backend.compute_var(witness, cell).unwrap() == B::Field::one();
+                        let val = backend.compute_var(witness, cell)? == B::Field::one();
                         val.to_string()
                     }
-                })
-                .collect();
-
-            let remaining = var_info_var[size as usize..].to_vec();
-            Ok((format!("[{}]", values.join(", ")), remaining))
-        }
-
-        TyKind::Array(inner_type, inner_size) => {
-            let mut nested_result = Vec::new();
-            let mut remaining = var_info_var.to_vec();
-            for _ in 0..size {
-                let (chunk_result, new_remaining) = log_array_type(
+                };
+                (value, remaining[1..].to_vec())
+            }
+            TyKind::Array(inner_type, inner_size) => {
+                let mut vec_inner_type = Vec::with_capacity(remaining.len());
+                for _ in 0..remaining.len() {
+                    vec_inner_type.push((**inner_type).clone());
+                }
+                let is_tuple = match **inner_type {
+                    TyKind::Tuple(_) => true,
+                    _ => false,
+                };
+                log_array_or_tuple_type(
                     backend,
                     &remaining,
-                    inner_type,
+                    &vec_inner_type[..],
                     *inner_size,
                     witness,
                     typed,
                     span,
-                )?;
-                nested_result.push(chunk_result);
-                remaining = new_remaining;
+                    is_tuple,
+                )?
             }
-            Ok((format!("[{}]", nested_result.join(", ")), remaining))
-        }
 
-        TyKind::Custom {
-            module,
-            name: struct_name,
-        } => {
-            let mut nested_result = Vec::new();
-            let mut remaining = var_info_var.to_vec();
-            for _ in 0..size {
+            // Custom types
+            TyKind::Custom {
+                module,
+                name: struct_name,
+            } => {
                 let mut string_vec = Vec::new();
                 let (output, new_remaining) = log_custom_type(
                     backend,
@@ -286,19 +311,37 @@ pub fn log_array_type<B: Backend>(
                     span,
                     &mut string_vec,
                 )?;
-                nested_result.push(format!("{}{}", struct_name, output));
-                remaining = new_remaining;
+                (format!("{}{}", struct_name, output), new_remaining)
             }
-            Ok((format!("[{}]", nested_result.join(", ")), remaining))
-        }
 
-        TyKind::GenericSizedArray(_, _) => {
-            unreachable!("GenericSizedArray should be monomorphized")
-        }
+            // GenericSizedArray
+            TyKind::GenericSizedArray(_, _) => {
+                unreachable!("GenericSizedArray should be monomorphized")
+            }
+            TyKind::String(_) => todo!("String cannot be in circuit yet"),
 
-        TyKind::String(_) => todo!("String type cannot be used in circuits!"),
+            TyKind::Tuple(inner_typs) => {
+                let inner_size = inner_typs.len();
+                log_array_or_tuple_type(
+                    backend,
+                    &remaining,
+                    &inner_typs,
+                    inner_size as u32,
+                    witness,
+                    typed,
+                    span,
+                    true,
+                )?
+            }
+        };
+        nested_result.push(chunk_result);
+        remaining = new_remaining;
+    }
 
-        TyKind::Tuple(_) => todo!("Logging is not implemented for tupple"),
+    if is_tuple {
+        Ok((format!("({})", nested_result.join(",")), remaining))
+    } else {
+        Ok((format!("[{}]", nested_result.join(",")), remaining))
     }
 }
 pub fn log_custom_type<B: Backend>(
@@ -352,8 +395,20 @@ pub fn log_custom_type<B: Backend>(
             },
 
             TyKind::Array(b, s) => {
-                let (output, new_remaining) =
-                    log_array_type(backend, &remaining, b, *s, witness, typed, span)?;
+                let len = remaining.len();
+                let mut typs: Vec<TyKind> = Vec::with_capacity(len);
+                typs.push((**b).clone());
+
+                let (output, new_remaining) = log_array_or_tuple_type(
+                    backend,
+                    &remaining,
+                    &typs[..],
+                    *s,
+                    witness,
+                    typed,
+                    span,
+                    false,
+                )?;
                 string_vec.push(format!("{field_name}: {}", output));
                 remaining = new_remaining;
             }
@@ -383,7 +438,15 @@ pub fn log_custom_type<B: Backend>(
             TyKind::String(s) => {
                 todo!("String cannot be a type for customs it is only for logging")
             }
-            TyKind::Tuple(_) => todo!("Logging for tuple type is not implemented"),
+            TyKind::Tuple(typs) => {
+                let len = typs.len();
+                let (output, new_remaining) = log_array_or_tuple_type(
+                    backend, &remaining, &typs, len as u32, witness, typed, span, true,
+                )
+                .unwrap();
+                string_vec.push(format!("{field_name}: {}", output));
+                remaining = new_remaining;
+            }
         }
     }
 

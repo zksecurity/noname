@@ -1,15 +1,38 @@
-
+// tuples as field for structs
 struct Thing {
     xx: Field,
-    tuple_field: (Field,Field)
+    tuple_field: (Field,Bool)
 }
 
-fn main(pub xx: Field) -> (Field , Thing){
-    // let some = dummy_fn(1,2);
-    let mut tup = (1, true);
-    let mut thing = Thing {xx : xx , tuple_field: (xx , xx+1)};
-    tup[1] = false;
-    log(tup[0]);
-    log(tup[1]);
-    return (xx ,thing);
+// return tuples from functions
+fn Thing.new(xx: Field , tup: (Field,Bool)) -> (Thing , (Field,Bool)) {
+    return (
+        Thing {
+        xx: xx,
+        tuple_field:tup
+        }, 
+        tup
+    );
+}
+
+// xx should be 0
+fn main(pub xx: Field) -> (Field , (Thing,Bool)){
+    // creation of new tupple with different types
+    let tup = (1, true);
+
+    // create nested tuples 
+    let nested_tup = (1, (true , [1,2,3]));
+    log(nested_tup); // (1, (true , [1,2,3]))
+    // access nested tuples
+    let incr = nested_tup[1][1][0]; // 1
+
+    // tuples can be input to function
+    let mut thing = Thing.new(xx , (xx , xx == 0));
+
+    // you can access a tuple type just like you access a array 
+    thing[0].tuple_field[0] += incr;
+    
+    assert_eq(thing[0].tuple_field[0] , 1);
+    
+    return (xx ,(thing[0],thing[0].tuple_field[1]));
 }

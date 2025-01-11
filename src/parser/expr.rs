@@ -132,8 +132,6 @@ pub enum ExprKind {
 
     ///Tuple Declaration
     TupleDeclaration(Vec<Expr>),
-    // A tuple access through tuple[idx]
-    // TupleAccess { tuple: Box<Expr>, idx: Box<Expr> },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

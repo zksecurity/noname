@@ -53,7 +53,7 @@ impl PropagatedConstant {
     pub fn as_array(&self) -> Vec<BigUint> {
         match self {
             PropagatedConstant::Array(v) => v.iter().map(|c| c.as_single()).collect(),
-            _ => panic!("expected container value"),
+            _ => panic!("expected array value"),
         }
     }
 
@@ -227,7 +227,7 @@ impl FnSig {
                 let val = sym.eval(&self.generics, &ctx.tast);
                 TyKind::Array(
                     Box::new(self.resolve_type(ty, ctx)),
-                    val.to_u32().expect("container size exceeded u32"),
+                    val.to_u32().expect("array size exceeded u32"),
                 )
             }
             _ => typ.clone(),
@@ -1295,7 +1295,7 @@ pub fn monomorphize_stmt<B: Backend>(
                         _ => Err(Error::new(
                             "Monomorphize Stmt - ForLoopArgument",
                             ErrorKind::UnexpectedError(
-                                "Expected container while monomorphizing iterator's type",
+                                "Expected array while monomorphizing iterator's type",
                             ),
                             stmt.span,
                         ))?,

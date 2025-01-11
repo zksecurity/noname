@@ -188,23 +188,23 @@ impl<B: Backend> CircuitWriter<B> {
                     ForLoopArgument::Iterator(iterator) => {
                         let iterator_var = self
                             .compute_expr(fn_env, iterator)?
-                            .expect("container access on non-container");
+                            .expect("array access on non-array");
 
                         let array_typ = self
                             .expr_type(iterator)
                             .cloned()
-                            .expect("cannot find type of container");
+                            .expect("cannot find type of array");
 
                         let (elem_type, array_len) = match array_typ {
                             TyKind::Array(ty, array_len) => (ty, array_len),
                             _ => Err(Error::new(
                                 "compile-stmt",
-                                ErrorKind::UnexpectedError("expected container"),
+                                ErrorKind::UnexpectedError("expected array"),
                                 stmt.span,
                             ))?,
                         };
 
-                        // compute the size of each element in the container
+                        // compute the size of each element in thearray
                         let len = self.size_of(&elem_type);
 
                         for idx in 0..array_len {
@@ -329,7 +329,7 @@ impl<B: Backend> CircuitWriter<B> {
             }
             TyKind::Field { constant: true } => unreachable!(),
             TyKind::GenericSizedArray(_, _) => {
-                unreachable!("generic container should have been resolved")
+                unreachable!("generic array should have been resolved")
             }
             TyKind::String(_) => todo!("String type is not supported for constraints"),
             TyKind::Tuple(types) => {
@@ -756,7 +756,11 @@ impl<B: Backend> CircuitWriter<B> {
                     .expr_type(container)
                     .expect("cannot find type of container");
 
-                let elem_type = match array_typ {
+                // real starting index for narrowing the var depends on the cotainer
+                // for arrays the indexing for the vars is just the idx*len(typ) but for
+                // tuples we will have different types thus start = idx as nested tuples are treated as
+                // `Vec<TyKind>` where for nested arrays the start becomes the idx * [each_array_size]
+                let (start, elem_type) = match array_typ {
                     TyKind::Array(ty, array_len) => {
                         if idx >= (*array_len as usize) {
                             return Err(self.error(
@@ -764,10 +768,20 @@ impl<B: Backend> CircuitWriter<B> {
                                 expr.span,
                             ));
                         }
-                        (**ty).clone()
+                        let ele_ty = (**ty).clone();
+                        let start = idx * self.size_of(&ele_ty);
+                        (start, ele_ty)
                     }
 
-                    TyKind::Tuple(typs) => typs[idx].clone(),
+                    TyKind::Tuple(typs) => {
+                        if idx >= typs.len() {
+                            return Err(self.error(
+                                ErrorKind::TupleIndexOutofBounds(idx, typs.len()),
+                                expr.span,
+                            ));
+                        }
+                        (idx, typs[idx].clone())
+                    }
                     _ => Err(Error::new(
                         "compute-expr",
                         ErrorKind::UnexpectedError("expected container"),
@@ -777,9 +791,6 @@ impl<B: Backend> CircuitWriter<B> {
 
                 // compute the size of each element in the container
                 let len = self.size_of(&elem_type);
-
-                // compute the real index
-                let start = idx * len;
 
                 // out-of-bound checks
                 if start >= var.len() || start + len > var.len() {
@@ -843,7 +854,8 @@ impl<B: Backend> CircuitWriter<B> {
                 let var = VarOrRef::Var(Var::new(cvars, expr.span));
                 Ok(Some(var))
             }
-            // exact copy of Array Declration there nothing really differnt at expersion level
+            // exact copy of Array Declaration there is nothing really different at when looking it from a expression level
+            // as both of them are just `Vec<Expr>`
             ExprKind::TupleDeclaration(items) => {
                 let mut cvars = vec![];
 

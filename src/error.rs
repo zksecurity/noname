@@ -268,6 +268,9 @@ pub enum ErrorKind {
     #[error("array accessed at index {0} is out of bounds (max allowed index is {1})")]
     ArrayIndexOutOfBounds(usize, usize),
 
+    #[error("tuple accessed at index {0} is out of bounds (max allowed index is {1})")]
+    TupleIndexOutofBounds(usize, usize),
+
     #[error(
         "one-letter variables or types are not allowed. Best practice is to use descriptive names"
     )]
