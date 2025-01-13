@@ -114,6 +114,7 @@ pub fn typecheck_next_file_inner<B: Backend>(
     node_id: usize,
     server_mode: &mut Option<crate::server::ServerShim>,
 ) -> Result<usize> {
+    dbg!("typecheck_next_file_inner");
     let is_lib = this_module.is_some();
 
     // parsing to name resolution
@@ -149,6 +150,7 @@ pub fn get_nast<B: Backend>(
     node_id: usize,
     server_mode: &mut Option<crate::server::ServerShim>,
 ) -> Result<(NAST<B>, usize)> {
+    dbg!("nast_pass");
     // save filename and source code
     let filename_id = sources.add(filename.clone(), code);
     let code = &sources.map[&filename_id].1;
@@ -166,6 +168,8 @@ pub fn get_nast<B: Backend>(
         println!("lexer succeeded");
     }
 
+    dbg!("nast_pass, lexer succeeded ");
+
     // debug server
     if let Some(server_mode) = server_mode {
         server_mode.send(
@@ -176,14 +180,27 @@ pub fn get_nast<B: Backend>(
         let _ = server_mode.recv();
     }
 
+    dbg!("nast_pass, debug server succeeded ");
+    println!("tokens: {:?}", tokens);
+
     // parser
-    let (ast, new_node_id) = AST::parse(filename_id, tokens, node_id)?;
-    if std::env::var("NONAME_VERBOSE").is_ok() {
-        println!("parser succeeded");
-    }
+    // let (ast, new_node_id) = AST::parse(filename_id, tokens, node_id)?;
+    // if std::env::var("NONAME_VERBOSE").is_ok() {
+    //     println!("parser succeeded");
+    // }
+    let (ast, new_node_id) = match AST::parse(filename_id, tokens, node_id) {
+        Ok((ast, new_node_id)) => (ast, new_node_id),
+        Err(err) => {
+            println!("AST::parse Error occurred: {}", err);
+            return Err(err);
+        }
+    };
+
+    dbg!("nast_pass, parser succeeded ");
 
     // debug server
     if let Some(server_mode) = server_mode {
+        dbg!(" if let Some(server_mode) = server_mode {");
         server_mode.send(format!("ast of {filename}"), &ast);
         // block on an answer
         let _ = server_mode.recv();

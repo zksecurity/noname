@@ -101,6 +101,7 @@ pub fn parse_type_declaration(
 }
 
 pub fn parse_fn_call_args(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<(Vec<Expr>, Span)> {
+    dbg!("parse_fn_call_args");
     let start = tokens.bump(ctx).expect("parser error: parse_fn_call_args"); // (
     let mut span = start.span;
 
@@ -668,6 +669,7 @@ impl Ident {
     }
 
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        dbg!("Ident.parse");
         let token = tokens.bump_err(ctx, ErrorKind::MissingToken)?;
         match token.kind {
             TokenKind::Identifier(ident) => Ok(Self {
@@ -1139,6 +1141,7 @@ impl FunctionDef {
     }
 
     pub fn parse_fn_body(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<Stmt>> {
+        dbg!("parse_fn_body");
         let mut body = vec![];
 
         // return empty body when the next token is `;` instead of `{`
@@ -1154,8 +1157,10 @@ impl FunctionDef {
         }
 
         tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
+        dbg!("parse_fn_body, bump_expected");
 
         loop {
+            dbg!("parse_fn_body, loop");
             // end of the function
             let next_token = tokens.peek();
             if matches!(
@@ -1170,7 +1175,9 @@ impl FunctionDef {
             }
 
             // parse next statement
+            dbg!("parse_fn_body, loop, before Stmt::parse(ctx, tokens)?");
             let statement = Stmt::parse(ctx, tokens)?;
+            dbg!("parse_fn_body, loop, after Stmt::parse(ctx, tokens)?");
             body.push(statement);
         }
 
@@ -1179,6 +1186,7 @@ impl FunctionDef {
 
     /// Parse a function, without the `fn` keyword.
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        dbg!("FunctionDef parse");
         // ghetto way of getting the span of the function: get the span of the first token (name), then try to get the span of the last token
         let mut span = tokens
             .peek()
@@ -1192,6 +1200,7 @@ impl FunctionDef {
 
         // parse signature
         let sig = FnSig::parse(ctx, tokens)?;
+        dbg!("FunctionDef parse,  FnSig::parse succeded");
 
         // make sure that it doesn't shadow a builtin
         if BUILTIN_FN_NAMES.contains(&sig.name.value.as_ref()) {
@@ -1203,6 +1212,7 @@ impl FunctionDef {
 
         // parse body
         let body = Self::parse_fn_body(ctx, tokens)?;
+        dbg!("FunctionDef parse,  Self::parse_fn_body succeded");
 
         // here's the last token, that is if the function is not empty (maybe we should disallow empty functions?)
 
@@ -1528,6 +1538,7 @@ impl Stmt {
 
             // statement expression (like function call)
             _ => {
+                dbg!("Stmt::parse(), statement expression (like function call)");
                 let expr = Expr::parse(ctx, tokens)?;
                 let span = expr.span;
 

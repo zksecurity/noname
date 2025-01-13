@@ -99,7 +99,21 @@ impl<B: Backend> TypeChecker<B> {
         expr: &Expr,
         typed_fn_env: &mut TypedFnEnv,
     ) -> Result<Option<ExprTyInfo>> {
+        dbg!("compute type");
         let typ: Option<ExprTyInfo> = match &expr.kind {
+            // ExprKind::ArrayLen { lhs, rhs } => {
+            // //lhs: Expr { node_id: 13, kind: Variable { module: Local, name: Ident { value: "arr", span: Span { filename_id: 1, start: 181, len: 3 } } }, span: Span { filename_id: 1, start: 181, len: 3 } },
+            // // rhs: Ident { value: "len", span: Span { filename_id: 1, start: 185, len: 3 } }
+
+            // let lhs_node = self
+            // .compute_type(lhs, typed_fn_env)?
+            // .expect("type-checker bug: field access on an empty var");
+
+            
+
+
+            // Some(ExprTyInfo::new(lhs_node.var_name, TyKind::Bool))
+            // }
             ExprKind::FieldAccess { lhs, rhs } => {
                 // compute type of left-hand side
                 let lhs_node = self
@@ -109,9 +123,19 @@ impl<B: Backend> TypeChecker<B> {
                 // obtain the type of the field
                 let (module, struct_name) = match lhs_node.typ {
                     TyKind::Custom { module, name } => (module, name),
-                    _ => return Err(self.error(ErrorKind::FieldAccessOnNonCustomStruct, expr.span)),
+                    _ => {
+                        dbg!("compute type, FieldAccessOnNonCustomStruct");
+                        //lhs: Expr { node_id: 13, kind: Variable { module: Local, name: Ident { value: "arr", span: Span { filename_id: 1, start: 181, len: 3 } } }, span: Span { filename_id: 1, start: 181, len: 3 } },
+                        // rhs: Ident { value: "len", span: Span { filename_id: 1, start: 185, len: 3 } }
+                        println!("lhs: {:?}, rhs: {:?}", lhs, rhs);
+                        return Err(self.error(ErrorKind::FieldAccessOnNonCustomStruct, expr.span));
+                    }
                 };
 
+                println!(
+                    "compute_type, FieldAccess, module: {:?}, struct_name: {}",
+                    module, struct_name
+                );
                 // get struct info
                 let qualified = FullyQualified::new(&module, &struct_name);
                 let struct_info = self
@@ -126,7 +150,12 @@ impl<B: Backend> TypeChecker<B> {
                     .map(|(_, typ)| typ.clone());
 
                 if let Some(res) = res {
-                    Some(ExprTyInfo::new(lhs_node.var_name, res))
+                    let expr_ty_info = ExprTyInfo::new(lhs_node.var_name, res);
+                    println!(
+                        "compute_type, FieldAccess, expr_ty_info: {:?}",
+                        expr_ty_info
+                    );
+                    Some(expr_ty_info)
                 } else {
                     return Err(self.error(
                         ErrorKind::UndefinedField(struct_info.name.clone(), rhs.value.clone()),
@@ -348,9 +377,10 @@ impl<B: Backend> TypeChecker<B> {
                     let (module, struct_name) = match lhs_node.typ {
                         TyKind::Custom { module, name } => (module, name),
                         _ => {
+                            dbg!("if let ExprKind::FieldAccess, ErrorKind::FieldAccessOnNonCustomStruct");
                             return Err(
                                 self.error(ErrorKind::FieldAccessOnNonCustomStruct, lhs.span)
-                            )
+                            );
                         }
                     };
 

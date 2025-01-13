@@ -27,6 +27,7 @@ impl<B: Backend> NAST<B> {
     }
 
     pub fn resolve_modules(this_module: Option<UserRepo>, mut ast: AST<B>) -> Result<NAST<B>> {
+        dbg!("resolve_modules");
         let mut ctx = NameResCtx::new(this_module);
 
         // create a map of the imported modules (and how they are aliases)

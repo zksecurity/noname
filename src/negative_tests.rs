@@ -747,3 +747,41 @@ fn test_mut_cst_struct_field_prop() {
         ErrorKind::ArgumentTypeMismatch(..)
     ));
 }
+
+#[test]
+fn test_array_len() {
+    let code = r#"
+        fn init_arr(const LEN: Field) -> [Field; LEN + 2] {
+            return [0; LEN + 2];
+        }
+   
+        fn main(pub xx: Field) {
+            let arr = init_arr(10);
+            assert_eq(arr.len, 12);
+        }
+    "#;
+
+    // let code = r#"
+    // struct Thing {
+    //     val: Field,
+    // }
+
+    // fn main(pub xx: Field) {
+    //     let mut thing = Thing { val: 3 };
+    //     thing.val = xx;
+    // }
+    // "#;
+
+    //  compute_type, FieldAccess, module: Local, struct_name: Thing
+    // compute_type, FieldAccess, expr_ty_info: ExprTyInfo { var_name: Some("thing"), typ: Field { constant: true } }
+
+    if let Err(err) = tast_pass(code).0 {
+        println!("err: {:?}", err);
+    }
+
+    assert_eq!(1, 2);
+    // assert!(matches!(
+    //     res.unwrap_err().kind,
+    //     ErrorKind::ArgumentTypeMismatch(..)
+    // ));
+}

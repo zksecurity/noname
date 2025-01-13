@@ -524,6 +524,9 @@ fn monomorphize_expr<B: Backend>(
     mono_fn_env: &mut MonomorphizedFnEnv,
 ) -> Result<ExprMonoInfo> {
     let expr_mono: ExprMonoInfo = match &expr.kind {
+        ExprKind::ArrayLen { lhs, rhs } ={
+            todo!();
+        }
         ExprKind::FieldAccess { lhs, rhs } => {
             let lhs_mono = monomorphize_expr(ctx, lhs, mono_fn_env)?;
 

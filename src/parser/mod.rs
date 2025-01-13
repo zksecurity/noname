@@ -106,6 +106,7 @@ impl<B: Backend> AST<B> {
         mut tokens: Tokens,
         node_id: usize,
     ) -> Result<(AST<B>, usize)> {
+        dbg!("parse");
         let mut ast = vec![];
         let ctx = &mut ParserCtx::new(filename_id, node_id);
 
@@ -152,6 +153,7 @@ impl<B: Backend> AST<B> {
                 // `fn main() { }`
                 TokenKind::Keyword(Keyword::Fn) => {
                     function_observed = true;
+                    dbg!("parse, TokenKind::Keyword(Keyword::Fn)");
 
                     let func = FunctionDef::parse(ctx, &mut tokens)?;
                     ast.push(Root {
