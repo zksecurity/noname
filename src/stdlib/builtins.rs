@@ -60,7 +60,7 @@ fn assert_eq_values<B: Backend>(
 
     match typ {
         // Field and Bool has the same logic
-        TyKind::Field { .. } | TyKind::Bool => {
+        TyKind::Field { .. } | TyKind::Bool | TyKind::String(..) => {
             let lhs_var = &lhs_info.var[0];
             let rhs_var = &rhs_info.var[0];
             match (lhs_var, rhs_var) {
