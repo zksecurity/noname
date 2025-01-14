@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/stdlib/builtins.rs`."><title>builtins.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (ad211ced8 2025-01-07)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/stdlib/</div>builtins.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/stdlib/builtins.rs`."><title>builtins.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (48a426eca 2025-01-12)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/stdlib/</div>builtins.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -257,7 +257,33 @@
 <a href="#256" id="256">256</a>
 <a href="#257" id="257">257</a>
 <a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a></pre></div><pre class="rust"><code><span class="doccomment">//! Builtins are imported by default.
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a></pre></div><pre class="rust"><code><span class="doccomment">//! Builtins are imported by default.
 
 </span><span class="kw">use </span>std::sync::Arc;
 
@@ -282,9 +308,6 @@
 <span class="kw">pub const </span>QUALIFIED_BUILTINS: <span class="kw-2">&amp;</span>str = <span class="string">"std/builtins"</span>;
 <span class="kw">pub const </span>BUILTIN_FN_NAMES: [<span class="kw-2">&amp;</span>str; <span class="number">3</span>] = [<span class="string">"assert"</span>, <span class="string">"assert_eq"</span>, <span class="string">"log"</span>];
 
-<span class="kw">const </span>ASSERT_FN: <span class="kw-2">&amp;</span>str = <span class="string">"assert(condition: Bool)"</span>;
-<span class="kw">const </span>ASSERT_EQ_FN: <span class="kw-2">&amp;</span>str = <span class="string">"assert_eq(lhs: Field, rhs: Field)"</span>;
-<span class="kw">const </span>LOG_FN: <span class="kw-2">&amp;</span>str = <span class="string">"log(var: Field)"</span>;
 <span class="kw">pub struct </span>BuiltinsLib {}
 
 <span class="kw">impl </span>Module <span class="kw">for </span>BuiltinsLib {
@@ -292,10 +315,10 @@
 
     <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;, bool)&gt; {
         <span class="macro">vec!</span>[
-            (ASSERT_FN, assert_fn, <span class="bool-val">false</span>),
-            (ASSERT_EQ_FN, assert_eq_fn, <span class="bool-val">true</span>),
+            (AssertFn::SIGNATURE, AssertFn::builtin, <span class="bool-val">false</span>),
+            (AssertEqFn::SIGNATURE, AssertEqFn::builtin, <span class="bool-val">true</span>),
             <span class="comment">// true -&gt; skip argument type checking for log
-            </span>(LOG_FN, log_fn, <span class="bool-val">true</span>),
+            </span>(LogFn::SIGNATURE, LogFn::builtin, <span class="bool-val">true</span>),
         ]
     }
 }
@@ -322,7 +345,7 @@
 
     <span class="kw">match </span>typ {
         <span class="comment">// Field and Bool has the same logic
-        </span>TyKind::Field { .. } | TyKind::Bool =&gt; {
+        </span>TyKind::Field { .. } | TyKind::Bool | TyKind::String(..) =&gt; {
             <span class="kw">let </span>lhs_var = <span class="kw-2">&amp;</span>lhs_info.var[<span class="number">0</span>];
             <span class="kw">let </span>rhs_var = <span class="kw-2">&amp;</span>rhs_info.var[<span class="number">0</span>];
             <span class="kw">match </span>(lhs_var, rhs_var) {
@@ -405,115 +428,144 @@
     comparisons
 }
 
-<span class="doccomment">/// Asserts that two vars are equal.
-</span><span class="kw">fn </span>assert_eq_fn&lt;B: Backend&gt;(
-    compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
-    _generics: <span class="kw-2">&amp;</span>GenericParameters,
-    vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
-    span: Span,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
-    <span class="comment">// we get two vars
-    </span><span class="macro">assert_eq!</span>(vars.len(), <span class="number">2</span>);
-    <span class="kw">let </span>lhs_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
-    <span class="kw">let </span>rhs_info = <span class="kw-2">&amp;</span>vars[<span class="number">1</span>];
+<span class="kw">pub trait </span>Builtin {
+    <span class="kw">const </span>SIGNATURE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str;
 
-    <span class="comment">// get types of both arguments
-    </span><span class="kw">let </span>lhs_type = lhs_info.typ.as_ref().ok_or_else(|| {
-        Error::new(
-            <span class="string">"constraint-generation"</span>,
-            ErrorKind::UnexpectedError(<span class="string">"No type info for lhs of assertion"</span>),
-            span,
-        )
-    })<span class="question-mark">?</span>;
+    <span class="kw">fn </span>builtin&lt;B: Backend&gt;(
+        compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
+        generics: <span class="kw-2">&amp;</span>GenericParameters,
+        vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
+        span: Span,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt;;
+}
 
-    <span class="kw">let </span>rhs_type = rhs_info.typ.as_ref().ok_or_else(|| {
-        Error::new(
-            <span class="string">"constraint-generation"</span>,
-            ErrorKind::UnexpectedError(<span class="string">"No type info for rhs of assertion"</span>),
-            span,
-        )
-    })<span class="question-mark">?</span>;
+<span class="kw">struct </span>AssertEqFn {}
+<span class="kw">struct </span>AssertFn {}
+<span class="kw">struct </span>LogFn {}
 
-    <span class="comment">// they have the same type
-    </span><span class="kw">if </span>!lhs_type.match_expected(rhs_type, <span class="bool-val">false</span>) {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-            <span class="string">"constraint-generation"</span>,
-            ErrorKind::AssertEqTypeMismatch(lhs_type.clone(), rhs_type.clone()),
-            span,
-        ));
-    }
+<span class="kw">impl </span>Builtin <span class="kw">for </span>AssertEqFn {
+    <span class="kw">const </span>SIGNATURE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">"assert_eq(lhs: Field, rhs: Field)"</span>;
 
-    <span class="comment">// first collect all comparisons needed
-    </span><span class="kw">let </span>comparisons = assert_eq_values(compiler, lhs_info, rhs_info, lhs_type, span);
+    <span class="doccomment">/// Asserts that two vars are equal.
+    </span><span class="kw">fn </span>builtin&lt;B: Backend&gt;(
+        compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
+        _generics: <span class="kw-2">&amp;</span>GenericParameters,
+        vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
+        span: Span,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
+        <span class="comment">// we get two vars
+        </span><span class="macro">assert_eq!</span>(vars.len(), <span class="number">2</span>);
+        <span class="kw">let </span>lhs_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
+        <span class="kw">let </span>rhs_info = <span class="kw-2">&amp;</span>vars[<span class="number">1</span>];
 
-    <span class="comment">// then add all the constraints
-    </span><span class="kw">for </span>comparison <span class="kw">in </span>comparisons {
-        <span class="kw">match </span>comparison {
-            Comparison::Vars(lhs, rhs) =&gt; {
-                compiler.backend.assert_eq_var(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, span);
-            }
-            Comparison::VarConst(var, constant) =&gt; {
-                compiler.backend.assert_eq_const(<span class="kw-2">&amp;</span>var, constant, span);
-            }
-            Comparison::Constants(a, b) =&gt; {
-                <span class="kw">if </span>a != b {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                        <span class="string">"constraint-generation"</span>,
-                        ErrorKind::AssertionFailed,
-                        span,
-                    ));
+        <span class="comment">// get types of both arguments
+        </span><span class="kw">let </span>lhs_type = lhs_info.typ.as_ref().ok_or_else(|| {
+            Error::new(
+                <span class="string">"constraint-generation"</span>,
+                ErrorKind::UnexpectedError(<span class="string">"No type info for lhs of assertion"</span>),
+                span,
+            )
+        })<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>rhs_type = rhs_info.typ.as_ref().ok_or_else(|| {
+            Error::new(
+                <span class="string">"constraint-generation"</span>,
+                ErrorKind::UnexpectedError(<span class="string">"No type info for rhs of assertion"</span>),
+                span,
+            )
+        })<span class="question-mark">?</span>;
+
+        <span class="comment">// they have the same type
+        </span><span class="kw">if </span>!lhs_type.match_expected(rhs_type, <span class="bool-val">false</span>) {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                <span class="string">"constraint-generation"</span>,
+                ErrorKind::AssertEqTypeMismatch(lhs_type.clone(), rhs_type.clone()),
+                span,
+            ));
+        }
+
+        <span class="comment">// first collect all comparisons needed
+        </span><span class="kw">let </span>comparisons = assert_eq_values(compiler, lhs_info, rhs_info, lhs_type, span);
+
+        <span class="comment">// then add all the constraints
+        </span><span class="kw">for </span>comparison <span class="kw">in </span>comparisons {
+            <span class="kw">match </span>comparison {
+                Comparison::Vars(lhs, rhs) =&gt; {
+                    compiler.backend.assert_eq_var(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs, span);
+                }
+                Comparison::VarConst(var, constant) =&gt; {
+                    compiler.backend.assert_eq_const(<span class="kw-2">&amp;</span>var, constant, span);
+                }
+                Comparison::Constants(a, b) =&gt; {
+                    <span class="kw">if </span>a != b {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                            <span class="string">"constraint-generation"</span>,
+                            ErrorKind::AssertionFailed,
+                            span,
+                        ));
+                    }
                 }
             }
         }
-    }
 
-    <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+    }
 }
 
-<span class="doccomment">/// Asserts that a condition is true.
-</span><span class="kw">fn </span>assert_fn&lt;B: Backend&gt;(
-    compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
-    _generics: <span class="kw-2">&amp;</span>GenericParameters,
-    vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
-    span: Span,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
-    <span class="comment">// we get a single var
-    </span><span class="macro">assert_eq!</span>(vars.len(), <span class="number">1</span>);
+<span class="kw">impl </span>Builtin <span class="kw">for </span>AssertFn {
+    <span class="kw">const </span>SIGNATURE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">"assert(condition: Bool)"</span>;
 
-    <span class="comment">// of type bool
-    </span><span class="kw">let </span>var_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
-    <span class="macro">assert!</span>(<span class="macro">matches!</span>(var_info.typ, <span class="prelude-val">Some</span>(TyKind::Bool)));
+    <span class="doccomment">/// Asserts that a condition is true.
+    </span><span class="kw">fn </span>builtin&lt;B: Backend&gt;(
+        compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
+        _generics: <span class="kw-2">&amp;</span>GenericParameters,
+        vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
+        span: Span,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;&lt;B <span class="kw">as </span>Backend&gt;::Field, &lt;B <span class="kw">as </span>Backend&gt;::Var&gt;&gt;&gt; {
+        <span class="comment">// we get a single var
+        </span><span class="macro">assert_eq!</span>(vars.len(), <span class="number">1</span>);
 
-    <span class="comment">// of only one field element
-    </span><span class="kw">let </span>var = <span class="kw-2">&amp;</span>var_info.var;
-    <span class="macro">assert_eq!</span>(var.len(), <span class="number">1</span>);
-    <span class="kw">let </span>cond = <span class="kw-2">&amp;</span>var[<span class="number">0</span>];
+        <span class="comment">// of type bool
+        </span><span class="kw">let </span>var_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(var_info.typ, <span class="prelude-val">Some</span>(TyKind::Bool)));
 
-    <span class="kw">match </span>cond {
-        ConstOrCell::Const(cst) =&gt; {
-            <span class="macro">assert!</span>(cst.is_one());
+        <span class="comment">// of only one field element
+        </span><span class="kw">let </span>var = <span class="kw-2">&amp;</span>var_info.var;
+        <span class="macro">assert_eq!</span>(var.len(), <span class="number">1</span>);
+        <span class="kw">let </span>cond = <span class="kw-2">&amp;</span>var[<span class="number">0</span>];
+
+        <span class="kw">match </span>cond {
+            ConstOrCell::Const(cst) =&gt; {
+                <span class="macro">assert!</span>(cst.is_one());
+            }
+            ConstOrCell::Cell(cvar) =&gt; {
+                <span class="kw">let </span>one = B::Field::one();
+                compiler.backend.assert_eq_const(cvar, one, span);
+            }
         }
-        ConstOrCell::Cell(cvar) =&gt; {
-            <span class="kw">let </span>one = B::Field::one();
-            compiler.backend.assert_eq_const(cvar, one, span);
-        }
+
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
     }
-
-    <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
 }
 
-<span class="doccomment">/// Logging
-</span><span class="kw">fn </span>log_fn&lt;B: Backend&gt;(
-    compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
-    generics: <span class="kw-2">&amp;</span>GenericParameters,
-    vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
-    span: Span,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
-    <span class="kw">for </span>var <span class="kw">in </span>vars {
-        <span class="comment">// todo: will need to support string argument in order to customize msg
-        </span>compiler.backend.log_var(var, span);
-    }
+<span class="kw">impl </span>Builtin <span class="kw">for </span>LogFn {
+    <span class="comment">// todo: currently only supports a single field var
+    // to support all the types, we can bypass the type check for this log function for now
+    </span><span class="kw">const </span>SIGNATURE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">"log(var: Field)"</span>;
 
-    <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+    <span class="doccomment">/// Logging
+    </span><span class="kw">fn </span>builtin&lt;B: Backend&gt;(
+        compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
+        _generics: <span class="kw-2">&amp;</span>GenericParameters,
+        vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
+        span: Span,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
+        <span class="kw">for </span>var <span class="kw">in </span>vars {
+            <span class="comment">// todo: will need to support string argument in order to customize msg
+            </span>compiler.backend.log_var(var, span);
+        }
+
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+    }
 }
 </code></pre></div></section></main></body></html>

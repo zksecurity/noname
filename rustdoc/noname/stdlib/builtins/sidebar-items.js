@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["BUILTIN_FN_NAMES","QUALIFIED_BUILTINS"],"struct":["BuiltinsLib"]};
+window.SIDEBAR_ITEMS = {"constant":["BUILTIN_FN_NAMES","QUALIFIED_BUILTINS"],"struct":["BuiltinsLib"],"trait":["Builtin"]};

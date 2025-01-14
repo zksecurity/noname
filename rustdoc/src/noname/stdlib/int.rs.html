@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/stdlib/int.rs`."><title>int.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (ad211ced8 2025-01-07)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/stdlib/</div>int.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/stdlib/int.rs`."><title>int.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (48a426eca 2025-01-12)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/stdlib/</div>int.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -75,7 +75,11 @@
 <a href="#74" id="74">74</a>
 <a href="#75" id="75">75</a>
 <a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>kimchi::o1_utils::FieldHelpers;
 
@@ -88,9 +92,7 @@
     var::{ConstOrCell, Value, Var},
 };
 
-<span class="kw">use super</span>::{FnInfoType, Module};
-
-<span class="kw">const </span>DIVMOD_FN: <span class="kw-2">&amp;</span>str = <span class="string">"divmod(dividend: Field, divisor: Field) -&gt; [Field; 2]"</span>;
+<span class="kw">use super</span>::{builtins::Builtin, FnInfoType, Module};
 
 <span class="kw">pub struct </span>IntLib {}
 
@@ -98,57 +100,63 @@
     <span class="kw">const </span>MODULE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">"int"</span>;
 
     <span class="kw">fn </span>get_fns&lt;B: Backend&gt;() -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, FnInfoType&lt;B&gt;, bool)&gt; {
-        <span class="macro">vec!</span>[(DIVMOD_FN, divmod_fn, <span class="bool-val">false</span>)]
+        <span class="macro">vec!</span>[(DivmodFn::SIGNATURE, DivmodFn::builtin, <span class="bool-val">false</span>)]
     }
 }
 
 <span class="doccomment">/// Divides two field elements and returns the quotient and remainder.
-</span><span class="kw">fn </span>divmod_fn&lt;B: Backend&gt;(
-    compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
-    _generics: <span class="kw-2">&amp;</span>GenericParameters,
-    vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
-    span: Span,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
-    <span class="comment">// we get two vars
-    </span><span class="kw">let </span>dividend_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
-    <span class="kw">let </span>divisor_info = <span class="kw-2">&amp;</span>vars[<span class="number">1</span>];
+</span><span class="kw">struct </span>DivmodFn {}
 
-    <span class="comment">// retrieve the values
-    </span><span class="kw">let </span>dividend_var = <span class="kw-2">&amp;</span>dividend_info.var[<span class="number">0</span>];
-    <span class="kw">let </span>divisor_var = <span class="kw-2">&amp;</span>divisor_info.var[<span class="number">0</span>];
+<span class="kw">impl </span>Builtin <span class="kw">for </span>DivmodFn {
+    <span class="kw">const </span>SIGNATURE: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">"divmod(dividend: Field, divisor: Field) -&gt; [Field; 2]"</span>;
 
-    <span class="kw">match </span>(dividend_var, divisor_var) {
-        <span class="comment">// two constants
-        </span>(ConstOrCell::Const(a), ConstOrCell::Const(b)) =&gt; {
-            <span class="comment">// convert to bigints
-            </span><span class="kw">let </span>a = a.to_biguint();
-            <span class="kw">let </span>b = b.to_biguint();
+    <span class="kw">fn </span>builtin&lt;B: Backend&gt;(
+        compiler: <span class="kw-2">&amp;mut </span>CircuitWriter&lt;B&gt;,
+        _generics: <span class="kw-2">&amp;</span>GenericParameters,
+        vars: <span class="kw-2">&amp;</span>[VarInfo&lt;B::Field, B::Var&gt;],
+        span: Span,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Var&lt;B::Field, B::Var&gt;&gt;&gt; {
+        <span class="comment">// we get two vars
+        </span><span class="kw">let </span>dividend_info = <span class="kw-2">&amp;</span>vars[<span class="number">0</span>];
+        <span class="kw">let </span>divisor_info = <span class="kw-2">&amp;</span>vars[<span class="number">1</span>];
 
-            <span class="kw">let </span>quotient = a.clone() / b.clone();
-            <span class="kw">let </span>remainder = a % b;
+        <span class="comment">// retrieve the values
+        </span><span class="kw">let </span>dividend_var = <span class="kw-2">&amp;</span>dividend_info.var[<span class="number">0</span>];
+        <span class="kw">let </span>divisor_var = <span class="kw-2">&amp;</span>divisor_info.var[<span class="number">0</span>];
 
-            <span class="comment">// convert back to fields
-            </span><span class="kw">let </span>quotient = B::Field::from_biguint(<span class="kw-2">&amp;</span>quotient).unwrap();
-            <span class="kw">let </span>remainder = B::Field::from_biguint(<span class="kw-2">&amp;</span>remainder).unwrap();
+        <span class="kw">match </span>(dividend_var, divisor_var) {
+            <span class="comment">// two constants
+            </span>(ConstOrCell::Const(a), ConstOrCell::Const(b)) =&gt; {
+                <span class="comment">// convert to bigints
+                </span><span class="kw">let </span>a = a.to_biguint();
+                <span class="kw">let </span>b = b.to_biguint();
 
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(
-                <span class="macro">vec!</span>[ConstOrCell::Const(quotient), ConstOrCell::Const(remainder)],
-                span,
-            )))
-        }
+                <span class="kw">let </span>quotient = a.clone() / b.clone();
+                <span class="kw">let </span>remainder = a % b;
 
-        <span class="kw">_ </span>=&gt; {
-            <span class="kw">let </span>quotient = compiler
-                .backend
-                .new_internal_var(Value::Div(dividend_var.clone(), divisor_var.clone()), span);
-            <span class="kw">let </span>remainder = compiler
-                .backend
-                .new_internal_var(Value::Mod(dividend_var.clone(), divisor_var.clone()), span);
+                <span class="comment">// convert back to fields
+                </span><span class="kw">let </span>quotient = B::Field::from_biguint(<span class="kw-2">&amp;</span>quotient).unwrap();
+                <span class="kw">let </span>remainder = B::Field::from_biguint(<span class="kw-2">&amp;</span>remainder).unwrap();
 
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(
-                <span class="macro">vec!</span>[ConstOrCell::Cell(quotient), ConstOrCell::Cell(remainder)],
-                span,
-            )))
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(
+                    <span class="macro">vec!</span>[ConstOrCell::Const(quotient), ConstOrCell::Const(remainder)],
+                    span,
+                )))
+            }
+
+            <span class="kw">_ </span>=&gt; {
+                <span class="kw">let </span>quotient = compiler
+                    .backend
+                    .new_internal_var(Value::Div(dividend_var.clone(), divisor_var.clone()), span);
+                <span class="kw">let </span>remainder = compiler
+                    .backend
+                    .new_internal_var(Value::Mod(dividend_var.clone(), divisor_var.clone()), span);
+
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Var::new(
+                    <span class="macro">vec!</span>[ConstOrCell::Cell(quotient), ConstOrCell::Cell(remainder)],
+                    span,
+                )))
+            }
         }
     }
 }
