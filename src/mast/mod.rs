@@ -973,6 +973,19 @@ fn monomorphize_expr<B: Backend>(
             ExprMonoInfo::new(mexpr, el_typ, None)
         }
 
+        ExprKind::ArrayLen { array } => {
+            let array_mono = monomorphize_expr(ctx, array, mono_fn_env)?;
+
+            let mexpr = expr.to_mast(
+                ctx,
+                &ExprKind::ArrayLen {
+                    array: Box::new(array_mono.expr),
+                },
+            );
+
+            ExprMonoInfo::new(mexpr, array_mono.typ, None)
+        }
+
         ExprKind::ArrayDeclaration(items) => {
             let len: u32 = items.len().try_into().expect("array too large");
 

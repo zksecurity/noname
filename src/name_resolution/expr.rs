@@ -52,6 +52,11 @@ impl NameResCtx {
             ExprKind::FieldAccess { lhs, rhs: _ } => {
                 self.resolve_expr(lhs)?;
             }
+
+            ExprKind::ArrayLen { array } => {
+                self.resolve_expr(array)?;
+            }
+
             ExprKind::BinaryOp {
                 op: _,
                 lhs,

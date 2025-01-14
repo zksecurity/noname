@@ -99,7 +99,17 @@ impl<B: Backend> TypeChecker<B> {
         expr: &Expr,
         typed_fn_env: &mut TypedFnEnv,
     ) -> Result<Option<ExprTyInfo>> {
+        dbg!("compute type");
         let typ: Option<ExprTyInfo> = match &expr.kind {
+            ExprKind::ArrayLen { array } => {
+                // array: Expr { node_id: 14, kind: ArrayLen { array: Expr { node_id: 13, kind: Variable { module: Local, name: Ident { value: "array", span: Span { filename_id: 1, start: 201, len: 5 } } }, span: Span { filename_id: 1, start: 201, len: 5 } } }, span: Span { filename_id: 1, start: 201, len: 9 } },
+
+                let array_node = self
+                    .compute_type(array, typed_fn_env)?
+                    .expect("type-checker bug: field access on an empty var");
+
+                Some(ExprTyInfo::new(array_node.var_name, array_node.typ))
+            }
             ExprKind::FieldAccess { lhs, rhs } => {
                 // compute type of left-hand side
                 let lhs_node = self
@@ -109,9 +119,19 @@ impl<B: Backend> TypeChecker<B> {
                 // obtain the type of the field
                 let (module, struct_name) = match lhs_node.typ {
                     TyKind::Custom { module, name } => (module, name),
-                    _ => return Err(self.error(ErrorKind::FieldAccessOnNonCustomStruct, expr.span)),
+                    _ => {
+                        dbg!("compute type, FieldAccessOnNonCustomStruct");
+                        //lhs: Expr { node_id: 13, kind: Variable { module: Local, name: Ident { value: "arr", span: Span { filename_id: 1, start: 181, len: 3 } } }, span: Span { filename_id: 1, start: 181, len: 3 } },
+                        // rhs: Ident { value: "len", span: Span { filename_id: 1, start: 185, len: 3 } }
+                        println!("lhs: {:?}, rhs: {:?}", lhs, rhs);
+                        return Err(self.error(ErrorKind::FieldAccessOnNonCustomStruct, expr.span));
+                    }
                 };
 
+                println!(
+                    "compute_type, FieldAccess, module: {:?}, struct_name: {}",
+                    module, struct_name
+                );
                 // get struct info
                 let qualified = FullyQualified::new(&module, &struct_name);
                 let struct_info = self
@@ -126,7 +146,12 @@ impl<B: Backend> TypeChecker<B> {
                     .map(|(_, typ)| typ.clone());
 
                 if let Some(res) = res {
-                    Some(ExprTyInfo::new(lhs_node.var_name, res))
+                    let expr_ty_info = ExprTyInfo::new(lhs_node.var_name, res);
+                    println!(
+                        "compute_type, FieldAccess, expr_ty_info: {:?}",
+                        expr_ty_info
+                    );
+                    Some(expr_ty_info)
                 } else {
                     return Err(self.error(
                         ErrorKind::UndefinedField(struct_info.name.clone(), rhs.value.clone()),
@@ -348,9 +373,10 @@ impl<B: Backend> TypeChecker<B> {
                     let (module, struct_name) = match lhs_node.typ {
                         TyKind::Custom { module, name } => (module, name),
                         _ => {
+                            dbg!("if let ExprKind::FieldAccess, ErrorKind::FieldAccessOnNonCustomStruct");
                             return Err(
                                 self.error(ErrorKind::FieldAccessOnNonCustomStruct, lhs.span)
-                            )
+                            );
                         }
                     };
 
@@ -465,6 +491,7 @@ impl<B: Backend> TypeChecker<B> {
             }
 
             ExprKind::ArrayAccess { array, idx } => {
+                dbg!("array access");
                 // get type of lhs
                 let typ = self.compute_type(array, typed_fn_env)?.unwrap();
 
@@ -827,6 +854,7 @@ impl<B: Backend> TypeChecker<B> {
         args: &[Expr],
         span: Span,
     ) -> Result<Option<TyKind>> {
+        dbg!("check_fn_call");
         // check if a function names is in use already by another variable
         match typed_fn_env.get_type_info(&fn_sig.name.value)? {
             Some(_) => {
@@ -888,6 +916,7 @@ impl<B: Backend> TypeChecker<B> {
             for (sig_arg, (typ, span)) in expected.iter().zip(observed) {
                 // when const attribute presented, the argument must be a constant
                 if sig_arg.is_constant() && !matches!(typ, TyKind::Field { constant: true }) {
+                    dbg!("if sig_arg.is_constant() && !matches!(typ, TyKind::Field { constant: true })");
                     return Err(self.error(
                         ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                         span,
@@ -895,6 +924,8 @@ impl<B: Backend> TypeChecker<B> {
                 }
 
                 if !typ.match_expected(&sig_arg.typ.kind, false) {
+                    dbg!("if !typ.match_expected(&sig_arg.typ.kind, false)");
+                    println!("&sig_arg.typ.kind: {:?}", &sig_arg.typ.kind);
                     return Err(self.error(
                         ErrorKind::ArgumentTypeMismatch(sig_arg.typ.kind.clone(), typ),
                         span,

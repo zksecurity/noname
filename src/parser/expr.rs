@@ -69,10 +69,16 @@ pub enum ExprKind {
     },
 
     /// `let lhs = rhs`
-    Assignment { lhs: Box<Expr>, rhs: Box<Expr> },
+    Assignment {
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
 
     /// `lhs.rhs`
-    FieldAccess { lhs: Box<Expr>, rhs: Ident },
+    FieldAccess {
+        lhs: Box<Expr>,
+        rhs: Ident,
+    },
 
     /// `lhs <op> rhs`
     BinaryOp {
@@ -95,17 +101,31 @@ pub enum ExprKind {
 
     /// a variable or a type. For example, `mod::A`, `x`, `y`, etc.
     // TODO: change to `identifier` or `path`?
-    Variable { module: ModulePath, name: Ident },
+    Variable {
+        module: ModulePath,
+        name: Ident,
+    },
 
     /// An array access, for example:
     /// `lhs[idx]`
-    ArrayAccess { array: Box<Expr>, idx: Box<Expr> },
+    ArrayAccess {
+        array: Box<Expr>,
+        idx: Box<Expr>,
+    },
+
+    // `arr.len`
+    ArrayLen {
+        array: Box<Expr>,
+    },
 
     /// `[ ... ]`
     ArrayDeclaration(Vec<Expr>),
 
     /// `[item; size]`
-    RepeatedArrayInit { item: Box<Expr>, size: Box<Expr> },
+    RepeatedArrayInit {
+        item: Box<Expr>,
+        size: Box<Expr>,
+    },
 
     /// `name { fields }`
     CustomTypeDeclaration {
@@ -141,6 +161,7 @@ pub enum Op2 {
 impl Expr {
     /// Parses until it finds something it doesn't know, then returns without consuming the token it doesn't know (the caller will have to make sense of it)
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+        dbg!("Expression::parse");
         let token = tokens.bump_err(ctx, ErrorKind::MissingExpression)?;
         let span = token.span;
 
@@ -150,6 +171,9 @@ impl Expr {
 
             // identifier
             TokenKind::Identifier(value) => {
+                dbg!("Expression::parse(), match TokenKind::Identifier(value)");
+                println!("value: {}", &value);
+
                 let maybe_module = Ident::new(value, span);
 
                 // is it a qualified identifier?
@@ -429,6 +453,7 @@ impl Expr {
     /// an expression is sometimes unfinished when we parse it with [Self::parse],
     /// we use this function to see if the expression we just parsed (`self`) is actually part of a bigger expression
     fn parse_rhs(self, ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Expr> {
+        dbg!("parse_rhs");
         // we peek into what's next to see if there's an expression that uses
         // the expression `self` we just parsed.
         // warning: ALL of the rules here should make use of `self`.
@@ -675,6 +700,7 @@ impl Expr {
                 kind: TokenKind::Dot,
                 ..
             }) => {
+                dbg!("parse_rhs, TokenKind::Dot");
                 let period = tokens.bump(ctx).unwrap(); // .
 
                 // sanitize
@@ -690,9 +716,12 @@ impl Expr {
 
                 // lhs.field
                 //     ^^^^^
+                dbg!("parse_rhs, TokenKind::Dot, before Ident::parse(ctx, tokens)?;");
                 let rhs = Ident::parse(ctx, tokens)?;
+                dbg!("parse_rhs, TokenKind::Dot, after Ident::parse(ctx, tokens)?;");
                 let span = self.span.merge_with(rhs.span);
 
+                let last_token = ctx.last_token.clone();
                 // lhs.field or lhs.method_name()
                 //     ^^^^^        ^^^^^^^^^^^^^
                 match tokens.peek() {
@@ -704,7 +733,8 @@ impl Expr {
                         ..
                     }) => {
                         // lhs.method_name(args)
-                        //                 ^^^^
+                        //
+                        dbg!("parse_rhs, TokenKind::Dot,  lhs.method_name(args)");
                         let (args, end_span) = parse_fn_call_args(ctx, tokens)?;
 
                         let span = span.merge_with(end_span);
@@ -720,17 +750,23 @@ impl Expr {
                         )
                     }
 
-                    // field access
+                    // field access and array length
                     // lhs.field
                     //     ^^^^^
-                    _ => Expr::new(
-                        ctx,
-                        ExprKind::FieldAccess {
-                            lhs: Box::new(self),
-                            rhs,
-                        },
-                        span,
-                    ),
+                    _ => {
+                        let kind = match last_token {
+                            Some(last) if last.kind == TokenKind::Identifier("len".to_string()) => {
+                                ExprKind::ArrayLen {
+                                    array: Box::new(self),
+                                }
+                            }
+                            _ => ExprKind::FieldAccess {
+                                lhs: Box::new(self),
+                                rhs,
+                            },
+                        };
+                        Expr::new(ctx, kind, span)
+                    }
                 }
             }
 
