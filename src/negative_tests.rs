@@ -756,8 +756,8 @@ fn test_array_len() {
         }
    
         fn main(pub xx: Field) {
-            let arr = init_arr(10);
-            assert_eq(arr.len, 12);
+            let array = init_arr(10);
+            assert_eq(array.len, 12);
         }
     "#;
 
@@ -777,6 +777,8 @@ fn test_array_len() {
 
     if let Err(err) = tast_pass(code).0 {
         println!("err: {:?}", err);
+        // err: Error { label: "type-checker", kind: ArgumentTypeMismatch(Field { constant: false },
+        // GenericSizedArray(Field { constant: false }, Add(Generic(Ident { value: "LEN", span: Span { filename_id: 1, start: 50, len: 3 } }), Concrete(2)))), span: Span { filename_id: 1, start: 201, len: 9 } }
     }
 
     assert_eq!(1, 2);

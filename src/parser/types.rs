@@ -286,7 +286,7 @@ pub enum TyKind {
     // Bool,
     // U8,
     // U16,
-    // U32,
+    // U32
     // U64,
     /// An array with symbolic size.
     /// This is an intermediate type.

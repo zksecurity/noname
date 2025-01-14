@@ -69,13 +69,16 @@ pub enum ExprKind {
     },
 
     /// `let lhs = rhs`
-    Assignment { lhs: Box<Expr>, rhs: Box<Expr> },
+    Assignment {
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
 
     /// `lhs.rhs`
-    FieldAccess { lhs: Box<Expr>, rhs: Ident },
-
-    /// `arr.len`
-    // ArrayLen { lhs: Box<Expr>, rhs: Ident },
+    FieldAccess {
+        lhs: Box<Expr>,
+        rhs: Ident,
+    },
 
     /// `lhs <op> rhs`
     BinaryOp {
@@ -98,17 +101,31 @@ pub enum ExprKind {
 
     /// a variable or a type. For example, `mod::A`, `x`, `y`, etc.
     // TODO: change to `identifier` or `path`?
-    Variable { module: ModulePath, name: Ident },
+    Variable {
+        module: ModulePath,
+        name: Ident,
+    },
 
     /// An array access, for example:
     /// `lhs[idx]`
-    ArrayAccess { array: Box<Expr>, idx: Box<Expr> },
+    ArrayAccess {
+        array: Box<Expr>,
+        idx: Box<Expr>,
+    },
+
+    // `arr.len`
+    ArrayLen {
+        array: Box<Expr>,
+    },
 
     /// `[ ... ]`
     ArrayDeclaration(Vec<Expr>),
 
     /// `[item; size]`
-    RepeatedArrayInit { item: Box<Expr>, size: Box<Expr> },
+    RepeatedArrayInit {
+        item: Box<Expr>,
+        size: Box<Expr>,
+    },
 
     /// `name { fields }`
     CustomTypeDeclaration {
@@ -680,7 +697,6 @@ impl Expr {
             }) => {
                 dbg!("parse_rhs, TokenKind::Dot");
                 let period = tokens.bump(ctx).unwrap(); // .
-                
 
                 // sanitize
                 if !matches!(
@@ -699,7 +715,6 @@ impl Expr {
                 let rhs = Ident::parse(ctx, tokens)?;
                 dbg!("parse_rhs, TokenKind::Dot, after Ident::parse(ctx, tokens)?;");
                 let span = self.span.merge_with(rhs.span);
-
 
                 let last_token = ctx.last_token.clone();
                 // lhs.field or lhs.method_name()
@@ -729,38 +744,23 @@ impl Expr {
                             span,
                         )
                     }
-                    // array field access
 
-
-                    // field access
+                    // field access and array length
                     // lhs.field
                     //     ^^^^^
                     _ => {
-                        dbg!("parse_rhs, TokenKind::Dot, field.access");
                         let kind = match last_token {
-                            Some(last) if last.kind == TokenKind::Identifier("len".to_string())=> ExprKind::ArrayLen {
-                                lhs: Box::new(self),
-                                rhs,
-                            },
+                            Some(last) if last.kind == TokenKind::Identifier("len".to_string()) => {
+                                ExprKind::ArrayLen {
+                                    array: Box::new(self),
+                                }
+                            }
                             _ => ExprKind::FieldAccess {
                                 lhs: Box::new(self),
                                 rhs,
                             },
                         };
-                        let lhs = Expr::new(
-                            ctx,
-                            kind,
-                            span,
-                        );
-                        println!("lhs: {:?},", lhs);
-                        println!("ctx: {:?}", ctx); // ctx: ParserCtx { node_id: 14, last_token: Some(Token { kind: Identifier("len"), span: Span { filename_id: 1, start: 203, len: 3 } }), filename_id: 1 }
-                       // [src/parser/expr.rs:699:17] "parse_rhs, TokenKind::Dot, after Ident::parse(ctx, tokens)?;" = "parse_rhs, TokenKind::Dot, after Ident::parse(ctx, tokens)?;"
-                       // [src/parser/expr.rs:734:25] "parse_rhs, TokenKind::Dot, field.access" = "parse_rhs, TokenKind::Dot, field.access"
-                       // lhs: Expr { node_id: 14, kind: FieldAccess { lhs: Expr { node_id: 13, kind: Variable { module: Local, name: Ident { value: "arr",
-                       // span: Span { filename_id: 1, start: 199, len: 3 } } }, span: Span { filename_id: 1, start: 199, len: 3 } }, 
-                       //rhs: Ident { value: "len", span: Span { filename_id: 1, start: 203, len: 3 } } }, span: Span { filename_id: 1, start: 199, len: 7 } }
-                        println!("tokens.peek(): {:?}", tokens.peek());
-                        lhs
+                        Expr::new(ctx, kind, span)
                     }
                 }
             }

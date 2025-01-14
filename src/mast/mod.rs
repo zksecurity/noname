@@ -524,9 +524,6 @@ fn monomorphize_expr<B: Backend>(
     mono_fn_env: &mut MonomorphizedFnEnv,
 ) -> Result<ExprMonoInfo> {
     let expr_mono: ExprMonoInfo = match &expr.kind {
-        ExprKind::ArrayLen { lhs, rhs } ={
-            todo!();
-        }
         ExprKind::FieldAccess { lhs, rhs } => {
             let lhs_mono = monomorphize_expr(ctx, lhs, mono_fn_env)?;
 
@@ -960,6 +957,19 @@ fn monomorphize_expr<B: Backend>(
             // note that circuit write does the boundary check
 
             ExprMonoInfo::new(mexpr, el_typ, None)
+        }
+
+        ExprKind::ArrayLen { array } => {
+            let array_mono = monomorphize_expr(ctx, array, mono_fn_env)?;
+
+            let mexpr = expr.to_mast(
+                ctx,
+                &ExprKind::ArrayLen {
+                    array: Box::new(array_mono.expr),
+                },
+            );
+
+            ExprMonoInfo::new(mexpr, array_mono.typ, None)
         }
 
         ExprKind::ArrayDeclaration(items) => {
