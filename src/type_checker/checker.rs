@@ -488,7 +488,16 @@ impl<B: Backend> TypeChecker<B> {
                     TyKind::Array(typkind, _) => *typkind,
                     TyKind::GenericSizedArray(typkind, _) => *typkind,
                     TyKind::Tuple(typs) => match &idx.kind {
-                        ExprKind::BigUInt(index) => typs[index.to_usize().unwrap()].clone(),
+                        ExprKind::BigUInt(index) => {
+                            let idx = index.to_usize().unwrap();
+                            if idx >= typs.len() {
+                                return Err(self.error(
+                                    ErrorKind::TupleIndexOutofBounds(idx, typs.len()),
+                                    expr.span,
+                                ));
+                            }
+                            typs[idx].clone()
+                        }
                         _ => return Err(self.error(ErrorKind::ExpectedConstant, expr.span)),
                     },
                     _ => Err(self.error(ErrorKind::UnexpectedError("not an array"), expr.span))?,
@@ -526,8 +535,8 @@ impl<B: Backend> TypeChecker<B> {
                 Some(res)
             }
             ExprKind::TupleDeclaration(items) => {
-                // restricting tupple len as array len
-                let _: u32 = items.len().try_into().expect("tupple too large");
+                // restricting tuple len as array len
+                let _: u32 = items.len().try_into().expect("tuple too large");
                 let typs: Vec<TyKind> = items
                     .iter()
                     .map(|item| {

@@ -230,6 +230,10 @@ impl FnSig {
                     val.to_u32().expect("array size exceeded u32"),
                 )
             }
+            TyKind::Tuple(typs) => {
+                let typs: Vec<TyKind> = typs.iter().map(|ty| self.resolve_type(ty, ctx)).collect();
+                TyKind::Tuple(typs)
+            }
             _ => typ.clone(),
         }
     }
@@ -250,6 +254,18 @@ impl FnSig {
                         &observed_ty,
                         observed_arg.expr.span,
                     )?;
+                }
+                // if generics in tuple
+                (TyKind::Tuple(sig_arg_typs), TyKind::Tuple(observed_arg_typs)) => {
+                    for (sig_arg_typ, observed_arg_typ) in
+                        sig_arg_typs.iter().zip(observed_arg_typs)
+                    {
+                        self.resolve_generic_array(
+                            &sig_arg_typ,
+                            &observed_arg_typ,
+                            observed_arg.expr.span,
+                        )?;
+                    }
                 }
                 // const NN: Field
                 _ => {
@@ -1148,7 +1164,7 @@ fn monomorphize_expr<B: Backend>(
         }
 
         ExprKind::TupleDeclaration(items) => {
-            // forcing for the same size as the max size for array
+            // checking if the size of tuple same is as maximum size of an array
             let _: u32 = items.len().try_into().expect("tuple too large");
 
             let items_mono: Vec<ExprMonoInfo> = items

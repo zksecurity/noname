@@ -204,7 +204,7 @@ impl<B: Backend> CircuitWriter<B> {
                             ))?,
                         };
 
-                        // compute the size of each element in thearray
+                        // compute the size of each element in the array
                         let len = self.size_of(&elem_type);
 
                         for idx in 0..array_len {
@@ -752,15 +752,14 @@ impl<B: Backend> CircuitWriter<B> {
                 let idx: usize = idx.try_into().unwrap();
 
                 // retrieve the type of the elements in the container
-                let array_typ = self
+                let container_typ = self
                     .expr_type(container)
                     .expect("cannot find type of container");
 
                 // real starting index for narrowing the var depends on the cotainer
-                // for arrays the indexing for the vars is just the idx*len(typ) but for
-                // tuples we will have different types thus start = idx as nested tuples are treated as
-                // `Vec<TyKind>` where for nested arrays the start becomes the idx * [each_array_size]
-                let (start, elem_type) = match array_typ {
+                // for arrays it is just idx * ele_size as all elements are of same size
+                // while for tuples we have to sum the sizes of all types up till that index
+                let (start, len) = match container_typ {
                     TyKind::Array(ty, array_len) => {
                         if idx >= (*array_len as usize) {
                             return Err(self.error(
@@ -768,19 +767,17 @@ impl<B: Backend> CircuitWriter<B> {
                                 expr.span,
                             ));
                         }
-                        let ele_ty = (**ty).clone();
-                        let start = idx * self.size_of(&ele_ty);
-                        (start, ele_ty)
+                        let len = self.size_of(ty);
+                        let start = idx * self.size_of(ty);
+                        (start, len)
                     }
 
                     TyKind::Tuple(typs) => {
-                        if idx >= typs.len() {
-                            return Err(self.error(
-                                ErrorKind::TupleIndexOutofBounds(idx, typs.len()),
-                                expr.span,
-                            ));
+                        let mut starting_idx = 0;
+                        for i in 0..idx {
+                            starting_idx += self.size_of(&typs[i]);
                         }
-                        (idx, typs[idx].clone())
+                        (starting_idx, self.size_of(&typs[idx]))
                     }
                     _ => Err(Error::new(
                         "compute-expr",
@@ -788,9 +785,6 @@ impl<B: Backend> CircuitWriter<B> {
                         expr.span,
                     ))?,
                 };
-
-                // compute the size of each element in the container
-                let len = self.size_of(&elem_type);
 
                 // out-of-bound checks
                 if start >= var.len() || start + len > var.len() {

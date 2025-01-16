@@ -992,7 +992,10 @@ impl<B: Backend> IRWriter<B> {
                     .expr_type(container)
                     .expect("cannot find type of container");
 
-                let elem_type = match container_typ {
+                // real starting index for narrowing the var depends on the cotainer
+                // for arrays it is just idx * ele_size as all elements are of same size
+                // while for tuples we have to sum the sizes of all types up till that index
+                let (start, len) = match container_typ {
                     TyKind::Array(ty, array_len) => {
                         if idx >= (*array_len as usize) {
                             return Err(self.error(
@@ -1000,16 +1003,17 @@ impl<B: Backend> IRWriter<B> {
                                 expr.span,
                             ));
                         }
-                        (**ty).clone()
+                        let len = self.size_of(ty);
+                        let start = idx * self.size_of(ty);
+                        (start, len)
                     }
+
                     TyKind::Tuple(typs) => {
-                        if idx >= typs.len() {
-                            return Err(self.error(
-                                ErrorKind::TupleIndexOutofBounds(idx, typs.len()),
-                                expr.span,
-                            ));
+                        let mut starting_idx = 0;
+                        for i in 0..idx {
+                            starting_idx += self.size_of(&typs[i]);
                         }
-                        typs[idx].clone()
+                        (starting_idx, self.size_of(&typs[idx]))
                     }
                     _ => Err(Error::new(
                         "compute-expr",
@@ -1017,9 +1021,6 @@ impl<B: Backend> IRWriter<B> {
                         expr.span,
                     ))?,
                 };
-
-                // compute the size of each element in the container
-                let len = self.size_of(&elem_type);
 
                 // compute the real index
                 let start = idx * len;

@@ -316,7 +316,7 @@ impl TyKind {
     ///   - If `no_generic_allowed` is `true`, the function returns `false`.
     ///   - If `no_generic_allowed` is `false`, the function compares the element types.
     /// - For `Custom` types, it compares the `module` and `name` fields for equality.
-    /// - For tuples it matches type of each element i.e `self[i] == expected[i]` for every i
+    /// - For tuples, it matches type of each element i.e `self[i] == expected[i]` for every i
     /// - For other types, it uses a basic equality check.
     pub fn match_expected(&self, expected: &TyKind, no_generic_allowed: bool) -> bool {
         match (self, expected) {
@@ -343,7 +343,7 @@ impl TyKind {
             (TyKind::String { .. }, TyKind::String { .. }) => true,
             (x, y) if x == y => true,
             (TyKind::Tuple(lhs), TyKind::Tuple(rhs)) => {
-                // early exit the lenght do not match
+                // if length does not match then they are of different type
                 if lhs.len() == rhs.len() {
                     let match_items = lhs
                         .iter()
@@ -377,8 +377,12 @@ impl TyKind {
                 generics.extend(sym.extract_generics());
             }
             TyKind::String { .. } => (),
-            // A tuple cannot be generic
-            TyKind::Tuple { .. } => (),
+            // for the time when (([Field;N]))
+            TyKind::Tuple(typs) => {
+                for ty in typs {
+                    generics.extend(ty.extract_generics());
+                }
+            }
         }
 
         generics
@@ -610,6 +614,15 @@ impl FnSig {
                         generics.add(name);
                     }
                 }
+                // extracts generics from interior of tuple
+                TyKind::Tuple(typs) => {
+                    for ty in typs {
+                        let extracted = ty.extract_generics();
+                        for name in extracted {
+                            generics.add(name);
+                        }
+                    }
+                }
                 _ => (),
             }
         }
@@ -665,6 +678,7 @@ impl FnSig {
     /// Either:
     /// - `const NN: Field` or `[[Field; NN]; MM]`
     /// - `[Field; cst]`, where cst is a constant variable. We also monomorphize generic array with a constant var as its size.
+    /// - `([Field; cst])` when tuple type returns a generic
     pub fn require_monomorphization(&self) -> bool {
         let has_arg_cst = self
             .arguments
@@ -689,6 +703,7 @@ impl FnSig {
                 self.has_constant(ty)
             }
             TyKind::Array(ty, _) => self.has_constant(ty),
+            TyKind::Tuple(typs) => typs.iter().any(|ty| self.has_constant(ty)),
             _ => false,
         }
     }
@@ -961,6 +976,15 @@ impl FnArg {
 
                 for name in extracted {
                     generics.insert(name);
+                }
+            }
+            // extract generics for inner type
+            TyKind::Tuple(typs) => {
+                for ty in typs {
+                    let extracted = self.typ.kind.extract_generics();
+                    for name in extracted {
+                        generics.insert(name);
+                    }
                 }
             }
             _ => (),
