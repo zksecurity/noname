@@ -756,9 +756,9 @@ impl<B: Backend> CircuitWriter<B> {
                     .expr_type(container)
                     .expect("cannot find type of container");
 
-                // real starting index for narrowing the var depends on the cotainer
-                // for arrays it is just idx * ele_size as all elements are of same size
-                // while for tuples we have to sum the sizes of all types up till that index
+                // actual starting index for narrowing the var depends on the cotainer
+                // for arrays it is just idx * elem_size as all elements are of same size
+                // while for tuples we have to sum the sizes of all types up to that index
                 let (start, len) = match container_typ {
                     TyKind::Array(ty, array_len) => {
                         if idx >= (*array_len as usize) {
@@ -773,11 +773,11 @@ impl<B: Backend> CircuitWriter<B> {
                     }
 
                     TyKind::Tuple(typs) => {
-                        let mut starting_idx = 0;
+                        let mut start = 0;
                         for i in 0..idx {
-                            starting_idx += self.size_of(&typs[i]);
+                            start += self.size_of(&typs[i]);
                         }
-                        (starting_idx, self.size_of(&typs[idx]))
+                        (start, self.size_of(&typs[idx]))
                     }
                     _ => Err(Error::new(
                         "compute-expr",

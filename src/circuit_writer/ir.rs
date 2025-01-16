@@ -992,9 +992,9 @@ impl<B: Backend> IRWriter<B> {
                     .expr_type(container)
                     .expect("cannot find type of container");
 
-                // real starting index for narrowing the var depends on the cotainer
-                // for arrays it is just idx * ele_size as all elements are of same size
-                // while for tuples we have to sum the sizes of all types up till that index
+                // actual starting index for narrowing the var depends on the cotainer
+                // for arrays it is just idx * elem_size as all elements are of same size
+                // while for tuples we have to sum the sizes of all types up to that index
                 let (start, len) = match container_typ {
                     TyKind::Array(ty, array_len) => {
                         if idx >= (*array_len as usize) {

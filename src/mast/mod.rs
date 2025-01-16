@@ -1164,7 +1164,7 @@ fn monomorphize_expr<B: Backend>(
         }
 
         ExprKind::TupleDeclaration(items) => {
-            // checking if the size of tuple same is as maximum size of an array
+            // checking the size of the tuple
             let _: u32 = items.len().try_into().expect("tuple too large");
 
             let items_mono: Vec<ExprMonoInfo> = items
