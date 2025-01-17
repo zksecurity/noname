@@ -134,6 +134,11 @@ impl NameResCtx {
             TyKind::GenericSizedArray(typ_kind, _) => self.resolve_typ_kind(typ_kind)?,
             TyKind::Bool => (),
             TyKind::String { .. } => (),
+            TyKind::Tuple(typs) => {
+                typs.iter_mut()
+                    .for_each(|typ| self.resolve_typ_kind(typ).unwrap());
+                ()
+            }
         };
 
         Ok(())

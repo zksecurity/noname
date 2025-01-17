@@ -268,6 +268,9 @@ pub enum ErrorKind {
     #[error("array accessed at index {0} is out of bounds (max allowed index is {1})")]
     ArrayIndexOutOfBounds(usize, usize),
 
+    #[error("tuple accessed at index {0} is out of bounds (max allowed index is {1})")]
+    TupleIndexOutofBounds(usize, usize),
+
     #[error(
         "one-letter variables or types are not allowed. Best practice is to use descriptive names"
     )]
@@ -327,8 +330,8 @@ pub enum ErrorKind {
     #[error("field access can only be applied on custom structs")]
     FieldAccessOnNonCustomStruct,
 
-    #[error("array access can only be performed on arrays")]
-    ArrayAccessOnNonArray,
+    #[error("array like access can only be performed on arrays or tuples")]
+    AccessOnNonCollection,
 
     #[error("struct `{0}` does not exist (are you sure it is defined?)")]
     UndefinedStruct(String),

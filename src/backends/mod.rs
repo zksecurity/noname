@@ -14,7 +14,7 @@ use crate::{
     helpers::PrettyField,
     imports::FnHandle,
     parser::types::TyKind,
-    utils::{log_array_type, log_custom_type, log_string_type},
+    utils::{log_array_or_tuple_type, log_custom_type, log_string_type},
     var::{ConstOrCell, Value, Var},
     witness::WitnessEnv,
 };
@@ -467,8 +467,20 @@ pub trait Backend: Clone {
 
                 // Array
                 Some(TyKind::Array(b, s)) => {
-                    let (output, remaining) =
-                        log_array_type(self, &var_info.var.cvars, b, *s, witness_env, typed, span)?;
+                    let mut typs = Vec::with_capacity(*s as usize);
+                    for _ in 0..(*s) {
+                        typs.push((**b).clone());
+                    }
+                    let (output, remaining) = log_array_or_tuple_type(
+                        self,
+                        &var_info.var.cvars,
+                        &typs,
+                        *s,
+                        witness_env,
+                        typed,
+                        span,
+                        false,
+                    )?;
                     assert!(remaining.is_empty());
                     println!("{dbg_msg}{}", output);
                 }
@@ -504,6 +516,22 @@ pub trait Backend: Clone {
                     println!("{dbg_msg}{}", output);
                 }
 
+                Some(TyKind::Tuple(typs)) => {
+                    let len = typs.len();
+                    let (output, remaining) = log_array_or_tuple_type(
+                        self,
+                        &var_info.var.cvars,
+                        &typs,
+                        len as u32,
+                        witness_env,
+                        typed,
+                        span,
+                        true,
+                    )
+                    .unwrap();
+                    assert!(remaining.is_empty());
+                    println!("{dbg_msg}{}", output);
+                }
                 None => {
                     return Err(Error::new(
                         "log",

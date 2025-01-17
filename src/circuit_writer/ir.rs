@@ -972,11 +972,11 @@ impl<B: Backend> IRWriter<B> {
                 Ok(Some(res))
             }
 
-            ExprKind::ArrayAccess { array, idx } => {
-                // retrieve var of array
+            ExprKind::ArrayOrTupleAccess { container, idx } => {
+                // retrieve var of container
                 let var = self
-                    .compute_expr(fn_env, array)?
-                    .expect("array access on non-array");
+                    .compute_expr(fn_env, container)?
+                    .expect("container access on non-container");
 
                 // compute the index
                 let idx_var = self
@@ -987,10 +987,15 @@ impl<B: Backend> IRWriter<B> {
                     .ok_or_else(|| self.error(ErrorKind::ExpectedConstant, expr.span))?;
                 let idx: usize = idx.try_into().unwrap();
 
-                // retrieve the type of the elements in the array
-                let array_typ = self.expr_type(array).expect("cannot find type of array");
+                // retrieve the type of the elements in the container
+                let container_typ = self
+                    .expr_type(container)
+                    .expect("cannot find type of container");
 
-                let elem_type = match array_typ {
+                // actual starting index for narrowing the var depends on the cotainer
+                // for arrays it is just idx * elem_size as all elements are of same size
+                // while for tuples we have to sum the sizes of all types up to that index
+                let (start, len) = match container_typ {
                     TyKind::Array(ty, array_len) => {
                         if idx >= (*array_len as usize) {
                             return Err(self.error(
@@ -998,17 +1003,24 @@ impl<B: Backend> IRWriter<B> {
                                 expr.span,
                             ));
                         }
-                        ty
+                        let len = self.size_of(ty);
+                        let start = idx * self.size_of(ty);
+                        (start, len)
+                    }
+
+                    TyKind::Tuple(typs) => {
+                        let mut starting_idx = 0;
+                        for i in 0..idx {
+                            starting_idx += self.size_of(&typs[i]);
+                        }
+                        (starting_idx, self.size_of(&typs[idx]))
                     }
                     _ => Err(Error::new(
                         "compute-expr",
-                        ErrorKind::UnexpectedError("expected array"),
+                        ErrorKind::UnexpectedError("expected container"),
                         expr.span,
                     ))?,
                 };
-
-                // compute the size of each element in the array
-                let len = self.size_of(elem_type);
 
                 // compute the real index
                 let start = idx * len;
@@ -1072,6 +1084,20 @@ impl<B: Backend> IRWriter<B> {
                 }
 
                 let var = VarOrRef::Var(Var::new(cvars, expr.span));
+                Ok(Some(var))
+            }
+
+            ExprKind::TupleDeclaration(items) => {
+                let mut cvars = vec![];
+
+                for item in items {
+                    let var = self.compute_expr(fn_env, item)?.unwrap();
+                    let to_extend = var.value(self, fn_env).cvars.clone();
+                    cvars.extend(to_extend);
+                }
+
+                let var = VarOrRef::Var(Var::new(cvars, expr.span));
+
                 Ok(Some(var))
             }
         }
