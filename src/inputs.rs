@@ -141,7 +141,7 @@ impl<B: Backend> CompiledCircuit<B> {
 
                 // parse each field
                 let mut res = vec![];
-                for (field_name, field_ty) in fields {
+                for (field_name, field_ty, _attribute) in fields {
                     let value = map.remove(field_name).ok_or_else(|| {
                         ParsingError::MissingStructFieldIdent(field_name.to_string())
                     })?;

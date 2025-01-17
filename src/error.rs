@@ -372,6 +372,10 @@ pub enum ErrorKind {
     #[error("division by zero")]
     DivisionByZero,
 
+    #[error("cannot access private field `{1}` of struct `{0}` from outside its methods.")]
+    PrivateFieldAccess(String, String),
+
     #[error("Not enough variables provided to fill placeholders in the formatted string")]
     InsufficientVariables,
+
 }
