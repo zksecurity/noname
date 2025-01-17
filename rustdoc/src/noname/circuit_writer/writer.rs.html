@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/writer.rs`."><title>writer.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (48a426eca 2025-01-12)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/circuit_writer/</div>writer.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/writer.rs`."><title>writer.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c579a84d.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (99db2737c 2025-01-16)" data-channel="nightly" data-search-js="search-1429c0ba.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/circuit_writer/</div>writer.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -895,7 +895,40 @@
 <a href="#894" id="894">894</a>
 <a href="#895" id="895">895</a>
 <a href="#896" id="896">896</a>
-<a href="#897" id="897">897</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
 
 <span class="kw">use </span>ark_ff::{One, Zero};
 <span class="kw">use </span>kimchi::circuits::wires::Wire;
@@ -1229,6 +1262,15 @@
                 <span class="macro">unreachable!</span>(<span class="string">"generic array should have been resolved"</span>)
             }
             TyKind::String(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(<span class="string">"String type is not supported for constraints"</span>),
+            TyKind::Tuple(types) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>offset = <span class="number">0</span>;
+                <span class="kw">for </span>ty <span class="kw">in </span>types {
+                    <span class="kw">let </span>size = <span class="self">self</span>.size_of(ty);
+                    <span class="kw">let </span>slice = <span class="kw-2">&amp;</span>input[offset..(offset + size)];
+                    <span class="self">self</span>.constrain_inputs_to_main(slice, input_typ, span)<span class="question-mark">?</span>;
+                    offset += size;
+                }
+            }
         };
         <span class="prelude-val">Ok</span>(())
     }
@@ -1623,11 +1665,11 @@
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(res))
             }
 
-            ExprKind::ArrayAccess { array, idx } =&gt; {
-                <span class="comment">// retrieve var of array
+            ExprKind::ArrayOrTupleAccess { container, idx } =&gt; {
+                <span class="comment">// retrieve var of container
                 </span><span class="kw">let </span>var = <span class="self">self
-                    </span>.compute_expr(fn_env, array)<span class="question-mark">?
-                    </span>.expect(<span class="string">"array access on non-array"</span>);
+                    </span>.compute_expr(fn_env, container)<span class="question-mark">?
+                    </span>.expect(<span class="string">"container access on non-container"</span>);
 
                 <span class="comment">// compute the index
                 </span><span class="kw">let </span>idx_var = <span class="self">self
@@ -1639,10 +1681,15 @@
                 <span class="kw">let </span>idx: BigUint = idx.into();
                 <span class="kw">let </span>idx: usize = idx.try_into().unwrap();
 
-                <span class="comment">// retrieve the type of the elements in the array
-                </span><span class="kw">let </span>array_typ = <span class="self">self</span>.expr_type(array).expect(<span class="string">"cannot find type of array"</span>);
+                <span class="comment">// retrieve the type of the elements in the container
+                </span><span class="kw">let </span>container_typ = <span class="self">self
+                    </span>.expr_type(container)
+                    .expect(<span class="string">"cannot find type of container"</span>);
 
-                <span class="kw">let </span>elem_type = <span class="kw">match </span>array_typ {
+                <span class="comment">// actual starting index for narrowing the var depends on the cotainer
+                // for arrays it is just idx * elem_size as all elements are of same size
+                // while for tuples we have to sum the sizes of all types up to that index
+                </span><span class="kw">let </span>(start, len) = <span class="kw">match </span>container_typ {
                     TyKind::Array(ty, array_len) =&gt; {
                         <span class="kw">if </span>idx &gt;= (<span class="kw-2">*</span>array_len <span class="kw">as </span>usize) {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
@@ -1650,20 +1697,24 @@
                                 expr.span,
                             ));
                         }
-                        ty
+                        <span class="kw">let </span>len = <span class="self">self</span>.size_of(ty);
+                        <span class="kw">let </span>start = idx * <span class="self">self</span>.size_of(ty);
+                        (start, len)
+                    }
+
+                    TyKind::Tuple(typs) =&gt; {
+                        <span class="kw">let </span><span class="kw-2">mut </span>start = <span class="number">0</span>;
+                        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..idx {
+                            start += <span class="self">self</span>.size_of(<span class="kw-2">&amp;</span>typs[i]);
+                        }
+                        (start, <span class="self">self</span>.size_of(<span class="kw-2">&amp;</span>typs[idx]))
                     }
                     <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(
                         <span class="string">"compute-expr"</span>,
-                        ErrorKind::UnexpectedError(<span class="string">"expected array"</span>),
+                        ErrorKind::UnexpectedError(<span class="string">"expected container"</span>),
                         expr.span,
                     ))<span class="question-mark">?</span>,
                 };
-
-                <span class="comment">// compute the size of each element in the array
-                </span><span class="kw">let </span>len = <span class="self">self</span>.size_of(elem_type);
-
-                <span class="comment">// compute the real index
-                </span><span class="kw">let </span>start = idx * len;
 
                 <span class="comment">// out-of-bound checks
                 </span><span class="kw">if </span>start &gt;= var.len() || start + len &gt; var.len() {
@@ -1725,6 +1776,21 @@
                 }
 
                 <span class="kw">let </span>var = VarOrRef::Var(Var::new(cvars, expr.span));
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
+            }
+            <span class="comment">// exact copy of Array Declaration there is nothing really different at when looking it from a expression level
+            // as both of them are just `Vec&lt;Expr&gt;`
+            </span>ExprKind::TupleDeclaration(items) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>cvars = <span class="macro">vec!</span>[];
+
+                <span class="kw">for </span>item <span class="kw">in </span>items {
+                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, item)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>to_extend = var.value(<span class="self">self</span>, fn_env).cvars.clone();
+                    cvars.extend(to_extend);
+                }
+
+                <span class="kw">let </span>var = VarOrRef::Var(Var::new(cvars, expr.span));
+
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
             }
         }

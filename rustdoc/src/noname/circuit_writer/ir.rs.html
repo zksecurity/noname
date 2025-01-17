@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/ir.rs`."><title>ir.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (48a426eca 2025-01-12)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/circuit_writer/</div>ir.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/circuit_writer/ir.rs`."><title>ir.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c579a84d.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (99db2737c 2025-01-16)" data-channel="nightly" data-search-js="search-1429c0ba.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/circuit_writer/</div>ir.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -1128,7 +1128,33 @@
 <a href="#1127" id="1127">1127</a>
 <a href="#1128" id="1128">1128</a>
 <a href="#1129" id="1129">1129</a>
-<a href="#1130" id="1130">1130</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ff::Zero;
+<a href="#1130" id="1130">1130</a>
+<a href="#1131" id="1131">1131</a>
+<a href="#1132" id="1132">1132</a>
+<a href="#1133" id="1133">1133</a>
+<a href="#1134" id="1134">1134</a>
+<a href="#1135" id="1135">1135</a>
+<a href="#1136" id="1136">1136</a>
+<a href="#1137" id="1137">1137</a>
+<a href="#1138" id="1138">1138</a>
+<a href="#1139" id="1139">1139</a>
+<a href="#1140" id="1140">1140</a>
+<a href="#1141" id="1141">1141</a>
+<a href="#1142" id="1142">1142</a>
+<a href="#1143" id="1143">1143</a>
+<a href="#1144" id="1144">1144</a>
+<a href="#1145" id="1145">1145</a>
+<a href="#1146" id="1146">1146</a>
+<a href="#1147" id="1147">1147</a>
+<a href="#1148" id="1148">1148</a>
+<a href="#1149" id="1149">1149</a>
+<a href="#1150" id="1150">1150</a>
+<a href="#1151" id="1151">1151</a>
+<a href="#1152" id="1152">1152</a>
+<a href="#1153" id="1153">1153</a>
+<a href="#1154" id="1154">1154</a>
+<a href="#1155" id="1155">1155</a>
+<a href="#1156" id="1156">1156</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ff::Zero;
 <span class="kw">use </span>circ::{
     ir::term::{leaf_term, term, BoolNaryOp, Op, PfNaryOp, PfUnOp, Sort, Term, Value},
     term,
@@ -2102,11 +2128,11 @@
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(res))
             }
 
-            ExprKind::ArrayAccess { array, idx } =&gt; {
-                <span class="comment">// retrieve var of array
+            ExprKind::ArrayOrTupleAccess { container, idx } =&gt; {
+                <span class="comment">// retrieve var of container
                 </span><span class="kw">let </span>var = <span class="self">self
-                    </span>.compute_expr(fn_env, array)<span class="question-mark">?
-                    </span>.expect(<span class="string">"array access on non-array"</span>);
+                    </span>.compute_expr(fn_env, container)<span class="question-mark">?
+                    </span>.expect(<span class="string">"container access on non-container"</span>);
 
                 <span class="comment">// compute the index
                 </span><span class="kw">let </span>idx_var = <span class="self">self
@@ -2117,10 +2143,15 @@
                     .ok_or_else(|| <span class="self">self</span>.error(ErrorKind::ExpectedConstant, expr.span))<span class="question-mark">?</span>;
                 <span class="kw">let </span>idx: usize = idx.try_into().unwrap();
 
-                <span class="comment">// retrieve the type of the elements in the array
-                </span><span class="kw">let </span>array_typ = <span class="self">self</span>.expr_type(array).expect(<span class="string">"cannot find type of array"</span>);
+                <span class="comment">// retrieve the type of the elements in the container
+                </span><span class="kw">let </span>container_typ = <span class="self">self
+                    </span>.expr_type(container)
+                    .expect(<span class="string">"cannot find type of container"</span>);
 
-                <span class="kw">let </span>elem_type = <span class="kw">match </span>array_typ {
+                <span class="comment">// actual starting index for narrowing the var depends on the cotainer
+                // for arrays it is just idx * elem_size as all elements are of same size
+                // while for tuples we have to sum the sizes of all types up to that index
+                </span><span class="kw">let </span>(start, len) = <span class="kw">match </span>container_typ {
                     TyKind::Array(ty, array_len) =&gt; {
                         <span class="kw">if </span>idx &gt;= (<span class="kw-2">*</span>array_len <span class="kw">as </span>usize) {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
@@ -2128,17 +2159,24 @@
                                 expr.span,
                             ));
                         }
-                        ty
+                        <span class="kw">let </span>len = <span class="self">self</span>.size_of(ty);
+                        <span class="kw">let </span>start = idx * <span class="self">self</span>.size_of(ty);
+                        (start, len)
+                    }
+
+                    TyKind::Tuple(typs) =&gt; {
+                        <span class="kw">let </span><span class="kw-2">mut </span>starting_idx = <span class="number">0</span>;
+                        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..idx {
+                            starting_idx += <span class="self">self</span>.size_of(<span class="kw-2">&amp;</span>typs[i]);
+                        }
+                        (starting_idx, <span class="self">self</span>.size_of(<span class="kw-2">&amp;</span>typs[idx]))
                     }
                     <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(
                         <span class="string">"compute-expr"</span>,
-                        ErrorKind::UnexpectedError(<span class="string">"expected array"</span>),
+                        ErrorKind::UnexpectedError(<span class="string">"expected container"</span>),
                         expr.span,
                     ))<span class="question-mark">?</span>,
                 };
-
-                <span class="comment">// compute the size of each element in the array
-                </span><span class="kw">let </span>len = <span class="self">self</span>.size_of(elem_type);
 
                 <span class="comment">// compute the real index
                 </span><span class="kw">let </span>start = idx * len;
@@ -2202,6 +2240,20 @@
                 }
 
                 <span class="kw">let </span>var = VarOrRef::Var(Var::new(cvars, expr.span));
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
+            }
+
+            ExprKind::TupleDeclaration(items) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>cvars = <span class="macro">vec!</span>[];
+
+                <span class="kw">for </span>item <span class="kw">in </span>items {
+                    <span class="kw">let </span>var = <span class="self">self</span>.compute_expr(fn_env, item)<span class="question-mark">?</span>.unwrap();
+                    <span class="kw">let </span>to_extend = var.value(<span class="self">self</span>, fn_env).cvars.clone();
+                    cvars.extend(to_extend);
+                }
+
+                <span class="kw">let </span>var = VarOrRef::Var(Var::new(cvars, expr.span));
+
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(var))
             }
         }

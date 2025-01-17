@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/utils/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (48a426eca 2025-01-12)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/utils/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/utils/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c579a84d.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (99db2737c 2025-01-16)" data-channel="nightly" data-search-js="search-1429c0ba.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/utils/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -384,7 +384,75 @@
 <a href="#383" id="383">383</a>
 <a href="#384" id="384">384</a>
 <a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     backends::Backend,
     circuit_writer::VarInfo,
     constants::Span,
@@ -544,8 +612,21 @@ yz
 
             <span class="comment">// Array
             </span><span class="prelude-val">Some</span>(TyKind::Array(b, s)) =&gt; {
-                <span class="kw">let </span>(output, remaining) =
-                    log_array_type(backend, <span class="kw-2">&amp;</span>var.var.cvars, b, <span class="kw-2">*</span>s, witness, typed, span).unwrap();
+                <span class="kw">let </span><span class="kw-2">mut </span>typs = Vec::with_capacity(<span class="kw-2">*</span>s <span class="kw">as </span>usize);
+                <span class="kw">for _ in </span><span class="number">0</span>..(<span class="kw-2">*</span>s) {
+                    typs.push((<span class="kw-2">**</span>b).clone());
+                }
+                <span class="kw">let </span>(output, remaining) = log_array_or_tuple_type(
+                    backend,
+                    <span class="kw-2">&amp;</span>var.var.cvars,
+                    <span class="kw-2">&amp;</span>typs[..],
+                    <span class="kw-2">*</span>s,
+                    witness,
+                    typed,
+                    span,
+                    <span class="bool-val">false</span>,
+                )
+                .unwrap();
                 <span class="macro">assert!</span>(remaining.is_empty());
                 <span class="prelude-val">Ok</span>(output)
             }
@@ -576,6 +657,24 @@ yz
                 <span class="macro">unreachable!</span>(<span class="string">"GenericSizedArray should be monomorphized"</span>)
             }
             <span class="prelude-val">Some</span>(TyKind::String(<span class="kw">_</span>)) =&gt; <span class="macro">todo!</span>(<span class="string">"String cannot be in circuit yet"</span>),
+
+            <span class="prelude-val">Some</span>(TyKind::Tuple(typs)) =&gt; {
+                <span class="macro">println!</span>(<span class="string">"{:?}"</span>, typs);
+                <span class="kw">let </span>len = typs.len();
+                <span class="kw">let </span>(output, remaining) = log_array_or_tuple_type(
+                    backend,
+                    <span class="kw-2">&amp;</span>var.var.cvars,
+                    <span class="kw-2">&amp;</span>typs,
+                    len <span class="kw">as </span>u32,
+                    witness,
+                    typed,
+                    span,
+                    <span class="bool-val">true</span>,
+                )
+                .unwrap();
+                <span class="macro">assert!</span>(remaining.is_empty());
+                <span class="prelude-val">Ok</span>(output)
+            }
             <span class="prelude-val">None </span>=&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
                     <span class="string">"log"</span>,
@@ -589,76 +688,72 @@ yz
     replace_all(<span class="kw-2">&amp;</span>re, str, replacer)
 }
 
-<span class="kw">pub fn </span>log_array_type&lt;B: Backend&gt;(
+<span class="kw">pub fn </span>log_array_or_tuple_type&lt;B: Backend&gt;(
     backend: <span class="kw-2">&amp;</span>B,
     var_info_var: <span class="kw-2">&amp;</span>[ConstOrCell&lt;B::Field, B::Var&gt;],
-    base_type: <span class="kw-2">&amp;</span>TyKind,
+    typs: <span class="kw-2">&amp;</span>[TyKind],
     size: u32,
     witness: <span class="kw-2">&amp;mut </span>WitnessEnv&lt;B::Field&gt;,
     typed: <span class="kw-2">&amp;</span>Mast&lt;B&gt;,
     span: <span class="kw-2">&amp;</span>Span,
+    is_tuple: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(String, Vec&lt;ConstOrCell&lt;B::Field, B::Var&gt;&gt;)&gt; {
-    <span class="kw">match </span>base_type {
-        TyKind::Field { .. } =&gt; {
-            <span class="kw">let </span>values: Vec&lt;String&gt; = var_info_var
-                .iter()
-                .take(size <span class="kw">as </span>usize)
-                .map(|cvar| <span class="kw">match </span>cvar {
+    <span class="kw">let </span><span class="kw-2">mut </span>remaining = var_info_var.to_vec();
+    <span class="kw">let </span><span class="kw-2">mut </span>nested_result = Vec::new();
+
+    <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..size {
+        <span class="kw">let </span>base_type = <span class="kw-2">&amp;</span>typs[i <span class="kw">as </span>usize];
+        <span class="kw">let </span>(chunk_result, new_remaining) = <span class="kw">match </span>base_type {
+            TyKind::Field { .. } =&gt; {
+                <span class="kw">let </span>value = <span class="kw">match </span><span class="kw-2">&amp;</span>remaining[<span class="number">0</span>] {
                     ConstOrCell::Const(cst) =&gt; cst.pretty(),
-                    ConstOrCell::Cell(cell) =&gt; backend.compute_var(witness, cell).unwrap().pretty(),
-                })
-                .collect();
-
-            <span class="kw">let </span>remaining = var_info_var[size <span class="kw">as </span>usize..].to_vec();
-            <span class="prelude-val">Ok</span>((<span class="macro">format!</span>(<span class="string">"[{}]"</span>, values.join(<span class="string">", "</span>)), remaining))
-        }
-
-        TyKind::Bool =&gt; {
-            <span class="kw">let </span>values: Vec&lt;String&gt; = var_info_var
-                .iter()
-                .take(size <span class="kw">as </span>usize)
-                .map(|cvar| <span class="kw">match </span>cvar {
+                    ConstOrCell::Cell(cell) =&gt; {
+                        <span class="kw">let </span>val = backend.compute_var(witness, cell).unwrap();
+                        val.pretty()
+                    }
+                };
+                (value, remaining[<span class="number">1</span>..].to_vec())
+            }
+            <span class="comment">// Bool
+            </span>TyKind::Bool =&gt; {
+                <span class="kw">let </span>value = <span class="kw">match </span><span class="kw-2">&amp;</span>remaining[<span class="number">0</span>] {
                     ConstOrCell::Const(cst) =&gt; {
                         <span class="kw">let </span>val = <span class="kw-2">*</span>cst == B::Field::one();
                         val.to_string()
                     }
                     ConstOrCell::Cell(cell) =&gt; {
-                        <span class="kw">let </span>val = backend.compute_var(witness, cell).unwrap() == B::Field::one();
+                        <span class="kw">let </span>val = backend.compute_var(witness, cell)<span class="question-mark">? </span>== B::Field::one();
                         val.to_string()
                     }
-                })
-                .collect();
-
-            <span class="kw">let </span>remaining = var_info_var[size <span class="kw">as </span>usize..].to_vec();
-            <span class="prelude-val">Ok</span>((<span class="macro">format!</span>(<span class="string">"[{}]"</span>, values.join(<span class="string">", "</span>)), remaining))
-        }
-
-        TyKind::Array(inner_type, inner_size) =&gt; {
-            <span class="kw">let </span><span class="kw-2">mut </span>nested_result = Vec::new();
-            <span class="kw">let </span><span class="kw-2">mut </span>remaining = var_info_var.to_vec();
-            <span class="kw">for _ in </span><span class="number">0</span>..size {
-                <span class="kw">let </span>(chunk_result, new_remaining) = log_array_type(
+                };
+                (value, remaining[<span class="number">1</span>..].to_vec())
+            }
+            TyKind::Array(inner_type, inner_size) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>vec_inner_type = Vec::with_capacity(remaining.len());
+                <span class="kw">for _ in </span><span class="number">0</span>..remaining.len() {
+                    vec_inner_type.push((<span class="kw-2">**</span>inner_type).clone());
+                }
+                <span class="kw">let </span>is_tuple = <span class="kw">match </span><span class="kw-2">**</span>inner_type {
+                    TyKind::Tuple(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+                    <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+                };
+                log_array_or_tuple_type(
                     backend,
                     <span class="kw-2">&amp;</span>remaining,
-                    inner_type,
+                    <span class="kw-2">&amp;</span>vec_inner_type[..],
                     <span class="kw-2">*</span>inner_size,
                     witness,
                     typed,
                     span,
-                )<span class="question-mark">?</span>;
-                nested_result.push(chunk_result);
-                remaining = new_remaining;
-            }
-            <span class="prelude-val">Ok</span>((<span class="macro">format!</span>(<span class="string">"[{}]"</span>, nested_result.join(<span class="string">", "</span>)), remaining))
-        }
+                    is_tuple,
+                )<span class="question-mark">?
+            </span>}
 
-        TyKind::Custom {
-            module,
-            name: struct_name,
-        } =&gt; {
-            <span class="kw">let </span><span class="kw-2">mut </span>nested_result = Vec::new();
-            <span class="kw">let </span><span class="kw-2">mut </span>remaining = var_info_var.to_vec();
-            <span class="kw">for _ in </span><span class="number">0</span>..size {
+            <span class="comment">// Custom types
+            </span>TyKind::Custom {
+                module,
+                name: struct_name,
+            } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>string_vec = Vec::new();
                 <span class="kw">let </span>(output, new_remaining) = log_custom_type(
                     backend,
@@ -670,17 +765,37 @@ yz
                     span,
                     <span class="kw-2">&amp;mut </span>string_vec,
                 )<span class="question-mark">?</span>;
-                nested_result.push(<span class="macro">format!</span>(<span class="string">"{}{}"</span>, struct_name, output));
-                remaining = new_remaining;
+                (<span class="macro">format!</span>(<span class="string">"{}{}"</span>, struct_name, output), new_remaining)
             }
-            <span class="prelude-val">Ok</span>((<span class="macro">format!</span>(<span class="string">"[{}]"</span>, nested_result.join(<span class="string">", "</span>)), remaining))
-        }
 
-        TyKind::GenericSizedArray(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-            <span class="macro">unreachable!</span>(<span class="string">"GenericSizedArray should be monomorphized"</span>)
-        }
+            <span class="comment">// GenericSizedArray
+            </span>TyKind::GenericSizedArray(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"GenericSizedArray should be monomorphized"</span>)
+            }
+            TyKind::String(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(<span class="string">"String cannot be in circuit yet"</span>),
 
-        TyKind::String(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(<span class="string">"String type cannot be used in circuits!"</span>),
+            TyKind::Tuple(inner_typs) =&gt; {
+                <span class="kw">let </span>inner_size = inner_typs.len();
+                log_array_or_tuple_type(
+                    backend,
+                    <span class="kw-2">&amp;</span>remaining,
+                    <span class="kw-2">&amp;</span>inner_typs,
+                    inner_size <span class="kw">as </span>u32,
+                    witness,
+                    typed,
+                    span,
+                    <span class="bool-val">true</span>,
+                )<span class="question-mark">?
+            </span>}
+        };
+        nested_result.push(chunk_result);
+        remaining = new_remaining;
+    }
+
+    <span class="kw">if </span>is_tuple {
+        <span class="prelude-val">Ok</span>((<span class="macro">format!</span>(<span class="string">"({})"</span>, nested_result.join(<span class="string">","</span>)), remaining))
+    } <span class="kw">else </span>{
+        <span class="prelude-val">Ok</span>((<span class="macro">format!</span>(<span class="string">"[{}]"</span>, nested_result.join(<span class="string">","</span>)), remaining))
     }
 }
 <span class="kw">pub fn </span>log_custom_type&lt;B: Backend&gt;(
@@ -734,8 +849,20 @@ yz
             },
 
             TyKind::Array(b, s) =&gt; {
-                <span class="kw">let </span>(output, new_remaining) =
-                    log_array_type(backend, <span class="kw-2">&amp;</span>remaining, b, <span class="kw-2">*</span>s, witness, typed, span)<span class="question-mark">?</span>;
+                <span class="kw">let </span>len = remaining.len();
+                <span class="kw">let </span><span class="kw-2">mut </span>typs: Vec&lt;TyKind&gt; = Vec::with_capacity(len);
+                typs.push((<span class="kw-2">**</span>b).clone());
+
+                <span class="kw">let </span>(output, new_remaining) = log_array_or_tuple_type(
+                    backend,
+                    <span class="kw-2">&amp;</span>remaining,
+                    <span class="kw-2">&amp;</span>typs[..],
+                    <span class="kw-2">*</span>s,
+                    witness,
+                    typed,
+                    span,
+                    <span class="bool-val">false</span>,
+                )<span class="question-mark">?</span>;
                 string_vec.push(<span class="macro">format!</span>(<span class="string">"{field_name}: {}"</span>, output));
                 remaining = new_remaining;
             }
@@ -764,6 +891,15 @@ yz
             }
             TyKind::String(s) =&gt; {
                 <span class="macro">todo!</span>(<span class="string">"String cannot be a type for customs it is only for logging"</span>)
+            }
+            TyKind::Tuple(typs) =&gt; {
+                <span class="kw">let </span>len = typs.len();
+                <span class="kw">let </span>(output, new_remaining) = log_array_or_tuple_type(
+                    backend, <span class="kw-2">&amp;</span>remaining, <span class="kw-2">&amp;</span>typs, len <span class="kw">as </span>u32, witness, typed, span, <span class="bool-val">true</span>,
+                )
+                .unwrap();
+                string_vec.push(<span class="macro">format!</span>(<span class="string">"{field_name}: {}"</span>, output));
+                remaining = new_remaining;
             }
         }
     }

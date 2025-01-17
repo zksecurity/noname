@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/checker.rs`."><title>checker.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (48a426eca 2025-01-12)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/type_checker/</div>checker.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/type_checker/checker.rs`."><title>checker.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c579a84d.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (99db2737c 2025-01-16)" data-channel="nightly" data-search-js="search-1429c0ba.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/type_checker/</div>checker.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -907,7 +907,37 @@
 <a href="#906" id="906">906</a>
 <a href="#907" id="907">907</a>
 <a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>num_traits::ToPrimitive;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -1190,16 +1220,16 @@
                         name.value.clone()
                     }
 
-                    <span class="comment">// `array[idx] = &lt;rhs&gt;`
-                    </span>ExprKind::ArrayAccess { array, idx } =&gt; {
-                        <span class="comment">// get variable behind array
-                        </span><span class="kw">let </span>array_node = <span class="self">self
-                            </span>.compute_type(array, typed_fn_env)<span class="question-mark">?
-                            </span>.expect(<span class="string">"type-checker bug: array access on an empty var"</span>);
+                    <span class="comment">// `array[idx] = &lt;rhs&gt;` or `tuple[idx] = rhs`
+                    </span>ExprKind::ArrayOrTupleAccess { container, idx } =&gt; {
+                        <span class="comment">// get variable behind container
+                        </span><span class="kw">let </span>cotainer_node = <span class="self">self
+                            </span>.compute_type(container, typed_fn_env)<span class="question-mark">?
+                            </span>.expect(<span class="string">"type-checker bug: array or tuple access on an empty var"</span>);
 
-                        array_node
+                        cotainer_node
                             .var_name
-                            .expect(<span class="string">"anonymous array access cannot be mutated"</span>)
+                            .expect(<span class="string">"anonymous array or tuple access cannot be mutated"</span>)
                     }
 
                     <span class="comment">// `struct.field = &lt;rhs&gt;`
@@ -1373,13 +1403,16 @@
                 }
             }
 
-            ExprKind::ArrayAccess { array, idx } =&gt; {
+            ExprKind::ArrayOrTupleAccess { container, idx } =&gt; {
                 <span class="comment">// get type of lhs
-                </span><span class="kw">let </span>typ = <span class="self">self</span>.compute_type(array, typed_fn_env)<span class="question-mark">?</span>.unwrap();
+                </span><span class="kw">let </span>typ = <span class="self">self</span>.compute_type(container, typed_fn_env)<span class="question-mark">?</span>.unwrap();
 
-                <span class="comment">// check that it is an array
-                </span><span class="kw">if </span>!<span class="macro">matches!</span>(typ.typ, TyKind::Array(..) | TyKind::GenericSizedArray(..)) {
-                    <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::ArrayAccessOnNonArray, expr.span))<span class="question-mark">?
+                <span class="comment">// check that it is an array or tuple
+                </span><span class="kw">if </span>!<span class="macro">matches!</span>(
+                    typ.typ,
+                    TyKind::Array(..) | TyKind::GenericSizedArray(..) | TyKind::Tuple(..)
+                ) {
+                    <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::AccessOnNonCollection, expr.span))<span class="question-mark">?
                 </span>}
 
                 <span class="comment">// check that expression is a bigint
@@ -1393,6 +1426,19 @@
                 </span><span class="kw">let </span>el_typ = <span class="kw">match </span>typ.typ {
                     TyKind::Array(typkind, <span class="kw">_</span>) =&gt; <span class="kw-2">*</span>typkind,
                     TyKind::GenericSizedArray(typkind, <span class="kw">_</span>) =&gt; <span class="kw-2">*</span>typkind,
+                    TyKind::Tuple(typs) =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span>idx.kind {
+                        ExprKind::BigUInt(index) =&gt; {
+                            <span class="kw">let </span>idx = index.to_usize().unwrap();
+                            <span class="kw">if </span>idx &gt;= typs.len() {
+                                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                                    ErrorKind::TupleIndexOutofBounds(idx, typs.len()),
+                                    expr.span,
+                                ));
+                            }
+                            typs[idx].clone()
+                        }
+                        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::ExpectedConstant, expr.span)),
+                    },
                     <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::UnexpectedError(<span class="string">"not an array"</span>), expr.span))<span class="question-mark">?</span>,
                 };
 
@@ -1427,6 +1473,20 @@
                 <span class="kw">let </span>res = ExprTyInfo::new_anon(TyKind::Array(Box::new(tykind), len));
                 <span class="prelude-val">Some</span>(res)
             }
+            ExprKind::TupleDeclaration(items) =&gt; {
+                <span class="comment">// restricting tuple len as array len
+                </span><span class="kw">let _</span>: u32 = items.len().try_into().expect(<span class="string">"tuple too large"</span>);
+                <span class="kw">let </span>typs: Vec&lt;TyKind&gt; = items
+                    .iter()
+                    .map(|item| {
+                        <span class="self">self</span>.compute_type(item, typed_fn_env)
+                            .unwrap()
+                            .expect(<span class="string">"expected some val"</span>)
+                            .typ
+                    })
+                    .collect();
+                <span class="prelude-val">Some</span>(ExprTyInfo::new_anon(TyKind::Tuple(typs)))
+            }
 
             ExprKind::IfElse { cond, then_, else_ } =&gt; {
                 <span class="comment">// cond can only be a boolean
@@ -1445,7 +1505,7 @@
                     <span class="kw-2">&amp;</span>then_.kind,
                     ExprKind::Variable { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                 ) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::IfElseInvalidIfBranch(), then_.span));
                 }
@@ -1454,7 +1514,7 @@
                     <span class="kw-2">&amp;</span>else_.kind,
                     ExprKind::Variable { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                 ) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(ErrorKind::IfElseInvalidElseBranch(), else_.span));
                 }

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/expr.rs`."><title>expr.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (48a426eca 2025-01-12)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/parser/</div>expr.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/parser/expr.rs`."><title>expr.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c579a84d.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (99db2737c 2025-01-16)" data-channel="nightly" data-search-js="search-1429c0ba.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/parser/</div>expr.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -741,7 +741,49 @@
 <a href="#740" id="740">740</a>
 <a href="#741" id="741">741</a>
 <a href="#742" id="742">742</a>
-<a href="#743" id="743">743</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::syntax::{is_generic_parameter, is_type};
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::syntax::{is_generic_parameter, is_type};
 <span class="kw">use crate</span>::{
     constants::Span,
     error::{ErrorKind, <span class="prelude-ty">Result</span>},
@@ -840,9 +882,14 @@
     </span><span class="comment">// TODO: change to `identifier` or `path`?
     </span>Variable { module: ModulePath, name: Ident },
 
-    <span class="doccomment">/// An array access, for example:
+    <span class="doccomment">/// An array or tuple access, for example:
     /// `lhs[idx]`
-    </span>ArrayAccess { array: Box&lt;Expr&gt;, idx: Box&lt;Expr&gt; },
+    /// As both almost work identical to each other expersion level we handle the cases for each container in the
+    /// circuit writers and typecheckers
+    </span>ArrayOrTupleAccess {
+        container: Box&lt;Expr&gt;,
+        idx: Box&lt;Expr&gt;,
+    },
 
     <span class="doccomment">/// `[ ... ]`
     </span>ArrayDeclaration(Vec&lt;Expr&gt;),
@@ -867,6 +914,9 @@
     },
     <span class="doccomment">/// Any string literal
     </span>StringLiteral(String),
+
+    <span class="doccomment">///Tuple Declaration
+    </span>TupleDeclaration(Vec&lt;Expr&gt;),
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
@@ -951,6 +1001,40 @@
             <span class="comment">// parenthesis
             </span>TokenKind::LeftParen =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>expr = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+
+                <span class="comment">// check if it is a tuple declaration
+                </span><span class="kw">let </span>second_token = tokens.peek();
+
+                <span class="kw">match </span>second_token {
+                    <span class="comment">// this means a tuple declaration
+                    </span><span class="prelude-val">Some</span>(Token {
+                        kind: TokenKind::Comma,
+                        span: <span class="kw">_</span>,
+                    }) =&gt; {
+                        <span class="kw">let </span><span class="kw-2">mut </span>items = <span class="macro">vec!</span>[expr];
+                        <span class="kw">let </span>last_span: Span;
+                        <span class="kw">loop </span>{
+                            <span class="kw">let </span>token = tokens.bump_err(ctx, ErrorKind::InvalidEndOfLine)<span class="question-mark">?</span>;
+                            <span class="kw">match </span>token.kind {
+                                TokenKind::RightParen =&gt; {
+                                    last_span = token.span;
+                                    <span class="kw">break</span>;
+                                }
+                                TokenKind::Comma =&gt; (),
+                                <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(ErrorKind::InvalidEndOfLine, token.span)),
+                            }
+                            <span class="kw">let </span>item = Expr::parse(ctx, tokens)<span class="question-mark">?</span>;
+                            items.push(item);
+                        }
+                        <span class="kw">return </span><span class="prelude-val">Ok</span>(Expr::new(
+                            ctx,
+                            ExprKind::TupleDeclaration(items),
+                            span.merge_with(last_span),
+                        ));
+                    }
+                    <span class="kw">_ </span>=&gt; (),
+                }
+
                 tokens.bump_expected(ctx, TokenKind::RightParen)<span class="question-mark">?</span>;
 
                 <span class="kw">if let </span>ExprKind::BinaryOp { protected, .. } = <span class="kw-2">&amp;mut </span>expr.kind {
@@ -987,7 +1071,7 @@
                         | ExprKind::Bool { .. }
                         | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                         | ExprKind::StringLiteral { .. }
                 ) {
                     <span class="prelude-val">Err</span>(Error::new(
@@ -1021,7 +1105,7 @@
                         | ExprKind::Bool { .. }
                         | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                         | ExprKind::StringLiteral { .. }
                 ) {
                     <span class="prelude-val">Err</span>(Error::new(
@@ -1192,7 +1276,7 @@
                 </span><span class="kw">if </span>!<span class="macro">matches!</span>(
                     <span class="kw-2">&amp;</span><span class="self">self</span>.kind,
                     ExprKind::Variable { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                         | ExprKind::FieldAccess { .. },
                 ) {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(
@@ -1339,7 +1423,7 @@
                 parse_type_declaration(ctx, tokens, ident)<span class="question-mark">?
             </span>}
 
-            <span class="comment">// array access
+            <span class="comment">// array or tuple access
             </span><span class="prelude-val">Some</span>(Token {
                 kind: TokenKind::LeftBracket,
                 ..
@@ -1351,7 +1435,7 @@
                     <span class="self">self</span>.kind,
                     ExprKind::Variable { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                 ) {
                     <span class="prelude-val">Err</span>(Error::new(
                         <span class="string">"parse_rhs - left bracket"</span>,
@@ -1371,8 +1455,8 @@
 
                 Expr::new(
                     ctx,
-                    ExprKind::ArrayAccess {
-                        array: Box::new(<span class="self">self</span>),
+                    ExprKind::ArrayOrTupleAccess {
+                        container: Box::new(<span class="self">self</span>),
                         idx: Box::new(idx),
                     },
                     span,
@@ -1425,7 +1509,7 @@
                     <span class="kw-2">&amp;</span><span class="self">self</span>.kind,
                     ExprKind::FieldAccess { .. }
                         | ExprKind::Variable { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                 ) {
                     <span class="kw">let </span>span = <span class="self">self</span>.span.merge_with(period.span);
                     <span class="kw">return </span><span class="prelude-val">Err</span>(ctx.error(ErrorKind::InvalidFieldAccessExpression, span));
