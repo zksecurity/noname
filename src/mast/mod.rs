@@ -414,6 +414,7 @@ impl Symbolic {
             }
             Symbolic::Generic(g) => gens.get(&g.value),
             Symbolic::Add(a, b) => a.eval(gens, tast) + b.eval(gens, tast),
+            Symbolic::Sub(a, b) => a.eval(gens, tast) - b.eval(gens, tast),
             Symbolic::Mul(a, b) => a.eval(gens, tast) * b.eval(gens, tast),
         }
     }
