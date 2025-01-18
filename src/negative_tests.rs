@@ -473,6 +473,29 @@ fn test_generic_custom_type_mismatched() {
 }
 
 #[test]
+fn test_generic_mutated_cst_var_in_loop() {
+    let code = r#"
+        fn gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+        
+        fn main(pub xx: Field) {
+            let mut loopvar = 1;
+            for ii in 0..3 {
+                loopvar = loopvar + 1;
+            }
+            let arr = gen(loopvar);
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::ArgumentTypeMismatch(..)
+    ));
+}
+
+#[test]
 fn test_array_bounds() {
     let code = r#"
         fn gen(const LEN: Field) -> [Field; LEN] {

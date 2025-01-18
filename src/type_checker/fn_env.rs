@@ -110,6 +110,28 @@ impl TypedFnEnv {
         self.current_scope >= prefix_scope
     }
 
+    /// Because we don't support forloop unrolling,
+    /// we should invalidate the constant value behind a mutable variable, which is used in a forloop.
+    /// ```ignore
+    /// let mut pow2 = 1;
+    /// for ii in 0..LEN {
+    ///     pow2 = pow2 + pow2;
+    /// }
+    /// ```
+    /// Instead of folding the constant value to the mutable variable in this case,
+    /// the actual value will be calculated during synthesizer phase.
+    pub fn invalidate_cst_var(&mut self, ident: &str) {
+        // only applies to the variables in the parent scopes
+        // remove the constant value
+        if let Some((scope, info)) = self.vars.get_mut(ident) {
+            if scope < &mut self.current_scope
+                && matches!(info.typ, TyKind::Field { constant: true })
+            {
+                info.typ = TyKind::Field { constant: false };
+            }
+        }
+    }
+
     /// Since currently we don't support unrolling, the generic function calls are assumed to target a same instance.
     /// Each loop iteration should instantiate generic function calls with the same parameters.
     /// This assumption requires a few type checking rules to forbid the cases that needs unrolling.
