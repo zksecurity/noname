@@ -205,6 +205,21 @@ impl NameResCtx {
                     self.resolve_stmt(stmt)?;
                 }
             }
+            StmtKind::Ite {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                self.resolve_expr(condition);
+                for stmt in then_branch {
+                    self.resolve_stmt(stmt)?;
+                }
+                if let Some(stmts) = else_branch {
+                    for stmt in stmts {
+                        self.resolve_stmt(stmt)?;
+                    }
+                }
+            }
         };
 
         Ok(())

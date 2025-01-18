@@ -1359,6 +1359,11 @@ pub fn monomorphize_stmt<B: Backend>(
             Some((stmt_mono, Some(expr_mono)))
         }
         StmtKind::Comment(_) => None,
+        StmtKind::Ite {
+            condition,
+            then_branch,
+            else_branch,
+        } => todo!("implement after type checker"),
     };
 
     Ok(res)

@@ -11,10 +11,10 @@ use crate::{
     imports::FnKind,
     parser::{
         types::{
-            is_numeric, FnSig, ForLoopArgument, FunctionDef, ModulePath, Stmt, StmtKind, Symbolic,
-            Ty, TyKind,
+            is_bool, is_numeric, FnSig, ForLoopArgument, FunctionDef, ModulePath, Stmt, StmtKind,
+            Symbolic, Ty, TyKind,
         },
-        CustomType, Expr, ExprKind, Op2,
+        ConstDef, CustomType, Expr, ExprKind, Op2,
     },
     stdlib::builtins::QUALIFIED_BUILTINS,
     syntax::is_type,
@@ -113,7 +113,7 @@ impl<B: Backend> TypeChecker<B> {
                 };
 
                 // get struct info
-                let qualified = FullyQualified::new(&module, &struct_name);
+                let qualified: FullyQualified = FullyQualified::new(&module, &struct_name);
                 let struct_info = self
                     .struct_info(&qualified)
                     .expect("this struct is not defined, or you're trying to access a field of a struct defined in a third-party library (TODO: better error)");
@@ -710,9 +710,10 @@ impl<B: Backend> TypeChecker<B> {
         }
 
         let mut return_typ = None;
+        let is_in_ite = typed_fn_env.is_in_ite_branch();
 
         for stmt in stmts {
-            if return_typ.is_some() {
+            if return_typ.is_some() && !is_in_ite {
                 Err(self.error(
                     ErrorKind::UnexpectedError(
                         "early return detected: we don't allow that for now",
@@ -842,6 +843,26 @@ impl<B: Backend> TypeChecker<B> {
                 return Ok(Some(node.typ));
             }
             StmtKind::Comment(_) => (),
+            StmtKind::Ite {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                //enter a new scope
+                typed_fn_env.nest();
+                let cond_type = self.compute_type(condition, typed_fn_env)?.unwrap();
+                if !is_bool(&cond_type.typ) {
+                    return Err(self.error(
+                        ErrorKind::IfElseInvalidConditionType(cond_type.typ),
+                        condition.span,
+                    ));
+                }
+
+                typed_fn_env.start_ite();
+                // check block
+                self.check_block(typed_fn_env, then_branch, expected_return, new_scope);
+                todo!("Waiting for the response")
+            }
         }
 
         Ok(None)

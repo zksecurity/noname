@@ -17,7 +17,11 @@ hint fn div(lhs: Field, rhs: Field) -> Field {
 }
 
 hint fn ite(lhs: Field, rhs: Field) -> Field {
-    return if lhs != rhs { lhs } else { rhs };
+    if lhs != rhs {
+        return lhs;
+    } else {
+        return rhs;
+    }
 }
 
 hint fn exp(const EXP: Field, val: Field) -> Field {

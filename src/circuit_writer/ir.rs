@@ -501,6 +501,11 @@ impl<B: Backend> IRWriter<B> {
                 return Ok(Some(var));
             }
             StmtKind::Comment(_) => (),
+            StmtKind::Ite {
+                condition,
+                then_branch,
+                else_branch,
+            } => todo!("implement circuit write after mast"),
         }
 
         Ok(None)

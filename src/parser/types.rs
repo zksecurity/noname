@@ -146,6 +146,10 @@ pub fn is_numeric(typ: &TyKind) -> bool {
     matches!(typ, TyKind::Field { .. })
 }
 
+pub fn is_bool(typ: &TyKind) -> bool {
+    matches!(typ, TyKind::Bool)
+}
+
 //~
 //~ ## Type
 //~
@@ -1225,7 +1229,11 @@ impl FunctionDef {
         }
     }
 
-    pub fn parse_fn_body(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Vec<Stmt>> {
+    pub fn parse_fn_body(
+        ctx: &mut ParserCtx,
+        tokens: &mut Tokens,
+        is_hint: bool,
+    ) -> Result<Vec<Stmt>> {
         let mut body = vec![];
 
         // return empty body when the next token is `;` instead of `{`
@@ -1257,7 +1265,7 @@ impl FunctionDef {
             }
 
             // parse next statement
-            let statement = Stmt::parse(ctx, tokens)?;
+            let statement = Stmt::parse(ctx, tokens, is_hint)?;
             body.push(statement);
         }
 
@@ -1289,7 +1297,7 @@ impl FunctionDef {
         }
 
         // parse body
-        let body = Self::parse_fn_body(ctx, tokens)?;
+        let body = Self::parse_fn_body(ctx, tokens, false)?;
 
         // here's the last token, that is if the function is not empty (maybe we should disallow empty functions?)
 
@@ -1324,7 +1332,8 @@ impl FunctionDef {
             return Err(ctx.error(ErrorKind::ShadowingBuiltIn(sig.name.value.clone()), span));
         }
 
-        let body = Self::parse_fn_body(ctx, tokens)?;
+        //we pass in the return expersion when parsing fn body as there can be early returns also
+        let body = Self::parse_fn_body(ctx, tokens, true)?;
 
         if let Some(t) = body.last() {
             span = span.merge_with(t.span);
@@ -1423,6 +1432,13 @@ pub enum StmtKind {
         argument: ForLoopArgument,
         body: Vec<Stmt>,
     },
+
+    // if <condition> {<body>}  else  {<body>}
+    Ite {
+        condition: Box<Expr>,
+        then_branch: Vec<Stmt>,
+        else_branch: Option<Vec<Stmt>>,
+    },
 }
 
 impl Stmt {
@@ -1464,7 +1480,7 @@ impl Stmt {
     }
 
     /// Returns a list of statement parsed until seeing the end of a block (`}`).
-    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
+    pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens, is_hint: bool) -> Result<Self> {
         match tokens.peek() {
             None => Err(ctx.error(ErrorKind::InvalidStatement, ctx.last_span())),
             // assignment
@@ -1558,7 +1574,7 @@ impl Stmt {
                     // parse next statement
                     // TODO: should we prevent `return` here?
                     // TODO: in general, do we prevent early returns atm?
-                    let statement = Stmt::parse(ctx, tokens)?;
+                    let statement = Stmt::parse(ctx, tokens, is_hint)?;
                     body.push(statement);
                 }
                 Ok(Stmt {
@@ -1576,6 +1592,89 @@ impl Stmt {
                 kind: TokenKind::Keyword(Keyword::If),
                 span,
             }) => {
+                // if else blocks are only allowed for hint functions
+                if is_hint {
+                    tokens.bump(ctx);
+
+                    // if cond {
+                    //     ^^
+                    let condition = Expr::parse(ctx, tokens)?;
+
+                    // if cond {
+                    //         ^^
+                    tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
+
+                    let mut then_branch = vec![];
+                    let mut is_there_else = false;
+                    loop {
+                        // if cond { <body> }
+                        //                 ^^
+                        let next_token = tokens.peek();
+                        if matches!(
+                            next_token,
+                            Some(Token {
+                                kind: TokenKind::RightCurlyBracket,
+                                ..
+                            })
+                        ) {
+                            tokens.bump(ctx);
+                            let next_token = tokens.peek();
+                            // if cond { <body> } else { <body> }
+                            //                     ^^
+                            is_there_else = matches!(
+                                next_token,
+                                Some(Token {
+                                    kind: TokenKind::Keyword(Keyword::Else),
+                                    ..
+                                })
+                            );
+                            break;
+                        }
+                        let stmt = Stmt::parse(ctx, tokens, is_hint)?;
+                        then_branch.push(stmt);
+                    }
+                    let mut else_branch = vec![];
+                    if is_there_else {
+                        // if cond {<body>} else {<body>}
+                        //                   ^^
+                        tokens.bump(ctx);
+                        // if cond {<body>} else {<body>}
+                        //                       ^^
+                        tokens.bump_expected(ctx, TokenKind::LeftCurlyBracket)?;
+
+                        loop {
+                            let next_token = tokens.peek();
+                            // if cond {<body>} else { <body> }
+                            //                              ^^
+                            if matches!(
+                                next_token,
+                                Some(Token {
+                                    kind: TokenKind::RightCurlyBracket,
+                                    ..
+                                })
+                            ) {
+                                tokens.bump(ctx);
+                                break;
+                            }
+                            let stmt = Stmt::parse(ctx, tokens, is_hint)?;
+                            else_branch.push(stmt);
+                        }
+                    }
+                    let else_branch = if else_branch.is_empty() {
+                        Some(else_branch)
+                    } else {
+                        None
+                    };
+                    return Ok(Stmt {
+                        kind: StmtKind::Ite {
+                            condition: Box::new(condition),
+                            then_branch,
+                            else_branch,
+                        },
+                        span,
+                    });
+                }
+
                 // TODO: wait, this should be implemented as an expression! not a statement
                 Err(Error::new("parse", ErrorKind::UnexpectedError("if statements are not implemented yet. Use if expressions instead (e.g. `x = if cond {{ 1 }} else {{ 2 }};`)"), span))?
             }

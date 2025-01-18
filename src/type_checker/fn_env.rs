@@ -55,6 +55,9 @@ pub struct TypedFnEnv {
 
     /// Determines if forloop variables are allowed to be accessed.
     forbid_forloop_scope: bool,
+
+    /// the ite scopes if it is within an if else blocks
+    ite_scopes: Vec<usize>,
 }
 
 impl TypedFnEnv {
@@ -95,6 +98,15 @@ impl TypedFnEnv {
         }
     }
 
+    /// returns true if we are in a ite branch
+    pub fn is_in_ite_branch(&self) -> bool {
+        if let Some(scope) = self.ite_scopes.last() {
+            self.current_scope >= *scope
+        } else {
+            false
+        }
+    }
+
     /// Pushes a new for loop scope.
     pub fn start_forloop(&mut self) {
         self.forloop_scopes.push(self.current_scope);
@@ -108,6 +120,11 @@ impl TypedFnEnv {
     /// Returns true if a scope is a prefix of our scope.
     pub fn is_in_scope(&self, prefix_scope: usize) -> bool {
         self.current_scope >= prefix_scope
+    }
+
+    /// pushes a new for ite scope
+    pub fn start_ite(&mut self) {
+        self.ite_scopes.push(self.current_scope);
     }
 
     /// Since currently we don't support unrolling, the generic function calls are assumed to target a same instance.
