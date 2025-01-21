@@ -1470,7 +1470,29 @@
 <a href="#1469" id="1469">1469</a>
 <a href="#1470" id="1470">1470</a>
 <a href="#1471" id="1471">1471</a>
-<a href="#1472" id="1472">1472</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>num_traits::ToPrimitive;
 <span class="kw">use </span>serde::Serialize;
 <span class="kw">use </span>std::collections::HashMap;
@@ -2299,20 +2321,42 @@
             <span class="kw">let </span>ExprMonoInfo { expr: rhs_expr, .. } = rhs_mono;
 
             <span class="comment">// fold constants
-            </span><span class="kw">let </span>cst = <span class="kw">match </span>(<span class="kw-2">&amp;</span>lhs_expr.kind, <span class="kw-2">&amp;</span>rhs_expr.kind) {
-                (ExprKind::BigUInt(lhs), ExprKind::BigUInt(rhs)) =&gt; <span class="kw">match </span>op {
-                    Op2::Addition =&gt; <span class="prelude-val">Some</span>(lhs + rhs),
-                    Op2::Subtraction =&gt; <span class="prelude-val">Some</span>(lhs - rhs),
-                    Op2::Multiplication =&gt; <span class="prelude-val">Some</span>(lhs * rhs),
-                    Op2::Division =&gt; <span class="prelude-val">Some</span>(lhs / rhs),
-                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-                },
+            </span><span class="kw">let </span>cst = <span class="kw">match </span>(<span class="kw-2">&amp;</span>lhs_mono.constant, <span class="kw-2">&amp;</span>rhs_mono.constant) {
+                (<span class="prelude-val">Some</span>(PropagatedConstant::Single(lhs)), <span class="prelude-val">Some</span>(PropagatedConstant::Single(rhs))) =&gt; {
+                    <span class="kw">match </span>op {
+                        Op2::Addition =&gt; <span class="prelude-val">Some</span>(lhs + rhs),
+                        Op2::Subtraction =&gt; {
+                            <span class="kw">if </span>lhs &lt; rhs {
+                                <span class="comment">// throw error
+                                </span><span class="kw">return </span><span class="prelude-val">Err</span>(error(
+                                    ErrorKind::NegativeLhsLessThanRhs(
+                                        lhs.to_string(),
+                                        rhs.to_string(),
+                                    ),
+                                    expr.span,
+                                ));
+                            }
+                            <span class="prelude-val">Some</span>(lhs - rhs)
+                        }
+                        Op2::Multiplication =&gt; <span class="prelude-val">Some</span>(lhs * rhs),
+                        Op2::Division =&gt; <span class="prelude-val">Some</span>(lhs / rhs),
+                        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+                    }
+                }
                 <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
             };
 
             <span class="kw">match </span>cst {
                 <span class="prelude-val">Some</span>(v) =&gt; {
-                    <span class="kw">let </span>mexpr = expr.to_mast(ctx, <span class="kw-2">&amp;</span>ExprKind::BigUInt(v.clone()));
+                    <span class="kw">let </span>mexpr = expr.to_mast(
+                        ctx,
+                        <span class="kw-2">&amp;</span>ExprKind::BinaryOp {
+                            op: op.clone(),
+                            protected: <span class="kw-2">*</span>protected,
+                            lhs: Box::new(lhs_expr),
+                            rhs: Box::new(rhs_expr),
+                        },
+                    );
 
                     ExprMonoInfo::new(mexpr, typ, <span class="prelude-val">Some</span>(PropagatedConstant::from(v)))
                 }

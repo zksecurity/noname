@@ -1761,7 +1761,13 @@
 <a href="#1760" id="1760">1760</a>
 <a href="#1761" id="1761">1761</a>
 <a href="#1762" id="1762">1762</a>
-<a href="#1763" id="1763">1763</a></pre></div><pre class="rust"><code><span class="kw">use </span>educe::Educe;
+<a href="#1763" id="1763">1763</a>
+<a href="#1764" id="1764">1764</a>
+<a href="#1765" id="1765">1765</a>
+<a href="#1766" id="1766">1766</a>
+<a href="#1767" id="1767">1767</a>
+<a href="#1768" id="1768">1768</a>
+<a href="#1769" id="1769">1769</a></pre></div><pre class="rust"><code><span class="kw">use </span>educe::Educe;
 <span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>serde_with::serde_as;
 <span class="kw">use </span>std::{
@@ -2478,6 +2484,12 @@
     /// using the patter: `fn_full_qualified_name#generic1=value1#generic2=value2`
     </span><span class="kw">pub fn </span>monomorphized_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Ident {
         <span class="kw">let </span><span class="kw-2">mut </span>name = <span class="self">self</span>.name.clone();
+
+        <span class="comment">// check if it contains # in the name
+        </span><span class="kw">if </span>name.value.contains(<span class="string">'#'</span>) {
+            <span class="comment">// if so, then it is already monomorphized
+            </span><span class="kw">return </span>name;
+        }
 
         <span class="kw">if </span><span class="self">self</span>.require_monomorphization() {
             <span class="kw">let </span><span class="kw-2">mut </span>generics = <span class="self">self</span>.generics.parameters.iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
