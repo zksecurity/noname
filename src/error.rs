@@ -374,4 +374,10 @@ pub enum ErrorKind {
 
     #[error("Not enough variables provided to fill placeholders in the formatted string")]
     InsufficientVariables,
+
+    #[error("The preceding if-else block already handles all possible return paths. Consider removing this statement or restructuring your control flow")]
+    UnreachableStatement,
+
+    #[error("if statements are only allowed in hint functions either mark your function hint or use if expressions instead (e.g. `x = if cond {{ 1 }} else {{ 2 }};`)")]
+    IfElseBlocksOnlyAllowedInHintFn,
 }

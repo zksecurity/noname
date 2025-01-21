@@ -124,6 +124,9 @@ pub struct MonomorphizedFnEnv {
     current_scope: usize,
 
     vars: HashMap<String, (usize, MTypeInfo)>,
+
+    // storing the monomorphised return type for early return in Ite blocks
+    return_typed: Option<Ty>,
 }
 
 impl MonomorphizedFnEnv {
@@ -1213,7 +1216,6 @@ pub fn monomorphize_block<B: Backend>(
         if let Some((stmt, expr_mono)) = monomorphize_stmt(ctx, mono_fn_env, stmt)? {
             stmts_mono.push(stmt);
 
-            // only return stmt can return `ExprMonoInfo` which contains propagated constants
             if expr_mono.is_some() {
                 ret_expr_mono = expr_mono;
             }
@@ -1363,7 +1365,39 @@ pub fn monomorphize_stmt<B: Backend>(
             condition,
             then_branch,
             else_branch,
-        } => todo!("implement after type checker"),
+        } => {
+            // enter the ite statement
+            mono_fn_env.nest();
+            let expected_return_ty =
+                if matches!(then_branch.last().unwrap().kind, StmtKind::Return(..)) {
+                    mono_fn_env.return_typed.clone()
+                } else {
+                    None
+                };
+            let expr_mono = monomorphize_expr(ctx, condition, mono_fn_env)?;
+            let (then_branch_mono, ret_mono) =
+                monomorphize_block(ctx, mono_fn_env, then_branch, expected_return_ty.as_ref())?;
+            let else_branch_mono = else_branch
+                .as_ref()
+                .map(|stmts| {
+                    let (mono_branch, _) =
+                        monomorphize_block(ctx, mono_fn_env, stmts, expected_return_ty.as_ref())?;
+                    Ok(mono_branch)
+                })
+                .transpose()?;
+            let ite_stmt = Stmt {
+                kind: StmtKind::Ite {
+                    condition: Box::new(expr_mono.expr),
+                    then_branch: then_branch_mono,
+                    else_branch: else_branch_mono,
+                },
+                span: stmt.span,
+            };
+
+            //exit the ite
+            mono_fn_env.pop();
+            Some((ite_stmt, ret_mono))
+        }
     };
 
     Ok(res)
@@ -1447,6 +1481,7 @@ pub fn instantiate_fn_call<B: Backend>(
             None,
         ),
         FnKind::Native(fn_def) => {
+            mono_fn_env.return_typed = ret_typed.clone();
             let (stmts_typed, mono_info) =
                 monomorphize_block(ctx, mono_fn_env, &fn_def.body, ret_typed.as_ref())?;
 

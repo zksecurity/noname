@@ -248,7 +248,7 @@ impl<B: Backend> CircuitWriter<B> {
                 condition,
                 then_branch,
                 else_branch,
-            } => todo!("implement circuit writer after mast"),
+            } => unreachable!("Ite should be only hint function"),
         }
 
         Ok(None)

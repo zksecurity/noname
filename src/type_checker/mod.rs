@@ -504,6 +504,10 @@ impl<B: Backend> TypeChecker<B> {
                         }
                     }
 
+                    // set function return type and whether it was a hint function or not
+                    typed_fn_env.set_return_ty(function.sig.return_type.clone());
+                    typed_fn_env.set_is_hint(function.is_hint);
+
                     // type system pass on the function body
                     self.check_block(
                         &mut typed_fn_env,

@@ -2,10 +2,12 @@
 
 use std::collections::HashMap;
 
+use circ::cfg::set;
+
 use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
-    parser::types::TyKind,
+    parser::types::{Ty, TyKind},
 };
 
 /// Some type information on local variables that we want to track in the [TypedFnEnv] environment.
@@ -55,6 +57,9 @@ pub struct TypedFnEnv {
 
     /// Determines if forloop variables are allowed to be accessed.
     forbid_forloop_scope: bool,
+
+    /// return type of the function we are in
+    return_ty_and_is_hint: (Option<Ty>, bool),
 
     /// the ite scopes if it is within an if else blocks
     ite_scopes: Vec<usize>,
@@ -125,6 +130,11 @@ impl TypedFnEnv {
     /// pushes a new for ite scope
     pub fn start_ite(&mut self) {
         self.ite_scopes.push(self.current_scope);
+    }
+
+    /// Pop the last ite scope
+    pub fn exit_ite(&mut self) {
+        self.ite_scopes.pop();
     }
 
     /// Since currently we don't support unrolling, the generic function calls are assumed to target a same instance.
@@ -198,5 +208,21 @@ impl TypedFnEnv {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn set_return_ty(&mut self, return_ty: Option<Ty>) {
+        self.return_ty_and_is_hint.0 = return_ty;
+    }
+
+    pub fn set_is_hint(&mut self, is_hint: bool) {
+        self.return_ty_and_is_hint.1 = is_hint;
+    }
+
+    pub fn get_fn_return_ty(&self) -> Option<Ty> {
+        self.return_ty_and_is_hint.0.clone()
+    }
+
+    pub fn is_hint(&self) -> bool {
+        self.return_ty_and_is_hint.1
     }
 }

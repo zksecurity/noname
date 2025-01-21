@@ -14,6 +14,7 @@ pub mod types;
 pub use expr::{Expr, ExprKind, Op2};
 use serde::Serialize;
 pub use structs::{CustomType, StructDef};
+use types::FnSig;
 
 //~
 //~ # Grammar

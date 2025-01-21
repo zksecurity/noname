@@ -1,6 +1,23 @@
+hint fn ite(xx: Field , arr: [Field;LEN]) -> Field {
+    let mut var = 0;
+    if xx == 10 {
+        var = xx;
+        for idx in 0..LEN {
+            var = var + arr[idx];
+        }
+        var = xx * var;
+    } else {
+        var = xx * xx;
+    }
+    return var;
+}
+
+
 fn main(pub xx: Field) {
-    let plus = xx + 1;
+    let mut plus = xx + 1;
     let cond = xx == 1;
-    let yy = if cond { plus } else { xx };
-    assert_eq(yy, 2);
+    let ans = unsafe ite(10 , [1,2,3]);
+    log(ans);
+    assert_eq(ans, 144);
+    assert_eq(plus, 2);
 }

@@ -712,8 +712,15 @@ impl<B: Backend> TypeChecker<B> {
         let mut return_typ = None;
         let is_in_ite = typed_fn_env.is_in_ite_branch();
 
-        for stmt in stmts {
+        for (index, stmt) in stmts.iter().enumerate() {
+            // so if there is a return type it could be possible that someone did something like this
+            // if { return some;} else {return some;} <another-statement>
+            // i.e there are unreachable statements after return from if-else block
             if return_typ.is_some() && !is_in_ite {
+                // checking if there was an if and else before this
+                if matches!(stmts[index - 1].kind, StmtKind::Ite { .. }) {
+                    Err(self.error(ErrorKind::UnreachableStatement, stmt.span))?
+                }
                 Err(self.error(
                     ErrorKind::UnexpectedError(
                         "early return detected: we don't allow that for now",
@@ -721,10 +728,8 @@ impl<B: Backend> TypeChecker<B> {
                     stmt.span,
                 ))?
             }
-
             return_typ = self.check_stmt(typed_fn_env, stmt)?;
         }
-
         // check the return
         match (expected_return, return_typ) {
             (None, None) => (),
@@ -848,6 +853,10 @@ impl<B: Backend> TypeChecker<B> {
                 then_branch,
                 else_branch,
             } => {
+                if !typed_fn_env.is_hint() {
+                    return Err(self.error(ErrorKind::IfElseBlocksOnlyAllowedInHintFn, stmt.span));
+                }
+
                 //enter a new scope
                 typed_fn_env.nest();
                 let cond_type = self.compute_type(condition, typed_fn_env)?.unwrap();
@@ -858,10 +867,43 @@ impl<B: Backend> TypeChecker<B> {
                     ));
                 }
 
-                typed_fn_env.start_ite();
+                let expected_return_ty =
+                    if matches!(then_branch.last().unwrap().kind, StmtKind::Return(..)) {
+                        typed_fn_env.get_fn_return_ty()
+                    } else {
+                        None
+                    };
+
                 // check block
-                self.check_block(typed_fn_env, then_branch, expected_return, new_scope);
-                todo!("Waiting for the response")
+                self.check_block(
+                    typed_fn_env,
+                    then_branch,
+                    expected_return_ty.as_ref(),
+                    false,
+                )?;
+                if else_branch.is_some() {
+                    // we also start a new block for the else_branch if there is
+                    let else_branch = else_branch.as_ref().unwrap();
+                    self.check_block(typed_fn_env, else_branch, expected_return_ty.as_ref(), true)?;
+                }
+
+                // exit the scope
+                typed_fn_env.pop();
+                typed_fn_env.exit_ite();
+
+                // if both if and else blocks have return in the end then there is no need
+                // for there to be return outside of the ite statement and when we reach this step
+                // we have already checked that the return type of both blocks is same and is equal
+                // to the function scope that they are in
+                if expected_return_ty.is_some() && else_branch.is_some() {
+                    let return_ty = typed_fn_env
+                        .get_fn_return_ty()
+                        .as_ref()
+                        .unwrap()
+                        .kind
+                        .clone();
+                    return Ok(Some(return_ty));
+                }
             }
         }
 

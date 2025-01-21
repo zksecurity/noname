@@ -505,7 +505,28 @@ impl<B: Backend> IRWriter<B> {
                 condition,
                 then_branch,
                 else_branch,
-            } => todo!("implement circuit write after mast"),
+            } => {
+                fn_env.nest();
+                let cond_var = self.compute_expr(fn_env, condition)?;
+                let cond_val = self
+                    .compute_expr(fn_env, condition)?
+                    .unwrap()
+                    .value(self, fn_env)
+                    .cvars[0]
+                    .clone();
+                let ret = self.compile_block(fn_env, then_branch)?;
+                match else_branch {
+                    Some(stmts) => {
+                        //start another block
+                        fn_env.nest();
+                        self.compile_block(fn_env, stmts)?;
+                        fn_env.pop();
+                    }
+                    None => (),
+                }
+                let var = ret.map(|var| VarOrRef::Var(var));
+                return Ok(var);
+            }
         }
 
         Ok(None)
