@@ -106,7 +106,7 @@ impl<B: Backend> AST<B> {
         mut tokens: Tokens,
         node_id: usize,
     ) -> Result<(AST<B>, usize)> {
-        dbg!("parse");
+        dbg!("AST::parse");
         let mut ast = vec![];
         let ctx = &mut ParserCtx::new(filename_id, node_id);
 

@@ -196,7 +196,7 @@ pub fn get_nast<B: Backend>(
         }
     };
 
-    dbg!("nast_pass, parser succeeded ");
+    dbg!("nast_pass, AST::parse succeeded ");
 
     // debug server
     if let Some(server_mode) = server_mode {

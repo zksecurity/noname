@@ -1201,6 +1201,7 @@ impl FunctionDef {
         // parse signature
         let sig = FnSig::parse(ctx, tokens)?;
         dbg!("FunctionDef parse,  FnSig::parse succeded");
+        println!("sig: {:?}", sig);
 
         // make sure that it doesn't shadow a builtin
         if BUILTIN_FN_NAMES.contains(&sig.name.value.as_ref()) {
@@ -1213,6 +1214,8 @@ impl FunctionDef {
         // parse body
         let body = Self::parse_fn_body(ctx, tokens)?;
         dbg!("FunctionDef parse,  Self::parse_fn_body succeded");
+        println!("body: {:?}", body);
+
 
         // here's the last token, that is if the function is not empty (maybe we should disallow empty functions?)
 
@@ -1231,6 +1234,8 @@ impl FunctionDef {
             span,
             is_hint: false,
         };
+
+        println!("FunctionDef: {:?}", func);
 
         Ok(func)
     }

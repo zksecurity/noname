@@ -37,9 +37,18 @@ impl NameResCtx {
             }
             ExprKind::MethodCall {
                 lhs,
-                method_name: _,
+                method_name,
                 args,
             } => {
+                println!("resolve_expr, ExprKind::MethodCall, lhs: {:?}, method_name: {:?},  args: {:?}", lhs, method_name,  args);
+                /*
+
+                resolve_expr, ExprKind::MethodCall, lhs: Expr { node_id: 13, kind: Variable { module: Local, name: Ident { value: "array", span: Span { filename_id: 1, start: 168, len: 5 } } }, span: Span { filename_id: 1, start: 168, len: 5 } }, method_name: Ident { value: "len", span: Span { filename_id: 1, start: 174, len: 3 } },  args: []
+                [src/type_checker/mod.rs:235:9] "TypeChecker.analyze" = "TypeChecker.analyze"
+
+
+                */
+               
                 self.resolve_expr(lhs)?;
                 for arg in args {
                     self.resolve_expr(arg)?;
@@ -53,9 +62,9 @@ impl NameResCtx {
                 self.resolve_expr(lhs)?;
             }
 
-            ExprKind::ArrayLen { array } => {
-                self.resolve_expr(array)?;
-            }
+            // ExprKind::ArrayLen { array } => {
+            //     self.resolve_expr(array)?;
+            // }
 
             ExprKind::BinaryOp {
                 op: _,

@@ -207,7 +207,9 @@ impl<B: Backend> TypeChecker<B> {
             let module_path =
                 ModulePath::Absolute(UserRepo::new(&format!("std/{}", module_impl.get_name())));
             for fn_info in module_impl.get_parsed_fns() {
+                dbg!("TypeChecker.new::get_parsed_fns, insert new entry in typechecker.functions HashMap");
                 let qualified = FullyQualified::new(&module_path, &fn_info.sig().name.value);
+                println!("qualified: {:?}", qualified);
                 if type_checker
                     .functions
                     .insert(qualified, fn_info.clone())
@@ -230,6 +232,7 @@ impl<B: Backend> TypeChecker<B> {
     /// - resolves imports
     /// - type checks
     pub fn analyze(&mut self, nast: NAST<B>, is_lib: bool) -> Result<()> {
+        dbg!("TypeChecker.analyze");
         //
         // Process constants
         //
@@ -328,6 +331,7 @@ impl<B: Backend> TypeChecker<B> {
             match &root.kind {
                 // `fn main() { ... }`
                 RootKind::FunctionDef(function) => {
+                    println!("TypeChecker.analyze(), match RootKind.FunctionDef, function: {:?}", function);
                     // create a new typed fn environment to type check the function
                     let mut typed_fn_env = TypedFnEnv::default();
 

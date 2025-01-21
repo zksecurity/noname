@@ -751,15 +751,21 @@ fn test_mut_cst_struct_field_prop() {
 #[test]
 fn test_array_len() {
     let code = r#"
-        fn init_arr(const LEN: Field) -> [Field; LEN + 2] {
-            return [0; LEN + 2];
-        }
-   
         fn main(pub xx: Field) {
-            let array = init_arr(10);
-            assert_eq(array.len, 12);
+            let aa = xx + 1;
+            assert_eq(aa, xx);
         }
     "#;
+
+    // fn init_arr(const LEN: Field) -> [Field; LEN + 2] {
+    //     return [0; LEN + 2];
+    //  }
+    //  fn main(pub xx: Field) {
+    //    let array = init_arr(10);
+    //    assert_eq(array.len(), 12);
+    //  }
+  
+    // "#;
 
     // let code = r#"
     // struct Thing {
@@ -775,7 +781,7 @@ fn test_array_len() {
     //  compute_type, FieldAccess, module: Local, struct_name: Thing
     // compute_type, FieldAccess, expr_ty_info: ExprTyInfo { var_name: Some("thing"), typ: Field { constant: true } }
 
-    if let Err(err) = tast_pass(code).0 {
+    if let Err(err) = mast_pass(code) {
         println!("err: {:?}", err);
         // err: Error { label: "type-checker", kind: ArgumentTypeMismatch(Field { constant: false },
         // GenericSizedArray(Field { constant: false }, Add(Generic(Ident { value: "LEN", span: Span { filename_id: 1, start: 50, len: 3 } }), Concrete(2)))), span: Span { filename_id: 1, start: 201, len: 9 } }
@@ -787,3 +793,26 @@ fn test_array_len() {
     //     ErrorKind::ArgumentTypeMismatch(..)
     // ));
 }
+
+
+// #[test]
+// fn test_custom_struct_len_method() {
+//     let code = r#"
+//         struct Thing {
+//          aa: [Field; 2],
+//         }
+//         fn Thing.len() -> LEN {
+//            return Thing.aa.len()
+//     }
+//     ";
+//     "#;
+
+
+//     if let Err(err) = tast_pass(code).0 {
+//         println!("err: {:?}", err);
+       
+//     }
+
+//     assert_eq!(1, 2);
+ 
+// }

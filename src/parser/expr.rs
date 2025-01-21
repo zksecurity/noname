@@ -113,10 +113,10 @@ pub enum ExprKind {
         idx: Box<Expr>,
     },
 
-    // `arr.len`
-    ArrayLen {
-        array: Box<Expr>,
-    },
+    // // `arr.len`
+    // ArrayLen {
+    //     array: Box<Expr>,
+    // },
 
     /// `[ ... ]`
     ArrayDeclaration(Vec<Expr>),
@@ -159,7 +159,7 @@ pub enum Op2 {
 impl Expr {
     /// Parses until it finds something it doesn't know, then returns without consuming the token it doesn't know (the caller will have to make sense of it)
     pub fn parse(ctx: &mut ParserCtx, tokens: &mut Tokens) -> Result<Self> {
-        dbg!("Expression::parse");
+        dbg!("Expr::parse");
         let token = tokens.bump_err(ctx, ErrorKind::MissingExpression)?;
         let span = token.span;
 
@@ -696,6 +696,7 @@ impl Expr {
                 ..
             }) => {
                 dbg!("parse_rhs, TokenKind::Dot");
+                println!("self.kind : {:?}", self.kind);
                 let period = tokens.bump(ctx).unwrap(); // .
 
                 // sanitize
@@ -714,9 +715,19 @@ impl Expr {
                 dbg!("parse_rhs, TokenKind::Dot, before Ident::parse(ctx, tokens)?;");
                 let rhs = Ident::parse(ctx, tokens)?;
                 dbg!("parse_rhs, TokenKind::Dot, after Ident::parse(ctx, tokens)?;");
+                dbg!("parse_rhs, TokenKind::Dot, rhs: {:?}", rhs.clone());
+                /*
+                [src/parser/expr.rs:718:17] rhs.clone() = Ident {
+                     value: "len",
+                    span: Span {
+                    filename_id: 1,
+                    start: 207,
+                    len: 3,
+                },
+                }
+                */
                 let span = self.span.merge_with(rhs.span);
 
-                let last_token = ctx.last_token.clone();
                 // lhs.field or lhs.method_name()
                 //     ^^^^^        ^^^^^^^^^^^^^
                 match tokens.peek() {
@@ -731,37 +742,43 @@ impl Expr {
                         //
                         dbg!("parse_rhs, TokenKind::Dot,  lhs.method_name(args)");
                         let (args, end_span) = parse_fn_call_args(ctx, tokens)?;
-
-                        let span = span.merge_with(end_span);
-
-                        Expr::new(
-                            ctx,
+                        println!("args: {:?}, rhs: {:?}", args, rhs.clone());
+                        let kind  = if rhs.value == "len"  {
+                            ExprKind::FnCall {
+                                module: ModulePath::Local,
+                                fn_name: rhs,
+                                args,
+                                unsafe_attr: false,
+                            }
+                        } else {
                             ExprKind::MethodCall {
                                 lhs: Box::new(self),
                                 method_name: rhs,
                                 args,
-                            },
+                            }
+                        };
+
+
+
+                        let span = span.merge_with(end_span);
+                        Expr::new(
+                            ctx,
+                            kind,
                             span,
                         )
                     }
 
-                    // field access and array length
+                    // field access
                     // lhs.field
                     //     ^^^^^
-                    _ => {
-                        let kind = match last_token {
-                            Some(last) if last.kind == TokenKind::Identifier("len".to_string()) => {
-                                ExprKind::ArrayLen {
-                                    array: Box::new(self),
-                                }
-                            }
-                            _ => ExprKind::FieldAccess {
-                                lhs: Box::new(self),
-                                rhs,
-                            },
-                        };
-                        Expr::new(ctx, kind, span)
-                    }
+                    _ => Expr::new(
+                        ctx,
+                        ExprKind::FieldAccess {
+                            lhs: Box::new(self),
+                            rhs,
+                        },
+                        span,
+                    ),
                 }
             }
 

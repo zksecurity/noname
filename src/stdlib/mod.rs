@@ -74,6 +74,8 @@ trait Module {
     fn get_fns<B: Backend>() -> Vec<(&'static str, FnInfoType<B>, bool)>;
 
     fn get_parsed_fns<B: Backend>() -> Vec<FnInfo<B>> {
+        dbg!("get_parsed_fn calls get_fns");
+        println!("Self::module: {:?}", Self::MODULE);
         let fns = Self::get_fns();
         let mut res = Vec::with_capacity(fns.len());
         for (code, fn_handle, ignore_arg_types) in fns {

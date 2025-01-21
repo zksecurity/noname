@@ -187,11 +187,14 @@ impl<B: Backend> FnInfo<B> {
         observed_args: &[ExprMonoInfo],
         ctx: &mut MastCtx<B>,
     ) -> Result<FnSig> {
+        dbg!("resolve_generic_signature");
         match self.kind {
             FnKind::BuiltIn(ref mut sig, _, _) => {
+                println!("resolve_generic_signature, FnKind::BuiltIn, sig: {:?}", sig);
                 sig.resolve_generic_values(observed_args, ctx)?;
             }
             FnKind::Native(ref mut func) => {
+                println!("resolve_generic_signature, FnKind::Native, func: {:?}", func);
                 func.sig.resolve_generic_values(observed_args, ctx)?;
             }
         };
@@ -430,6 +433,7 @@ impl<B: Backend> Mast<B> {
 
     /// Returns the function info by fully qualified name.
     pub fn fn_info(&self, qualified: &FullyQualified) -> Option<&FnInfo<B>> {
+        dbg!("imple Mast fn_info");
         self.0.fn_info(qualified)
     }
 
@@ -464,6 +468,7 @@ impl<B: Backend> Mast<B> {
 /// This is the entry point of the monomorphization process.
 /// It stores the monomorphized AST at the end.
 pub fn monomorphize<B: Backend>(tast: TypeChecker<B>) -> Result<Mast<B>> {
+    println!("monomorphize");
     let mut ctx = MastCtx::new(tast);
 
     let qualified = FullyQualified::local("main".to_string());
@@ -575,6 +580,8 @@ fn monomorphize_expr<B: Backend>(
             args,
             unsafe_attr,
         } => {
+            dbg!("monomorphize_expr");
+            println!("fn_name: {:?}", fn_name);
             // compute the observed arguments types
             let mut observed = Vec::with_capacity(args.len());
             for arg in args {
@@ -651,8 +658,10 @@ fn monomorphize_expr<B: Backend>(
             method_name,
             args,
         } => {
+            dbg!("expr_mono");
             // retrieve struct name on the lhs
             let lhs_mono = monomorphize_expr(ctx, lhs, mono_fn_env)?;
+            println!("lhs_mono: {:?}", lhs_mono);
             let (module, struct_name) = match lhs_mono.clone().typ {
                 Some(TyKind::Custom { module, name }) => (module, name),
                 _ => return Err(error(ErrorKind::MethodCallOnNonCustomStruct, expr.span)),
@@ -959,18 +968,18 @@ fn monomorphize_expr<B: Backend>(
             ExprMonoInfo::new(mexpr, el_typ, None)
         }
 
-        ExprKind::ArrayLen { array } => {
-            let array_mono = monomorphize_expr(ctx, array, mono_fn_env)?;
+        // ExprKind::ArrayLen { array } => {
+        //     let array_mono = monomorphize_expr(ctx, array, mono_fn_env)?;
 
-            let mexpr = expr.to_mast(
-                ctx,
-                &ExprKind::ArrayLen {
-                    array: Box::new(array_mono.expr),
-                },
-            );
+        //     let mexpr = expr.to_mast(
+        //         ctx,
+        //         &ExprKind::ArrayLen {
+        //             array: Box::new(array_mono.expr),
+        //         },
+        //     );
 
-            ExprMonoInfo::new(mexpr, array_mono.typ, None)
-        }
+        //     ExprMonoInfo::new(mexpr, array_mono.typ, None)
+        // }
 
         ExprKind::ArrayDeclaration(items) => {
             let len: u32 = items.len().try_into().expect("array too large");

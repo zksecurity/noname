@@ -101,15 +101,15 @@ impl<B: Backend> TypeChecker<B> {
     ) -> Result<Option<ExprTyInfo>> {
         dbg!("compute type");
         let typ: Option<ExprTyInfo> = match &expr.kind {
-            ExprKind::ArrayLen { array } => {
-                // array: Expr { node_id: 14, kind: ArrayLen { array: Expr { node_id: 13, kind: Variable { module: Local, name: Ident { value: "array", span: Span { filename_id: 1, start: 201, len: 5 } } }, span: Span { filename_id: 1, start: 201, len: 5 } } }, span: Span { filename_id: 1, start: 201, len: 9 } },
+            // ExprKind::Length { array } => {
+            //     // array: Expr { node_id: 14, kind: ArrayLen { array: Expr { node_id: 13, kind: Variable { module: Local, name: Ident { value: "array", span: Span { filename_id: 1, start: 201, len: 5 } } }, span: Span { filename_id: 1, start: 201, len: 5 } } }, span: Span { filename_id: 1, start: 201, len: 9 } },
 
-                let array_node = self
-                    .compute_type(array, typed_fn_env)?
-                    .expect("type-checker bug: field access on an empty var");
+            //     let array_node = self
+            //         .compute_type(array, typed_fn_env)?
+            //         .expect("type-checker bug: field access on an empty var");
 
-                Some(ExprTyInfo::new(array_node.var_name, array_node.typ))
-            }
+            //     Some(ExprTyInfo::new(array_node.var_name, array_node.typ))
+            // }
             ExprKind::FieldAccess { lhs, rhs } => {
                 // compute type of left-hand side
                 let lhs_node = self
@@ -167,15 +167,20 @@ impl<B: Backend> TypeChecker<B> {
                 args,
                 unsafe_attr,
             } => {
+                dbg!("impl TypeChecker compute_type, match ExprKind::FnCall");
+                println!("fn_name: {:?}", fn_name);
                 // retrieve the function signature
                 let qualified = FullyQualified::new(&module, &fn_name.value);
+                println!("qualified: {:?}", qualified);
                 let fn_info = self.fn_info(&qualified).ok_or_else(|| {
                     self.error(
                         ErrorKind::UndefinedFunction(fn_name.value.clone()),
                         fn_name.span,
                     )
                 })?;
+
                 let fn_sig = fn_info.sig().clone();
+                println!("fn_sig: {:?}", fn_sig);
 
                 // check if the function is a hint
                 if fn_info.is_hint && !unsafe_attr {
@@ -189,7 +194,9 @@ impl<B: Backend> TypeChecker<B> {
 
                 // check if generic is allowed
                 if fn_sig.require_monomorphization() && typed_fn_env.is_in_forloop() {
+                    dbg!("if fn_sig.require_monomorphization() && typed_fn_env.is_in_forloop()");
                     for (observed_arg, expected_arg) in args.iter().zip(fn_sig.arguments.iter()) {
+                        println!("for loop");
                         // check if the arg involves generic vars
                         if !expected_arg.extract_generic_names().is_empty() {
                             let mut forbidden_env = typed_fn_env.clone();
@@ -853,6 +860,7 @@ impl<B: Backend> TypeChecker<B> {
         span: Span,
     ) -> Result<Option<TyKind>> {
         dbg!("check_fn_call");
+        println!("fn_sig: {:?}", fn_sig);
         // check if a function names is in use already by another variable
         match typed_fn_env.get_type_info(&fn_sig.name.value)? {
             Some(_) => {
@@ -894,9 +902,12 @@ impl<B: Backend> TypeChecker<B> {
             if let Some(node) = self.compute_type(arg, typed_fn_env)? {
                 observed.push((node.typ.clone(), arg.span));
             } else {
+                dbg!("check_fn_call ");
                 return Err(self.error(ErrorKind::CannotComputeExpression, arg.span));
             }
         }
+
+        println!("observed_len");
 
         // check argument length
         if expected.len() != observed.len() {

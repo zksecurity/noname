@@ -376,6 +376,7 @@ pub(crate) struct IRWriter<B: Backend> {
 impl<B: Backend> IRWriter<B> {
     /// Same as circuit_writer::compile_stmt
     fn compile_stmt(&mut self, fn_env: &mut FnEnv, stmt: &Stmt) -> Result<Option<VarOrRef>> {
+        dbg!("compile_stmt");
         match &stmt.kind {
             StmtKind::Assign { mutable, lhs, rhs } => {
                 // compute the rhs
@@ -612,6 +613,7 @@ impl<B: Backend> IRWriter<B> {
                 args,
                 ..
             } => {
+                dbg!("impl IrWriter compute_expr");
                 // sanity check
                 if fn_name.value == "main" {
                     Err(self.error(ErrorKind::RecursiveMain, expr.span))?
@@ -1017,38 +1019,38 @@ impl<B: Backend> IRWriter<B> {
                 Ok(Some(var))
             }
 
-            ExprKind::ArrayLen { array } => {
-                // retrieve var of array
-                let var = self
-                    .compute_expr(fn_env, array)?
-                    .expect("array access on non-array");
+            // ExprKind::ArrayLen { array } => {
+            //     // retrieve var of array
+            //     let var = self
+            //         .compute_expr(fn_env, array)?
+            //         .expect("array access on non-array");
 
-                // retrieve the type of the elements in the array
-                let array_typ = self.expr_type(array).expect("cannot find type of array");
+            //     // retrieve the type of the elements in the array
+            //     let array_typ = self.expr_type(array).expect("cannot find type of array");
 
-                let len = match array_typ {
-                    TyKind::Array(_, array_len) => *array_len as usize,
-                    _ => Err(Error::new(
-                        "compute-expr",
-                        ErrorKind::UnexpectedError("expected array"),
-                        expr.span,
-                    ))?,
-                };
+            //     let len = match array_typ {
+            //         TyKind::Array(_, array_len) => *array_len as usize,
+            //         _ => Err(Error::new(
+            //             "compute-expr",
+            //             ErrorKind::UnexpectedError("expected array"),
+            //             expr.span,
+            //         ))?,
+            //     };
 
-                let start = len;
+            //     let start = len;
 
-                // out-of-bound checks
-                if start >= var.len() || start + len > var.len() {
-                    return Err(self.error(
-                        ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
-                        expr.span,
-                    ));
-                }
+            //     // out-of-bound checks
+            //     if start >= var.len() || start + len > var.len() {
+            //         return Err(self.error(
+            //             ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
+            //             expr.span,
+            //         ));
+            //     }
 
-                let var = var.narrow(start, len);
+            //     let var = var.narrow(start, len);
 
-                Ok(Some(var))
-            }
+            //     Ok(Some(var))
+            // }
 
             ExprKind::ArrayDeclaration(items) => {
                 let mut cvars = vec![];
