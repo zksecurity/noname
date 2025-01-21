@@ -827,20 +827,42 @@ fn monomorphize_expr<B: Backend>(
             let ExprMonoInfo { expr: rhs_expr, .. } = rhs_mono;
 
             // fold constants
-            let cst = match (&lhs_expr.kind, &rhs_expr.kind) {
-                (ExprKind::BigUInt(lhs), ExprKind::BigUInt(rhs)) => match op {
-                    Op2::Addition => Some(lhs + rhs),
-                    Op2::Subtraction => Some(lhs - rhs),
-                    Op2::Multiplication => Some(lhs * rhs),
-                    Op2::Division => Some(lhs / rhs),
-                    _ => None,
-                },
+            let cst = match (&lhs_mono.constant, &rhs_mono.constant) {
+                (Some(PropagatedConstant::Single(lhs)), Some(PropagatedConstant::Single(rhs))) => {
+                    match op {
+                        Op2::Addition => Some(lhs + rhs),
+                        Op2::Subtraction => {
+                            if lhs < rhs {
+                                // throw error
+                                return Err(error(
+                                    ErrorKind::NegativeLhsLessThanRhs(
+                                        lhs.to_string(),
+                                        rhs.to_string(),
+                                    ),
+                                    expr.span,
+                                ));
+                            }
+                            Some(lhs - rhs)
+                        }
+                        Op2::Multiplication => Some(lhs * rhs),
+                        Op2::Division => Some(lhs / rhs),
+                        _ => None,
+                    }
+                }
                 _ => None,
             };
 
             match cst {
                 Some(v) => {
-                    let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(v.clone()));
+                    let mexpr = expr.to_mast(
+                        ctx,
+                        &ExprKind::BinaryOp {
+                            op: op.clone(),
+                            protected: *protected,
+                            lhs: Box::new(lhs_expr),
+                            rhs: Box::new(rhs_expr),
+                        },
+                    );
 
                     ExprMonoInfo::new(mexpr, typ, Some(PropagatedConstant::from(v)))
                 }

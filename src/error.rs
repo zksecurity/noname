@@ -372,6 +372,9 @@ pub enum ErrorKind {
     #[error("division by zero")]
     DivisionByZero,
 
+    #[error("lhs `{0}` is less than rhs `{1}`")]
+    NegativeLhsLessThanRhs(String, String),
+
     #[error("Not enough variables provided to fill placeholders in the formatted string")]
     InsufficientVariables,
 }

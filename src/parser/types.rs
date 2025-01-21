@@ -716,6 +716,12 @@ impl FnSig {
     pub fn monomorphized_name(&self) -> Ident {
         let mut name = self.name.clone();
 
+        // check if it contains # in the name
+        if name.value.contains('#') {
+            // if so, then it is already monomorphized
+            return name;
+        }
+
         if self.require_monomorphization() {
             let mut generics = self.generics.parameters.iter().collect::<Vec<_>>();
             generics.sort_by(|a, b| a.0.cmp(b.0));
