@@ -97,9 +97,14 @@ pub enum ExprKind {
     // TODO: change to `identifier` or `path`?
     Variable { module: ModulePath, name: Ident },
 
-    /// An array access, for example:
+    /// An array or tuple access, for example:
     /// `lhs[idx]`
-    ArrayAccess { array: Box<Expr>, idx: Box<Expr> },
+    /// As both almost work identical to each other expersion level we handle the cases for each container in the
+    /// circuit writers and typecheckers
+    ArrayOrTupleAccess {
+        container: Box<Expr>,
+        idx: Box<Expr>,
+    },
 
     /// `[ ... ]`
     ArrayDeclaration(Vec<Expr>),
@@ -122,6 +127,11 @@ pub enum ExprKind {
         then_: Box<Expr>,
         else_: Box<Expr>,
     },
+    /// Any string literal
+    StringLiteral(String),
+
+    ///Tuple Declaration
+    TupleDeclaration(Vec<Expr>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -206,6 +216,40 @@ impl Expr {
             // parenthesis
             TokenKind::LeftParen => {
                 let mut expr = Expr::parse(ctx, tokens)?;
+
+                // check if it is a tuple declaration
+                let second_token = tokens.peek();
+
+                match second_token {
+                    // this means a tuple declaration
+                    Some(Token {
+                        kind: TokenKind::Comma,
+                        span: _,
+                    }) => {
+                        let mut items = vec![expr];
+                        let last_span: Span;
+                        loop {
+                            let token = tokens.bump_err(ctx, ErrorKind::InvalidEndOfLine)?;
+                            match token.kind {
+                                TokenKind::RightParen => {
+                                    last_span = token.span;
+                                    break;
+                                }
+                                TokenKind::Comma => (),
+                                _ => return Err(ctx.error(ErrorKind::InvalidEndOfLine, token.span)),
+                            }
+                            let item = Expr::parse(ctx, tokens)?;
+                            items.push(item);
+                        }
+                        return Ok(Expr::new(
+                            ctx,
+                            ExprKind::TupleDeclaration(items),
+                            span.merge_with(last_span),
+                        ));
+                    }
+                    _ => (),
+                }
+
                 tokens.bump_expected(ctx, TokenKind::RightParen)?;
 
                 if let ExprKind::BinaryOp { protected, .. } = &mut expr.kind {
@@ -242,7 +286,8 @@ impl Expr {
                         | ExprKind::Bool { .. }
                         | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
+                        | ExprKind::StringLiteral { .. }
                 ) {
                     Err(Error::new(
                         "parse - if keyword",
@@ -275,7 +320,8 @@ impl Expr {
                         | ExprKind::Bool { .. }
                         | ExprKind::BigUInt { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
+                        | ExprKind::StringLiteral { .. }
                 ) {
                     Err(Error::new(
                         "parse - if keyword",
@@ -410,6 +456,7 @@ impl Expr {
 
                 fn_call
             }
+            TokenKind::StringLiteral(s) => Expr::new(ctx, ExprKind::StringLiteral(s), span),
 
             // unrecognized pattern
             _ => {
@@ -444,7 +491,7 @@ impl Expr {
                 if !matches!(
                     &self.kind,
                     ExprKind::Variable { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                         | ExprKind::FieldAccess { .. },
                 ) {
                     return Err(ctx.error(
@@ -591,7 +638,7 @@ impl Expr {
                 parse_type_declaration(ctx, tokens, ident)?
             }
 
-            // array access
+            // array or tuple access
             Some(Token {
                 kind: TokenKind::LeftBracket,
                 ..
@@ -603,7 +650,7 @@ impl Expr {
                     self.kind,
                     ExprKind::Variable { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                 ) {
                     Err(Error::new(
                         "parse_rhs - left bracket",
@@ -623,8 +670,8 @@ impl Expr {
 
                 Expr::new(
                     ctx,
-                    ExprKind::ArrayAccess {
-                        array: Box::new(self),
+                    ExprKind::ArrayOrTupleAccess {
+                        container: Box::new(self),
                         idx: Box::new(idx),
                     },
                     span,
@@ -677,7 +724,7 @@ impl Expr {
                     &self.kind,
                     ExprKind::FieldAccess { .. }
                         | ExprKind::Variable { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                 ) {
                     let span = self.span.merge_with(period.span);
                     return Err(ctx.error(ErrorKind::InvalidFieldAccessExpression, span));

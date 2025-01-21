@@ -1,3 +1,4 @@
+use clap::error;
 use miette::Diagnostic;
 use thiserror::Error;
 
@@ -44,6 +45,8 @@ pub enum ErrorKind {
     AssignmentToImmutableVariable,
     #[error("the {0} of assert_eq must be of type Field or BigInt. It was of type {1}")]
     AssertTypeMismatch(&'static str, TyKind),
+    #[error("the types in assert_eq don't match: expected {0} but got {1}")]
+    AssertEqTypeMismatch(TyKind, TyKind),
     #[error(
         "the dependency `{0}` does not appear to be listed in your manifest file `Noname.toml`"
     )]
@@ -265,6 +268,9 @@ pub enum ErrorKind {
     #[error("array accessed at index {0} is out of bounds (max allowed index is {1})")]
     ArrayIndexOutOfBounds(usize, usize),
 
+    #[error("tuple accessed at index {0} is out of bounds (max allowed index is {1})")]
+    TupleIndexOutofBounds(usize, usize),
+
     #[error(
         "one-letter variables or types are not allowed. Best practice is to use descriptive names"
     )]
@@ -324,8 +330,8 @@ pub enum ErrorKind {
     #[error("field access can only be applied on custom structs")]
     FieldAccessOnNonCustomStruct,
 
-    #[error("array access can only be performed on arrays")]
-    ArrayAccessOnNonArray,
+    #[error("array like access can only be performed on arrays or tuples")]
+    AccessOnNonCollection,
 
     #[error("struct `{0}` does not exist (are you sure it is defined?)")]
     UndefinedStruct(String),
@@ -368,4 +374,7 @@ pub enum ErrorKind {
 
     #[error("lhs `{0}` is less than rhs `{1}`")]
     NegativeLhsLessThanRhs(String, String),
+
+    #[error("Not enough variables provided to fill placeholders in the formatted string")]
+    InsufficientVariables,
 }

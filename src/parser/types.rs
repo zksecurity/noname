@@ -188,6 +188,7 @@ pub enum Symbolic {
     /// Generic parameter
     Generic(Ident),
     Add(Box<Symbolic>, Box<Symbolic>),
+    Sub(Box<Symbolic>, Box<Symbolic>),
     Mul(Box<Symbolic>, Box<Symbolic>),
 }
 
@@ -198,6 +199,7 @@ impl Display for Symbolic {
             Symbolic::Constant(ident) => write!(f, "{}", ident.value),
             Symbolic::Generic(ident) => write!(f, "{}", ident.value),
             Symbolic::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
+            Symbolic::Sub(lhs, rhs) => write!(f, "{} - {}", lhs, rhs),
             Symbolic::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
         }
     }
@@ -219,7 +221,7 @@ impl Symbolic {
             Symbolic::Generic(ident) => {
                 generics.insert(ident.value.clone());
             }
-            Symbolic::Add(lhs, rhs) | Symbolic::Mul(lhs, rhs) => {
+            Symbolic::Add(lhs, rhs) | Symbolic::Mul(lhs, rhs) | Symbolic::Sub(lhs, rhs) => {
                 generics.extend(lhs.extract_generics());
                 generics.extend(rhs.extract_generics());
             }
@@ -251,6 +253,7 @@ impl Symbolic {
                 // no protected flags are needed, as this is based on expression nodes which already ordered the operations
                 match op {
                     Op2::Addition => Ok(Symbolic::Add(Box::new(lhs), Box::new(rhs?))),
+                    Op2::Subtraction => Ok(Symbolic::Sub(Box::new(lhs), Box::new(rhs?))),
                     Op2::Multiplication => Ok(Symbolic::Mul(Box::new(lhs), Box::new(rhs?))),
                     _ => Err(Error::new(
                         "mast",
@@ -281,7 +284,9 @@ pub enum TyKind {
 
     /// A boolean (`true` or `false`).
     Bool,
-    // Tuple(Vec<TyKind>),
+
+    /// A tuple is a data structure which contains many types
+    Tuple(Vec<TyKind>),
     // Bool,
     // U8,
     // U16,
@@ -291,6 +296,9 @@ pub enum TyKind {
     /// This is an intermediate type.
     /// After monomorphized, it will be converted to `Array`.
     GenericSizedArray(Box<TyKind>, Symbolic),
+
+    /// A string  type current purpose it to pass around for logging
+    String(String),
 }
 
 impl TyKind {
@@ -311,6 +319,7 @@ impl TyKind {
     ///   - If `no_generic_allowed` is `true`, the function returns `false`.
     ///   - If `no_generic_allowed` is `false`, the function compares the element types.
     /// - For `Custom` types, it compares the `module` and `name` fields for equality.
+    /// - For tuples, it matches type of each element i.e `self[i] == expected[i]` for every i
     /// - For other types, it uses a basic equality check.
     pub fn match_expected(&self, expected: &TyKind, no_generic_allowed: bool) -> bool {
         match (self, expected) {
@@ -334,7 +343,21 @@ impl TyKind {
                     name: expected_name,
                 },
             ) => module == expected_module && name == expected_name,
+            (TyKind::String { .. }, TyKind::String { .. }) => true,
             (x, y) if x == y => true,
+            (TyKind::Tuple(lhs), TyKind::Tuple(rhs)) => {
+                // if length does not match then they are of different type
+                if lhs.len() == rhs.len() {
+                    let match_items = lhs
+                        .iter()
+                        .zip(rhs)
+                        .filter(|&(l, r)| l.match_expected(r, no_generic_allowed))
+                        .count();
+                    lhs.len() == match_items
+                } else {
+                    false
+                }
+            }
             _ => false,
         }
     }
@@ -355,6 +378,13 @@ impl TyKind {
             TyKind::GenericSizedArray(ty, sym) => {
                 generics.extend(ty.extract_generics());
                 generics.extend(sym.extract_generics());
+            }
+            TyKind::String { .. } => (),
+            // for the time when (([Field;N]))
+            TyKind::Tuple(typs) => {
+                for ty in typs {
+                    generics.extend(ty.extract_generics());
+                }
             }
         }
 
@@ -395,6 +425,18 @@ impl Display for TyKind {
             TyKind::Array(ty, size) => write!(f, "[{}; {}]", ty, size),
             TyKind::Bool => write!(f, "Bool"),
             TyKind::GenericSizedArray(ty, size) => write!(f, "[{}; {}]", ty, size),
+            TyKind::String(s) => write!(f, "String({})", s),
+            TyKind::Tuple(types) => {
+                write!(
+                    f,
+                    "({})",
+                    types
+                        .iter()
+                        .map(|ty| ty.to_string())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
+            }
         }
     }
 }
@@ -499,6 +541,34 @@ impl Ty {
                 }
             }
 
+            // tuple type return
+            TokenKind::LeftParen => {
+                let mut typs = vec![];
+                loop {
+                    // parse the type
+                    let ty = Ty::parse(ctx, tokens)?;
+                    typs.push(ty.kind);
+
+                    // if next token is RightParen then return the type
+                    let token = tokens.peek();
+                    match token {
+                        Some(token) => match token.kind {
+                            TokenKind::RightParen => {
+                                tokens.bump(ctx);
+                                return Ok(Ty {
+                                    kind: TyKind::Tuple(typs),
+                                    span: token.span,
+                                });
+                            }
+                            // if there is a comma just bump the tokens so we are on the type
+                            TokenKind::Comma => _ = tokens.bump(ctx),
+                            _ => return Err(ctx.error(ErrorKind::InvalidEndOfLine, token.span)),
+                        },
+                        _ => (),
+                    }
+                }
+            }
+
             // unrecognized
             _ => Err(ctx.error(ErrorKind::InvalidType, token.span)),
         }
@@ -545,6 +615,15 @@ impl FnSig {
 
                     for name in extracted {
                         generics.add(name);
+                    }
+                }
+                // extracts generics from interior of tuple
+                TyKind::Tuple(typs) => {
+                    for ty in typs {
+                        let extracted = ty.extract_generics();
+                        for name in extracted {
+                            generics.add(name);
+                        }
                     }
                 }
                 _ => (),
@@ -602,6 +681,7 @@ impl FnSig {
     /// Either:
     /// - `const NN: Field` or `[[Field; NN]; MM]`
     /// - `[Field; cst]`, where cst is a constant variable. We also monomorphize generic array with a constant var as its size.
+    /// - `([Field; cst])` when tuple type returns a generic
     pub fn require_monomorphization(&self) -> bool {
         let has_arg_cst = self
             .arguments
@@ -626,6 +706,7 @@ impl FnSig {
                 self.has_constant(ty)
             }
             TyKind::Array(ty, _) => self.has_constant(ty),
+            TyKind::Tuple(typs) => typs.iter().any(|ty| self.has_constant(ty)),
             _ => false,
         }
     }
@@ -904,6 +985,15 @@ impl FnArg {
 
                 for name in extracted {
                     generics.insert(name);
+                }
+            }
+            // extract generics for inner type
+            TyKind::Tuple(typs) => {
+                for ty in typs {
+                    let extracted = self.typ.kind.extract_generics();
+                    for name in extracted {
+                        generics.insert(name);
+                    }
                 }
             }
             _ => (),

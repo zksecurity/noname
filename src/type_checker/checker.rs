@@ -281,16 +281,16 @@ impl<B: Backend> TypeChecker<B> {
                         name.value.clone()
                     }
 
-                    // `array[idx] = <rhs>`
-                    ExprKind::ArrayAccess { array, idx } => {
-                        // get variable behind array
-                        let array_node = self
-                            .compute_type(array, typed_fn_env)?
-                            .expect("type-checker bug: array access on an empty var");
+                    // `array[idx] = <rhs>` or `tuple[idx] = rhs`
+                    ExprKind::ArrayOrTupleAccess { container, idx } => {
+                        // get variable behind container
+                        let cotainer_node = self
+                            .compute_type(container, typed_fn_env)?
+                            .expect("type-checker bug: array or tuple access on an empty var");
 
-                        array_node
+                        cotainer_node
                             .var_name
-                            .expect("anonymous array access cannot be mutated")
+                            .expect("anonymous array or tuple access cannot be mutated")
                     }
 
                     // `struct.field = <rhs>`
@@ -427,6 +427,8 @@ impl<B: Backend> TypeChecker<B> {
 
             ExprKind::Bool(_) => Some(ExprTyInfo::new_anon(TyKind::Bool)),
 
+            ExprKind::StringLiteral(s) => Some(ExprTyInfo::new_anon(TyKind::String(s.clone()))),
+
             // mod::path.of.var
             ExprKind::Variable { module, name } => {
                 let qualified = FullyQualified::new(module, &name.value);
@@ -462,13 +464,16 @@ impl<B: Backend> TypeChecker<B> {
                 }
             }
 
-            ExprKind::ArrayAccess { array, idx } => {
+            ExprKind::ArrayOrTupleAccess { container, idx } => {
                 // get type of lhs
-                let typ = self.compute_type(array, typed_fn_env)?.unwrap();
+                let typ = self.compute_type(container, typed_fn_env)?.unwrap();
 
-                // check that it is an array
-                if !matches!(typ.typ, TyKind::Array(..) | TyKind::GenericSizedArray(..)) {
-                    Err(self.error(ErrorKind::ArrayAccessOnNonArray, expr.span))?
+                // check that it is an array or tuple
+                if !matches!(
+                    typ.typ,
+                    TyKind::Array(..) | TyKind::GenericSizedArray(..) | TyKind::Tuple(..)
+                ) {
+                    Err(self.error(ErrorKind::AccessOnNonCollection, expr.span))?
                 }
 
                 // check that expression is a bigint
@@ -482,6 +487,19 @@ impl<B: Backend> TypeChecker<B> {
                 let el_typ = match typ.typ {
                     TyKind::Array(typkind, _) => *typkind,
                     TyKind::GenericSizedArray(typkind, _) => *typkind,
+                    TyKind::Tuple(typs) => match &idx.kind {
+                        ExprKind::BigUInt(index) => {
+                            let idx = index.to_usize().unwrap();
+                            if idx >= typs.len() {
+                                return Err(self.error(
+                                    ErrorKind::TupleIndexOutofBounds(idx, typs.len()),
+                                    expr.span,
+                                ));
+                            }
+                            typs[idx].clone()
+                        }
+                        _ => return Err(self.error(ErrorKind::ExpectedConstant, expr.span)),
+                    },
                     _ => Err(self.error(ErrorKind::UnexpectedError("not an array"), expr.span))?,
                 };
 
@@ -516,6 +534,20 @@ impl<B: Backend> TypeChecker<B> {
                 let res = ExprTyInfo::new_anon(TyKind::Array(Box::new(tykind), len));
                 Some(res)
             }
+            ExprKind::TupleDeclaration(items) => {
+                // restricting tuple len as array len
+                let _: u32 = items.len().try_into().expect("tuple too large");
+                let typs: Vec<TyKind> = items
+                    .iter()
+                    .map(|item| {
+                        self.compute_type(item, typed_fn_env)
+                            .unwrap()
+                            .expect("expected some val")
+                            .typ
+                    })
+                    .collect();
+                Some(ExprTyInfo::new_anon(TyKind::Tuple(typs)))
+            }
 
             ExprKind::IfElse { cond, then_, else_ } => {
                 // cond can only be a boolean
@@ -534,7 +566,7 @@ impl<B: Backend> TypeChecker<B> {
                     &then_.kind,
                     ExprKind::Variable { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                 ) {
                     return Err(self.error(ErrorKind::IfElseInvalidIfBranch(), then_.span));
                 }
@@ -543,7 +575,7 @@ impl<B: Backend> TypeChecker<B> {
                     &else_.kind,
                     ExprKind::Variable { .. }
                         | ExprKind::FieldAccess { .. }
-                        | ExprKind::ArrayAccess { .. }
+                        | ExprKind::ArrayOrTupleAccess { .. }
                 ) {
                     return Err(self.error(ErrorKind::IfElseInvalidElseBranch(), else_.span));
                 }
@@ -872,10 +904,12 @@ impl<B: Backend> TypeChecker<B> {
 
         // check argument length
         if expected.len() != observed.len() {
-            return Err(self.error(
-                ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
-                span,
-            ));
+            if !ignore_arg_types {
+                return Err(self.error(
+                    ErrorKind::MismatchFunctionArguments(observed.len(), expected.len()),
+                    span,
+                ));
+            }
         }
 
         // skip argument type checking if ignore_arg_types is true
