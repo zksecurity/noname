@@ -71,8 +71,8 @@ impl NameResCtx {
             ExprKind::Variable { module, name: _ } => {
                 self.resolve(module, false)?;
             }
-            ExprKind::ArrayAccess { array, idx } => {
-                self.resolve_expr(array)?;
+            ExprKind::ArrayOrTupleAccess { container, idx } => {
+                self.resolve_expr(container)?;
                 self.resolve_expr(idx)?;
             }
             ExprKind::ArrayDeclaration(items) => {
@@ -99,10 +99,16 @@ impl NameResCtx {
                 }
             }
             ExprKind::Bool(_) => {}
+            ExprKind::StringLiteral(_) => {}
             ExprKind::IfElse { cond, then_, else_ } => {
                 self.resolve_expr(cond)?;
                 self.resolve_expr(then_)?;
                 self.resolve_expr(else_)?;
+            }
+            ExprKind::TupleDeclaration(items) => {
+                for expr in items {
+                    self.resolve_expr(expr)?;
+                }
             }
         };
 

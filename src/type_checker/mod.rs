@@ -147,6 +147,8 @@ impl<B: Backend> TypeChecker<B> {
                 unreachable!("generic arrays should have been resolved")
             }
             TyKind::Bool => 1,
+            TyKind::String(s) => s.len(),
+            TyKind::Tuple(typs) => typs.iter().map(|ty| self.size_of(ty)).sum(),
         }
     }
 
@@ -514,6 +516,7 @@ impl<B: Backend> TypeChecker<B> {
                                 TyKind::Field { constant: false }
                                 | TyKind::Custom { .. }
                                 | TyKind::Array(_, _)
+                                | TyKind::Tuple(_)
                                 | TyKind::Bool => {
                                     typed_fn_env.store_type(
                                         "public_output".to_string(),
@@ -522,6 +525,9 @@ impl<B: Backend> TypeChecker<B> {
                                 }
                                 TyKind::Field { constant: true } => unreachable!(),
                                 TyKind::GenericSizedArray(_, _) => unreachable!(),
+                                TyKind::String(_) => {
+                                    todo!("String Type for circuits is not implemented")
+                                }
                             }
                         }
                     }

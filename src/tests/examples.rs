@@ -842,6 +842,25 @@ fn test_generic_array_nested(#[case] backend: BackendKind) -> miette::Result<()>
 #[rstest]
 #[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
 #[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
+fn test_generic_assert_eq(#[case] backend: BackendKind) -> miette::Result<()> {
+    let public_inputs = r#"{"public_arr": ["1", "2"], "public_input": "3"}"#;
+    let private_inputs = r#"{}"#;
+
+    test_file(
+        "generic_assert_eq",
+        public_inputs,
+        private_inputs,
+        vec![],
+        backend,
+        DEFAULT_OPTIONS,
+    )?;
+
+    Ok(())
+}
+
+#[rstest]
+#[case::kimchi_vesta(BackendKind::KimchiVesta(KimchiVesta::new(false)))]
+#[case::r1cs(BackendKind::R1csBls12_381(R1CS::new()))]
 fn test_generic_fn_multi_init(#[case] backend: BackendKind) -> miette::Result<()> {
     let public_inputs = r#"{"xx":"1"}"#;
     let private_inputs = r#"{}"#;

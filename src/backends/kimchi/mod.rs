@@ -22,7 +22,7 @@ use crate::{
     backends::kimchi::asm::parse_coeffs,
     circuit_writer::{
         writer::{AnnotatedCell, Cell, PendingGate},
-        DebugInfo, Gate, GateKind, Wiring,
+        DebugInfo, Gate, GateKind, VarInfo, Wiring,
     },
     compiler::Sources,
     constants::Span,
@@ -128,6 +128,9 @@ pub struct KimchiVesta {
     /// Indexes used by the private inputs
     /// (this is useful to check that they appear in the circuit)
     pub(crate) private_input_cell_vars: Vec<KimchiCellVar>,
+
+    /// Log information
+    pub(crate) log_info: Vec<(Span, VarInfo<VestaField, KimchiCellVar>)>,
 }
 
 impl Witness {
@@ -174,6 +177,7 @@ impl KimchiVesta {
             finalized: false,
             public_input_size: 0,
             private_input_cell_vars: vec![],
+            log_info: vec![],
         }
     }
 
@@ -428,11 +432,11 @@ impl Backend for KimchiVesta {
         self.compute_val(env, &val.0, var.index)
     }
 
-    fn generate_witness<B: Backend>(
+    fn generate_witness(
         &self,
         witness_env: &mut WitnessEnv<VestaField>,
         sources: &Sources,
-        _typed: &Mast<B>,
+        typed: &Mast<Self>,
     ) -> Result<GeneratedWitness> {
         if !self.finalized {
             unreachable!("the circuit must be finalized before generating a witness");
@@ -481,6 +485,7 @@ impl Backend for KimchiVesta {
             }
             public_outputs.push(val);
         }
+        self.print_log(witness_env, &self.log_info, sources, typed)?;
 
         // sanity check the witness
         for (row, (gate, witness_row, debug_info)) in
@@ -809,9 +814,8 @@ impl Backend for KimchiVesta {
     fn log_var(
         &mut self,
         var: &crate::circuit_writer::VarInfo<Self::Field, Self::Var>,
-        msg: String,
         span: Span,
     ) {
-        println!("todo: implement log_var for kimchi backend");
+        self.log_info.push((span, var.clone()));
     }
 }
