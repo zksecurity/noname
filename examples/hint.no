@@ -25,7 +25,7 @@ hint fn div(lhs: Field, rhs: Field) -> Field {
 }
 
 hint fn ite(lhs: Field, rhs: Field) -> Field {
-    return if lhs != rhs { lhs + 2 } else { rhs * 2 };
+    return if lhs != rhs { lhs } else { rhs };
 }
 
 hint fn exp(const EXP: Field, base: Field) -> Field {
@@ -75,7 +75,7 @@ fn main(pub public_input: Field, private_input: Field) -> Field {
     assert_eq(zz, yy);
 
     let ww = unsafe ite(xx, yy);
-    assert_eq(ww, xx + 2);
+    assert_eq(ww, xx);
 
     let kk = unsafe exp(4, public_input);
     assert_eq(kk, 16);
