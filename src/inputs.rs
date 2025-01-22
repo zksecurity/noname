@@ -151,6 +151,22 @@ impl<B: Backend> CompiledCircuit<B> {
 
                 Ok(res)
             }
+            // parsing for tuple function inputs from json
+            (TyKind::Tuple(types), Value::Array(values)) => {
+                if values.len() != types.len() {
+                    Err(ParsingError::ArraySizeMismatch(
+                        values.len(),
+                        types.len() as usize,
+                    ))?
+                }
+                // making a vec with capacity allows for less number of reallocations
+                let mut res = Vec::with_capacity(values.len());
+                for (ty, val) in types.iter().zip(values) {
+                    let el = self.parse_single_input(val, ty)?;
+                    res.extend(el);
+                }
+                Ok(res)
+            }
             (expected, observed) => {
                 return Err(ParsingError::MismatchJsonArgument(
                     expected.clone(),

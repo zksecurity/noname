@@ -230,6 +230,10 @@ impl FnSig {
                     val.to_u32().expect("array size exceeded u32"),
                 )
             }
+            TyKind::Tuple(typs) => {
+                let typs: Vec<TyKind> = typs.iter().map(|ty| self.resolve_type(ty, ctx)).collect();
+                TyKind::Tuple(typs)
+            }
             _ => typ.clone(),
         }
     }
@@ -250,6 +254,18 @@ impl FnSig {
                         &observed_ty,
                         observed_arg.expr.span,
                     )?;
+                }
+                // if generics in tuple
+                (TyKind::Tuple(sig_arg_typs), TyKind::Tuple(observed_arg_typs)) => {
+                    for (sig_arg_typ, observed_arg_typ) in
+                        sig_arg_typs.iter().zip(observed_arg_typs)
+                    {
+                        self.resolve_generic_array(
+                            &sig_arg_typ,
+                            &observed_arg_typ,
+                            observed_arg.expr.span,
+                        )?;
+                    }
                 }
                 // const NN: Field
                 _ => {
@@ -398,6 +414,7 @@ impl Symbolic {
             }
             Symbolic::Generic(g) => gens.get(&g.value),
             Symbolic::Add(a, b) => a.eval(gens, tast) + b.eval(gens, tast),
+            Symbolic::Sub(a, b) => a.eval(gens, tast) - b.eval(gens, tast),
             Symbolic::Mul(a, b) => a.eval(gens, tast) * b.eval(gens, tast),
         }
     }
@@ -458,6 +475,7 @@ impl<B: Backend> Mast<B> {
             }
             TyKind::Bool => 1,
             TyKind::String(s) => s.len(),
+            TyKind::Tuple(typs) => typs.iter().map(|ty| self.size_of(ty)).sum(),
         }
     }
 }
@@ -809,20 +827,42 @@ fn monomorphize_expr<B: Backend>(
             let ExprMonoInfo { expr: rhs_expr, .. } = rhs_mono;
 
             // fold constants
-            let cst = match (&lhs_expr.kind, &rhs_expr.kind) {
-                (ExprKind::BigUInt(lhs), ExprKind::BigUInt(rhs)) => match op {
-                    Op2::Addition => Some(lhs + rhs),
-                    Op2::Subtraction => Some(lhs - rhs),
-                    Op2::Multiplication => Some(lhs * rhs),
-                    Op2::Division => Some(lhs / rhs),
-                    _ => None,
-                },
+            let cst = match (&lhs_mono.constant, &rhs_mono.constant) {
+                (Some(PropagatedConstant::Single(lhs)), Some(PropagatedConstant::Single(rhs))) => {
+                    match op {
+                        Op2::Addition => Some(lhs + rhs),
+                        Op2::Subtraction => {
+                            if lhs < rhs {
+                                // throw error
+                                return Err(error(
+                                    ErrorKind::NegativeLhsLessThanRhs(
+                                        lhs.to_string(),
+                                        rhs.to_string(),
+                                    ),
+                                    expr.span,
+                                ));
+                            }
+                            Some(lhs - rhs)
+                        }
+                        Op2::Multiplication => Some(lhs * rhs),
+                        Op2::Division => Some(lhs / rhs),
+                        _ => None,
+                    }
+                }
                 _ => None,
             };
 
             match cst {
                 Some(v) => {
-                    let mexpr = expr.to_mast(ctx, &ExprKind::BigUInt(v.clone()));
+                    let mexpr = expr.to_mast(
+                        ctx,
+                        &ExprKind::BinaryOp {
+                            op: op.clone(),
+                            protected: *protected,
+                            lhs: Box::new(lhs_expr),
+                            rhs: Box::new(rhs_expr),
+                        },
+                    );
 
                     ExprMonoInfo::new(mexpr, typ, Some(PropagatedConstant::from(v)))
                 }
@@ -943,18 +983,26 @@ fn monomorphize_expr<B: Backend>(
             res
         }
 
-        ExprKind::ArrayAccess { array, idx } => {
+        ExprKind::ArrayOrTupleAccess { container, idx } => {
             // get type of lhs
-            let array_mono = monomorphize_expr(ctx, array, mono_fn_env)?;
+            let array_mono = monomorphize_expr(ctx, container, mono_fn_env)?;
             let id_mono = monomorphize_expr(ctx, idx, mono_fn_env)?;
 
             // get type of element
             let el_typ = match array_mono.typ {
                 Some(TyKind::Array(typkind, _)) => Some(*typkind),
+                Some(TyKind::Tuple(typs)) => match &idx.kind {
+                    ExprKind::BigUInt(index) => Some(typs[index.to_usize().unwrap()].clone()),
+                    _ => Err(Error::new(
+                        "Non constant container access",
+                        ErrorKind::ExpectedConstant,
+                        expr.span,
+                    ))?,
+                },
                 _ => Err(Error::new(
-                    "Array Access",
+                    "Container Access",
                     ErrorKind::UnexpectedError(
-                        "Attempting to access array when type is not an array",
+                        "Attempting to access container when type is not an container",
                     ),
                     expr.span,
                 ))?,
@@ -962,8 +1010,8 @@ fn monomorphize_expr<B: Backend>(
 
             let mexpr = expr.to_mast(
                 ctx,
-                &ExprKind::ArrayAccess {
-                    array: Box::new(array_mono.expr),
+                &ExprKind::ArrayOrTupleAccess {
+                    container: Box::new(array_mono.expr),
                     idx: Box::new(id_mono.expr),
                 },
             );
@@ -1136,6 +1184,30 @@ fn monomorphize_expr<B: Backend>(
             } else {
                 return Err(error(ErrorKind::InvalidArraySize, expr.span));
             }
+        }
+
+        ExprKind::TupleDeclaration(items) => {
+            // checking the size of the tuple
+            let _: u32 = items.len().try_into().expect("tuple too large");
+
+            let items_mono: Vec<ExprMonoInfo> = items
+                .iter()
+                .map(|item| monomorphize_expr(ctx, item, mono_fn_env).unwrap())
+                .collect();
+
+            let typs: Vec<TyKind> = items_mono
+                .iter()
+                .cloned()
+                .map(|item_mono| item_mono.typ.unwrap())
+                .collect();
+
+            let mexpr = expr.to_mast(
+                ctx,
+                &ExprKind::ArrayDeclaration(items_mono.into_iter().map(|e| e.expr).collect()),
+            );
+
+            let typ = TyKind::Tuple(typs);
+            ExprMonoInfo::new(mexpr, Some(typ), None)
         }
     };
 

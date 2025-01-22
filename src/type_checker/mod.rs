@@ -488,6 +488,7 @@ impl<B: Backend> TypeChecker<B> {
                                 TyKind::Field { constant: false }
                                 | TyKind::Custom { .. }
                                 | TyKind::Array(_, _)
+                                | TyKind::Tuple(_)
                                 | TyKind::Bool => {
                                     typed_fn_env.store_type(
                                         "public_output".to_string(),

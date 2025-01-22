@@ -13,7 +13,11 @@ fn main(pub public_input: Field) -> Field {
     log(arr);
 
     let thing = Thing { xx : public_input , yy: public_input + 1};
-    log("formatted string with a number {} boolean {} arr {} struct {}" , 1234,true, arr , thing);
+
+    log(thing); 
+    
+    let tup = (1 , true , thing);
+    log("formatted string with a number {} boolean {} arr {} tuple {} struct {}" , 1234 , true, arr, tup, thing);
 
     return public_input + 1;
 }
