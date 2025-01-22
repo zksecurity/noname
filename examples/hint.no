@@ -1,6 +1,6 @@
 struct Thing {
-    xx: Field,
-    yy: Field,
+    pub xx: Field,
+    pub yy: Field,
 }
 
 hint fn mul(lhs: Field, rhs: Field) -> Field {

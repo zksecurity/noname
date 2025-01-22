@@ -1,6 +1,6 @@
 struct Thing {
-    xx: Field,
-    yy: Field,
+    pub xx: Field,
+    pub yy: Field,
 }
 
 fn main(pub xx: Field, pub yy: Field) -> [Thing; 2] {

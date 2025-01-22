@@ -3,12 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     constants::Span,
     error::{ErrorKind, Result},
-    lexer::{Token, TokenKind, Tokens},
+    lexer::{Keyword, Token, TokenKind, Tokens},
     syntax::is_type,
 };
 
 use super::{
-    types::{Ident, ModulePath, Ty, TyKind},
+    types::{Attribute, AttributeKind, Ident, ModulePath, Ty, TyKind},
     Error, ParserCtx,
 };
 
@@ -17,7 +17,7 @@ pub struct StructDef {
     //pub attribute: Attribute,
     pub module: ModulePath, // name resolution
     pub name: CustomType,
-    pub fields: Vec<(Ident, Ty)>,
+    pub fields: Vec<(Ident, Ty, Option<Attribute>)>,
     pub span: Span,
 }
 
@@ -55,6 +55,36 @@ impl StructDef {
                 tokens.bump(ctx);
                 break;
             }
+
+            // check for pub keyword
+            // struct Foo { pub a: Field, b: Field }
+            //              ^
+            let attribute = if matches!(
+                tokens.peek(),
+                Some(Token {
+                    kind: TokenKind::Keyword(Keyword::Pub),
+                    ..
+                })
+            ) {
+                let token = tokens.bump(ctx).unwrap();
+                // next token shouldn't be :
+                if tokens.peek().unwrap().kind == TokenKind::Colon {
+                    return Err(ctx.error(
+                        ErrorKind::ExpectedTokenNotKeyword(
+                            "pub".to_string(),
+                            TokenKind::Identifier("".to_string()),
+                        ),
+                        token.span,
+                    ));
+                }
+                Some(Attribute {
+                    kind: AttributeKind::Pub,
+                    span: token.span,
+                })
+            } else {
+                None
+            };
+
             // struct Foo { a: Field, b: Field }
             //              ^
             let field_name = Ident::parse(ctx, tokens)?;
@@ -67,7 +97,7 @@ impl StructDef {
             //                 ^^^^^
             let field_ty = Ty::parse(ctx, tokens)?;
             span = span.merge_with(field_ty.span);
-            fields.push((field_name, field_ty));
+            fields.push((field_name, field_ty, attribute));
 
             // struct Foo { a: Field, b: Field }
             //                      ^          ^

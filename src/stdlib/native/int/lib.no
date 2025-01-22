@@ -292,3 +292,21 @@ fn Uint64.mod(self, rhs: Uint64) -> Uint64 {
     let res = self.divmod(rhs);
     return res[1];
 }
+
+// implement to field
+fn Uint8.to_field(self) -> Field {
+    return self.inner;
+}
+
+fn Uint16.to_field(self) -> Field {
+    return self.inner;
+}
+
+fn Uint32.to_field(self) -> Field {
+    return self.inner;
+}
+
+fn Uint64.to_field(self) -> Field {
+    return self.inner;
+}
+    

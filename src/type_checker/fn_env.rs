@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
-    parser::types::TyKind,
+    parser::types::{FuncOrMethod, TyKind},
 };
 
 /// Some type information on local variables that we want to track in the [TypedFnEnv] environment.
@@ -39,7 +39,7 @@ impl TypeInfo {
 }
 
 /// The environment we use to type check functions.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct TypedFnEnv {
     /// The current nesting level.
     /// Starting at 0 (top level), and increasing as we go into a block.
@@ -55,12 +55,21 @@ pub struct TypedFnEnv {
 
     /// Determines if forloop variables are allowed to be accessed.
     forbid_forloop_scope: bool,
+
+    /// The kind of function we're currently type checking
+    current_fn_kind: FuncOrMethod,
 }
 
 impl TypedFnEnv {
-    /// Creates a new TypeEnv
-    pub fn new() -> Self {
-        Self::default()
+    /// Creates a new TypeEnv with the given function kind
+    pub fn new(fn_kind: &FuncOrMethod) -> Self {
+        Self {
+            current_scope: 0,
+            vars: HashMap::new(),
+            forloop_scopes: Vec::new(),
+            forbid_forloop_scope: false,
+            current_fn_kind: fn_kind.clone(),
+        }
     }
 
     /// Enters a scoped block.
@@ -203,5 +212,9 @@ impl TypedFnEnv {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn current_fn_kind(&self) -> &FuncOrMethod {
+        &self.current_fn_kind
     }
 }
