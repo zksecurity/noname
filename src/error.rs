@@ -374,5 +374,4 @@ pub enum ErrorKind {
 
     #[error("Not enough variables provided to fill placeholders in the formatted string")]
     InsufficientVariables,
-
 }

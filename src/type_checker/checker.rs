@@ -12,7 +12,7 @@ use crate::{
     parser::{
         types::{
             is_numeric, Attribute, AttributeKind, FnSig, ForLoopArgument, FuncOrMethod,
-            FunctionDef, Stmt, StmtKind, Symbolic, Ty, TyKind, ModulePath,
+            FunctionDef, ModulePath, Stmt, StmtKind, Symbolic, Ty, TyKind,
         },
         CustomType, Expr, ExprKind, Op2,
     },

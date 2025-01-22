@@ -319,7 +319,7 @@ pub fn log_custom_type<B: Backend>(
 
     let mut remaining = var_info_var.to_vec();
 
-    for (field_name, field_typ) in &struct_info.fields {
+    for (field_name, field_typ, _) in &struct_info.fields {
         let len = typed.size_of(field_typ);
         match field_typ {
             TyKind::Field { .. } => match &remaining[0] {

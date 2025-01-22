@@ -67,6 +67,16 @@ impl StructDef {
                 })
             ) {
                 let token = tokens.bump(ctx).unwrap();
+                // next token shouldn't be :
+                if tokens.peek().unwrap().kind == TokenKind::Colon {
+                    return Err(ctx.error(
+                        ErrorKind::ExpectedTokenNotKeyword(
+                            "pub".to_string(),
+                            TokenKind::Identifier("".to_string()),
+                        ),
+                        token.span,
+                    ));
+                }
                 Some(Attribute {
                     kind: AttributeKind::Pub,
                     span: token.span,

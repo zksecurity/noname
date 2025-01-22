@@ -114,7 +114,7 @@ fn assert_eq_values<B: Backend>(
 
             // compare each field recursively
             let mut offset = 0;
-            for (_, field_type) in &struct_info.fields {
+            for (_, field_type, _) in &struct_info.fields {
                 let field_size = compiler.size_of(field_type);
                 let mut field_comparisons = assert_eq_values(
                     compiler,
@@ -141,6 +141,7 @@ fn assert_eq_values<B: Backend>(
         TyKind::GenericSizedArray(_, _) => {
             unreachable!("GenericSizedArray should be monomorphized")
         }
+        TyKind::String(_) => unreachable!("String are not supported for assert_eq yet"),
     }
 
     comparisons
