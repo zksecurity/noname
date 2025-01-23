@@ -1,6 +1,6 @@
 struct Thing {
-    xx: Field,
-    yy: Field,
+    pub xx: Field,
+    pub yy: Field,
 }
 
 fn init_arr(const LEN: Field) -> [Field; LEN] {

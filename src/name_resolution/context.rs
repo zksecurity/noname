@@ -156,7 +156,7 @@ impl NameResCtx {
         self.resolve(module, true)?;
 
         // we resolve the fully-qualified types of the fields
-        for (_field_name, field_typ) in fields {
+        for (_field_name, field_typ, _attribute) in fields {
             self.resolve_typ_kind(&mut field_typ.kind)?;
         }
 

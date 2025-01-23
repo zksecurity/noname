@@ -11,8 +11,8 @@ use crate::{
     imports::FnKind,
     parser::{
         types::{
-            is_numeric, FnSig, ForLoopArgument, FunctionDef, ModulePath, Stmt, StmtKind, Symbolic,
-            Ty, TyKind,
+            is_numeric, Attribute, AttributeKind, FnSig, ForLoopArgument, FuncOrMethod,
+            FunctionDef, ModulePath, Stmt, StmtKind, Symbolic, Ty, TyKind,
         },
         CustomType, Expr, ExprKind, Op2,
     },
@@ -58,7 +58,7 @@ impl<B: Backend> FnInfo<B> {
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct StructInfo {
     pub name: String,
-    pub fields: Vec<(String, TyKind)>,
+    pub fields: Vec<(String, TyKind, Option<Attribute>)>,
     pub methods: HashMap<String, FunctionDef>,
 }
 
@@ -119,14 +119,36 @@ impl<B: Backend> TypeChecker<B> {
                     .expect("this struct is not defined, or you're trying to access a field of a struct defined in a third-party library (TODO: better error)");
 
                 // find field type
-                let res = struct_info
+                if let Some((_, field_typ, attribute)) = struct_info
                     .fields
                     .iter()
-                    .find(|(name, _)| name == &rhs.value)
-                    .map(|(_, typ)| typ.clone());
+                    .find(|(field_name, _, _)| field_name == &rhs.value)
+                {
+                    // check for the pub attribute
+                    let is_public = matches!(
+                        attribute,
+                        &Some(Attribute {
+                            kind: AttributeKind::Pub,
+                            ..
+                        })
+                    );
 
-                if let Some(res) = res {
-                    Some(ExprTyInfo::new(lhs_node.var_name, res))
+                    // check if we're inside a method of the same struct
+                    let in_method = matches!(
+                        typed_fn_env.current_fn_kind(),
+                        FuncOrMethod::Method(method_struct) if method_struct.name == struct_name
+                    );
+
+                    if is_public || in_method {
+                        // allow access
+                        Some(ExprTyInfo::new(lhs_node.var_name, field_typ.clone()))
+                    } else {
+                        // block access
+                        Err(self.error(
+                            ErrorKind::PrivateFieldAccess(struct_name.clone(), rhs.value.clone()),
+                            expr.span,
+                        ))?
+                    }
                 } else {
                     return Err(self.error(
                         ErrorKind::UndefinedField(struct_info.name.clone(), rhs.value.clone()),
@@ -272,6 +294,10 @@ impl<B: Backend> TypeChecker<B> {
                 let lhs_node = self
                     .compute_type(lhs, typed_fn_env)?
                     .expect("type-checker bug: lhs access on an empty var");
+
+                if let Some(var_name) = &lhs_node.var_name {
+                    typed_fn_env.invalidate_cst_var(var_name);
+                }
 
                 // todo: check and update the const field type for other cases
                 // lhs can be a local variable or a path to an array

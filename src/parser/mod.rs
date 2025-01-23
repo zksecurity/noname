@@ -247,6 +247,8 @@ mod tests {
         let parsed = StructDef::parse(ctx, tokens);
         assert!(parsed.is_err());
         assert!(parsed.as_ref().err().is_some());
+
+        println!("{:?}", parsed);
         match &parsed.as_ref().err().unwrap().kind {
             ErrorKind::ExpectedTokenNotKeyword(keyword, _) => {
                 assert_eq!(keyword, "pub");

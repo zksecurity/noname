@@ -31,7 +31,7 @@ use mimoo::liblib;
 
 // test a library's type that links to its own type
 struct Inner {
-    inner: Field,
+    pub inner: Field,
 }
 
 struct Lib {

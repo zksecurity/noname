@@ -548,8 +548,8 @@ fn monomorphize_expr<B: Backend>(
             let typ = struct_info
                 .fields
                 .iter()
-                .find(|(name, _)| name == &rhs.value)
-                .map(|(_, typ)| typ.clone());
+                .find(|(name, _, _)| name == &rhs.value)
+                .map(|(_, typ, _)| typ.clone());
 
             let mexpr = expr.to_mast(
                 ctx,
@@ -1067,7 +1067,17 @@ fn monomorphize_expr<B: Backend>(
             let else_mono = monomorphize_expr(ctx, else_, mono_fn_env)?;
 
             // make sure that the type of then_ and else_ match
-            if then_mono.typ != else_mono.typ {
+            let is_match = match (&then_mono.typ, &else_mono.typ) {
+                // generics not allowed as they should have been monomorphized
+                (Some(then_typ), Some(else_typ)) => then_typ.match_expected(else_typ, true),
+                _ => Err(Error::new(
+                    "If-Else Monomorphization",
+                    ErrorKind::UnexpectedError("Could not resolve type for the `if-else` branch"),
+                    expr.span,
+                ))?,
+            };
+
+            if !is_match {
                 Err(Error::new(
                     "If-Else Monomorphization",
                     ErrorKind::UnexpectedError(

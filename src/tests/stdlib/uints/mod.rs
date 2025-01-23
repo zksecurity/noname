@@ -14,7 +14,7 @@ fn main(pub lhs: Field, rhs: Field) -> Field {
 
     let res = lhs_u.{opr}(rhs_u);
 
-    return res.inner;
+    return res.to_field();
 }
 "#;
 

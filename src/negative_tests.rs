@@ -473,6 +473,29 @@ fn test_generic_custom_type_mismatched() {
 }
 
 #[test]
+fn test_generic_mutated_cst_var_in_loop() {
+    let code = r#"
+        fn gen(const LEN: Field) -> [Field; LEN] {
+            return [0; LEN];
+        }
+        
+        fn main(pub xx: Field) {
+            let mut loopvar = 1;
+            for ii in 0..3 {
+                loopvar = loopvar + 1;
+            }
+            let arr = gen(loopvar);
+        }
+        "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::ArgumentTypeMismatch(..)
+    ));
+}
+
+#[test]
 fn test_array_bounds() {
     let code = r#"
         fn gen(const LEN: Field) -> [Field; LEN] {
@@ -700,7 +723,7 @@ fn test_nonhint_call_with_unsafe() {
 fn test_no_cst_struct_field_prop() {
     let code = r#"
     struct Thing {
-        val: Field,
+        pub val: Field,
     }
 
     fn gen(const LEN: Field) -> [Field; LEN] {
@@ -725,7 +748,7 @@ fn test_no_cst_struct_field_prop() {
 fn test_mut_cst_struct_field_prop() {
     let code = r#"
     struct Thing {
-        val: Field,
+        pub val: Field,
     }
 
     fn gen(const LEN: Field) -> [Field; LEN] {
@@ -745,5 +768,26 @@ fn test_mut_cst_struct_field_prop() {
     assert!(matches!(
         res.unwrap_err().kind,
         ErrorKind::ArgumentTypeMismatch(..)
+    ));
+}
+
+#[test]
+fn test_private_field_access() {
+    let code = r#"
+    struct Room {
+        pub beds: Field, // public
+            size: Field // private
+    }
+    
+    fn main(pub beds: Field) {
+        let room = Room {beds: beds, size: 10};
+        room.size = 5; // not allowed
+    }
+    "#;
+
+    let res = tast_pass(code).0;
+    assert!(matches!(
+        res.unwrap_err().kind,
+        ErrorKind::PrivateFieldAccess(..)
     ));
 }

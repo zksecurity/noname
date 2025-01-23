@@ -1,5 +1,5 @@
 struct Thing {
-    xx: Field,
+    pub xx: Field,
 }
 
 fn try_to_mutate(thing: Thing) {
