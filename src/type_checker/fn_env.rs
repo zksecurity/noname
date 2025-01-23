@@ -58,7 +58,7 @@ pub struct TypedFnEnv {
 
     /// Indicates if the function is a hint function.
     in_hint_fn: bool,
-    
+
     /// The kind of function we're currently type checking
     current_fn_kind: FuncOrMethod,
 }
