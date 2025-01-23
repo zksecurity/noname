@@ -255,7 +255,9 @@
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
 <a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     backends::Backend,
     constants::Span,
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
@@ -504,6 +506,8 @@
         <span class="kw">let </span>parsed = StructDef::parse(ctx, tokens);
         <span class="macro">assert!</span>(parsed.is_err());
         <span class="macro">assert!</span>(parsed.as_ref().err().is_some());
+
+        <span class="macro">println!</span>(<span class="string">"{:?}"</span>, parsed);
         <span class="kw">match </span><span class="kw-2">&amp;</span>parsed.as_ref().err().unwrap().kind {
             ErrorKind::ExpectedTokenNotKeyword(keyword, <span class="kw">_</span>) =&gt; {
                 <span class="macro">assert_eq!</span>(keyword, <span class="string">"pub"</span>);

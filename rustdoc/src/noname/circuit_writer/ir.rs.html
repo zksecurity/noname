@@ -1862,7 +1862,7 @@
                 <span class="comment">// find range of field
                 </span><span class="kw">let </span><span class="kw-2">mut </span>start = <span class="number">0</span>;
                 <span class="kw">let </span><span class="kw-2">mut </span>len = <span class="number">0</span>;
-                <span class="kw">for </span>(field, field_typ) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
+                <span class="kw">for </span>(field, field_typ, _attribute) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
                     <span class="kw">if </span>field == <span class="kw-2">&amp;</span>rhs.value {
                         len = <span class="self">self</span>.size_of(field_typ);
                         <span class="kw">break</span>;

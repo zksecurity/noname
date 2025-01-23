@@ -345,7 +345,7 @@
 
                 <span class="comment">// parse each field
                 </span><span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[];
-                <span class="kw">for </span>(field_name, field_ty) <span class="kw">in </span>fields {
+                <span class="kw">for </span>(field_name, field_ty, _attribute) <span class="kw">in </span>fields {
                     <span class="kw">let </span>value = map.remove(field_name).ok_or_else(|| {
                         ParsingError::MissingStructFieldIdent(field_name.to_string())
                     })<span class="question-mark">?</span>;

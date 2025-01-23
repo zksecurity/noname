@@ -941,7 +941,29 @@
 <a href="#940" id="940">940</a>
 <a href="#941" id="941">941</a>
 <a href="#942" id="942">942</a>
-<a href="#943" id="943">943</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>num_traits::ToPrimitive;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -954,8 +976,8 @@
     imports::FnKind,
     parser::{
         types::{
-            is_numeric, FnSig, ForLoopArgument, FunctionDef, ModulePath, Stmt, StmtKind, Symbolic,
-            Ty, TyKind,
+            is_numeric, Attribute, AttributeKind, FnSig, ForLoopArgument, FuncOrMethod,
+            FunctionDef, ModulePath, Stmt, StmtKind, Symbolic, Ty, TyKind,
         },
         CustomType, Expr, ExprKind, Op2,
     },
@@ -1001,7 +1023,7 @@
 </span><span class="attr">#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 </span><span class="kw">pub struct </span>StructInfo {
     <span class="kw">pub </span>name: String,
-    <span class="kw">pub </span>fields: Vec&lt;(String, TyKind)&gt;,
+    <span class="kw">pub </span>fields: Vec&lt;(String, TyKind, <span class="prelude-ty">Option</span>&lt;Attribute&gt;)&gt;,
     <span class="kw">pub </span>methods: HashMap&lt;String, FunctionDef&gt;,
 }
 
@@ -1062,14 +1084,36 @@
                     .expect(<span class="string">"this struct is not defined, or you're trying to access a field of a struct defined in a third-party library (TODO: better error)"</span>);
 
                 <span class="comment">// find field type
-                </span><span class="kw">let </span>res = struct_info
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, field_typ, attribute)) = struct_info
                     .fields
                     .iter()
-                    .find(|(name, <span class="kw">_</span>)| name == <span class="kw-2">&amp;</span>rhs.value)
-                    .map(|(<span class="kw">_</span>, typ)| typ.clone());
+                    .find(|(field_name, <span class="kw">_</span>, <span class="kw">_</span>)| field_name == <span class="kw-2">&amp;</span>rhs.value)
+                {
+                    <span class="comment">// check for the pub attribute
+                    </span><span class="kw">let </span>is_public = <span class="macro">matches!</span>(
+                        attribute,
+                        <span class="kw-2">&amp;</span><span class="prelude-val">Some</span>(Attribute {
+                            kind: AttributeKind::Pub,
+                            ..
+                        })
+                    );
 
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(res) = res {
-                    <span class="prelude-val">Some</span>(ExprTyInfo::new(lhs_node.var_name, res))
+                    <span class="comment">// check if we're inside a method of the same struct
+                    </span><span class="kw">let </span>in_method = <span class="macro">matches!</span>(
+                        typed_fn_env.current_fn_kind(),
+                        FuncOrMethod::Method(method_struct) <span class="kw">if </span>method_struct.name == struct_name
+                    );
+
+                    <span class="kw">if </span>is_public || in_method {
+                        <span class="comment">// allow access
+                        </span><span class="prelude-val">Some</span>(ExprTyInfo::new(lhs_node.var_name, field_typ.clone()))
+                    } <span class="kw">else </span>{
+                        <span class="comment">// block access
+                        </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
+                            ErrorKind::PrivateFieldAccess(struct_name.clone(), rhs.value.clone()),
+                            expr.span,
+                        ))<span class="question-mark">?
+                    </span>}
                 } <span class="kw">else </span>{
                     <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="self">self</span>.error(
                         ErrorKind::UndefinedField(struct_info.name.clone(), rhs.value.clone()),

@@ -1957,7 +1957,7 @@
 
                 <span class="kw">let </span><span class="kw-2">mut </span>sum = <span class="number">0</span>;
 
-                <span class="kw">for </span>(<span class="kw">_</span>, t) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
+                <span class="kw">for </span>(<span class="kw">_</span>, t, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span>struct_info.fields {
                     sum += <span class="self">self</span>.size_of(t);
                 }
 
@@ -2061,8 +2061,8 @@
             </span><span class="kw">let </span>typ = struct_info
                 .fields
                 .iter()
-                .find(|(name, <span class="kw">_</span>)| name == <span class="kw-2">&amp;</span>rhs.value)
-                .map(|(<span class="kw">_</span>, typ)| typ.clone());
+                .find(|(name, <span class="kw">_</span>, <span class="kw">_</span>)| name == <span class="kw-2">&amp;</span>rhs.value)
+                .map(|(<span class="kw">_</span>, typ, <span class="kw">_</span>)| typ.clone());
 
             <span class="kw">let </span>mexpr = expr.to_mast(
                 ctx,

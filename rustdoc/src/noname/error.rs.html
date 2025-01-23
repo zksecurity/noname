@@ -378,7 +378,10 @@
 <a href="#377" id="377">377</a>
 <a href="#378" id="378">378</a>
 <a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::error;
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::error;
 <span class="kw">use </span>miette::Diagnostic;
 <span class="kw">use </span>thiserror::Error;
 
@@ -751,6 +754,9 @@
 
     <span class="attr">#[error(<span class="string">"division by zero"</span>)]
     </span>DivisionByZero,
+
+    <span class="attr">#[error(<span class="string">"cannot access private field `{1}` of struct `{0}` from outside its methods."</span>)]
+    </span>PrivateFieldAccess(String, String),
 
     <span class="attr">#[error(<span class="string">"lhs `{0}` is less than rhs `{1}`"</span>)]
     </span>NegativeLhsLessThanRhs(String, String),

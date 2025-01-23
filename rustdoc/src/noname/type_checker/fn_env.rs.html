@@ -205,14 +205,27 @@
 <a href="#204" id="204">204</a>
 <a href="#205" id="205">205</a>
 <a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the context (or environment) that gets created when type checking a function.
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the context (or environment) that gets created when type checking a function.
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
     constants::Span,
     error::{Error, ErrorKind, <span class="prelude-ty">Result</span>},
-    parser::types::TyKind,
+    parser::types::{FuncOrMethod, TyKind},
 };
 
 <span class="doccomment">/// Some type information on local variables that we want to track in the [TypedFnEnv] environment.
@@ -246,7 +259,7 @@
 }
 
 <span class="doccomment">/// The environment we use to type check functions.
-</span><span class="attr">#[derive(Default, Debug, Clone)]
+</span><span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>TypedFnEnv {
     <span class="doccomment">/// The current nesting level.
     /// Starting at 0 (top level), and increasing as we go into a block.
@@ -262,12 +275,21 @@
 
     <span class="doccomment">/// Determines if forloop variables are allowed to be accessed.
     </span>forbid_forloop_scope: bool,
+
+    <span class="doccomment">/// The kind of function we're currently type checking
+    </span>current_fn_kind: FuncOrMethod,
 }
 
 <span class="kw">impl </span>TypedFnEnv {
-    <span class="doccomment">/// Creates a new TypeEnv
-    </span><span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::default()
+    <span class="doccomment">/// Creates a new TypeEnv with the given function kind
+    </span><span class="kw">pub fn </span>new(fn_kind: <span class="kw-2">&amp;</span>FuncOrMethod) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            current_scope: <span class="number">0</span>,
+            vars: HashMap::new(),
+            forloop_scopes: Vec::new(),
+            forbid_forloop_scope: <span class="bool-val">false</span>,
+            current_fn_kind: fn_kind.clone(),
+        }
     }
 
     <span class="doccomment">/// Enters a scoped block.
@@ -410,6 +432,10 @@
         } <span class="kw">else </span>{
             <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
         }
+    }
+
+    <span class="kw">pub fn </span>current_fn_kind(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>FuncOrMethod {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.current_fn_kind
     }
 }
 </code></pre></div></section></main></body></html>

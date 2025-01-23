@@ -368,7 +368,7 @@
         </span><span class="self">self</span>.resolve(module, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
 
         <span class="comment">// we resolve the fully-qualified types of the fields
-        </span><span class="kw">for </span>(_field_name, field_typ) <span class="kw">in </span>fields {
+        </span><span class="kw">for </span>(_field_name, field_typ, _attribute) <span class="kw">in </span>fields {
             <span class="self">self</span>.resolve_typ_kind(<span class="kw-2">&amp;mut </span>field_typ.kind)<span class="question-mark">?</span>;
         }
 

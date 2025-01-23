@@ -823,8 +823,8 @@
                     <span class="kw">let </span>fields: Vec&lt;<span class="kw">_</span>&gt; = fields
                         .iter()
                         .map(|field| {
-                            <span class="kw">let </span>(name, typ) = field;
-                            (name.value.clone(), typ.kind.clone())
+                            <span class="kw">let </span>(name, typ, attribute) = field;
+                            (name.value.clone(), typ.kind.clone(), attribute.clone())
                         })
                         .collect();
 
@@ -854,7 +854,7 @@
                 <span class="comment">// `fn main() { ... }`
                 </span>RootKind::FunctionDef(function) =&gt; {
                     <span class="comment">// create a new typed fn environment to type check the function
-                    </span><span class="kw">let </span><span class="kw-2">mut </span>typed_fn_env = TypedFnEnv::default();
+                    </span><span class="kw">let </span><span class="kw-2">mut </span>typed_fn_env = TypedFnEnv::new(<span class="kw-2">&amp;</span>function.sig.kind);
 
                     <span class="comment">// if we're expecting a library, this should not be the main function
                     </span><span class="kw">let </span>is_main = function.is_main();
