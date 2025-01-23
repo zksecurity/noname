@@ -1492,7 +1492,17 @@
 <a href="#1491" id="1491">1491</a>
 <a href="#1492" id="1492">1492</a>
 <a href="#1493" id="1493">1493</a>
-<a href="#1494" id="1494">1494</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a>
+<a href="#1504" id="1504">1504</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>num_traits::ToPrimitive;
 <span class="kw">use </span>serde::Serialize;
 <span class="kw">use </span>std::collections::HashMap;
@@ -2557,7 +2567,17 @@
             <span class="kw">let </span>else_mono = monomorphize_expr(ctx, else_, mono_fn_env)<span class="question-mark">?</span>;
 
             <span class="comment">// make sure that the type of then_ and else_ match
-            </span><span class="kw">if </span>then_mono.typ != else_mono.typ {
+            </span><span class="kw">let </span>is_match = <span class="kw">match </span>(<span class="kw-2">&amp;</span>then_mono.typ, <span class="kw-2">&amp;</span>else_mono.typ) {
+                <span class="comment">// generics not allowed as they should have been monomorphized
+                </span>(<span class="prelude-val">Some</span>(then_typ), <span class="prelude-val">Some</span>(else_typ)) =&gt; then_typ.match_expected(else_typ, <span class="bool-val">true</span>),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Error::new(
+                    <span class="string">"If-Else Monomorphization"</span>,
+                    ErrorKind::UnexpectedError(<span class="string">"Could not resolve type for the `if-else` branch"</span>),
+                    expr.span,
+                ))<span class="question-mark">?</span>,
+            };
+
+            <span class="kw">if </span>!is_match {
                 <span class="prelude-val">Err</span>(Error::new(
                     <span class="string">"If-Else Monomorphization"</span>,
                     ErrorKind::UnexpectedError(
