@@ -150,7 +150,6 @@ pub trait Backend: Clone {
 
         match val {
             Value::Hint(func) => {
-                dbg!("here at hint");
                 let res = func(self, env)
                     .expect("that function doesn't return a var (type checker error)");
                 env.cached_values.insert(cache_key, res);

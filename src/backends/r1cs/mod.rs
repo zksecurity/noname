@@ -433,6 +433,7 @@ where
                 }
             }
         }
+
         // check if every cell vars end up being a cell var in the circuit or public output
         for (index, _) in self.witness_vector.iter().enumerate() {
             // Skip the first var which is always 1

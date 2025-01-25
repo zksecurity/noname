@@ -507,25 +507,27 @@ impl<B: Backend> IRWriter<B> {
                 else_branch,
             } => {
                 fn_env.nest();
-                let cond_var = self.compute_expr(fn_env, condition)?;
-                let cond_val = self
+                let cond_var = self
                     .compute_expr(fn_env, condition)?
                     .unwrap()
                     .value(self, fn_env)
                     .cvars[0]
                     .clone();
-                let ret = self.compile_block(fn_env, then_branch)?;
+                let ret = self.compile_block(fn_env, then_branch)?.unwrap().cvars[0].clone();
+                let mut else_ret = None;
                 match else_branch {
                     Some(stmts) => {
                         //start another block
                         fn_env.nest();
-                        self.compile_block(fn_env, stmts)?;
+                        else_ret = self.compile_block(fn_env, stmts)?;
                         fn_env.pop();
                     }
                     None => (),
                 }
-                let var = ret.map(|var| VarOrRef::Var(var));
-                return Ok(var);
+                let else_ret_ = else_ret.unwrap().cvars[0].clone();
+                let ite_ir = term![Op::Ite; cond_var, ret, else_ret_];
+                let res = Var::new_cvar(ite_ir, condition.span);
+                return Ok(Some(VarOrRef::Var(res)));
             }
         }
 

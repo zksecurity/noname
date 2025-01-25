@@ -5,19 +5,18 @@ hint fn ite(xx: Field , arr: [Field;LEN]) -> Field {
         for idx in 0..LEN {
             var = var + arr[idx];
         }
-        var = xx * var;
+        return xx * var;
     } else {
-        var = xx * xx;
+        return xx * xx;
     }
-    return var;
 }
 
 
 fn main(pub xx: Field) {
     let mut plus = xx + 1;
     let cond = xx == 1;
-    let ans = unsafe ite(10 , [1,2,3]);
+    let ans = unsafe ite(plus, [1,2,3]);
     log(ans);
-    assert_eq(ans, 144);
+    assert_eq(ans, 4);
     assert_eq(plus, 2);
 }
