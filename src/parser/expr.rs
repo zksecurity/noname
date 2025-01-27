@@ -113,10 +113,10 @@ pub enum ExprKind {
         idx: Box<Expr>,
     },
 
-    // // `arr.len`
-    // ArrayLen {
-    //     array: Box<Expr>,
-    // },
+    // `arr.len()`
+    ArrayLen {
+        array: Box<Expr>,
+    },
 
     /// `[ ... ]`
     ArrayDeclaration(Vec<Expr>),
@@ -744,12 +744,17 @@ impl Expr {
                         let (args, end_span) = parse_fn_call_args(ctx, tokens)?;
                         println!("args: {:?}, rhs: {:?}", args, rhs.clone());
                         let kind  = if rhs.value == "len"  {
-                            ExprKind::FnCall {
-                                module: ModulePath::Local,
-                                fn_name: rhs,
-                                args,
-                                unsafe_attr: false,
+                            println!("if rhs.value == len, self.clone(): {:?}", self.clone());
+                            // TODO check if self is actually an array type 
+                            ExprKind::ArrayLen {
+                                array: Box::new(self),
                             }
+                            // ExprKind::FnCall {
+                            //     module: ModulePath::Local,
+                            //     fn_name: rhs,
+                            //     args,
+                            //     unsafe_attr: false,
+                            // }
                         } else {
                             ExprKind::MethodCall {
                                 lhs: Box::new(self),

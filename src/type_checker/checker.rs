@@ -101,15 +101,18 @@ impl<B: Backend> TypeChecker<B> {
     ) -> Result<Option<ExprTyInfo>> {
         dbg!("compute type");
         let typ: Option<ExprTyInfo> = match &expr.kind {
-            // ExprKind::Length { array } => {
-            //     // array: Expr { node_id: 14, kind: ArrayLen { array: Expr { node_id: 13, kind: Variable { module: Local, name: Ident { value: "array", span: Span { filename_id: 1, start: 201, len: 5 } } }, span: Span { filename_id: 1, start: 201, len: 5 } } }, span: Span { filename_id: 1, start: 201, len: 9 } },
+            ExprKind::ArrayLen { array } => {
+                // array: Expr { node_id: 14, kind: ArrayLen { array: Expr { node_id: 13, kind: Variable { module: Local, name: Ident { value: "array", span: Span { filename_id: 1, start: 201, len: 5 } } }, span: Span { filename_id: 1, start: 201, len: 5 } } }, span: Span { filename_id: 1, start: 201, len: 9 } },
 
-            //     let array_node = self
-            //         .compute_type(array, typed_fn_env)?
-            //         .expect("type-checker bug: field access on an empty var");
+                let array_node = self
+                    .compute_type(array, typed_fn_env)?
+                    .expect("type-checker bug: field access on an empty var");
 
-            //     Some(ExprTyInfo::new(array_node.var_name, array_node.typ))
-            // }
+                let expr_ty_info = ExprTyInfo::new(array_node.var_name, array_node.typ);
+                println!("compute_type, ArrayLen, expr_ty_info: {:?}", expr_ty_info);
+
+                Some(expr_ty_info)
+            }
             ExprKind::FieldAccess { lhs, rhs } => {
                 // compute type of left-hand side
                 let lhs_node = self

@@ -751,43 +751,23 @@ fn test_mut_cst_struct_field_prop() {
 #[test]
 fn test_array_len() {
     let code = r#"
-        fn main(pub xx: Field) {
-            let aa = xx + 1;
-            assert_eq(aa, xx);
-        }
+
+    fn init_arr(const LEN: Field) -> [Field; LEN + 2] {
+        return [0; LEN + 2];
+     }
+     fn main(pub xx: Field) {
+       let array = init_arr(10);
+       assert_eq(array.len(), 12);
+    }
     "#;
 
-    // fn init_arr(const LEN: Field) -> [Field; LEN + 2] {
-    //     return [0; LEN + 2];
-    //  }
-    //  fn main(pub xx: Field) {
-    //    let array = init_arr(10);
-    //    assert_eq(array.len(), 12);
-    //  }
-  
-    // "#;
 
-    // let code = r#"
-    // struct Thing {
-    //     val: Field,
+    assert!(mast_pass(code).is_ok());
+    // if let Err(err) = mast_pass(code) {
+    //     println!("err: {:?}", err);
     // }
 
-    // fn main(pub xx: Field) {
-    //     let mut thing = Thing { val: 3 };
-    //     thing.val = xx;
-    // }
-    // "#;
-
-    //  compute_type, FieldAccess, module: Local, struct_name: Thing
-    // compute_type, FieldAccess, expr_ty_info: ExprTyInfo { var_name: Some("thing"), typ: Field { constant: true } }
-
-    if let Err(err) = mast_pass(code) {
-        println!("err: {:?}", err);
-        // err: Error { label: "type-checker", kind: ArgumentTypeMismatch(Field { constant: false },
-        // GenericSizedArray(Field { constant: false }, Add(Generic(Ident { value: "LEN", span: Span { filename_id: 1, start: 50, len: 3 } }), Concrete(2)))), span: Span { filename_id: 1, start: 201, len: 9 } }
-    }
-
-    assert_eq!(1, 2);
+   // assert_eq!(1, 2);
     // assert!(matches!(
     //     res.unwrap_err().kind,
     //     ErrorKind::ArgumentTypeMismatch(..)
@@ -795,24 +775,77 @@ fn test_array_len() {
 }
 
 
-// #[test]
-// fn test_custom_struct_len_method() {
-//     let code = r#"
-//         struct Thing {
-//          aa: [Field; 2],
-//         }
-//         fn Thing.len() -> LEN {
-//            return Thing.aa.len()
-//     }
-//     ";
-//     "#;
+#[test]
+fn test_custom_struct_len_method() {
+    let code = r#"
+        struct Thing {
+         aa: [Field; 2],
+        }
+        fn Thing.len() -> LEN {
+           return Thing.aa.len()
+    }
+    "#;
 
-
-//     if let Err(err) = tast_pass(code).0 {
-//         println!("err: {:?}", err);
+    if let Err(err) = tast_pass(code).0 {
+        println!("err: {:?}", err);
        
-//     }
+    }
 
-//     assert_eq!(1, 2);
- 
-// }
+    assert_eq!(1, 2);
+}
+
+#[test]
+fn test_custom_struct_invalid_len_method() {
+    let code = r#"
+        struct Thing {
+         aa: Field
+        }
+        fn Thing.len() -> LEN {
+           // yield an error cause aa is an aray
+           return Thing.aa.len()
+    }
+    "#;
+
+    if let Err(err) = tast_pass(code).0 {
+        println!("err: {:?}", err);
+       
+    }
+
+
+    assert_eq!(1, 2);
+}
+
+
+#[test]
+fn test_invalid_len_method() {
+    let code = r#"
+    fn main(pub xx: Field) {
+        assert_eq(xx.len(), 12);
+    }
+    "#;
+
+    if let Err(err) = tast_pass(code).0 {
+        println!("err: {:?}", err);
+       
+    }
+
+    assert_eq!(1, 2);
+}
+
+
+#[test]
+// I guess, this is a bug 
+fn test_assert_eq() {
+    let code = r#"
+        fn main(pub xx: Field) {
+            let aa = xx + 10;
+            assert_eq(aa, xx);
+        }
+    "#;
+    assert!(tast_pass(code).0.is_ok());
+    assert!(mast_pass(code).is_ok());
+    // if let Err(err) = mast_pass(code) {
+    //     println!("err: {:?}", err);
+    // }
+   //assert_eq!(1, 2);
+}

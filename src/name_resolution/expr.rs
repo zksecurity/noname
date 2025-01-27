@@ -94,6 +94,9 @@ impl NameResCtx {
                     self.resolve_expr(expr)?;
                 }
             }
+            ExprKind::ArrayLen { array} => {
+                self.resolve_expr(array)?;
+            }
             ExprKind::RepeatedArrayInit { item, size } => {
                 self.resolve_expr(item)?;
                 self.resolve_expr(size)?;

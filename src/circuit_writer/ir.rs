@@ -113,6 +113,7 @@ impl Var {
 }
 
 /// Same as [crate::var::VarInfo], but with Term based Var.
+#[derive(Debug)]
 pub enum VarOrRef {
     Var(Var),
 
@@ -1019,38 +1020,40 @@ impl<B: Backend> IRWriter<B> {
                 Ok(Some(var))
             }
 
-            // ExprKind::ArrayLen { array } => {
-            //     // retrieve var of array
-            //     let var = self
-            //         .compute_expr(fn_env, array)?
-            //         .expect("array access on non-array");
+            // TODO fix a duplicated code 
+            ExprKind::ArrayLen { array } => {
+                // retrieve var of array
+                let var = self
+                    .compute_expr(fn_env, array)?
+                    .expect("array access on non-array");
 
-            //     // retrieve the type of the elements in the array
-            //     let array_typ = self.expr_type(array).expect("cannot find type of array");
+                // retrieve the type of the elements in the array
+                let array_typ = self.expr_type(array).expect("cannot find type of array");
 
-            //     let len = match array_typ {
-            //         TyKind::Array(_, array_len) => *array_len as usize,
-            //         _ => Err(Error::new(
-            //             "compute-expr",
-            //             ErrorKind::UnexpectedError("expected array"),
-            //             expr.span,
-            //         ))?,
-            //     };
+                let len = match array_typ {
+                    TyKind::Array(_, array_len) => *array_len as usize,
+                    _ => Err(Error::new(
+                        "compute-expr",
+                        ErrorKind::UnexpectedError("expected array"),
+                        expr.span,
+                    ))?,
+                };
 
-            //     let start = len;
+                let start = len;
 
-            //     // out-of-bound checks
-            //     if start >= var.len() || start + len > var.len() {
-            //         return Err(self.error(
-            //             ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
-            //             expr.span,
-            //         ));
-            //     }
+                // out-of-bound checks
+                if start >= var.len() || start + len > var.len() {
+                    return Err(self.error(
+                        ErrorKind::ArrayIndexOutOfBounds(start, var.len()),
+                        expr.span,
+                    ));
+                }
 
-            //     let var = var.narrow(start, len);
+                let var = var.narrow(start, len);
+                println!("impl IRWriter, compute_expr, ArrayLen,  var: {:?}", var);
 
-            //     Ok(Some(var))
-            // }
+                Ok(Some(var))
+            }
 
             ExprKind::ArrayDeclaration(items) => {
                 let mut cvars = vec![];
