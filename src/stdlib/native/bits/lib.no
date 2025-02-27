@@ -56,18 +56,12 @@ fn from_bits(bits: [Bool; LEN]) -> Field {
 /// - The function asserts that `from_bits(bits)` equals `value`, ensuring the conversion is correct.
 fn to_bits(const LEN: Field, value: Field) -> [Bool; LEN] {
     let mut bits = [false; LEN];
-    let mut lc1 = 0;
-    let mut e2 = 1;
-
-    // TODO: ITE should allow literals.
-    let true_val = true;
-    let false_val = false;
 
     for index in 0..LEN {
         let bit_num = unsafe nth_bit(value, index);
         
         // constraint the bit values to booleans
-        bits[index] = if bit_num == 1 { true_val } else { false_val };
+        bits[index] = bit_num == 1;
     }
 
     // constraint the accumulative contributions of bits to be equal to the value
