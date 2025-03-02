@@ -10,6 +10,20 @@
 /// 
 hint fn nth_bit(value: Field, const nth: Field) -> Field;
 
+struct Bit {
+    inner: Field,
+}
+
+fn Bit.new_unchecked(val: Field) -> Bit {
+    return Bit {
+        inner: val
+    };
+}
+
+fn Bit.to_bool(self) -> Bool {
+    return self.inner == 1;
+}
+
 /// Converts an array of boolean values (`bits`) into a `Field` value.
 ///
 /// # Parameters
@@ -60,11 +74,12 @@ fn to_bits(const LEN: Field, value: Field) -> [Bool; LEN] {
     for index in 0..LEN {
         let bit_num = unsafe nth_bit(value, index);
         
-        // constraint the bit values to booleans
-        bits[index] = bit_num == 1;
+        // constrain the bit values to booleans
+        let bit = Bit.new_unchecked(bit_num);
+        bits[index] = bit.to_bool();
     }
 
-    // constraint the accumulative contributions of bits to be equal to the value
+    // constrain the accumulative contributions of bits to be equal to the value
     assert_eq(from_bits(bits), value);
 
     return bits;
