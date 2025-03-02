@@ -1,3 +1,4 @@
+mod bits;
 mod comparator;
 mod mimc;
 mod multiplexer;

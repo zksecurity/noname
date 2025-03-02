@@ -20,6 +20,12 @@ fn Bit.new_unchecked(val: Field) -> Bit {
     };
 }
 
+fn Bit.new(val: Field) -> Bit {
+    assert_eq(val * (val - 1), 0);
+
+    return Bit.new_unchecked(val);
+}
+
 fn Bit.to_bool(self) -> Bool {
     return self.inner == 1;
 }
