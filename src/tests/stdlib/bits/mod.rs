@@ -7,11 +7,14 @@ use rstest::rstest;
 #[rstest]
 #[case(r#"{"val": "0"}"#, vec!["0"])]
 #[case(r#"{"val": "1"}"#, vec!["1"])]
-fn test_bit_checked(
-    #[case] public_inputs: &str,
-    #[case] expected_output: Vec<&str>,
-) -> Result<()> {
-    test_stdlib("bits/bit_checked.no", None, public_inputs, r#"{}"#, expected_output)?;
+fn test_bit_checked(#[case] public_inputs: &str, #[case] expected_output: Vec<&str>) -> Result<()> {
+    test_stdlib(
+        "bits/bit_checked.no",
+        None,
+        public_inputs,
+        r#"{}"#,
+        expected_output,
+    )?;
 
     Ok(())
 }
@@ -38,7 +41,13 @@ fn test_bit_unchecked(
     #[case] public_inputs: &str,
     #[case] expected_output: Vec<&str>,
 ) -> Result<()> {
-    test_stdlib("bits/bit_unchecked.no", None, public_inputs, r#"{}"#, expected_output)?;
+    test_stdlib(
+        "bits/bit_unchecked.no",
+        None,
+        public_inputs,
+        r#"{}"#,
+        expected_output,
+    )?;
 
     Ok(())
 }
