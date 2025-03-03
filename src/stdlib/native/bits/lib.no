@@ -10,22 +10,33 @@
 /// 
 hint fn nth_bit(value: Field, const nth: Field) -> Field;
 
+/// A `Field` value representing a bit.
+/// Use `Bit.new` to create with a range-checked value.
 struct Bit {
     inner: Field,
 }
 
+/// Creates a `Bit` without any range check on `val`.
 fn Bit.new_unchecked(val: Field) -> Bit {
     return Bit {
         inner: val
     };
 }
 
+/// Creates a `Bit` with a range check on `val` so that it must be `0` or `1`.
+///
+/// # Panics
+/// - `val` is neither `0` nor `1`.
 fn Bit.new(val: Field) -> Bit {
     assert_eq(val * (val - 1), 0);
 
     return Bit.new_unchecked(val);
 }
 
+/// Converts to a boolean.
+///
+/// # Returns
+/// - `Bool`: `true` if value is `1` and `false` otherwise.
 fn Bit.to_bool(self) -> Bool {
     return self.inner == 1;
 }
