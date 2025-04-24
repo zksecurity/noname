@@ -1,659 +1,329 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/r1cs/snarkjs.rs`."><title>snarkjs.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-5d1d17d0.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (ed43cbcb8 2025-01-21)" data-channel="nightly" data-search-js="search-ccb196c1.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/backends/r1cs/</div>snarkjs.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
-<a href="#1" id="1">1</a>
-<a href="#2" id="2">2</a>
-<a href="#3" id="3">3</a>
-<a href="#4" id="4">4</a>
-<a href="#5" id="5">5</a>
-<a href="#6" id="6">6</a>
-<a href="#7" id="7">7</a>
-<a href="#8" id="8">8</a>
-<a href="#9" id="9">9</a>
-<a href="#10" id="10">10</a>
-<a href="#11" id="11">11</a>
-<a href="#12" id="12">12</a>
-<a href="#13" id="13">13</a>
-<a href="#14" id="14">14</a>
-<a href="#15" id="15">15</a>
-<a href="#16" id="16">16</a>
-<a href="#17" id="17">17</a>
-<a href="#18" id="18">18</a>
-<a href="#19" id="19">19</a>
-<a href="#20" id="20">20</a>
-<a href="#21" id="21">21</a>
-<a href="#22" id="22">22</a>
-<a href="#23" id="23">23</a>
-<a href="#24" id="24">24</a>
-<a href="#25" id="25">25</a>
-<a href="#26" id="26">26</a>
-<a href="#27" id="27">27</a>
-<a href="#28" id="28">28</a>
-<a href="#29" id="29">29</a>
-<a href="#30" id="30">30</a>
-<a href="#31" id="31">31</a>
-<a href="#32" id="32">32</a>
-<a href="#33" id="33">33</a>
-<a href="#34" id="34">34</a>
-<a href="#35" id="35">35</a>
-<a href="#36" id="36">36</a>
-<a href="#37" id="37">37</a>
-<a href="#38" id="38">38</a>
-<a href="#39" id="39">39</a>
-<a href="#40" id="40">40</a>
-<a href="#41" id="41">41</a>
-<a href="#42" id="42">42</a>
-<a href="#43" id="43">43</a>
-<a href="#44" id="44">44</a>
-<a href="#45" id="45">45</a>
-<a href="#46" id="46">46</a>
-<a href="#47" id="47">47</a>
-<a href="#48" id="48">48</a>
-<a href="#49" id="49">49</a>
-<a href="#50" id="50">50</a>
-<a href="#51" id="51">51</a>
-<a href="#52" id="52">52</a>
-<a href="#53" id="53">53</a>
-<a href="#54" id="54">54</a>
-<a href="#55" id="55">55</a>
-<a href="#56" id="56">56</a>
-<a href="#57" id="57">57</a>
-<a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a>
-<a href="#60" id="60">60</a>
-<a href="#61" id="61">61</a>
-<a href="#62" id="62">62</a>
-<a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a>
-<a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a>
-<a href="#70" id="70">70</a>
-<a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
-<a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
-<a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a>
-<a href="#202" id="202">202</a>
-<a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a>
-<a href="#205" id="205">205</a>
-<a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a>
-<a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a>
-<a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a>
-<a href="#231" id="231">231</a>
-<a href="#232" id="232">232</a>
-<a href="#233" id="233">233</a>
-<a href="#234" id="234">234</a>
-<a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a>
-<a href="#239" id="239">239</a>
-<a href="#240" id="240">240</a>
-<a href="#241" id="241">241</a>
-<a href="#242" id="242">242</a>
-<a href="#243" id="243">243</a>
-<a href="#244" id="244">244</a>
-<a href="#245" id="245">245</a>
-<a href="#246" id="246">246</a>
-<a href="#247" id="247">247</a>
-<a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a>
-<a href="#250" id="250">250</a>
-<a href="#251" id="251">251</a>
-<a href="#252" id="252">252</a>
-<a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a>
-<a href="#264" id="264">264</a>
-<a href="#265" id="265">265</a>
-<a href="#266" id="266">266</a>
-<a href="#267" id="267">267</a>
-<a href="#268" id="268">268</a>
-<a href="#269" id="269">269</a>
-<a href="#270" id="270">270</a>
-<a href="#271" id="271">271</a>
-<a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a>
-<a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a>
-<a href="#276" id="276">276</a>
-<a href="#277" id="277">277</a>
-<a href="#278" id="278">278</a>
-<a href="#279" id="279">279</a>
-<a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a>
-<a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a>
-<a href="#286" id="286">286</a>
-<a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a>
-<a href="#291" id="291">291</a>
-<a href="#292" id="292">292</a>
-<a href="#293" id="293">293</a>
-<a href="#294" id="294">294</a>
-<a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a>
-<a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a>
-<a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a>
-<a href="#329" id="329">329</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::backends::BackendField;
-<span class="kw">use </span>ark_ff::BigInteger;
-<span class="kw">use </span>constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
-<span class="kw">use </span>miette::Diagnostic;
-<span class="kw">use </span>thiserror::Error;
-
-<span class="kw">use </span>std::collections::HashMap;
-<span class="kw">use </span>std::fs::{File, OpenOptions};
-<span class="kw">use </span>std::io::{<span class="self">self</span>, BufWriter, ErrorKind, Seek, SeekFrom, Write};
-<span class="kw">use </span>std::vec;
-
-<span class="kw">use super</span>::{GeneratedWitness, LinearCombination, R1CS};
-<span class="kw">use </span>num_bigint_dig::BigInt;
-
-<span class="attr">#[derive(Diagnostic, Debug, Error)]
-</span><span class="kw">pub enum </span>Error {
-    <span class="doccomment">/// An error type associated with [`R1CSWriter`].
-    ///
-    /// It turns out that even [`R1CSWriter`] fails to write to file,
-    /// the error is ignored and a unit type is returned,
-    /// so we come up with a custom type to represent that.
-    </span><span class="attr">#[error(<span class="string">"Something went wrong writing the R1CS file"</span>)]
-    </span>R1CSWriterIo,
-    <span class="doccomment">/// An error type associated with [`WitnessWriter`].
-    </span><span class="attr">#[error(transparent)]
-    </span>WitnessWriterIo(<span class="attr">#[from] </span>std::io::Error),
-}
-
-<span class="attr">#[derive(Debug)]
-</span><span class="kw">struct </span>SnarkjsConstraint {
-    <span class="kw">pub </span>a: SnarkjsLinearCombination,
-    <span class="kw">pub </span>b: SnarkjsLinearCombination,
-    <span class="kw">pub </span>c: SnarkjsLinearCombination,
-}
-
-<span class="attr">#[derive(Debug)]
-</span><span class="kw">struct </span>SnarkjsLinearCombination {
-    <span class="kw">pub </span>terms: HashMap&lt;usize, BigInt&gt;,
-    <span class="kw">pub </span>constant: BigInt,
-}
-
-<span class="kw">impl </span>SnarkjsLinearCombination {
-    <span class="kw">fn </span>try_hashmap(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;HashMap&lt;usize, BigInt&gt;, Error&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>terms = <span class="self">self</span>.terms.clone();
-
-        <span class="comment">// add the constant term with var indexed at 0
-        </span><span class="kw">if </span>terms.insert(<span class="number">0</span>, <span class="self">self</span>.constant.clone()).is_some() {
-            <span class="comment">// sanity check
-
-            </span><span class="prelude-val">Err</span>(std::io::Error::new(
-                ErrorKind::Other,
-                <span class="string">"The first var should be preserved for constant term"</span>,
-            ))<span class="question-mark">?
-        </span>}
-
-        <span class="prelude-val">Ok</span>(terms)
-    }
-}
-
-<span class="doccomment">/// Calculate the number of bytes for the prime field.
-</span><span class="kw">fn </span>field_size(prime: <span class="kw-2">&amp;</span>BigInt) -&gt; usize {
-    <span class="kw">if </span>prime.bits() % <span class="number">64 </span>== <span class="number">0 </span>{
-        prime.bits() / <span class="number">8
-    </span>} <span class="kw">else </span>{
-        (prime.bits() / <span class="number">64 </span>+ <span class="number">1</span>) * <span class="number">8
-    </span>}
-}
-
-<span class="doccomment">/// A struct to export r1cs circuit and witness to the snarkjs formats.
-</span><span class="kw">pub struct </span>SnarkjsExporter&lt;F&gt;
-<span class="kw">where
-    </span>F: BackendField,
-{
-    <span class="doccomment">/// A R1CS backend with the circuit finalized.
-    </span>r1cs_backend: R1CS&lt;F&gt;,
-}
-
-<span class="kw">impl</span>&lt;F&gt; SnarkjsExporter&lt;F&gt;
-<span class="kw">where
-    </span>F: BackendField,
-{
-    <span class="kw">pub fn </span>new(r1cs_backend: R1CS&lt;F&gt;) -&gt; SnarkjsExporter&lt;F&gt; {
-        SnarkjsExporter { r1cs_backend }
-    }
-
-    <span class="doccomment">/// Restructure the linear combination to align with the snarkjs format.
-    /// - convert the factors to BigInt.
-    </span><span class="kw">fn </span>restructure_lc(<span class="kw-2">&amp;</span><span class="self">self</span>, lc: <span class="kw-2">&amp;</span>LinearCombination&lt;F&gt;) -&gt; SnarkjsLinearCombination {
-        <span class="kw">let </span>terms = lc
-            .terms
-            .iter()
-            .map(|(cvar, factor)| {
-                <span class="kw">let </span>factor_bigint = <span class="self">Self</span>::convert_to_bigint(factor);
-
-                (cvar.index, factor_bigint)
-            })
-            .collect();
-
-        <span class="kw">let </span>constant = <span class="self">Self</span>::convert_to_bigint(<span class="kw-2">&amp;</span>lc.constant);
-
-        SnarkjsLinearCombination { terms, constant }
-    }
-
-    <span class="doccomment">/// Restructure the constraints to align with the snarkjs format.
-    </span><span class="kw">fn </span>restructure_constraints(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;SnarkjsConstraint&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>constraints = <span class="macro">vec!</span>[];
-        <span class="kw">for </span>constraint <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.r1cs_backend.constraints {
-            constraints.push(SnarkjsConstraint {
-                a: <span class="self">self</span>.restructure_lc(<span class="kw-2">&amp;</span>constraint.a),
-                b: <span class="self">self</span>.restructure_lc(<span class="kw-2">&amp;</span>constraint.b),
-                c: <span class="self">self</span>.restructure_lc(<span class="kw-2">&amp;</span>constraint.c),
-            });
-        }
-        constraints
-    }
-
-    <span class="doccomment">/// Restructure the witness vector
-    </span><span class="kw">fn </span>restructure_witness(<span class="kw-2">&amp;</span><span class="self">self</span>, generated_witness: GeneratedWitness&lt;F&gt;) -&gt; Vec&lt;BigInt&gt; {
-        <span class="comment">// convert the witness to BigInt
-        </span>generated_witness
-            .witness
-            .iter()
-            .map(|value| <span class="self">Self</span>::convert_to_bigint(value))
-            .collect()
-    }
-
-    <span class="doccomment">/// Generate the r1cs file in snarkjs format.
-    /// It uses the circom rust library to generate the r1cs file.
-    /// The binary format spec: https://github.com/iden3/r1csfile/blob/master/doc/r1cs_bin_format.md
-    </span><span class="kw">pub fn </span>gen_r1cs_file(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
-        <span class="kw">let </span>prime = <span class="self">self</span>.backend_prime();
-        <span class="kw">let </span>field_size = field_size(<span class="kw-2">&amp;</span>prime);
-
-        <span class="kw">let </span>r1cs = R1CSWriter::new(file.to_string(), field_size, <span class="bool-val">false</span>).unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>constraint_section = R1CSWriter::start_constraints_section(r1cs).unwrap();
-
-        <span class="kw">let </span>restructure_constraints = <span class="self">self</span>.restructure_constraints();
-
-        <span class="kw">for </span>constraint <span class="kw">in </span><span class="kw-2">&amp;</span>restructure_constraints {
-            ConstraintSection::write_constraint_usize(
-                <span class="kw-2">&amp;mut </span>constraint_section,
-                <span class="kw-2">&amp;</span>constraint.a.try_hashmap()<span class="question-mark">?</span>,
-                <span class="kw-2">&amp;</span>constraint.b.try_hashmap()<span class="question-mark">?</span>,
-                <span class="kw-2">&amp;</span>constraint.c.try_hashmap()<span class="question-mark">?</span>,
-            )
-            .map_err(|<span class="kw">_</span>| Error::R1CSWriterIo)<span class="question-mark">?</span>;
-        }
-
-        <span class="kw">let </span>r1cs = constraint_section.end_section().unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>header_section = R1CSWriter::start_header_section(r1cs).unwrap();
-        <span class="kw">let </span>header_data = HeaderData {
-            <span class="comment">// Snarkjs uses this meta data to determine which curve to use.
-            </span>field: prime,
-            <span class="comment">// Both the sizes of public inputs and outputs will be crucial for the snarkjs to determine
-            // where to extract the public inputs and outputs from the witness vector.
-            // Snarkjs prove command will generate a public.json file that contains the public inputs and outputs.
-            // So if the sizes are not correct, the public.json will not be generated correctly, which might potential contains the private inputs.
-            </span>public_outputs: <span class="self">self</span>.r1cs_backend.public_outputs.len(),
-            public_inputs: <span class="self">self</span>.r1cs_backend.public_inputs.len(),
-            <span class="comment">// There seems no use of this field in the snarkjs lib. It might be just a reference.
-            </span>private_inputs: <span class="self">self</span>.r1cs_backend.private_input_number(),
-            <span class="comment">// Add one to take into account the first var that is only added during the witness formation for snarkjs.
-            </span>total_wires: <span class="self">self</span>.r1cs_backend.witness_vector.len(),
-            <span class="comment">// This is for circom lang debugging, so we don't need it.
-            </span>number_of_labels: <span class="number">0</span>,
-            number_of_constraints: restructure_constraints.len(),
-        };
-        header_section
-            .write_section(header_data)
-            .map_err(|<span class="kw">_</span>| Error::R1CSWriterIo)<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>r1cs = header_section.end_section().unwrap();
-        R1CSWriter::finish_writing(r1cs).map_err(|<span class="kw">_</span>| Error::R1CSWriterIo)
-    }
-
-    <span class="doccomment">/// Generate the wtns file in snarkjs format.
-    </span><span class="kw">pub fn </span>gen_wtns_file(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, witness: GeneratedWitness&lt;F&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
-        <span class="kw">let </span>restructured_witness = <span class="self">self</span>.restructure_witness(witness);
-
-        <span class="kw">let </span><span class="kw-2">mut </span>witness_writer = WitnessWriter::new(file).unwrap();
-
-        <span class="prelude-val">Ok</span>(witness_writer.write(restructured_witness, <span class="kw-2">&amp;</span><span class="self">self</span>.backend_prime())<span class="question-mark">?</span>)
-    }
-
-    <span class="kw">fn </span>backend_prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BigInt {
-        BigInt::from_bytes_le(
-            num_bigint_dig::Sign::Plus,
-            <span class="kw-2">&amp;</span><span class="self">self</span>.r1cs_backend.prime().to_bytes_le(),
-        )
-    }
-
-    <span class="kw">fn </span>convert_to_bigint(value: <span class="kw-2">&amp;</span>F) -&gt; BigInt {
-        BigInt::from_bytes_le(
-            num_bigint_dig::Sign::Plus,
-            <span class="kw-2">&amp;</span>value.into_bigint().to_bytes_le(),
-        )
-    }
-}
-
-<span class="doccomment">/// Witness writer for generating the wtns file in snarkjs format.
-/// The circom rust lib seems not to have the API to generate the wtns file, so we create our own based on the snarkjs lib.
-/// The implementation follows: https://github.com/iden3/snarkjs/blob/577b3f358016a486402050d3b7242876082c085f/src/wtns_utils.js#L25
-/// It uses the same binary format as the r1cs file relies on.
-/// Although it is the same binary file protocol, but the witness file has simpler data points than the r1cs file.
-</span><span class="kw">struct </span>WitnessWriter {
-    inner: BufWriter&lt;File&gt;,
-    writing_section: <span class="prelude-ty">Option</span>&lt;WritingSection&gt;,
-    section_size_position: u64,
-}
-
-<span class="doccomment">/// A struct to represent a section in the snarkjs binary format.
-</span><span class="kw">struct </span>WritingSection;
-
-<span class="kw">impl </span>WitnessWriter {
-    <span class="comment">// Initialize a FileWriter
-    </span><span class="kw">fn </span>new(path: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessWriter, Error&gt; {
-        <span class="comment">// file type for the witness file
-        </span><span class="kw">let </span>file_type = <span class="string">"wtns"</span>;
-        <span class="comment">// version of the file format
-        </span><span class="kw">let </span>version = <span class="number">2u32</span>;
-        <span class="comment">// total number of sections
-        </span><span class="kw">let </span>n_sections = <span class="number">2u32</span>;
-
-        <span class="kw">let </span>file = OpenOptions::new()
-            .write(<span class="bool-val">true</span>)
-            .create(<span class="bool-val">true</span>)
-            .truncate(<span class="bool-val">true</span>)
-            .open(path)
-            .unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>writer = BufWriter::new(file);
-
-        <span class="comment">// Write the file type (magic string) as bytes
-        </span><span class="kw">let </span>file_type_bytes = file_type.as_bytes();
-        <span class="kw">if </span>file_type_bytes.len() != <span class="number">4 </span>{
-            <span class="prelude-val">Err</span>(std::io::Error::new(
-                ErrorKind::Other,
-                <span class="string">"File type must be 4 characters long"</span>,
-            ))<span class="question-mark">?
-        </span>}
-        writer.write_all(file_type_bytes)<span class="question-mark">?</span>;
-
-        <span class="comment">// Write the version as a 32-bit unsigned integer in little endian
-        </span>writer.write_all(<span class="kw-2">&amp;</span>version.to_le_bytes())<span class="question-mark">?</span>;
-
-        <span class="comment">// Write the number of sections as a 32-bit unsigned integer in little endian
-        </span>writer.write_all(<span class="kw-2">&amp;</span>n_sections.to_le_bytes())<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>current_position = writer.stream_position().unwrap();
-
-        <span class="prelude-val">Ok</span>(WitnessWriter {
-            inner: writer,
-            writing_section: <span class="prelude-val">None</span>,
-            section_size_position: current_position,
-        })
-    }
-
-    <span class="doccomment">/// Start a new section for writing.
-    </span><span class="kw">fn </span>start_write_section(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id_section: u32) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
-        <span class="comment">// Write the section ID as ULE32
-        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>id_section.to_le_bytes())<span class="question-mark">?</span>;
-        <span class="comment">// Get the current position
-        </span><span class="self">self</span>.section_size_position = <span class="self">self</span>.inner.stream_position().unwrap();
-        <span class="comment">// Temporarily write 0 as ULE64 for the section size
-        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span><span class="number">0u64</span>.to_le_bytes())<span class="question-mark">?</span>;
-        <span class="self">self</span>.writing_section = <span class="prelude-val">Some</span>(WritingSection);
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="doccomment">/// End the current section
-    </span><span class="kw">fn </span>end_write_section(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
-        <span class="kw">let </span>current_pos = <span class="self">self</span>.inner.stream_position().unwrap();
-        <span class="comment">// Calculate the size of the section
-        </span><span class="kw">let </span>section_size = current_pos - <span class="self">self</span>.section_size_position - <span class="number">8</span>;
-
-        <span class="comment">// Move back to where the size needs to be written
-        </span><span class="self">self</span>.inner
-            .seek(SeekFrom::Start(<span class="self">self</span>.section_size_position))<span class="question-mark">?</span>;
-        <span class="comment">// Write the actual section size
-        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>section_size.to_le_bytes())<span class="question-mark">?</span>;
-        <span class="comment">// Return to the end of the section
-        </span><span class="self">self</span>.inner.seek(SeekFrom::Start(current_pos))<span class="question-mark">?</span>;
-        <span class="comment">// Flush the buffer to ensure all data is written to the file
-        </span><span class="self">self</span>.inner.flush()<span class="question-mark">?</span>;
-
-        <span class="self">self</span>.writing_section = <span class="prelude-val">None</span>;
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="doccomment">/// Write the witness to the file
-    /// It stores the two sections:
-    /// - Header section: describes the field size, prime field, and the number of witnesses.
-    /// - Witness section: contains the witness values.
-    </span><span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, witness: Vec&lt;BigInt&gt;, prime: <span class="kw-2">&amp;</span>BigInt) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
-        <span class="comment">// Start writing the first section
-        </span><span class="self">self</span>.start_write_section(<span class="number">1</span>)<span class="question-mark">?</span>;
-        <span class="comment">// Write field size in number of bytes
-        </span><span class="kw">let </span>field_n_bytes = field_size(prime);
-        <span class="self">self</span>.inner
-            .write_all(<span class="kw-2">&amp;</span>(field_n_bytes <span class="kw">as </span>u32).to_le_bytes())<span class="question-mark">?</span>;
-        <span class="comment">// Write the prime field in bytes
-        </span><span class="self">self</span>.write_big_int(prime.clone(), field_n_bytes)<span class="question-mark">?</span>;
-        <span class="comment">// Write the number of witnesses
-        </span><span class="self">self</span>.inner
-            .write_all(<span class="kw-2">&amp;</span>(witness.len() <span class="kw">as </span>u32).to_le_bytes())<span class="question-mark">?</span>;
-
-        <span class="self">self</span>.end_write_section()<span class="question-mark">?</span>;
-
-        <span class="comment">// Start writing the second section
-        </span><span class="self">self</span>.start_write_section(<span class="number">2</span>)<span class="question-mark">?</span>;
-
-        <span class="doccomment">/// Write the witness values to the file
-        /// Each witness value occupies the same number of bytes as the prime field
-        </span><span class="kw">for </span>value <span class="kw">in </span>witness {
-            <span class="self">self</span>.write_big_int(value.clone(), field_n_bytes)<span class="question-mark">?</span>;
-        }
-        <span class="self">self</span>.end_write_section()
-    }
-
-    <span class="doccomment">/// Write a BigInt to the file
-    </span><span class="kw">fn </span>write_big_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: BigInt, size: usize) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
-        <span class="kw">let </span>bytes = value.to_bytes_le().<span class="number">1</span>;
-
-        <span class="kw">let </span><span class="kw-2">mut </span>buffer = <span class="macro">vec!</span>[<span class="number">0u8</span>; size];
-        buffer[..bytes.len()].copy_from_slice(<span class="kw-2">&amp;</span>bytes);
-        <span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>buffer)
-    }
-}
-</code></pre></div></section></main></body></html>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/backends/r1cs/snarkjs.rs`."><title>snarkjs.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-c233d2bd.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noname" data-themes="" data-resource-suffix="" data-rustdoc-version="1.88.0-nightly (df35ff6c3 2025-04-23)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="../../../../static.files/src-script-63605ae7.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noname/backends/r1cs/</div>snarkjs.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span><span class="kw">crate</span>::backends::BackendField;
+<a href=#2 id=2 data-nosnippet>2</a><span class="kw">use </span>ark_ff::BigInteger;
+<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>constraint_writers::r1cs_writer::{ConstraintSection, HeaderData, R1CSWriter};
+<a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>miette::Diagnostic;
+<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>thiserror::Error;
+<a href=#6 id=6 data-nosnippet>6</a>
+<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>std::collections::HashMap;
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>std::fs::{File, OpenOptions};
+<a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span>std::io::{<span class="self">self</span>, BufWriter, ErrorKind, Seek, SeekFrom, Write};
+<a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>std::vec;
+<a href=#11 id=11 data-nosnippet>11</a>
+<a href=#12 id=12 data-nosnippet>12</a><span class="kw">use super</span>::{GeneratedWitness, LinearCombination, R1CS};
+<a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>num_bigint_dig::BigInt;
+<a href=#14 id=14 data-nosnippet>14</a>
+<a href=#15 id=15 data-nosnippet>15</a><span class="attr">#[derive(Diagnostic, Debug, Error)]
+<a href=#16 id=16 data-nosnippet>16</a></span><span class="kw">pub enum </span>Error {
+<a href=#17 id=17 data-nosnippet>17</a>    <span class="doccomment">/// An error type associated with [`R1CSWriter`].
+<a href=#18 id=18 data-nosnippet>18</a>    ///
+<a href=#19 id=19 data-nosnippet>19</a>    /// It turns out that even [`R1CSWriter`] fails to write to file,
+<a href=#20 id=20 data-nosnippet>20</a>    /// the error is ignored and a unit type is returned,
+<a href=#21 id=21 data-nosnippet>21</a>    /// so we come up with a custom type to represent that.
+<a href=#22 id=22 data-nosnippet>22</a>    </span><span class="attr">#[error(<span class="string">"Something went wrong writing the R1CS file"</span>)]
+<a href=#23 id=23 data-nosnippet>23</a>    </span>R1CSWriterIo,
+<a href=#24 id=24 data-nosnippet>24</a>    <span class="doccomment">/// An error type associated with [`WitnessWriter`].
+<a href=#25 id=25 data-nosnippet>25</a>    </span><span class="attr">#[error(transparent)]
+<a href=#26 id=26 data-nosnippet>26</a>    </span>WitnessWriterIo(<span class="attr">#[from] </span>std::io::Error),
+<a href=#27 id=27 data-nosnippet>27</a>}
+<a href=#28 id=28 data-nosnippet>28</a>
+<a href=#29 id=29 data-nosnippet>29</a><span class="attr">#[derive(Debug)]
+<a href=#30 id=30 data-nosnippet>30</a></span><span class="kw">struct </span>SnarkjsConstraint {
+<a href=#31 id=31 data-nosnippet>31</a>    <span class="kw">pub </span>a: SnarkjsLinearCombination,
+<a href=#32 id=32 data-nosnippet>32</a>    <span class="kw">pub </span>b: SnarkjsLinearCombination,
+<a href=#33 id=33 data-nosnippet>33</a>    <span class="kw">pub </span>c: SnarkjsLinearCombination,
+<a href=#34 id=34 data-nosnippet>34</a>}
+<a href=#35 id=35 data-nosnippet>35</a>
+<a href=#36 id=36 data-nosnippet>36</a><span class="attr">#[derive(Debug)]
+<a href=#37 id=37 data-nosnippet>37</a></span><span class="kw">struct </span>SnarkjsLinearCombination {
+<a href=#38 id=38 data-nosnippet>38</a>    <span class="kw">pub </span>terms: HashMap&lt;usize, BigInt&gt;,
+<a href=#39 id=39 data-nosnippet>39</a>    <span class="kw">pub </span>constant: BigInt,
+<a href=#40 id=40 data-nosnippet>40</a>}
+<a href=#41 id=41 data-nosnippet>41</a>
+<a href=#42 id=42 data-nosnippet>42</a><span class="kw">impl </span>SnarkjsLinearCombination {
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="kw">fn </span>try_hashmap(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;HashMap&lt;usize, BigInt&gt;, Error&gt; {
+<a href=#44 id=44 data-nosnippet>44</a>        <span class="kw">let </span><span class="kw-2">mut </span>terms = <span class="self">self</span>.terms.clone();
+<a href=#45 id=45 data-nosnippet>45</a>
+<a href=#46 id=46 data-nosnippet>46</a>        <span class="comment">// add the constant term with var indexed at 0
+<a href=#47 id=47 data-nosnippet>47</a>        </span><span class="kw">if </span>terms.insert(<span class="number">0</span>, <span class="self">self</span>.constant.clone()).is_some() {
+<a href=#48 id=48 data-nosnippet>48</a>            <span class="comment">// sanity check
+<a href=#49 id=49 data-nosnippet>49</a>
+<a href=#50 id=50 data-nosnippet>50</a>            </span><span class="prelude-val">Err</span>(std::io::Error::new(
+<a href=#51 id=51 data-nosnippet>51</a>                ErrorKind::Other,
+<a href=#52 id=52 data-nosnippet>52</a>                <span class="string">"The first var should be preserved for constant term"</span>,
+<a href=#53 id=53 data-nosnippet>53</a>            ))<span class="question-mark">?
+<a href=#54 id=54 data-nosnippet>54</a>        </span>}
+<a href=#55 id=55 data-nosnippet>55</a>
+<a href=#56 id=56 data-nosnippet>56</a>        <span class="prelude-val">Ok</span>(terms)
+<a href=#57 id=57 data-nosnippet>57</a>    }
+<a href=#58 id=58 data-nosnippet>58</a>}
+<a href=#59 id=59 data-nosnippet>59</a>
+<a href=#60 id=60 data-nosnippet>60</a><span class="doccomment">/// Calculate the number of bytes for the prime field.
+<a href=#61 id=61 data-nosnippet>61</a></span><span class="kw">fn </span>field_size(prime: <span class="kw-2">&amp;</span>BigInt) -&gt; usize {
+<a href=#62 id=62 data-nosnippet>62</a>    <span class="kw">if </span>prime.bits() % <span class="number">64 </span>== <span class="number">0 </span>{
+<a href=#63 id=63 data-nosnippet>63</a>        prime.bits() / <span class="number">8
+<a href=#64 id=64 data-nosnippet>64</a>    </span>} <span class="kw">else </span>{
+<a href=#65 id=65 data-nosnippet>65</a>        (prime.bits() / <span class="number">64 </span>+ <span class="number">1</span>) * <span class="number">8
+<a href=#66 id=66 data-nosnippet>66</a>    </span>}
+<a href=#67 id=67 data-nosnippet>67</a>}
+<a href=#68 id=68 data-nosnippet>68</a>
+<a href=#69 id=69 data-nosnippet>69</a><span class="doccomment">/// A struct to export r1cs circuit and witness to the snarkjs formats.
+<a href=#70 id=70 data-nosnippet>70</a></span><span class="kw">pub struct </span>SnarkjsExporter&lt;F&gt;
+<a href=#71 id=71 data-nosnippet>71</a><span class="kw">where
+<a href=#72 id=72 data-nosnippet>72</a>    </span>F: BackendField,
+<a href=#73 id=73 data-nosnippet>73</a>{
+<a href=#74 id=74 data-nosnippet>74</a>    <span class="doccomment">/// A R1CS backend with the circuit finalized.
+<a href=#75 id=75 data-nosnippet>75</a>    </span>r1cs_backend: R1CS&lt;F&gt;,
+<a href=#76 id=76 data-nosnippet>76</a>}
+<a href=#77 id=77 data-nosnippet>77</a>
+<a href=#78 id=78 data-nosnippet>78</a><span class="kw">impl</span>&lt;F&gt; SnarkjsExporter&lt;F&gt;
+<a href=#79 id=79 data-nosnippet>79</a><span class="kw">where
+<a href=#80 id=80 data-nosnippet>80</a>    </span>F: BackendField,
+<a href=#81 id=81 data-nosnippet>81</a>{
+<a href=#82 id=82 data-nosnippet>82</a>    <span class="kw">pub fn </span>new(r1cs_backend: R1CS&lt;F&gt;) -&gt; SnarkjsExporter&lt;F&gt; {
+<a href=#83 id=83 data-nosnippet>83</a>        SnarkjsExporter { r1cs_backend }
+<a href=#84 id=84 data-nosnippet>84</a>    }
+<a href=#85 id=85 data-nosnippet>85</a>
+<a href=#86 id=86 data-nosnippet>86</a>    <span class="doccomment">/// Restructure the linear combination to align with the snarkjs format.
+<a href=#87 id=87 data-nosnippet>87</a>    /// - convert the factors to BigInt.
+<a href=#88 id=88 data-nosnippet>88</a>    </span><span class="kw">fn </span>restructure_lc(<span class="kw-2">&amp;</span><span class="self">self</span>, lc: <span class="kw-2">&amp;</span>LinearCombination&lt;F&gt;) -&gt; SnarkjsLinearCombination {
+<a href=#89 id=89 data-nosnippet>89</a>        <span class="kw">let </span>terms = lc
+<a href=#90 id=90 data-nosnippet>90</a>            .terms
+<a href=#91 id=91 data-nosnippet>91</a>            .iter()
+<a href=#92 id=92 data-nosnippet>92</a>            .map(|(cvar, factor)| {
+<a href=#93 id=93 data-nosnippet>93</a>                <span class="kw">let </span>factor_bigint = <span class="self">Self</span>::convert_to_bigint(factor);
+<a href=#94 id=94 data-nosnippet>94</a>
+<a href=#95 id=95 data-nosnippet>95</a>                (cvar.index, factor_bigint)
+<a href=#96 id=96 data-nosnippet>96</a>            })
+<a href=#97 id=97 data-nosnippet>97</a>            .collect();
+<a href=#98 id=98 data-nosnippet>98</a>
+<a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">let </span>constant = <span class="self">Self</span>::convert_to_bigint(<span class="kw-2">&amp;</span>lc.constant);
+<a href=#100 id=100 data-nosnippet>100</a>
+<a href=#101 id=101 data-nosnippet>101</a>        SnarkjsLinearCombination { terms, constant }
+<a href=#102 id=102 data-nosnippet>102</a>    }
+<a href=#103 id=103 data-nosnippet>103</a>
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="doccomment">/// Restructure the constraints to align with the snarkjs format.
+<a href=#105 id=105 data-nosnippet>105</a>    </span><span class="kw">fn </span>restructure_constraints(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;SnarkjsConstraint&gt; {
+<a href=#106 id=106 data-nosnippet>106</a>        <span class="kw">let </span><span class="kw-2">mut </span>constraints = <span class="macro">vec!</span>[];
+<a href=#107 id=107 data-nosnippet>107</a>        <span class="kw">for </span>constraint <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.r1cs_backend.constraints {
+<a href=#108 id=108 data-nosnippet>108</a>            constraints.push(SnarkjsConstraint {
+<a href=#109 id=109 data-nosnippet>109</a>                a: <span class="self">self</span>.restructure_lc(<span class="kw-2">&amp;</span>constraint.a),
+<a href=#110 id=110 data-nosnippet>110</a>                b: <span class="self">self</span>.restructure_lc(<span class="kw-2">&amp;</span>constraint.b),
+<a href=#111 id=111 data-nosnippet>111</a>                c: <span class="self">self</span>.restructure_lc(<span class="kw-2">&amp;</span>constraint.c),
+<a href=#112 id=112 data-nosnippet>112</a>            });
+<a href=#113 id=113 data-nosnippet>113</a>        }
+<a href=#114 id=114 data-nosnippet>114</a>        constraints
+<a href=#115 id=115 data-nosnippet>115</a>    }
+<a href=#116 id=116 data-nosnippet>116</a>
+<a href=#117 id=117 data-nosnippet>117</a>    <span class="doccomment">/// Restructure the witness vector
+<a href=#118 id=118 data-nosnippet>118</a>    </span><span class="kw">fn </span>restructure_witness(<span class="kw-2">&amp;</span><span class="self">self</span>, generated_witness: GeneratedWitness&lt;F&gt;) -&gt; Vec&lt;BigInt&gt; {
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="comment">// convert the witness to BigInt
+<a href=#120 id=120 data-nosnippet>120</a>        </span>generated_witness
+<a href=#121 id=121 data-nosnippet>121</a>            .witness
+<a href=#122 id=122 data-nosnippet>122</a>            .iter()
+<a href=#123 id=123 data-nosnippet>123</a>            .map(|value| <span class="self">Self</span>::convert_to_bigint(value))
+<a href=#124 id=124 data-nosnippet>124</a>            .collect()
+<a href=#125 id=125 data-nosnippet>125</a>    }
+<a href=#126 id=126 data-nosnippet>126</a>
+<a href=#127 id=127 data-nosnippet>127</a>    <span class="doccomment">/// Generate the r1cs file in snarkjs format.
+<a href=#128 id=128 data-nosnippet>128</a>    /// It uses the circom rust library to generate the r1cs file.
+<a href=#129 id=129 data-nosnippet>129</a>    /// The binary format spec: https://github.com/iden3/r1csfile/blob/master/doc/r1cs_bin_format.md
+<a href=#130 id=130 data-nosnippet>130</a>    </span><span class="kw">pub fn </span>gen_r1cs_file(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
+<a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">let </span>prime = <span class="self">self</span>.backend_prime();
+<a href=#132 id=132 data-nosnippet>132</a>        <span class="kw">let </span>field_size = field_size(<span class="kw-2">&amp;</span>prime);
+<a href=#133 id=133 data-nosnippet>133</a>
+<a href=#134 id=134 data-nosnippet>134</a>        <span class="kw">let </span>r1cs = R1CSWriter::new(file.to_string(), field_size, <span class="bool-val">false</span>).unwrap();
+<a href=#135 id=135 data-nosnippet>135</a>        <span class="kw">let </span><span class="kw-2">mut </span>constraint_section = R1CSWriter::start_constraints_section(r1cs).unwrap();
+<a href=#136 id=136 data-nosnippet>136</a>
+<a href=#137 id=137 data-nosnippet>137</a>        <span class="kw">let </span>restructure_constraints = <span class="self">self</span>.restructure_constraints();
+<a href=#138 id=138 data-nosnippet>138</a>
+<a href=#139 id=139 data-nosnippet>139</a>        <span class="kw">for </span>constraint <span class="kw">in </span><span class="kw-2">&amp;</span>restructure_constraints {
+<a href=#140 id=140 data-nosnippet>140</a>            ConstraintSection::write_constraint_usize(
+<a href=#141 id=141 data-nosnippet>141</a>                <span class="kw-2">&amp;mut </span>constraint_section,
+<a href=#142 id=142 data-nosnippet>142</a>                <span class="kw-2">&amp;</span>constraint.a.try_hashmap()<span class="question-mark">?</span>,
+<a href=#143 id=143 data-nosnippet>143</a>                <span class="kw-2">&amp;</span>constraint.b.try_hashmap()<span class="question-mark">?</span>,
+<a href=#144 id=144 data-nosnippet>144</a>                <span class="kw-2">&amp;</span>constraint.c.try_hashmap()<span class="question-mark">?</span>,
+<a href=#145 id=145 data-nosnippet>145</a>            )
+<a href=#146 id=146 data-nosnippet>146</a>            .map_err(|<span class="kw">_</span>| Error::R1CSWriterIo)<span class="question-mark">?</span>;
+<a href=#147 id=147 data-nosnippet>147</a>        }
+<a href=#148 id=148 data-nosnippet>148</a>
+<a href=#149 id=149 data-nosnippet>149</a>        <span class="kw">let </span>r1cs = constraint_section.end_section().unwrap();
+<a href=#150 id=150 data-nosnippet>150</a>        <span class="kw">let </span><span class="kw-2">mut </span>header_section = R1CSWriter::start_header_section(r1cs).unwrap();
+<a href=#151 id=151 data-nosnippet>151</a>        <span class="kw">let </span>header_data = HeaderData {
+<a href=#152 id=152 data-nosnippet>152</a>            <span class="comment">// Snarkjs uses this meta data to determine which curve to use.
+<a href=#153 id=153 data-nosnippet>153</a>            </span>field: prime,
+<a href=#154 id=154 data-nosnippet>154</a>            <span class="comment">// Both the sizes of public inputs and outputs will be crucial for the snarkjs to determine
+<a href=#155 id=155 data-nosnippet>155</a>            // where to extract the public inputs and outputs from the witness vector.
+<a href=#156 id=156 data-nosnippet>156</a>            // Snarkjs prove command will generate a public.json file that contains the public inputs and outputs.
+<a href=#157 id=157 data-nosnippet>157</a>            // So if the sizes are not correct, the public.json will not be generated correctly, which might potential contains the private inputs.
+<a href=#158 id=158 data-nosnippet>158</a>            </span>public_outputs: <span class="self">self</span>.r1cs_backend.public_outputs.len(),
+<a href=#159 id=159 data-nosnippet>159</a>            public_inputs: <span class="self">self</span>.r1cs_backend.public_inputs.len(),
+<a href=#160 id=160 data-nosnippet>160</a>            <span class="comment">// There seems no use of this field in the snarkjs lib. It might be just a reference.
+<a href=#161 id=161 data-nosnippet>161</a>            </span>private_inputs: <span class="self">self</span>.r1cs_backend.private_input_number(),
+<a href=#162 id=162 data-nosnippet>162</a>            <span class="comment">// Add one to take into account the first var that is only added during the witness formation for snarkjs.
+<a href=#163 id=163 data-nosnippet>163</a>            </span>total_wires: <span class="self">self</span>.r1cs_backend.witness_vector.len(),
+<a href=#164 id=164 data-nosnippet>164</a>            <span class="comment">// This is for circom lang debugging, so we don't need it.
+<a href=#165 id=165 data-nosnippet>165</a>            </span>number_of_labels: <span class="number">0</span>,
+<a href=#166 id=166 data-nosnippet>166</a>            number_of_constraints: restructure_constraints.len(),
+<a href=#167 id=167 data-nosnippet>167</a>        };
+<a href=#168 id=168 data-nosnippet>168</a>        header_section
+<a href=#169 id=169 data-nosnippet>169</a>            .write_section(header_data)
+<a href=#170 id=170 data-nosnippet>170</a>            .map_err(|<span class="kw">_</span>| Error::R1CSWriterIo)<span class="question-mark">?</span>;
+<a href=#171 id=171 data-nosnippet>171</a>
+<a href=#172 id=172 data-nosnippet>172</a>        <span class="kw">let </span>r1cs = header_section.end_section().unwrap();
+<a href=#173 id=173 data-nosnippet>173</a>        R1CSWriter::finish_writing(r1cs).map_err(|<span class="kw">_</span>| Error::R1CSWriterIo)
+<a href=#174 id=174 data-nosnippet>174</a>    }
+<a href=#175 id=175 data-nosnippet>175</a>
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="doccomment">/// Generate the wtns file in snarkjs format.
+<a href=#177 id=177 data-nosnippet>177</a>    </span><span class="kw">pub fn </span>gen_wtns_file(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, witness: GeneratedWitness&lt;F&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
+<a href=#178 id=178 data-nosnippet>178</a>        <span class="kw">let </span>restructured_witness = <span class="self">self</span>.restructure_witness(witness);
+<a href=#179 id=179 data-nosnippet>179</a>
+<a href=#180 id=180 data-nosnippet>180</a>        <span class="kw">let </span><span class="kw-2">mut </span>witness_writer = WitnessWriter::new(file).unwrap();
+<a href=#181 id=181 data-nosnippet>181</a>
+<a href=#182 id=182 data-nosnippet>182</a>        <span class="prelude-val">Ok</span>(witness_writer.write(restructured_witness, <span class="kw-2">&amp;</span><span class="self">self</span>.backend_prime())<span class="question-mark">?</span>)
+<a href=#183 id=183 data-nosnippet>183</a>    }
+<a href=#184 id=184 data-nosnippet>184</a>
+<a href=#185 id=185 data-nosnippet>185</a>    <span class="kw">fn </span>backend_prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BigInt {
+<a href=#186 id=186 data-nosnippet>186</a>        BigInt::from_bytes_le(
+<a href=#187 id=187 data-nosnippet>187</a>            num_bigint_dig::Sign::Plus,
+<a href=#188 id=188 data-nosnippet>188</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.r1cs_backend.prime().to_bytes_le(),
+<a href=#189 id=189 data-nosnippet>189</a>        )
+<a href=#190 id=190 data-nosnippet>190</a>    }
+<a href=#191 id=191 data-nosnippet>191</a>
+<a href=#192 id=192 data-nosnippet>192</a>    <span class="kw">fn </span>convert_to_bigint(value: <span class="kw-2">&amp;</span>F) -&gt; BigInt {
+<a href=#193 id=193 data-nosnippet>193</a>        BigInt::from_bytes_le(
+<a href=#194 id=194 data-nosnippet>194</a>            num_bigint_dig::Sign::Plus,
+<a href=#195 id=195 data-nosnippet>195</a>            <span class="kw-2">&amp;</span>value.into_bigint().to_bytes_le(),
+<a href=#196 id=196 data-nosnippet>196</a>        )
+<a href=#197 id=197 data-nosnippet>197</a>    }
+<a href=#198 id=198 data-nosnippet>198</a>}
+<a href=#199 id=199 data-nosnippet>199</a>
+<a href=#200 id=200 data-nosnippet>200</a><span class="doccomment">/// Witness writer for generating the wtns file in snarkjs format.
+<a href=#201 id=201 data-nosnippet>201</a>/// The circom rust lib seems not to have the API to generate the wtns file, so we create our own based on the snarkjs lib.
+<a href=#202 id=202 data-nosnippet>202</a>/// The implementation follows: https://github.com/iden3/snarkjs/blob/577b3f358016a486402050d3b7242876082c085f/src/wtns_utils.js#L25
+<a href=#203 id=203 data-nosnippet>203</a>/// It uses the same binary format as the r1cs file relies on.
+<a href=#204 id=204 data-nosnippet>204</a>/// Although it is the same binary file protocol, but the witness file has simpler data points than the r1cs file.
+<a href=#205 id=205 data-nosnippet>205</a></span><span class="kw">struct </span>WitnessWriter {
+<a href=#206 id=206 data-nosnippet>206</a>    inner: BufWriter&lt;File&gt;,
+<a href=#207 id=207 data-nosnippet>207</a>    writing_section: <span class="prelude-ty">Option</span>&lt;WritingSection&gt;,
+<a href=#208 id=208 data-nosnippet>208</a>    section_size_position: u64,
+<a href=#209 id=209 data-nosnippet>209</a>}
+<a href=#210 id=210 data-nosnippet>210</a>
+<a href=#211 id=211 data-nosnippet>211</a><span class="doccomment">/// A struct to represent a section in the snarkjs binary format.
+<a href=#212 id=212 data-nosnippet>212</a></span><span class="kw">struct </span>WritingSection;
+<a href=#213 id=213 data-nosnippet>213</a>
+<a href=#214 id=214 data-nosnippet>214</a><span class="kw">impl </span>WitnessWriter {
+<a href=#215 id=215 data-nosnippet>215</a>    <span class="comment">// Initialize a FileWriter
+<a href=#216 id=216 data-nosnippet>216</a>    </span><span class="kw">fn </span>new(path: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessWriter, Error&gt; {
+<a href=#217 id=217 data-nosnippet>217</a>        <span class="comment">// file type for the witness file
+<a href=#218 id=218 data-nosnippet>218</a>        </span><span class="kw">let </span>file_type = <span class="string">"wtns"</span>;
+<a href=#219 id=219 data-nosnippet>219</a>        <span class="comment">// version of the file format
+<a href=#220 id=220 data-nosnippet>220</a>        </span><span class="kw">let </span>version = <span class="number">2u32</span>;
+<a href=#221 id=221 data-nosnippet>221</a>        <span class="comment">// total number of sections
+<a href=#222 id=222 data-nosnippet>222</a>        </span><span class="kw">let </span>n_sections = <span class="number">2u32</span>;
+<a href=#223 id=223 data-nosnippet>223</a>
+<a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">let </span>file = OpenOptions::new()
+<a href=#225 id=225 data-nosnippet>225</a>            .write(<span class="bool-val">true</span>)
+<a href=#226 id=226 data-nosnippet>226</a>            .create(<span class="bool-val">true</span>)
+<a href=#227 id=227 data-nosnippet>227</a>            .truncate(<span class="bool-val">true</span>)
+<a href=#228 id=228 data-nosnippet>228</a>            .open(path)
+<a href=#229 id=229 data-nosnippet>229</a>            .unwrap();
+<a href=#230 id=230 data-nosnippet>230</a>        <span class="kw">let </span><span class="kw-2">mut </span>writer = BufWriter::new(file);
+<a href=#231 id=231 data-nosnippet>231</a>
+<a href=#232 id=232 data-nosnippet>232</a>        <span class="comment">// Write the file type (magic string) as bytes
+<a href=#233 id=233 data-nosnippet>233</a>        </span><span class="kw">let </span>file_type_bytes = file_type.as_bytes();
+<a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">if </span>file_type_bytes.len() != <span class="number">4 </span>{
+<a href=#235 id=235 data-nosnippet>235</a>            <span class="prelude-val">Err</span>(std::io::Error::new(
+<a href=#236 id=236 data-nosnippet>236</a>                ErrorKind::Other,
+<a href=#237 id=237 data-nosnippet>237</a>                <span class="string">"File type must be 4 characters long"</span>,
+<a href=#238 id=238 data-nosnippet>238</a>            ))<span class="question-mark">?
+<a href=#239 id=239 data-nosnippet>239</a>        </span>}
+<a href=#240 id=240 data-nosnippet>240</a>        writer.write_all(file_type_bytes)<span class="question-mark">?</span>;
+<a href=#241 id=241 data-nosnippet>241</a>
+<a href=#242 id=242 data-nosnippet>242</a>        <span class="comment">// Write the version as a 32-bit unsigned integer in little endian
+<a href=#243 id=243 data-nosnippet>243</a>        </span>writer.write_all(<span class="kw-2">&amp;</span>version.to_le_bytes())<span class="question-mark">?</span>;
+<a href=#244 id=244 data-nosnippet>244</a>
+<a href=#245 id=245 data-nosnippet>245</a>        <span class="comment">// Write the number of sections as a 32-bit unsigned integer in little endian
+<a href=#246 id=246 data-nosnippet>246</a>        </span>writer.write_all(<span class="kw-2">&amp;</span>n_sections.to_le_bytes())<span class="question-mark">?</span>;
+<a href=#247 id=247 data-nosnippet>247</a>
+<a href=#248 id=248 data-nosnippet>248</a>        <span class="kw">let </span>current_position = writer.stream_position().unwrap();
+<a href=#249 id=249 data-nosnippet>249</a>
+<a href=#250 id=250 data-nosnippet>250</a>        <span class="prelude-val">Ok</span>(WitnessWriter {
+<a href=#251 id=251 data-nosnippet>251</a>            inner: writer,
+<a href=#252 id=252 data-nosnippet>252</a>            writing_section: <span class="prelude-val">None</span>,
+<a href=#253 id=253 data-nosnippet>253</a>            section_size_position: current_position,
+<a href=#254 id=254 data-nosnippet>254</a>        })
+<a href=#255 id=255 data-nosnippet>255</a>    }
+<a href=#256 id=256 data-nosnippet>256</a>
+<a href=#257 id=257 data-nosnippet>257</a>    <span class="doccomment">/// Start a new section for writing.
+<a href=#258 id=258 data-nosnippet>258</a>    </span><span class="kw">fn </span>start_write_section(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id_section: u32) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
+<a href=#259 id=259 data-nosnippet>259</a>        <span class="comment">// Write the section ID as ULE32
+<a href=#260 id=260 data-nosnippet>260</a>        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>id_section.to_le_bytes())<span class="question-mark">?</span>;
+<a href=#261 id=261 data-nosnippet>261</a>        <span class="comment">// Get the current position
+<a href=#262 id=262 data-nosnippet>262</a>        </span><span class="self">self</span>.section_size_position = <span class="self">self</span>.inner.stream_position().unwrap();
+<a href=#263 id=263 data-nosnippet>263</a>        <span class="comment">// Temporarily write 0 as ULE64 for the section size
+<a href=#264 id=264 data-nosnippet>264</a>        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span><span class="number">0u64</span>.to_le_bytes())<span class="question-mark">?</span>;
+<a href=#265 id=265 data-nosnippet>265</a>        <span class="self">self</span>.writing_section = <span class="prelude-val">Some</span>(WritingSection);
+<a href=#266 id=266 data-nosnippet>266</a>
+<a href=#267 id=267 data-nosnippet>267</a>        <span class="prelude-val">Ok</span>(())
+<a href=#268 id=268 data-nosnippet>268</a>    }
+<a href=#269 id=269 data-nosnippet>269</a>
+<a href=#270 id=270 data-nosnippet>270</a>    <span class="doccomment">/// End the current section
+<a href=#271 id=271 data-nosnippet>271</a>    </span><span class="kw">fn </span>end_write_section(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
+<a href=#272 id=272 data-nosnippet>272</a>        <span class="kw">let </span>current_pos = <span class="self">self</span>.inner.stream_position().unwrap();
+<a href=#273 id=273 data-nosnippet>273</a>        <span class="comment">// Calculate the size of the section
+<a href=#274 id=274 data-nosnippet>274</a>        </span><span class="kw">let </span>section_size = current_pos - <span class="self">self</span>.section_size_position - <span class="number">8</span>;
+<a href=#275 id=275 data-nosnippet>275</a>
+<a href=#276 id=276 data-nosnippet>276</a>        <span class="comment">// Move back to where the size needs to be written
+<a href=#277 id=277 data-nosnippet>277</a>        </span><span class="self">self</span>.inner
+<a href=#278 id=278 data-nosnippet>278</a>            .seek(SeekFrom::Start(<span class="self">self</span>.section_size_position))<span class="question-mark">?</span>;
+<a href=#279 id=279 data-nosnippet>279</a>        <span class="comment">// Write the actual section size
+<a href=#280 id=280 data-nosnippet>280</a>        </span><span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>section_size.to_le_bytes())<span class="question-mark">?</span>;
+<a href=#281 id=281 data-nosnippet>281</a>        <span class="comment">// Return to the end of the section
+<a href=#282 id=282 data-nosnippet>282</a>        </span><span class="self">self</span>.inner.seek(SeekFrom::Start(current_pos))<span class="question-mark">?</span>;
+<a href=#283 id=283 data-nosnippet>283</a>        <span class="comment">// Flush the buffer to ensure all data is written to the file
+<a href=#284 id=284 data-nosnippet>284</a>        </span><span class="self">self</span>.inner.flush()<span class="question-mark">?</span>;
+<a href=#285 id=285 data-nosnippet>285</a>
+<a href=#286 id=286 data-nosnippet>286</a>        <span class="self">self</span>.writing_section = <span class="prelude-val">None</span>;
+<a href=#287 id=287 data-nosnippet>287</a>
+<a href=#288 id=288 data-nosnippet>288</a>        <span class="prelude-val">Ok</span>(())
+<a href=#289 id=289 data-nosnippet>289</a>    }
+<a href=#290 id=290 data-nosnippet>290</a>
+<a href=#291 id=291 data-nosnippet>291</a>    <span class="doccomment">/// Write the witness to the file
+<a href=#292 id=292 data-nosnippet>292</a>    /// It stores the two sections:
+<a href=#293 id=293 data-nosnippet>293</a>    /// - Header section: describes the field size, prime field, and the number of witnesses.
+<a href=#294 id=294 data-nosnippet>294</a>    /// - Witness section: contains the witness values.
+<a href=#295 id=295 data-nosnippet>295</a>    </span><span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, witness: Vec&lt;BigInt&gt;, prime: <span class="kw-2">&amp;</span>BigInt) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
+<a href=#296 id=296 data-nosnippet>296</a>        <span class="comment">// Start writing the first section
+<a href=#297 id=297 data-nosnippet>297</a>        </span><span class="self">self</span>.start_write_section(<span class="number">1</span>)<span class="question-mark">?</span>;
+<a href=#298 id=298 data-nosnippet>298</a>        <span class="comment">// Write field size in number of bytes
+<a href=#299 id=299 data-nosnippet>299</a>        </span><span class="kw">let </span>field_n_bytes = field_size(prime);
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="self">self</span>.inner
+<a href=#301 id=301 data-nosnippet>301</a>            .write_all(<span class="kw-2">&amp;</span>(field_n_bytes <span class="kw">as </span>u32).to_le_bytes())<span class="question-mark">?</span>;
+<a href=#302 id=302 data-nosnippet>302</a>        <span class="comment">// Write the prime field in bytes
+<a href=#303 id=303 data-nosnippet>303</a>        </span><span class="self">self</span>.write_big_int(prime.clone(), field_n_bytes)<span class="question-mark">?</span>;
+<a href=#304 id=304 data-nosnippet>304</a>        <span class="comment">// Write the number of witnesses
+<a href=#305 id=305 data-nosnippet>305</a>        </span><span class="self">self</span>.inner
+<a href=#306 id=306 data-nosnippet>306</a>            .write_all(<span class="kw-2">&amp;</span>(witness.len() <span class="kw">as </span>u32).to_le_bytes())<span class="question-mark">?</span>;
+<a href=#307 id=307 data-nosnippet>307</a>
+<a href=#308 id=308 data-nosnippet>308</a>        <span class="self">self</span>.end_write_section()<span class="question-mark">?</span>;
+<a href=#309 id=309 data-nosnippet>309</a>
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="comment">// Start writing the second section
+<a href=#311 id=311 data-nosnippet>311</a>        </span><span class="self">self</span>.start_write_section(<span class="number">2</span>)<span class="question-mark">?</span>;
+<a href=#312 id=312 data-nosnippet>312</a>
+<a href=#313 id=313 data-nosnippet>313</a>        <span class="doccomment">/// Write the witness values to the file
+<a href=#314 id=314 data-nosnippet>314</a>        /// Each witness value occupies the same number of bytes as the prime field
+<a href=#315 id=315 data-nosnippet>315</a>        </span><span class="kw">for </span>value <span class="kw">in </span>witness {
+<a href=#316 id=316 data-nosnippet>316</a>            <span class="self">self</span>.write_big_int(value.clone(), field_n_bytes)<span class="question-mark">?</span>;
+<a href=#317 id=317 data-nosnippet>317</a>        }
+<a href=#318 id=318 data-nosnippet>318</a>        <span class="self">self</span>.end_write_section()
+<a href=#319 id=319 data-nosnippet>319</a>    }
+<a href=#320 id=320 data-nosnippet>320</a>
+<a href=#321 id=321 data-nosnippet>321</a>    <span class="doccomment">/// Write a BigInt to the file
+<a href=#322 id=322 data-nosnippet>322</a>    </span><span class="kw">fn </span>write_big_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: BigInt, size: usize) -&gt; <span class="prelude-ty">Result</span>&lt;(), io::Error&gt; {
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">let </span>bytes = value.to_bytes_le().<span class="number">1</span>;
+<a href=#324 id=324 data-nosnippet>324</a>
+<a href=#325 id=325 data-nosnippet>325</a>        <span class="kw">let </span><span class="kw-2">mut </span>buffer = <span class="macro">vec!</span>[<span class="number">0u8</span>; size];
+<a href=#326 id=326 data-nosnippet>326</a>        buffer[..bytes.len()].copy_from_slice(<span class="kw-2">&amp;</span>bytes);
+<a href=#327 id=327 data-nosnippet>327</a>        <span class="self">self</span>.inner.write_all(<span class="kw-2">&amp;</span>buffer)
+<a href=#328 id=328 data-nosnippet>328</a>    }
+<a href=#329 id=329 data-nosnippet>329</a>}</code></pre></div></section></main></body></html>
