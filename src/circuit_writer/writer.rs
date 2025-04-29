@@ -664,7 +664,11 @@ impl<B: Backend> CircuitWriter<B> {
                     Op2::Inequality => field::not_equal(self, &lhs, &rhs, expr.span),
                     Op2::BoolAnd => boolean::and(self, &lhs[0], &rhs[0], expr.span),
                     Op2::BoolOr => boolean::or(self, &lhs[0], &rhs[0], expr.span),
-                    Op2::Division => todo!(),
+                    Op2::Division => unreachable!("/ is only supported in hint functions"),
+                    Op2::Rem => unreachable!("% is only supported in hint functions"),
+                    Op2::LShift => unreachable!("<< is only supported in hint functions"),
+                    Op2::LessThan => unreachable!("< is only supported in hint functions"),
+                    Op2::Pow => unreachable!("** is only supported in hint functions"),
                 };
 
                 Ok(Some(VarOrRef::Var(res)))

@@ -267,7 +267,7 @@ where
 {
     /// Constraints in the r1cs.
     constraints: Vec<Constraint<F>>,
-    witness_vector: Vec<Value<Self>>,
+    witness_vector: Vec<(Value<Self>, Span)>,
     /// Debug information for each constraint.
     debug_info: Vec<DebugInfo>,
     /// Debug information for var info.
@@ -384,7 +384,7 @@ where
             span,
         };
 
-        self.witness_vector.insert(var.index, val);
+        self.witness_vector.insert(var.index, (val, span));
 
         LinearCombination::from(var)
     }
@@ -419,8 +419,9 @@ where
                 // replace the computation of the public output vars with the actual variables being returned here
                 let var_idx = pub_var.cvar().unwrap().to_cell_var().index;
                 let prev = &self.witness_vector[var_idx];
-                assert!(matches!(prev, Value::PublicOutput(None)));
-                self.witness_vector[var_idx] = Value::PublicOutput(Some(ret_var));
+                assert!(matches!(prev.0, Value::PublicOutput(None)));
+                self.witness_vector[var_idx] =
+                    (Value::PublicOutput(Some(ret_var.clone())), ret_var.span);
             }
         }
 
@@ -435,7 +436,7 @@ where
         }
 
         // check if every cell vars end up being a cell var in the circuit or public output
-        for (index, _) in self.witness_vector.iter().enumerate() {
+        for (index, (val, span)) in self.witness_vector.iter().enumerate() {
             // Skip the first var which is always 1
             // - In a linear combination, each of the vars can be paired with a coefficient.
             // - The first var is assumed to be the factor of the constant of a linear combination.
@@ -444,6 +445,11 @@ where
             }
 
             if !written_vars.contains(&index) && !disable_safety_check {
+                // ignore HintIR val
+                if let Value::HintIR(..) = val {
+                    println!("a HintIR value not used in the circuit: {:?}", span);
+                    continue;
+                }
                 if let Some(private_cell_var) = self
                     .private_input_cell_vars
                     .iter()
@@ -458,7 +464,7 @@ where
                     Err(Error::new(
                         "constraint-finalization",
                         ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"),
-                        Span::default(),
+                        *span,
                     ))?
                 }
             }
@@ -478,7 +484,7 @@ where
 
         for (var, factor) in &lc.terms {
             let var_val = self.witness_vector.get(var.index).unwrap();
-            let calc = self.compute_val(env, var_val, var.index)? * factor;
+            let calc = self.compute_val(env, &var_val.0, var.index)? * factor;
             val += calc;
         }
 
@@ -501,11 +507,11 @@ where
             .iter()
             .enumerate()
             .map(|(index, val)| {
-                match val {
+                match val.0 {
                     // Defer calculation for output vars.
                     // The reasoning behind this is to avoid deep recursion potentially triggered by the public output var at the beginning.
                     Value::PublicOutput(_) => Ok(F::zero()),
-                    _ => self.compute_val(witness_env, val, index),
+                    _ => self.compute_val(witness_env, &val.0, index),
                 }
             })
             .collect::<crate::error::Result<Vec<F>>>()?;
@@ -735,7 +741,7 @@ mod tests {
 
         // first var should be initialized as 1
         assert_eq!(r1cs.witness_vector.len(), 1);
-        match &r1cs.witness_vector[0] {
+        match &r1cs.witness_vector[0].0 {
             crate::var::Value::Constant(cst) => {
                 assert_eq!(*cst, R1csBls12381Field::one());
             }
