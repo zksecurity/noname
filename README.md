@@ -40,6 +40,8 @@ Then simply write `noname` in the console to get access to the CLI. See the [Usa
 $ noname
 ```
 
+[Learn more about how to use noname in the deepwiki documentation](https://deepwiki.com/zksecurity/noname/1-overview).
+
 ## More Resources
 
 We have a lot of resources to learn and understand how noname works:
