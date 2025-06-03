@@ -134,7 +134,8 @@ impl<B: Backend> CircuitWriter<B> {
             backend,
             public_output: None,
             ir_writer: ir::IRWriter {
-                typed: typed.clone(),
+                typed: typed.0.clone(),
+                logs: vec![],
             },
         }
     }
