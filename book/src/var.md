@@ -52,7 +52,7 @@ pub enum VarKind {
     /// A struct is represented as a mapping between field names and other [VarKind]s.
     Struct(HashMap<String, VarKind>),
 
-    /// An array or a tuple is represetend as a list of other [VarKind]s.
+    /// An array or a tuple is represented as a list of other [VarKind]s.
     ArrayOrTuple(Vec<VarKind>),
 }
 

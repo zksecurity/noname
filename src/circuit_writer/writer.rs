@@ -214,7 +214,7 @@ impl<B: Backend> CircuitWriter<B> {
 
                             fn_env.nest();
 
-                            // add the variable to the inner enviroment corresponding
+                            // add the variable to the inner environment corresponding
                             // to iterator[idx]
                             let indexed_var = iterator_var.narrow(start, len).value(self, fn_env);
                             let var_info =

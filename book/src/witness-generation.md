@@ -26,7 +26,7 @@ pub struct Compiler {
 
 The witness generation goes as follows:
 
-1. Each rows in `witness_table` is looked at one by one 
+1. Each row in `witness_table` is looked at one by one 
 2. For each `CellVar` in the row:
    1. If it is set, it is evaluated using the `Value` stored in `vars_to_value`.
    2. If it set to `None`, it is simply evaluated as `0`.

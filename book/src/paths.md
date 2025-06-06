@@ -11,7 +11,7 @@ The identifier `some_module`, appearing before the `::`, is an optional module, 
 The identifier `some_ident` is mandatory. It can represent a type (if it starts with a capital letter), a function name, a variable name, a constant name, etc.
 
 More identifiers can be concatenated together to form a longer path (using `.`).
-A path is represent like this internally:
+A path is represented like this internally:
 
 ```rust
 /// A path represents a path to a type, a function, a method, or a constant.
