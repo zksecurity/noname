@@ -2,7 +2,7 @@
 
 Like most languages, noname has a notion of scope within a function.
 Unlike a lot of languages noname forbids shadowing at all scope level.
-This means that eventhough different functions can use local variable with colliding names, the local variable of one function must all have different names.
+This means that even though different functions can use local variable with colliding names, the local variable of one function must all have different names.
 
 For example, the following code does not compile:
 
@@ -27,7 +27,7 @@ Both the type checker and the circuit writer need to keep track of local variabl
 For the type checker (`type_checker.rs`), a `TypeEnv` structure keeps track of the association between all local variables names and their type information.
 For the circuit writer (`circuit_writer.rs`), a `FnEnv` structure keeps track of the association between all local variable names and their circuit variable.
 
-Both structure also keep track of how nested the current block is (the top level starting at level 0).
+Both structures also keep track of how nested the current block is (the top level starting at level 0).
 For this reason, it is important to remember to increase the current scope when entering a new block (for loop, if statement, etc.) and to decrease it when exiting the block.
 In addition, all variables from a scope must be disabled (but not deleted, in order to detect shadowing) when exiting that scope.
 

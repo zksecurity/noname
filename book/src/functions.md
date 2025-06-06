@@ -82,8 +82,8 @@ The first step of the type checker resolves imports by doing the following:
 When a function is called, we do the following:
 
 * if the function is qualified (e.g. `crypto::poseidon`), then lookup imported modules (see next section)
-* otherwise, check if the function exist in the `GlobalEnv`, if it doesn't then return an error
-* if the function exist, then create a new `FnEnv` and register the arguments as local variables there
+* otherwise, check if the function exists in the `GlobalEnv`, if it doesn't then return an error
+* if the function exists, then create a new `FnEnv` and register the arguments as local variables there
 * switch to the function's AST and pass the new `FnEnv` as argument
 * TODO: how to handle the return value? it should be saved in the `FnEnv`
 

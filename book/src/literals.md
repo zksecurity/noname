@@ -41,7 +41,7 @@ Approach 2 can be implemented in two ways:
 a. Use a brand new type, like `BigInt` for literals.
 b. Use a `const` attribute to indicate that it is a constant.
 
-Approach a. is a bit clumsy in my opinion because the developer need to remember about a new type name, and understand the distinction with that and `Field`.
+Approach a. is a bit clumsy in my opinion because the developer needs to remember about a new type name, and understand the distinction with that and `Field`.
 
 On the other hand, approach b. uses the `const` keyword which is already well-known in many compiled programming languages.
 
@@ -58,7 +58,7 @@ To contrast, the two other existing attributes (`pub` and `mut`) are placed in f
 One could argue that the type is the same, but the variable being passed is a constant, and so it makes more sense to implement the first version.
 This is what we do in noname.
 
-At the time of this writing, the `const` keyword only seem to make sense in a function argument, and so is implemented in the same way as the `pub` attribute:
+At the time of this writing, the `const` keyword only seems to make sense in a function argument, and so is implemented in the same way as the `pub` attribute:
 
 ```rust
 pub enum AttributeKind {

@@ -30,7 +30,7 @@ During witness generation (see the [Witness Generation chapter](./witness-genera
 
 ```rust
 let val = if let Some(var) = var {
-    // if it's a public output, defer it's computation
+    // if it's a public output, defer its computation
     if matches!(self.vars_to_value[&var], Value::PublicOutput(_)) {
         public_outputs_vars.push((row, *var));
         Field::zero()

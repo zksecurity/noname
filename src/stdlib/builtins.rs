@@ -134,7 +134,7 @@ fn assert_eq_values<B: Backend>(
         }
 
         // GenericSizedArray should be monomorphized to Array before reaching here
-        // no need to handle it seperately
+        // no need to handle it separately
         TyKind::GenericSizedArray(_, _) => {
             unreachable!("GenericSizedArray should be monomorphized")
         }
@@ -145,7 +145,7 @@ fn assert_eq_values<B: Backend>(
             let mut offset = 0;
             for ty in typs {
                 let element_size = compiler.size_of(ty);
-                let mut element_comparisions = assert_eq_values(
+                let mut element_comparisons = assert_eq_values(
                     compiler,
                     &VarInfo::new(
                         Var::new(lhs_info.var.range(offset, element_size).to_vec(), span),
@@ -160,7 +160,7 @@ fn assert_eq_values<B: Backend>(
                     ty,
                     span,
                 );
-                comparisons.append(&mut element_comparisions);
+                comparisons.append(&mut element_comparisons);
                 offset += element_size;
             }
         }

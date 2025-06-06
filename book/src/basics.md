@@ -140,7 +140,7 @@ fn main(pub xx: Field) {
 }
 ```
 
-The two branches of the ternary operator must be variables (as in the xample), or array accesses (e.g. `thing[0]`), or field accesses (e.g. `thing.field`).
+The two branches of the ternary operator must be variables (as in the example), or array accesses (e.g. `thing[0]`), or field accesses (e.g. `thing.field`).
 
 ## Functions
 

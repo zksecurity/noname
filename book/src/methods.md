@@ -15,7 +15,7 @@ due to this, the circuit-writer needs to store the type of local variables in sc
 
 ```rust
 /// Is used to store functions' scoped variables.
-/// This include inputs and output of the function,  as well as local variables.
+/// This includes inputs and output of the function,  as well as local variables.
 /// You can think of it as a function call stack.
 pub struct FnEnv {
     /// The current nesting level.
@@ -35,7 +35,7 @@ pub struct VarInfo {
     /// The variable.
     pub var: Var,
 
-    /// We keep track of the type of variables, eventhough we're not in the typechecker anymore,
+    /// We keep track of the type of variables, even though we're not in the typechecker anymore,
     /// because we need to know the type for method calls.
     pub typ: TyKind,
 }
@@ -53,7 +53,7 @@ There's three ways to solve this:
 
 1. Either the type checker stores type information about each expression it parses. This is what the Rust compiler does I believe: each `Expr` AST node has a unique node identifier that can be used to search type information in a map.
 2. Or, more simply, the circuit-writer's `compute_expr()` function that returns an `Option<Var>` could be modified to return `Option<VarInfo>`. This is a bit annoying as we're recomputing things we've done in the type checker.
-3. A variant of the previous option is to change `Var` so that it also contain a type (might as well).
+3. A variant of the previous option is to change `Var` so that it also contains a type (might as well).
 
 So we implement option 1: the type checker now stores the type information of each `Expr` node in the AST under a hashmap that is later passed to the circuit-writer:
 

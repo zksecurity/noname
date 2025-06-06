@@ -18,7 +18,7 @@ let a = b.c.d;
 let e = f[3].g;
 ```
 
-Note that there are other usecases that are not allowed at the moment for readability reasons.
+Note that there are other use cases that are not allowed at the moment for readability reasons.
 For example we could have allowed the following to be valid noname:
 
 ```rust
