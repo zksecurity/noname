@@ -43,6 +43,17 @@
         <script src="toc.js"></script>
     </head>
     <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
@@ -120,7 +131,7 @@
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -261,7 +272,7 @@ fn main(pub player: Field) -&gt; Field {
     let yy = cond ? plus : xx ;
     assert_eq(yy, 2);
 }</code></pre></pre>
-<p>The two branches of the ternary operator must be variables (as in the xample), or array accesses (e.g. <code>thing[0]</code>), or field accesses (e.g. <code>thing.field</code>).</p>
+<p>The two branches of the ternary operator must be variables (as in the example), or array accesses (e.g. <code>thing[0]</code>), or field accesses (e.g. <code>thing.field</code>).</p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <pre><pre class="playground"><code class="language-rust">fn add(x: Field, y: Field) -&gt; Field {
     return x + y;
@@ -419,7 +430,7 @@ sign := /a-zA-Z_/
 <p>which represents a location in the original source code:</p>
 <ul>
 <li>the first number is the offset in the source code file</li>
-<li>the second number if the length of the span (e.g. 1 character)</li>
+<li>the second number is the length of the span (e.g. 1 character)</li>
 </ul>
 <p>We start tracking spans in the lexer, and then pass them around to the parser, and then to the compiler. Even gates and wirings have spans associated with them so that we can easily debug those.</p>
 <h2 id="filename"><a class="header" href="#filename">Filename</a></h2>
@@ -434,7 +445,7 @@ sign := /a-zA-Z_/
 <p>The identifier <code>some_module</code>, appearing before the <code>::</code>, is an optional module, pointing to code that exists in another library. It is always lowercase.</p>
 <p>The identifier <code>some_ident</code> is mandatory. It can represent a type (if it starts with a capital letter), a function name, a variable name, a constant name, etc.</p>
 <p>More identifiers can be concatenated together to form a longer path (using <code>.</code>).
-A path is represent like this internally:</p>
+A path is represented like this internally:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>/// A path represents a path to a type, a function, a method, or a constant.
@@ -604,7 +615,7 @@ let z = thing.valid(3);
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>/// Is used to store functions' scoped variables.
-/// This include inputs and output of the function,  as well as local variables.
+/// This includes inputs and output of the function,  as well as local variables.
 /// You can think of it as a function call stack.
 pub struct FnEnv {
     /// The current nesting level.
@@ -624,7 +635,7 @@ pub struct VarInfo {
     /// The variable.
     pub var: Var,
 
-    /// We keep track of the type of variables, eventhough we're not in the typechecker anymore,
+    /// We keep track of the type of variables, even though we're not in the typechecker anymore,
     /// because we need to know the type for method calls.
     pub typ: TyKind,
 }
@@ -639,7 +650,7 @@ pub struct VarInfo {
 <ol>
 <li>Either the type checker stores type information about each expression it parses. This is what the Rust compiler does I believe: each <code>Expr</code> AST node has a unique node identifier that can be used to search type information in a map.</li>
 <li>Or, more simply, the circuit-writer’s <code>compute_expr()</code> function that returns an <code>Option&lt;Var&gt;</code> could be modified to return <code>Option&lt;VarInfo&gt;</code>. This is a bit annoying as we’re recomputing things we’ve done in the type checker.</li>
-<li>A variant of the previous option is to change <code>Var</code> so that it also contain a type (might as well).</li>
+<li>A variant of the previous option is to change <code>Var</code> so that it also contains a type (might as well).</li>
 </ol>
 <p>So we implement option 1: the type checker now stores the type information of each <code>Expr</code> node in the AST under a hashmap that is later passed to the circuit-writer:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -687,7 +698,7 @@ The name is a bit misleading in the case of array accesses, because we additiona
 <p>Approach 2 can be implemented in two ways:</p>
 <p>a. Use a brand new type, like <code>BigInt</code> for literals.
 b. Use a <code>const</code> attribute to indicate that it is a constant.</p>
-<p>Approach a. is a bit clumsy in my opinion because the developer need to remember about a new type name, and understand the distinction with that and <code>Field</code>.</p>
+<p>Approach a. is a bit clumsy in my opinion because the developer needs to remember about a new type name, and understand the distinction with that and <code>Field</code>.</p>
 <p>On the other hand, approach b. uses the <code>const</code> keyword which is already well-known in many compiled programming languages.</p>
 <p>What about this:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -699,7 +710,7 @@ fn House.get(self, room: const Field) -&gt; Field {
 <p>To contrast, the two other existing attributes (<code>pub</code> and <code>mut</code>) are placed in front of the variable names, not the type names.</p>
 <p>One could argue that the type is the same, but the variable being passed is a constant, and so it makes more sense to implement the first version.
 This is what we do in noname.</p>
-<p>At the time of this writing, the <code>const</code> keyword only seem to make sense in a function argument, and so is implemented in the same way as the <code>pub</code> attribute:</p>
+<p>At the time of this writing, the <code>const</code> keyword only seems to make sense in a function argument, and so is implemented in the same way as the <code>pub</code> attribute:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub enum AttributeKind {
@@ -752,7 +763,7 @@ It is represented as an expression in noname:</p>
 </span>let a = b.c.d;
 let e = f[3].g;
 <span class="boring">}</span></code></pre></pre>
-<p>Note that there are other usecases that are not allowed at the moment for readability reasons.
+<p>Note that there are other use cases that are not allowed at the moment for readability reasons.
 For example we could have allowed the following to be valid noname:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1326,7 +1337,7 @@ pub enum VarKind {
     /// A struct is represented as a mapping between field names and other [VarKind]s.
     Struct(HashMap&lt;String, VarKind&gt;),
 
-    /// An array or a tuple is represetend as a list of other [VarKind]s.
+    /// An array or a tuple is represented as a list of other [VarKind]s.
     ArrayOrTuple(Vec&lt;VarKind&gt;),
 }
 
@@ -1403,7 +1414,7 @@ It uses the generic gate to constrain the value, and is not cached (so calling i
     var
 }
 <span class="boring">}</span></code></pre></pre>
-<p>Note that the <code>Value</code> keep track of the constant as well.</p>
+<p>Note that the <code>Value</code> keeps track of the constant as well.</p>
 <p>Warning: gadgets must all handle constants gracefully.
 That is, they must constrain constants themselves (by calling <code>CircuitWriter::add_constant</code>).</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="global-environment"><a class="header" href="#global-environment">Global environment</a></h1>
@@ -1479,8 +1490,8 @@ pub struct FnInfo {
 <p>When a function is called, we do the following:</p>
 <ul>
 <li>if the function is qualified (e.g. <code>crypto::poseidon</code>), then lookup imported modules (see next section)</li>
-<li>otherwise, check if the function exist in the <code>GlobalEnv</code>, if it doesn’t then return an error</li>
-<li>if the function exist, then create a new <code>FnEnv</code> and register the arguments as local variables there</li>
+<li>otherwise, check if the function exists in the <code>GlobalEnv</code>, if it doesn’t then return an error</li>
+<li>if the function exists, then create a new <code>FnEnv</code> and register the arguments as local variables there</li>
 <li>switch to the function’s AST and pass the new <code>FnEnv</code> as argument</li>
 <li>TODO: how to handle the return value? it should be saved in the <code>FnEnv</code></li>
 </ul>
@@ -1530,7 +1541,7 @@ pub enum FuncInScope {
 <div style="break-before: page; page-break-before: always;"></div><h1 id="scope-1"><a class="header" href="#scope-1">Scope</a></h1>
 <p>Like most languages, noname has a notion of scope within a function.
 Unlike a lot of languages noname forbids shadowing at all scope level.
-This means that eventhough different functions can use local variable with colliding names, the local variable of one function must all have different names.</p>
+This means that even though different functions can use local variable with colliding names, the local variable of one function must all have different names.</p>
 <p>For example, the following code does not compile:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1551,7 +1562,7 @@ for i in 0..4 {
 <p>Both the type checker and the circuit writer need to keep track of local variable.
 For the type checker (<code>type_checker.rs</code>), a <code>TypeEnv</code> structure keeps track of the association between all local variables names and their type information.
 For the circuit writer (<code>circuit_writer.rs</code>), a <code>FnEnv</code> structure keeps track of the association between all local variable names and their circuit variable.</p>
-<p>Both structure also keep track of how nested the current block is (the top level starting at level 0).
+<p>Both structures also keep track of how nested the current block is (the top level starting at level 0).
 For this reason, it is important to remember to increase the current scope when entering a new block (for loop, if statement, etc.) and to decrease it when exiting the block.
 In addition, all variables from a scope must be disabled (but not deleted, in order to detect shadowing) when exiting that scope.</p>
 <p>For example, the type checker’s <code>TypeEnv</code> structure implements the following logic:</p>
@@ -1640,7 +1651,7 @@ Thus, we ignore them, and fill them later on.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let val = if let Some(var) = var {
-    // if it's a public output, defer it's computation
+    // if it's a public output, defer its computation
     if matches!(self.vars_to_value[&amp;var], Value::PublicOutput(_)) {
         public_outputs_vars.push((row, *var));
         Field::zero()
@@ -1694,7 +1705,7 @@ These instructions are stored as two different fields:</p>
 <p><code>witness_table</code> can essentially be seen as the execution trace table, containing variables instead of values.</p>
 <p>The witness generation goes as follows:</p>
 <ol>
-<li>Each rows in <code>witness_table</code> is looked at one by one</li>
+<li>Each row in <code>witness_table</code> is looked at one by one</li>
 <li>For each <code>CellVar</code> in the row:
 <ol>
 <li>If it is set, it is evaluated using the <code>Value</code> stored in <code>vars_to_value</code>.</li>

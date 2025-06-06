@@ -42,6 +42,17 @@
         <script src="toc.js"></script>
     </head>
     <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
@@ -119,7 +130,7 @@
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -172,7 +183,7 @@ let z = thing.valid(3);
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>/// Is used to store functions' scoped variables.
-/// This include inputs and output of the function,  as well as local variables.
+/// This includes inputs and output of the function,  as well as local variables.
 /// You can think of it as a function call stack.
 pub struct FnEnv {
     /// The current nesting level.
@@ -192,7 +203,7 @@ pub struct VarInfo {
     /// The variable.
     pub var: Var,
 
-    /// We keep track of the type of variables, eventhough we're not in the typechecker anymore,
+    /// We keep track of the type of variables, even though we're not in the typechecker anymore,
     /// because we need to know the type for method calls.
     pub typ: TyKind,
 }
@@ -207,7 +218,7 @@ pub struct VarInfo {
 <ol>
 <li>Either the type checker stores type information about each expression it parses. This is what the Rust compiler does I believe: each <code>Expr</code> AST node has a unique node identifier that can be used to search type information in a map.</li>
 <li>Or, more simply, the circuit-writer’s <code>compute_expr()</code> function that returns an <code>Option&lt;Var&gt;</code> could be modified to return <code>Option&lt;VarInfo&gt;</code>. This is a bit annoying as we’re recomputing things we’ve done in the type checker.</li>
-<li>A variant of the previous option is to change <code>Var</code> so that it also contain a type (might as well).</li>
+<li>A variant of the previous option is to change <code>Var</code> so that it also contains a type (might as well).</li>
 </ol>
 <p>So we implement option 1: the type checker now stores the type information of each <code>Expr</code> node in the AST under a hashmap that is later passed to the circuit-writer:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]

@@ -42,6 +42,17 @@
         <script src="toc.js"></script>
     </head>
     <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
@@ -119,7 +130,7 @@
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -232,8 +243,8 @@ pub struct FnInfo {
 <p>When a function is called, we do the following:</p>
 <ul>
 <li>if the function is qualified (e.g. <code>crypto::poseidon</code>), then lookup imported modules (see next section)</li>
-<li>otherwise, check if the function exist in the <code>GlobalEnv</code>, if it doesn’t then return an error</li>
-<li>if the function exist, then create a new <code>FnEnv</code> and register the arguments as local variables there</li>
+<li>otherwise, check if the function exists in the <code>GlobalEnv</code>, if it doesn’t then return an error</li>
+<li>if the function exists, then create a new <code>FnEnv</code> and register the arguments as local variables there</li>
 <li>switch to the function’s AST and pass the new <code>FnEnv</code> as argument</li>
 <li>TODO: how to handle the return value? it should be saved in the <code>FnEnv</code></li>
 </ul>

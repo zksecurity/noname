@@ -42,6 +42,17 @@
         <script src="toc.js"></script>
     </head>
     <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
@@ -119,7 +130,7 @@
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -162,7 +173,7 @@
                         <h1 id="scope"><a class="header" href="#scope">Scope</a></h1>
 <p>Like most languages, noname has a notion of scope within a function.
 Unlike a lot of languages noname forbids shadowing at all scope level.
-This means that eventhough different functions can use local variable with colliding names, the local variable of one function must all have different names.</p>
+This means that even though different functions can use local variable with colliding names, the local variable of one function must all have different names.</p>
 <p>For example, the following code does not compile:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -183,7 +194,7 @@ for i in 0..4 {
 <p>Both the type checker and the circuit writer need to keep track of local variable.
 For the type checker (<code>type_checker.rs</code>), a <code>TypeEnv</code> structure keeps track of the association between all local variables names and their type information.
 For the circuit writer (<code>circuit_writer.rs</code>), a <code>FnEnv</code> structure keeps track of the association between all local variable names and their circuit variable.</p>
-<p>Both structure also keep track of how nested the current block is (the top level starting at level 0).
+<p>Both structures also keep track of how nested the current block is (the top level starting at level 0).
 For this reason, it is important to remember to increase the current scope when entering a new block (for loop, if statement, etc.) and to decrease it when exiting the block.
 In addition, all variables from a scope must be disabled (but not deleted, in order to detect shadowing) when exiting that scope.</p>
 <p>For example, the type checker’s <code>TypeEnv</code> structure implements the following logic:</p>

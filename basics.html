@@ -42,6 +42,17 @@
         <script src="toc.js"></script>
     </head>
     <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
@@ -119,7 +130,7 @@
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -258,7 +269,7 @@ fn main(pub player: Field) -&gt; Field {
     let yy = cond ? plus : xx ;
     assert_eq(yy, 2);
 }</code></pre></pre>
-<p>The two branches of the ternary operator must be variables (as in the xample), or array accesses (e.g. <code>thing[0]</code>), or field accesses (e.g. <code>thing.field</code>).</p>
+<p>The two branches of the ternary operator must be variables (as in the example), or array accesses (e.g. <code>thing[0]</code>), or field accesses (e.g. <code>thing.field</code>).</p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <pre><pre class="playground"><code class="language-rust">fn add(x: Field, y: Field) -&gt; Field {
     return x + y;
