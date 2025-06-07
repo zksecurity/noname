@@ -70,7 +70,7 @@ where
     /// This is tracked separately as public inputs as it needs to be computed later.
     PublicOutput(Option<B::Var>),
 
-    /// Resulted IR term and the (name, variable) for arugments of the hint function
+    /// Resulted IR term and the (name, variable) for arguments of the hint function
     HintIR(Term, Vec<(String, ConstOrCell<B::Field, B::Var>)>),
 }
 
