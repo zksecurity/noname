@@ -56,18 +56,22 @@ pub struct TypedFnEnv {
     /// Determines if forloop variables are allowed to be accessed.
     forbid_forloop_scope: bool,
 
+    /// Indicates if the function is a hint function.
+    in_hint_fn: bool,
+
     /// The kind of function we're currently type checking
     current_fn_kind: FuncOrMethod,
 }
 
 impl TypedFnEnv {
     /// Creates a new TypeEnv with the given function kind
-    pub fn new(fn_kind: &FuncOrMethod) -> Self {
+    pub fn new(fn_kind: &FuncOrMethod, is_hint: bool) -> Self {
         Self {
             current_scope: 0,
             vars: HashMap::new(),
             forloop_scopes: Vec::new(),
             forbid_forloop_scope: false,
+            in_hint_fn: is_hint,
             current_fn_kind: fn_kind.clone(),
         }
     }
@@ -112,6 +116,11 @@ impl TypedFnEnv {
     /// Pop the last loop scope.
     pub fn end_forloop(&mut self) {
         self.forloop_scopes.pop();
+    }
+
+    /// Returns whether it is in a hint function.
+    pub fn is_in_hint_fn(&self) -> bool {
+        self.in_hint_fn
     }
 
     /// Returns true if a scope is a prefix of our scope.

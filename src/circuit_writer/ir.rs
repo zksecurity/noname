@@ -1,8 +1,13 @@
-use ark_ff::Zero;
+use ark_ff::{One, PrimeField, Zero};
 use circ::{
-    ir::term::{leaf_term, term, BoolNaryOp, Op, PfNaryOp, PfUnOp, Sort, Term, Value},
+    ir::term::{
+        leaf_term, precomp::PreComp, term, BoolNaryOp, BvBinOp, IntBinOp, IntBinPred, IntNaryOp,
+        Op, PfNaryOp, PfUnOp, Sort, Term, Value,
+    },
     term,
 };
+use fxhash::FxHashMap;
+use kimchi::o1_utils::FieldHelpers;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -12,13 +17,13 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     imports::FnKind,
-    mast::Mast,
+    mast::PropagatedConstant,
     parser::{
         types::{ForLoopArgument, FunctionDef, Stmt, StmtKind, TyKind},
         Expr, ExprKind, Op2,
     },
     syntax::is_type,
-    type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo},
+    type_checker::{ConstInfo, FnInfo, FullyQualified, StructInfo, TypeChecker},
 };
 
 /// Same as [crate::var::Var], but with Term instead of ConstOrCell.
@@ -93,11 +98,10 @@ impl Var {
         }
     }
 
-    pub fn constant(&self) -> Option<BigUint> {
+    pub fn constant<B: Backend>(&self) -> Option<BigUint> {
         if self.cvars.len() == 1 {
-            self.cvars[0]
-                .as_value_opt()
-                .map(|v| BigUint::from(v.as_pf().i().to_u64_wrapping()))
+            let env = fxhash::FxHashMap::default();
+            Some(IRWriter::<B>::eval_ir(&env, &self.cvars[0])[0].to_biguint())
         } else {
             None
         }
@@ -124,9 +128,9 @@ pub enum VarOrRef {
 }
 
 impl VarOrRef {
-    pub(crate) fn constant(&self) -> Option<BigUint> {
+    pub(crate) fn constant<B: Backend>(&self) -> Option<BigUint> {
         match self {
-            VarOrRef::Var(var) => var.constant(),
+            VarOrRef::Var(var) => var.constant::<B>(),
             VarOrRef::Ref { .. } => None,
         }
     }
@@ -369,8 +373,9 @@ impl FnEnv {
 #[derive(Debug)]
 /// This converts the MAST to circ IR.
 /// Currently it is only for hint functions.
-pub(crate) struct IRWriter<B: Backend> {
-    pub(crate) typed: Mast<B>,
+pub struct IRWriter<B: Backend> {
+    pub typed: TypeChecker<B>,
+    pub logs: Vec<VarInfo>,
 }
 
 impl<B: Backend> IRWriter<B> {
@@ -406,9 +411,8 @@ impl<B: Backend> IRWriter<B> {
                             .ok_or_else(|| {
                                 self.error(ErrorKind::CannotComputeExpression, range.start.span)
                             })?
-                            .constant()
-                            .expect("expected constant")
-                            .into();
+                            .constant::<B>()
+                            .expect("expected constant");
                         let start: u32 = start_bg.try_into().map_err(|_| {
                             self.error(ErrorKind::InvalidRangeSize, range.start.span)
                         })?;
@@ -418,9 +422,8 @@ impl<B: Backend> IRWriter<B> {
                             .ok_or_else(|| {
                                 self.error(ErrorKind::CannotComputeExpression, range.end.span)
                             })?
-                            .constant()
-                            .expect("expected constant")
-                            .into();
+                            .constant::<B>()
+                            .expect("expected constant");
                         let end: u32 = end_bg
                             .try_into()
                             .map_err(|_| self.error(ErrorKind::InvalidRangeSize, range.end.span))?;
@@ -572,14 +575,149 @@ impl<B: Backend> IRWriter<B> {
             return Ok(vec![]);
         }
 
-        let res = ir.unwrap().cvars.into_iter().map(|v| {
+        let logs = self.logs.clone();
+        let logs_terms: Vec<Term> = logs
+            .into_iter()
+            .map(|v| term(Op::Tuple, v.var.cvars))
+            .collect();
+
+        self.logs.clear();
+
+        let res = ir.unwrap().cvars.into_iter().enumerate().map(|(i, v)| {
             // With the current setup to calculate symbolic values, the [compute_val] can only compute for one symbolic variable,
-            // thus it has to evaluate each symbolic variable separately from a hint function.
+            // it has to evaluate each symbolic variable separately from a hint function.
             // Thus, this could introduce some performance overhead if the hint returns multiple symbolic variables.
-            crate::var::Value::HintIR(v, named_args.clone())
+            // Maybe this can be batched and cached in the [compute_val] function.
+
+            // Each compiled IR can contain multiple terms, as hint function output could be array or struct.
+            // Each term needs to be evaluated separately.
+            // For logs, there could be multiple logs for a compiled hint function.
+            // To avoid redundant logs, here we only evaluate log terms once with the first term.
+            if i == 0 {
+                crate::var::Value::HintIR(v, named_args.clone(), logs_terms.clone())
+            } else {
+                crate::var::Value::HintIR(v, named_args.clone(), Vec::new())
+            }
         });
 
         Ok(res.collect())
+    }
+
+    /// Evaluate a single IR term.
+    pub fn eval_ir(
+        env: &FxHashMap<String, circ::ir::term::Value>,
+        t: &circ::ir::term::Term,
+    ) -> Vec<B::Field> {
+        let mut precomp = PreComp::new();
+        // For hint evaluation purpose, precomp only has only one output and no connections with other parts,
+        // so just use a dummy output var name.
+        precomp.add_output("x".to_string(), t.clone());
+        // evaluate and get the only one output
+        let eval_map = precomp.eval(env);
+        let value = eval_map.get("x").unwrap();
+        // convert to field
+        match value {
+            circ::ir::term::Value::Field(f) => {
+                let bytes = f.i().to_digits::<u8>(rug::integer::Order::Lsf);
+                // todo: should we allow field overflow in hint evaluation?
+                vec![B::Field::from_le_bytes_mod_order(&bytes)]
+            }
+            circ::ir::term::Value::Bool(b) => {
+                if *b {
+                    vec![B::Field::one()]
+                } else {
+                    vec![B::Field::zero()]
+                }
+            }
+            circ::ir::term::Value::BitVector(bv) => {
+                let bytes = bv.uint().to_digits::<u8>(rug::integer::Order::Lsf);
+                // todo: should we allow field overflow in hint evaluation?
+                vec![B::Field::from_le_bytes_mod_order(&bytes)]
+            }
+            circ::ir::term::Value::Int(int) => {
+                let bytes = int.to_digits::<u8>(rug::integer::Order::Lsf);
+                vec![B::Field::from_le_bytes_mod_order(&bytes)]
+            }
+            circ::ir::term::Value::Tuple(v) => {
+                let mut res = Vec::new();
+                for v in v {
+                    match v {
+                        circ::ir::term::Value::Field(f) => {
+                            let bytes = f.i().to_digits::<u8>(rug::integer::Order::Lsf);
+                            res.push(B::Field::from_le_bytes_mod_order(&bytes));
+                        }
+                        circ::ir::term::Value::Bool(b) => {
+                            if *b {
+                                res.push(B::Field::one());
+                            } else {
+                                res.push(B::Field::zero());
+                            }
+                        }
+                        circ::ir::term::Value::BitVector(bv) => {
+                            let bytes = bv.uint().to_digits::<u8>(rug::integer::Order::Lsf);
+                            res.push(B::Field::from_le_bytes_mod_order(&bytes));
+                        }
+                        circ::ir::term::Value::Int(int) => {
+                            let bytes = int.to_digits::<u8>(rug::integer::Order::Lsf);
+                            res.push(B::Field::from_le_bytes_mod_order(&bytes));
+                        }
+                        circ::ir::term::Value::Tuple(_) => {
+                            panic!("nested tuple is not supported");
+                        }
+                        _ => panic!("unexpected output type"),
+                    }
+                }
+                res
+            }
+            _ => panic!("unexpected output type"),
+        }
+    }
+
+    /// This is used in MAST phase to fold constant values.
+    pub fn evaluate(
+        &mut self,
+        function: &FunctionDef,
+        args: Vec<PropagatedConstant>,
+    ) -> Result<PropagatedConstant> {
+        assert!(!function.is_main());
+
+        // create new fn_env
+        let fn_env = &mut FnEnv::new();
+
+        // set arguments
+        assert_eq!(function.sig.arguments.len(), args.len());
+
+        // create circ var terms for the arguments
+        for (arg, observed) in function.sig.arguments.iter().zip(args) {
+            let name = &arg.name.value;
+            match observed {
+                PropagatedConstant::Single(cst) => {
+                    let f = B::Field::from(cst);
+                    let cvar = leaf_term(Op::new_const(Value::Field(f.to_circ_field())));
+                    let var = Var::new(vec![cvar], arg.name.span);
+                    let var_info = VarInfo::new(var, false, Some(arg.typ.kind.clone()));
+                    self.add_local_var(fn_env, name.clone(), var_info).unwrap();
+                }
+                _ => unimplemented!(),
+            }
+        }
+
+        // compile it and potentially return a return value
+        let ir = self.compile_block(fn_env, &function.body)?;
+
+        let res: Vec<_> = ir
+            .unwrap()
+            .cvars
+            .into_iter()
+            .flat_map(|f| {
+                // because all the arguments are assumed to be constants,
+                // so no need to pass the arguments in env
+                let env = fxhash::FxHashMap::default();
+                Self::eval_ir(&env, &f)
+            })
+            .collect();
+
+        Ok(PropagatedConstant::from(res[0].to_biguint()))
     }
 
     fn compile_native_function_call(
@@ -651,12 +789,20 @@ impl<B: Backend> IRWriter<B> {
 
                 match &fn_info.kind {
                     // assert() <-- for example
-                    FnKind::BuiltIn(..) => Err(self.error(
-                        ErrorKind::InvalidFnCall(
-                            "builtin functions not allowed in hint functions.",
-                        ),
-                        expr.span,
-                    )),
+                    FnKind::BuiltIn(sig, ..) => {
+                        if sig.name.value == "log" {
+                            self.logs.push(vars[0].clone());
+
+                            Ok(None)
+                        } else {
+                            Err(self.error(
+                                ErrorKind::InvalidFnCall(
+                                    "builtin functions not allowed in hint functions.",
+                                ),
+                                expr.span,
+                            ))
+                        }
+                    }
                     // fn_name(args)
                     // ^^^^^^^
                     FnKind::Native(func) => {
@@ -896,15 +1042,67 @@ impl<B: Backend> IRWriter<B> {
                         Var::new_cvar(t, expr.span)
                     }
                     Op2::Division => {
-                        let t: Term = term![
-                            Op::PfNaryOp(PfNaryOp::Mul); lhs.cvars[0].clone(),
-                            term![Op::PfUnOp(PfUnOp::Recip); rhs.cvars[0].clone()]
-                        ];
+                        // convert to int
+                        let a_int = term![Op::PfToInt; lhs.cvars[0].clone()];
+                        let b_int = term![Op::PfToInt; rhs.cvars[0].clone()];
+                        // division
+                        let t = term![Op::IntBinOp(IntBinOp::Div); a_int, b_int];
+
+                        // convert back to field
+                        let t = term![Op::IntToPf(B::Field::to_circ_type()); t];
+
                         Var::new_cvar(t, expr.span)
                     }
-                    _ => todo!(),
-                };
+                    Op2::Rem => {
+                        let bit_len = B::Field::MODULUS_BIT_SIZE as usize;
+                        let a_bv = term![Op::PfToBv(bit_len); lhs.cvars[0].clone()];
+                        let b_bv = term![Op::PfToBv(bit_len); rhs.cvars[0].clone()];
+                        let t = term![Op::BvBinOp(BvBinOp::Urem); a_bv.clone(), b_bv.clone()];
+                        let t = term![Op::UbvToPf(Box::new(B::Field::to_circ_type())); t];
 
+                        Var::new_var(t, expr.span)
+                    }
+                    Op2::LShift => {
+                        let bit_len = B::Field::MODULUS_BIT_SIZE as usize;
+                        let a_bv = term![Op::PfToBv(bit_len); lhs.cvars[0].clone()];
+                        let b_bv = term![Op::PfToBv(bit_len); rhs.cvars[0].clone()];
+                        // if the shift result is larger than the bit length, it will be truncated:
+                        // https://github.com/circify/circ/blob/4aa36e479fe15fb444cc9190e0cb5a1a493ee221/src/ir/term/bv.rs#L96
+                        // todo: should we allow field overflow in the hint calculation?
+                        let t = term![Op::BvBinOp(BvBinOp::Shl); a_bv, b_bv];
+                        // convert back to field
+                        let t = term![Op::UbvToPf(Box::new(B::Field::to_circ_type())); t];
+                        Var::new_var(t, expr.span)
+                    }
+                    Op2::LessThan => {
+                        let a_int = term![Op::PfToInt; lhs.cvars[0].clone()];
+                        let b_int = term![Op::PfToInt; rhs.cvars[0].clone()];
+                        let t = term![Op::IntBinPred(IntBinPred::Lt); a_int, b_int];
+                        Var::new_var(t, expr.span)
+                    }
+                    Op2::Pow => {
+                        let base_int = term![Op::PfToInt; lhs.cvars[0].clone()];
+                        let folded = circ::ir::opt::cfold::fold(&rhs.cvars[0].clone(), &[]);
+                        let exp = match &folded.as_value_opt().unwrap() {
+                            v => (**v).as_pf().i().to_u32().unwrap(),
+                            _ => unreachable!(),
+                        };
+
+                        let result = if exp == 0 {
+                            let var = Var::new_constant(B::Field::from(1u32), expr.span);
+                            term![Op::PfToInt; var.cvars[0].clone()]
+                        } else {
+                            let mut acc = base_int.clone();
+                            for _ in 1..exp {
+                                acc = term![Op::IntNaryOp(IntNaryOp::Mul); acc, base_int.clone()];
+                            }
+                            acc
+                        };
+                        // convert back to field
+                        let converted = term![Op::IntToPf(B::Field::to_circ_type()); result];
+                        Var::new_var(converted, expr.span)
+                    }
+                };
                 Ok(Some(VarOrRef::Var(res)))
             }
 
@@ -983,7 +1181,7 @@ impl<B: Backend> IRWriter<B> {
                     .compute_expr(fn_env, idx)?
                     .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, expr.span))?;
                 let idx = idx_var
-                    .constant()
+                    .constant::<B>()
                     .ok_or_else(|| self.error(ErrorKind::ExpectedConstant, expr.span))?;
                 let idx: usize = idx.try_into().unwrap();
 
@@ -1072,7 +1270,7 @@ impl<B: Backend> IRWriter<B> {
                     .compute_expr(fn_env, size)?
                     .ok_or_else(|| self.error(ErrorKind::CannotComputeExpression, expr.span))?;
                 let size = size
-                    .constant()
+                    .constant::<B>()
                     .ok_or_else(|| self.error(ErrorKind::ExpectedConstant, expr.span))?;
                 let size: usize = size.try_into().unwrap();
 

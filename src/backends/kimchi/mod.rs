@@ -89,7 +89,7 @@ pub struct KimchiVesta {
 
     /// This is how you compute the value of each variable during witness generation.
     /// It is created during circuit generation.
-    pub(crate) vars_to_value: HashMap<usize, Value<Self>>,
+    pub(crate) vars_to_value: HashMap<usize, (Value<Self>, Span)>,
 
     /// The execution trace table with vars as placeholders.
     /// It is created during circuit generation,
@@ -307,7 +307,7 @@ impl Backend for KimchiVesta {
         self.next_variable += 1;
 
         // store it in the circuit_writer
-        self.vars_to_value.insert(var.index, val);
+        self.vars_to_value.insert(var.index, (val, span));
 
         var
     }
@@ -365,6 +365,16 @@ impl Backend for KimchiVesta {
 
         for var in 0..self.next_variable {
             if !written_vars.contains(&var) && !disable_safety_check {
+                let (val, span) = self
+                    .vars_to_value
+                    .get(&var)
+                    .expect("a var should be in vars_to_value");
+
+                if matches!(val, Value::HintIR(..)) {
+                    println!("a HintIR value not used in the circuit: {:?}", span);
+                    continue;
+                }
+
                 if let Some(private_cell_var) = self
                     .private_input_cell_vars
                     .iter()
@@ -378,7 +388,7 @@ impl Backend for KimchiVesta {
                     );
                     Err(err)?;
                 } else {
-                    Err(Error::new("contraint-finalization", ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"), Span::default()))?;
+                    Err(Error::new("contraint-finalization", ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"), *span))?;
                 }
             }
         }
@@ -403,7 +413,7 @@ impl Backend for KimchiVesta {
                 let var_idx = pub_var.cvar().unwrap().index;
                 let prev = self
                     .vars_to_value
-                    .insert(var_idx, Value::PublicOutput(Some(ret_var)));
+                    .insert(var_idx, (Value::PublicOutput(Some(ret_var)), ret_var.span));
                 assert!(prev.is_some());
             }
         }
@@ -419,7 +429,7 @@ impl Backend for KimchiVesta {
         var: &Self::Var,
     ) -> crate::error::Result<Self::Field> {
         let val = self.vars_to_value.get(&var.index).unwrap();
-        self.compute_val(env, val, var.index)
+        self.compute_val(env, &val.0, var.index)
     }
 
     fn generate_witness(
@@ -446,7 +456,7 @@ impl Backend for KimchiVesta {
                     // if it's a public output, defer it's computation
                     if matches!(
                         self.vars_to_value.get(&var.index),
-                        Some(Value::PublicOutput(_))
+                        Some((Value::PublicOutput(_), ..))
                     ) {
                         public_outputs_vars
                             .entry(*var)

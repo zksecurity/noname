@@ -3,6 +3,14 @@ struct Thing {
     pub yy: Field,
 }
 
+fn init_arr(const LEN: Field) -> [Field; LEN] {
+    return [0; LEN];
+}
+
+hint fn cst_div(const lhs: Field, const rhs: Field) -> Field {
+    return lhs / rhs;
+}
+
 hint fn mul(lhs: Field, rhs: Field) -> Field {
     return lhs * rhs;
 }
@@ -20,14 +28,18 @@ hint fn ite(lhs: Field, rhs: Field) -> Field {
     return if lhs != rhs { lhs } else { rhs };
 }
 
-hint fn exp(const EXP: Field, val: Field) -> Field {
-    let mut res = val;
-
-    for num in 1..EXP {
-        res = res * val;
-    }
+hint fn exp(const EXP: Field, base: Field) -> Field {
+    let res = base ** EXP;
 
     return res;
+}
+
+hint fn lshift(val: Field, shift: Field) -> Field {
+    return val << shift;
+}
+
+hint fn rem(lhs: Field, rhs: Field) -> Field {
+    return lhs % rhs;
 }
 
 hint fn sub(lhs: Field, rhs: Field) -> Field {
@@ -68,6 +80,12 @@ fn main(pub public_input: Field, private_input: Field) -> Field {
     let kk = unsafe exp(4, public_input);
     assert_eq(kk, 16);
 
+    let k2 = unsafe lshift(public_input, 4);
+    assert_eq(k2, 32);
+
+    let ll = unsafe rem(kk, 12);
+    assert_eq(ll, 4);
+
     let thing = unsafe multiple_inputs_outputs([public_input, 3]);
     // have to include all the outputs from hint function, otherwise it throws vars not in circuit error.
     // this is because each individual element in the hint output maps to a separate cell var in noname.
@@ -82,5 +100,9 @@ fn main(pub public_input: Field, private_input: Field) -> Field {
     assert(!oo[1]);
     assert(oo[2]);
 
+    // mast phase can fold the constant value using hint functions
+    let one = unsafe cst_div(2, 2);
+    let arr = init_arr(one);
+    assert_eq(arr[0], 0);
     return xx;
 }

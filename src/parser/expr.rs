@@ -140,6 +140,10 @@ pub enum Op2 {
     Subtraction,
     Multiplication,
     Division,
+    Rem,
+    LShift,
+    LessThan,
+    Pow,
     Equality,
     Inequality,
     BoolAnd,
@@ -554,7 +558,11 @@ impl Expr {
                     TokenKind::Plus
                     | TokenKind::Minus
                     | TokenKind::Star
+                    | TokenKind::DoubleStar
                     | TokenKind::Slash
+                    | TokenKind::Percent
+                    | TokenKind::LeftDoubleArrow
+                    | TokenKind::Less
                     | TokenKind::DoubleEqual
                     | TokenKind::NotEqual
                     | TokenKind::DoubleAmpersand
@@ -568,7 +576,11 @@ impl Expr {
                     TokenKind::Plus => Op2::Addition,
                     TokenKind::Minus => Op2::Subtraction,
                     TokenKind::Star => Op2::Multiplication,
+                    TokenKind::DoubleStar => Op2::Pow,
                     TokenKind::Slash => Op2::Division,
+                    TokenKind::Percent => Op2::Rem,
+                    TokenKind::LeftDoubleArrow => Op2::LShift,
+                    TokenKind::Less => Op2::LessThan,
                     TokenKind::DoubleEqual => Op2::Equality,
                     TokenKind::NotEqual => Op2::Inequality,
                     TokenKind::DoubleAmpersand => Op2::BoolAnd,
