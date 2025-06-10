@@ -1,5 +1,7 @@
 ![Screenshot 2024-07-17 at 2 14 40 PM](https://github.com/user-attachments/assets/b2b84f62-3ac6-45c9-a005-b5b764916b6b)
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/zksecurity/noname)
+
 Noname is a high-level programming language inspired by Rust and Golang to write zero-knowledge applications. The language can support multiple constraint systems, and currently compiles down to R1CS (for [SnarkJS](https://github.com/iden3/snarkjs)) and Plonk (for [kimchi](https://github.com/o1-labs/proof-systems)).
 
 ```rust
