@@ -1,5 +1,5 @@
 //! This is a high-level language to write circuits that you can prove in kimchi.
-//! Refer to the [book](https://mimoo.github.io/noname/) for more information.
+//! Refer to the [book](https://zksecurity.github.io/noname/) for more information.
 //!
 
 pub mod backends;
