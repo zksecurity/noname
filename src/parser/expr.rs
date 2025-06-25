@@ -353,7 +353,7 @@ impl Expr {
                 let mut items = vec![];
                 let last_span;
 
-                // check if if it's an array declaration with a default value
+                // check if it's an array declaration with a default value
                 // [item; size];
                 //  ^^^^
                 let first_item = Expr::parse(ctx, tokens)?;
