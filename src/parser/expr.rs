@@ -99,7 +99,7 @@ pub enum ExprKind {
 
     /// An array or tuple access, for example:
     /// `lhs[idx]`
-    /// As both almost work identical to each other expression we handle the cases for each container in the
+    /// As both almost work identical to each other expression level we handle the cases for each container in the
     /// circuit writers and typecheckers
     ArrayOrTupleAccess {
         container: Box<Expr>,
