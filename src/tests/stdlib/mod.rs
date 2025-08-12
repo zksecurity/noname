@@ -3,6 +3,8 @@ mod mimc;
 mod multiplexer;
 mod uints;
 
+mod smt;
+
 use std::{path::Path, str::FromStr};
 
 use crate::{
