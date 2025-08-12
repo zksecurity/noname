@@ -1,0 +1,64 @@
+name: Auto Release on Changelog Change
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Parse latest version from changelog
+        id: parse_version
+        run: |
+          # Extract the latest version from the changelog
+          latest_version=$(grep -oP '## \[\K[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | head -n 1)
+          echo "Latest version from changelog: $latest_version"
+          echo "::set-output name=latest_version::$latest_version"
+
+      - name: Get the latest release version
+        id: get_latest_release
+        run: |
+          latest_release=$(gh release list --limit 1 | grep -oP '^v\K[0-9]+\.[0-9]+\.[0-9]+')
+          echo "Latest release version: $latest_release"
+          echo "::set-output name=latest_release::$latest_release"
+
+      - name: Determine if a new release is needed
+        id: check_release
+        run: |
+          if [ "${{ steps.parse_version.outputs.latest_version }}" == "${{ steps.get_latest_release.outputs.latest_release }}" ]; then
+            echo "No new version to release."
+            echo "::set-output name=needs_release::false"
+          else
+            echo "New version found. Release needed."
+            echo "::set-output name=needs_release::true"
+          fi
+
+      - name: Build the Project
+        if: steps.check_release.outputs.needs_release == 'true'
+        run: cargo build --release
+
+      - name: Install GitHub CLI
+        if: steps.check_release.outputs.needs_release == 'true'
+        run: sudo apt-get install gh
+
+      - name: Authenticate GitHub CLI
+        if: steps.check_release.outputs.needs_release == 'true'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+      - name: Create Release
+        if: steps.check_release.outputs.needs_release == 'true'
+        run: |
+          gh release create v${{ steps.parse_version.outputs.latest_version }} target/release/noname --title "Release v${{ steps.parse_version.outputs.latest_version }}"
+
+      - name: Upload assets
+        if: steps.check_release.outputs.needs_release == 'true'
+        run: |
+          gh release upload v${{ steps.parse_version.outputs.latest_version }} target/release/noname --clobber
