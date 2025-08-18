@@ -60,7 +60,9 @@ Note that you can define `Field` elements directly in the code by writing a deci
 
 ```rust
 let x = 2;
-assert(y, 4);
+let y = 4;
+assert_eq(x, 2);
+assert_eq(y, 4);
 ```
 
 ## Arrays
@@ -80,7 +82,7 @@ Booleans are similar to Rust's boolean. They are currently the only built-in typ
 ```rust
 let x = true;
 let y = false;
-assert(!(x & y));
+assert(!(x && y));
 ```
 
 ## Mutability
@@ -222,30 +224,4 @@ technically you can even call static methods from a variable of that type:
 let y = thing.new(3, 4);
 ```
 
-```admonish
-It's not necessarily pleasant to read, and we could prevent it by storing some meta information (`static_method: bool`) in the type checker, but it's not a big deal.
-```
-
-## Early returns
-
-TODO
-
-## Hints
-
-TODO
-
-## Shadowing
-
-We forbid variable shadowing as much as we can.
-
-For example, this should not work:
-
-```rust
-let x = 2;
-let x = 3; // this won't compile
-
-let y = 4;
-for i in 0..4 {
-    let y = i; // this won't compile either
-}
 ```
