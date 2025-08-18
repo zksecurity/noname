@@ -221,7 +221,9 @@ It is good to know about it as it is used in many places, and is error prone: it
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let x = 2;
-assert(y, 4);
+let y = 4;
+assert_eq(x, 2);
+assert_eq(y, 4);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="arrays"><a class="header" href="#arrays">Arrays</a></h2>
 <p>While there are no dynamic arrays (or vectors), you can use fixed-size arrays like in Rust.</p>
@@ -236,7 +238,7 @@ assert(y, 4);
 </span><span class="boring">fn main() {
 </span>let x = true;
 let y = false;
-assert(!(x &amp; y));
+assert(!(x &amp;&amp; y));
 <span class="boring">}</span></code></pre></pre>
 <h2 id="mutability"><a class="header" href="#mutability">Mutability</a></h2>
 <p>Variables are by default not mutable. To make a variable mutable, you must use the <code>mut</code> keyword:</p>
@@ -346,34 +348,7 @@ fn main(pub x: Field) {
 </span><span class="boring">fn main() {
 </span>let y = thing.new(3, 4);
 <span class="boring">}</span></code></pre></pre>
-<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
-<div class="admonition-title">
-<div id="admonition-note-title">
-<p>Note</p>
-</div>
-<a class="admonition-anchor-link" href="#admonition-note"></a>
-</div>
-<div>
-<p>It’s not necessarily pleasant to read, and we could prevent it by storing some meta information (<code>static_method: bool</code>) in the type checker, but it’s not a big deal.</p>
-</div>
-</div>
-<h2 id="early-returns"><a class="header" href="#early-returns">Early returns</a></h2>
-<p>TODO</p>
-<h2 id="hints"><a class="header" href="#hints">Hints</a></h2>
-<p>TODO</p>
-<h2 id="shadowing"><a class="header" href="#shadowing">Shadowing</a></h2>
-<p>We forbid variable shadowing as much as we can.</p>
-<p>For example, this should not work:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let x = 2;
-let x = 3; // this won't compile
-
-let y = 4;
-for i in 0..4 {
-    let y = i; // this won't compile either
-}
-<span class="boring">}</span></code></pre></pre>
+<pre><code></code></pre>
 
                     </main>
 
