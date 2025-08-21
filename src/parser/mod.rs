@@ -35,7 +35,7 @@ pub use structs::{CustomType, StructDef};
 //~ city := [ sign ] "," { house }
 //~         ^            ^
 //~         optional     |
-//~                     0r or more houses
+//~                     0 or more houses
 //~
 //~ sign := /a-zA-Z_/
 //~         ^
