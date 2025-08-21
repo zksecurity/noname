@@ -458,7 +458,7 @@ impl Token {
                     tokens.push(TokenKind::Question.new_token(ctx, 1));
                 }
                 '"' => {
-                    //TODO: Add error handling if qoute not closed
+                    //TODO: Add error handling if quote not closed
                     let literal: String = chars.by_ref().take_while(|&char| char != '"').collect();
                     let len = literal.len();
                     tokens.push(TokenKind::StringLiteral(literal).new_token(ctx, len));
