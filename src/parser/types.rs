@@ -297,7 +297,7 @@ pub enum TyKind {
     /// After monomorphized, it will be converted to `Array`.
     GenericSizedArray(Box<TyKind>, Symbolic),
 
-    /// A string  type current purpose it to pass around for logging
+    /// A string type current purpose it to pass around for logging
     String(String),
 }
 
@@ -712,7 +712,7 @@ impl FnSig {
     }
 
     /// Returns the monomorphized function name,
-    /// using the patter: `fn_full_qualified_name#generic1=value1#generic2=value2`
+    /// using the pattern: `fn_full_qualified_name#generic1=value1#generic2=value2`
     pub fn monomorphized_name(&self) -> Ident {
         let mut name = self.name.clone();
 
