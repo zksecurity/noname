@@ -14,7 +14,7 @@ use tower_http::services::ServeDir;
 use crate::cli::packages::path_to_release_dir;
 
 //
-// The interface for the rest of the compiler which doens't use async/await
+// The interface for the rest of the compiler which doesn't use async/await
 //
 
 #[derive(Clone)]
