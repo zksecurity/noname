@@ -4,7 +4,7 @@
 
 ## Where to start contributing?
 
-The first thing you should do is to try using noname by yourself. If something doesn't compile, or seems confusing, then that's an opportunity to make it compile, improve the error, or improve the documentation. In general if something is confusing or lacking please post an issue!
+The first thing you should do is try using noname by yourself. If something doesn't compile, or seems confusing, then that's an opportunity to make it compile, improve the error, or improve the documentation. In general if something is confusing or lacking please post an issue!
 
 Make sure you `git clone` this repository and then create an alias for running your local copy of noname (e.g. `alias noname_dev="cargo run --manifest-path ABSOLUTE_PATH_TO_THE_CLONED_REPO`).
 
