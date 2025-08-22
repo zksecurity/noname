@@ -59,7 +59,7 @@ fn assert_eq_values<B: Backend>(
     let mut comparisons = Vec::new();
 
     match typ {
-        // Field and Bool has the same logic
+        // Field and Bool have the same logic
         TyKind::Field { .. } | TyKind::Bool | TyKind::String(..) => {
             let lhs_var = &lhs_info.var[0];
             let rhs_var = &rhs_info.var[0];
