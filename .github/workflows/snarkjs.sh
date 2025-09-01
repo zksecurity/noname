@@ -11,11 +11,11 @@ CURVE=$2
 
 # Ensure the circuit directory exists and is initialized
 echo "Initializing a new Noname package..."
-noname new --path circuit_noname
+noname new --path "$DIR_PATH/circuit_noname"
 
 # Compile the circuit using Noname CLI
 echo "Compiling the circuit using Noname..."
-noname run --backend r1cs-$CURVE --path "circuit_noname" \
+noname run --backend r1cs-$CURVE --path "$DIR_PATH/circuit_noname" \
 --public-inputs '{"xx": "5"}' \
 --private-inputs '{"yy": "4"}'
 
@@ -48,4 +48,3 @@ echo "Exporting Solidity verifier and calldata..."
 snarkjs zkey export solidityverifier "test_${CURVE}_0001.zkey" verifier.sol
 echo "Calldata to test:"
 snarkjs zkey export soliditycalldata public.json proof.json
-
