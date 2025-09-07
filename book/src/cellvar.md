@@ -46,7 +46,7 @@ pub enum Value {
     External(String, usize),
 
     /// A public output.
-    /// This is tracked separately as public inputs as it needs to be computed later.
+    /// This is tracked separately as public outputs as it needs to be computed later.
     PublicOutput(Option<CellVar>),
 }
 ```
