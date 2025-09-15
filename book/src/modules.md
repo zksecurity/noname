@@ -42,7 +42,7 @@ The current proposed solution is to introduce an `as` keyword, like in Rust, to 
 
 ## Dependency graph and type checking
 
-During building, a dependency graph of all dependencies is formed (and dependencies are retrieved from Github at the same time). This must be done to detect [dependency cyles](https://en.wikipedia.org/wiki/Circular_dependency).
+During building, a dependency graph of all dependencies is formed (and dependencies are retrieved from Github at the same time). This must be done to detect [dependency cycles](https://en.wikipedia.org/wiki/Circular_dependency).
 
 Once this is done, a list of dependencies from leaves to roots is computed, and each dependency is analyzed in this order.
 Dependencies are not compiled! As the circuit-writer is not ran. Things stop at the type checker.
