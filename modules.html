@@ -223,7 +223,7 @@ The current proposed solution is to introduce an <code>as</code> keyword, like i
 </div>
 </div>
 <h2 id="dependency-graph-and-type-checking"><a class="header" href="#dependency-graph-and-type-checking">Dependency graph and type checking</a></h2>
-<p>During building, a dependency graph of all dependencies is formed (and dependencies are retrieved from Github at the same time). This must be done to detect <a href="https://en.wikipedia.org/wiki/Circular_dependency">dependency cyles</a>.</p>
+<p>During building, a dependency graph of all dependencies is formed (and dependencies are retrieved from Github at the same time). This must be done to detect <a href="https://en.wikipedia.org/wiki/Circular_dependency">dependency cycles</a>.</p>
 <p>Once this is done, a list of dependencies from leaves to roots is computed, and each dependency is analyzed in this order.
 Dependencies are not compiled! As the circuit-writer is not ran. Things stop at the type checker.
 For every new dependency analyzed, all TAST (typed AST) previously computed on previous dependencies are passed as argument.
