@@ -756,7 +756,7 @@ impl<B: Backend> CircuitWriter<B> {
                     .expr_type(container)
                     .expect("cannot find type of container");
 
-                // actual starting index for narrowing the var depends on the cotainer
+                // actual starting index for narrowing the var depends on the container
                 // for arrays it is just idx * elem_size as all elements are of same size
                 // while for tuples we have to sum the sizes of all types up to that index
                 let (start, len) = match container_typ {
