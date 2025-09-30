@@ -14,9 +14,9 @@ dirs = "4.0"
 [dependencies]
 ark-ec = "0.5" # elliptic curve library
 ark-ff = "0.5"
-ark-bls12-381 = "0.5" # bls12-381 curve for r1cs backend
-ark-relations = "0.5"
-ark-bn254 = "0.5" # bn128 curve for r1cs backend
+ark-bls12-381 = { version = "0.5", optional = true } # bls12-381 curve for r1cs backend
+ark-relations = { version = "0.5", optional = true }
+ark-bn254 = { version = "0.5", optional = true } # bn128 curve for r1cs backend
 ark-serialize = "0.5" # serialization of arkworks types
 axum = { version = "0.7.7", features = ["macros"], optional = true } # web server
 base64 = "0.22.1" # for base64 encoding
@@ -43,7 +43,7 @@ serde_json = "1.0.85"                                                           
 serde = "1.0.144"                                                                    # to (de)serialize objects
 thiserror = "1.0.31"                                                                 # helpful error traits
 toml = "0.8.8"                                                                       # to parse manifest files
-constraint_writers = { git = "https://github.com/iden3/circom.git", tag = "v2.1.8" } # to generate r1cs file
+constraint_writers = { git = "https://github.com/iden3/circom.git", tag = "v2.1.8", optional = true } # to generate r1cs file
 num-bigint-dig = "0.6.0"                                                             # to adapt for circom lib
 rand = "0.8.5"
 rstest = "0.19.0"                                                                    # for testing different backend cases
@@ -57,6 +57,7 @@ tracing-subscriber = "0.3.18"
 
 [features]
 default = ["cli"]
-cli = ["kimchi", "server"]
-server = ["tokio/full", "tower-http", "axum"]
+cli = ["kimchi", "r1cs", "server"]
+server = ["tokio/full", "dep:tower-http", "dep:axum"]
 kimchi = ["dep:kimchi"]
+r1cs = ["dep:constraint_writers", "dep:ark-bls12-381", "dep:ark-bn254", "dep:ark-relations"]

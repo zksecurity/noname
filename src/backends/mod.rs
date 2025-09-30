@@ -13,20 +13,21 @@ use crate::{
     helpers::PrettyField,
     imports::FnHandle,
     parser::types::TyKind,
-    utils::{log_array_or_tuple_type, log_custom_type, log_string_type},
+    utils::{log_array_or_tuple_type, log_custom_type, log_string_type, FieldHelpers},
     var::{ConstOrCell, Value, Var},
     witness::WitnessEnv,
-    utils::FieldHelpers,
 };
 
 #[cfg(feature = "kimchi")]
 use self::kimchi::KimchiVesta;
+#[cfg(feature = "r1cs")]
 use self::r1cs::{R1csBls12381Field, R1csBn254Field, R1CS};
 
 use crate::mast::Mast;
 
 #[cfg(feature = "kimchi")]
 pub mod kimchi;
+#[cfg(feature = "r1cs")]
 pub mod r1cs;
 
 /// This trait serves as an alias for a bundle of traits
@@ -44,7 +45,9 @@ pub trait BackendVar: Clone + Debug + PartialEq + Eq {}
 pub enum BackendKind {
     #[cfg(feature = "kimchi")]
     KimchiVesta(KimchiVesta),
+    #[cfg(feature = "r1cs")]
     R1csBls12_381(R1CS<R1csBls12381Field>),
+    #[cfg(feature = "r1cs")]
     R1csBn254(R1CS<R1csBn254Field>),
 }
 
@@ -54,10 +57,12 @@ impl BackendKind {
         Self::KimchiVesta(KimchiVesta::new(use_double_generic))
     }
 
+    #[cfg(feature = "r1cs")]
     pub fn new_r1cs_bls12_381() -> Self {
         Self::R1csBls12_381(R1CS::new())
     }
 
+    #[cfg(feature = "r1cs")]
     pub fn new_r1cs_bn254() -> Self {
         Self::R1csBn254(R1CS::new())
     }
