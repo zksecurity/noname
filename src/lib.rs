@@ -35,16 +35,16 @@ pub mod negative_tests;
 //
 
 pub mod helpers {
+    #[cfg(feature = "kimchi")]
     use kimchi::mina_poseidon::{
         constants::PlonkSpongeConstantsKimchi,
         pasta::fp_kimchi,
         poseidon::{ArithmeticSponge, Sponge},
     };
 
-    use crate::backends::{
-        kimchi::VestaField,
-        r1cs::{R1csBls12381Field, R1csBn254Field},
-    };
+    #[cfg(feature = "kimchi")]
+    use crate::backends::kimchi::VestaField;
+    use crate::backends::r1cs::{R1csBls12381Field, R1csBn254Field};
 
     /// A trait to display [Field] in pretty ways.
     pub trait PrettyField: ark_ff::PrimeField {
@@ -60,10 +60,12 @@ pub mod helpers {
         }
     }
 
+    #[cfg(feature = "kimchi")]
     impl PrettyField for VestaField {}
     impl PrettyField for R1csBls12381Field {}
     impl PrettyField for R1csBn254Field {}
 
+    #[cfg(feature = "kimchi")]
     pub fn poseidon(input: [VestaField; 2]) -> VestaField {
         let mut sponge: ArithmeticSponge<VestaField, PlonkSpongeConstantsKimchi> =
             ArithmeticSponge::new(fp_kimchi::static_params());

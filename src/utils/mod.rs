@@ -13,6 +13,8 @@ use crate::{
 use std::fmt::Write;
 use std::slice::Iter;
 
+use ark_ff::{BigInteger, Field, PrimeField};
+use num_bigint::BigUint;
 use num_traits::One;
 use regex::{Captures, Regex};
 
@@ -80,6 +82,74 @@ pub fn title(res: &mut String, s: &str) {
     writeln!(res, "│{s}│", s = s).unwrap();
     writeln!(res, "╰{s}╯", s = "─".repeat(s.len())).unwrap();
     writeln!(res).unwrap();
+}
+
+/// Field element helpers
+///   Unless otherwise stated everything is in little-endian byte order.
+pub trait FieldHelpers<F> {
+    /// Deserialize from BigUint
+    fn from_biguint(big: &BigUint) -> Result<F>
+    where
+        F: PrimeField,
+    {
+        Ok(F::from(big.clone()))
+    }
+
+    /// Serialize to bytes
+    fn to_bytes(&self) -> Vec<u8>;
+
+    /// Serialize to bits
+    fn to_bits(&self) -> Vec<bool>;
+
+    /// Serialize field element to a BigUint
+    fn to_biguint(&self) -> BigUint
+    where
+        F: PrimeField,
+    {
+        BigUint::from_bytes_le(&self.to_bytes())
+    }
+
+    /// Get the modulus as `BigUint`
+    fn modulus_biguint() -> BigUint
+    where
+        F: PrimeField,
+    {
+        BigUint::from_bytes_le(&F::MODULUS.to_bytes_le())
+    }
+
+    /// Return first 64 bits of the field element
+    fn to_u64(&self) -> u64;
+}
+
+impl<F: Field> FieldHelpers<F> for F {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes: Vec<u8> = vec![];
+        self.serialize_uncompressed(&mut bytes)
+            .expect("Failed to serialize field");
+
+        bytes
+    }
+
+    /// Converts a field element into bit representation (little endian)
+    fn to_bits(&self) -> Vec<bool> {
+        self.to_bytes().iter().fold(vec![], |mut bits, byte| {
+            let mut byte = *byte;
+            for _ in 0..8 {
+                bits.push(byte & 0x01 == 0x01);
+                byte >>= 1;
+            }
+            bits
+        })
+    }
+
+    fn to_u64(&self) -> u64 {
+        let bytes = self.to_bytes();
+        let mut acc: u64 = 0;
+        for i in 0..8 {
+            acc += 2u64.pow(i * 8) * (bytes[i as usize] as u64);
+        }
+        acc
+    }
 }
 
 #[cfg(test)]

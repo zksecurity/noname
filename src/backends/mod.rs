@@ -1,6 +1,5 @@
 use std::{fmt::Debug, str::FromStr};
 
-use ::kimchi::o1_utils::FieldHelpers;
 use ark_ff::{Field, One, PrimeField, Zero};
 use circ::ir::term::precomp::PreComp;
 use fxhash::FxHashMap;
@@ -17,15 +16,16 @@ use crate::{
     utils::{log_array_or_tuple_type, log_custom_type, log_string_type},
     var::{ConstOrCell, Value, Var},
     witness::WitnessEnv,
+    utils::FieldHelpers,
 };
 
-use self::{
-    kimchi::KimchiVesta,
-    r1cs::{R1csBls12381Field, R1csBn254Field, R1CS},
-};
+#[cfg(feature = "kimchi")]
+use self::kimchi::KimchiVesta;
+use self::r1cs::{R1csBls12381Field, R1csBn254Field, R1CS};
 
 use crate::mast::Mast;
 
+#[cfg(feature = "kimchi")]
 pub mod kimchi;
 pub mod r1cs;
 
@@ -42,12 +42,14 @@ pub trait BackendField:
 pub trait BackendVar: Clone + Debug + PartialEq + Eq {}
 
 pub enum BackendKind {
+    #[cfg(feature = "kimchi")]
     KimchiVesta(KimchiVesta),
     R1csBls12_381(R1CS<R1csBls12381Field>),
     R1csBn254(R1CS<R1csBn254Field>),
 }
 
 impl BackendKind {
+    #[cfg(feature = "kimchi")]
     pub fn new_kimchi_vesta(use_double_generic: bool) -> Self {
         Self::KimchiVesta(KimchiVesta::new(use_double_generic))
     }

@@ -1631,7 +1631,6 @@ dependencies = [
  "thiserror 1.0.61",
  "tokio",
  "toml",
- "tower",
  "tower-http",
  "tracing-subscriber",
 ]

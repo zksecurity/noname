@@ -18,7 +18,7 @@ ark-bls12-381 = "0.5" # bls12-381 curve for r1cs backend
 ark-relations = "0.5"
 ark-bn254 = "0.5" # bn128 curve for r1cs backend
 ark-serialize = "0.5" # serialization of arkworks types
-axum = { version = "0.7.7", features = ["macros"] } # web server
+axum = { version = "0.7.7", features = ["macros"], optional = true } # web server
 base64 = "0.22.1" # for base64 encoding
 educe = { version = "0.6", default-features = false, features = [
     "Hash",
@@ -32,7 +32,7 @@ camino = "1.1.1" # to replace Path and PathBuf
 clap = { version = "4.0.5", features = ["derive"] } # CLI library
 dirs = "4.0.0" # helper functions (e.g. getting the home directory)
 itertools = "0.10.3" # useful iter traits
-kimchi = { git = "https://github.com/o1-labs/proof-systems", rev = "c1803e0a480172c193ba67c826110980303a172f" } # ZKP
+kimchi = { git = "https://github.com/o1-labs/proof-systems", rev = "c1803e0a480172c193ba67c826110980303a172f", optional = true } # ZKP
 miette = { version = "5.0.0", features = ["fancy"] }                                 # nice errors
 num-traits = "0.2.15"                                                                # useful traits on big ints
 once_cell = "1.15.0"                                                                 # for lazy statics
@@ -51,7 +51,12 @@ rug = "1.26.1"                                                                  
 circ = { git = "https://github.com/circify/circ", rev = "8140b1369edd5992ede038d2e9e5721510ae7065" }                                # for compiling to circ IR
 circ_fields = { git = "https://github.com/circify/circ", rev = "8140b1369edd5992ede038d2e9e5721510ae7065", subdir = "circ_fields" } # for field types supported by circ
 fxhash = "0.2.1"                                                                                                                    # hash algorithm used by circ
-tokio = { version = "1.41.0", features = ["full"] }
-tower = "0.5.1"
-tower-http = { version = "0.6.1", features = ["trace", "fs"] }
+tokio = { version = "1.41.0", features = ["sync", "rt"] }
+tower-http = { version = "0.6.1", features = ["trace", "fs"], optional = true }
 tracing-subscriber = "0.3.18"
+
+[features]
+default = ["cli"]
+cli = ["kimchi", "server"]
+server = ["tokio/full", "tower-http", "axum"]
+kimchi = ["dep:kimchi"]

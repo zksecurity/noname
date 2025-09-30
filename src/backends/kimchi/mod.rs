@@ -12,10 +12,7 @@ use std::{
 };
 
 use itertools::{izip, Itertools};
-use kimchi::{
-    circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS},
-    o1_utils::FieldHelpers,
-};
+use kimchi::circuits::polynomials::generic::{GENERIC_COEFFS, GENERIC_REGISTERS};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -28,6 +25,7 @@ use crate::{
     constants::Span,
     error::{Error, ErrorKind, Result},
     helpers::PrettyField,
+    utils::FieldHelpers,
     var::{Value, Var},
     witness::WitnessEnv,
 };
