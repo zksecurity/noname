@@ -329,7 +329,7 @@ mod tests {
             .unwrap();
 
         // first fradulent attempt: modifying one of the public output values
-        // attemp to modify the output value
+        // attempt to modify the output value
         let invalid_output = VestaField::from(output_val + 1);
         full_public_inputs[1] = invalid_output;
 
@@ -352,7 +352,7 @@ mod tests {
             _ => panic!("Expected DisconnectedWires error"),
         }
 
-        // second fradulent attempt: sync the value for all the output vars in all the gates
+        // second fraudulent attempt: sync the value for all the output vars in all the gates
         witness[0][result_row] = invalid_output;
 
         let result = prover_index.index.verify(&witness, &full_public_inputs);

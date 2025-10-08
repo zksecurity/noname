@@ -378,7 +378,7 @@ impl Backend for KimchiVesta {
                     );
                     Err(err)?;
                 } else {
-                    Err(Error::new("contraint-finalization", ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"), Span::default()))?;
+                    Err(Error::new("constraint-finalization", ErrorKind::UnexpectedError("there's a bug in the circuit_writer, some cellvar does not end up being a cellvar in the circuit!"), Span::default()))?;
                 }
             }
         }
@@ -386,7 +386,7 @@ impl Backend for KimchiVesta {
         // kimchi hack
         if self.gates.len() <= 2 {
             Err(Error::new(
-                "contraint-finalization",
+                "constraint-finalization",
                 ErrorKind::UnexpectedError(
                     "The circuit is either too small or does not constrain anything, too few gates create in the R1CS",
                 ),
