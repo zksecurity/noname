@@ -1,13 +1,12 @@
 use std::vec;
 
-use kimchi::o1_utils::FieldHelpers;
-
 use crate::{
     backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
     error::Result,
     parser::types::GenericParameters,
+    utils::FieldHelpers,
     var::{ConstOrCell, Value, Var},
 };
 

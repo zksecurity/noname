@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use ark_ff::{One, Zero};
-use kimchi::o1_utils::FieldHelpers;
 use num_bigint::BigUint;
 use regex::Regex;
 

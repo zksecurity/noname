@@ -279,12 +279,15 @@ pub enum ErrorKind {
     #[error("array indexes must be constants in circuits")]
     ExpectedConstant,
 
+    #[cfg(feature = "kimchi")]
     #[error("kimchi setup: {0}")]
     KimchiSetup(#[from] kimchi::error::SetupError),
 
+    #[cfg(feature = "kimchi")]
     #[error("kimchi prover: {0}")]
     KimchiProver(#[from] kimchi::error::ProverError),
 
+    #[cfg(feature = "kimchi")]
     #[error("kimchi verifier: {0}")]
     KimchiVerifier(#[from] kimchi::error::VerifyError),
 

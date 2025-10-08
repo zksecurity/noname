@@ -5,7 +5,6 @@ use crate::helpers::PrettyField;
 use circ::cfg::{CircCfg, CircOpt};
 use circ_fields::FieldV;
 use itertools::{izip, Itertools as _};
-use kimchi::o1_utils::FieldHelpers;
 use num_bigint::BigUint;
 use num_traits::One;
 use rug::Integer;
@@ -20,7 +19,7 @@ use crate::mast::Mast;
 use crate::parser::types::{ModulePath, TyKind};
 use crate::type_checker::FullyQualified;
 use crate::var::ConstOrCell;
-use crate::{circuit_writer::DebugInfo, var::Value};
+use crate::{circuit_writer::DebugInfo, utils::FieldHelpers, var::Value};
 
 use super::{Backend, BackendField, BackendVar};
 

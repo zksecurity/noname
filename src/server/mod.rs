@@ -1,3 +1,4 @@
+#[cfg(feature = "server")]
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -9,6 +10,7 @@ use serde::Serialize;
 use std::sync::Arc;
 use std::thread;
 use tokio::sync::{mpsc, Mutex};
+#[cfg(feature = "server")]
 use tower_http::services::ServeDir;
 
 use crate::cli::packages::path_to_release_dir;
@@ -33,6 +35,7 @@ pub struct ServerShim {
 }
 
 impl ServerShim {
+    #[cfg(feature = "server")]
     pub(crate) fn start_server() -> (thread::JoinHandle<()>, Self) {
         let (compiler_to_server, rx) = mpsc::channel(1024);
         let (tx, compiler_from_server) = mpsc::channel(1024);
@@ -52,17 +55,27 @@ impl ServerShim {
     }
 
     pub(crate) fn send<T: Serialize>(&self, title: String, state: &T) {
-        let state = serde_json::to_string(&state).unwrap();
-        let state = BASE64_STANDARD.encode(state);
-        let _ = self
-            .tx
-            .clone()
-            .try_send(CompilerMessage::State { title, state });
+        #[cfg(feature = "server")]
+        {
+            let state = serde_json::to_string(&state).unwrap();
+            let state = BASE64_STANDARD.encode(state);
+            let _ = self
+                .tx
+                .clone()
+                .try_send(CompilerMessage::State { title, state });
+        }
     }
 
     pub(crate) fn recv(&mut self) -> Option<ServerMessage> {
-        return Some(ServerMessage::Resume);
-        //self.rx.blocking_recv()
+        #[cfg(feature = "server")]
+        {
+            return Some(ServerMessage::Resume);
+            //self.rx.blocking_recv()
+        }
+        #[cfg(not(feature = "server"))]
+        {
+            None
+        }
     }
 }
 
@@ -82,6 +95,7 @@ pub struct CompilerStep {
     pub state: String,
 }
 
+#[cfg(feature = "server")]
 async fn run_server(tx: mpsc::Sender<ServerMessage>, rx: mpsc::Receiver<CompilerMessage>) {
     // initialize tracing
     tracing_subscriber::fmt::init();
@@ -132,12 +146,14 @@ async fn run_server(tx: mpsc::Sender<ServerMessage>, rx: mpsc::Receiver<Compiler
 // Routes
 //
 
+#[cfg(feature = "server")]
 #[axum::debug_handler]
 async fn states(state: State<ServerState>) -> String {
     let compiler_state = state.compiler_state.lock().await;
     format!("{}", compiler_state.len())
 }
 
+#[cfg(feature = "server")]
 #[axum::debug_handler]
 async fn resume(
     Path(id): Path<usize>,
@@ -164,6 +180,7 @@ struct Response {
     message: CompilerStep,
 }
 
+#[cfg(feature = "server")]
 #[axum::debug_handler]
 async fn get_state(
     Path(counter): Path<usize>,
@@ -191,6 +208,7 @@ mod tests {
 
     // #[test]
     // disabled for now because it hangs in test runner
+    #[cfg(feature = "server")]
     fn test_server() {
         let (handle, _) = ServerShim::start_server();
         // wait on handle
