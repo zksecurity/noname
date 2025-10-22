@@ -328,7 +328,7 @@ mod tests {
             .verify(&witness, &full_public_inputs)
             .unwrap();
 
-        // first fradulent attempt: modifying one of the public output values
+        // first fraudulent attempt: modifying one of the public output values
         // attempt to modify the output value
         let invalid_output = VestaField::from(output_val + 1);
         full_public_inputs[1] = invalid_output;

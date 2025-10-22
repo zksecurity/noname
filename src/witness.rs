@@ -48,7 +48,7 @@ impl<B: Backend> CompiledCircuit<B> {
     pub fn main_info(&self) -> &FnInfo<B> {
         self.circuit
             .main_info()
-            .expect("constrait-writer bug: no main function found in witness generation")
+            .expect("constraint-writer bug: no main function found in witness generation")
     }
 
     pub fn asm(&self, sources: &Sources, debug: bool) -> String {
