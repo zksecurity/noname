@@ -38,7 +38,7 @@ impl Error {
 #[derive(Error, Diagnostic, Debug)]
 pub enum ErrorKind {
     #[error(
-        "Unexpected error: {0}. Please report this error on https://github.com/mimoo/noname/issues"
+        "Unexpected error: {0}. Please report this error on https://github.com/zksecurity/noname/issues"
     )]
     UnexpectedError(&'static str),
     #[error("variable is not mutable. You must set the `mut` keyword to make it mutable")]
