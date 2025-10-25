@@ -9,7 +9,7 @@ title = "noname"
 site-url = "/noname/"
 use-site-url-as-root = true
 curly-quotes = true
-git-repository-url = "https://www.github.com/mimoo/noname"
+git-repository-url = "https://github.com/zksecurity/noname"
 additional-css = ["./mdbook-admonish.css"]
 
 [preprocessor]
