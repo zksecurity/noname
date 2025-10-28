@@ -1,12 +1,15 @@
 use std::fmt::{self, Display, Formatter};
 
 use ark_ff::{One, Zero};
+#[cfg(feature = "kimchi")]
 use kimchi::circuits::wires::Wire;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "kimchi")]
+use crate::backends::kimchi::VestaField;
 use crate::{
-    backends::{kimchi::VestaField, Backend},
+    backends::Backend,
     circuit_writer::{CircuitWriter, DebugInfo, FnEnv, VarInfo},
     constants::Span,
     constraints::{boolean, field},
@@ -32,6 +35,7 @@ pub enum GateKind {
     Poseidon,
 }
 
+#[cfg(feature = "kimchi")]
 impl From<GateKind> for kimchi::circuits::gate::GateType {
     fn from(gate_kind: GateKind) -> Self {
         use kimchi::circuits::gate::GateType::*;
@@ -44,6 +48,7 @@ impl From<GateKind> for kimchi::circuits::gate::GateType {
 }
 
 // TODO: this could also contain the span that defined the gate!
+#[cfg(feature = "kimchi")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Gate {
     /// Type of gate
@@ -54,6 +59,7 @@ pub struct Gate {
     pub coeffs: Vec<VestaField>,
 }
 
+#[cfg(feature = "kimchi")]
 impl Gate {
     pub fn to_kimchi_gate(&self, row: usize) -> kimchi::circuits::gate::CircuitGate<VestaField> {
         kimchi::circuits::gate::CircuitGate {
@@ -920,6 +926,7 @@ impl<B: Backend> CircuitWriter<B> {
     }
 }
 
+#[cfg(feature = "kimchi")]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub(crate) struct PendingGate {
     pub label: &'static str,

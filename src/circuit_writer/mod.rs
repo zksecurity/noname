@@ -16,7 +16,9 @@ use crate::{
 pub use fn_env::{FnEnv, VarInfo};
 use serde::{Deserialize, Serialize};
 //use serde::{Deserialize, Serialize};
-pub use writer::{Gate, GateKind, Wiring};
+#[cfg(feature = "kimchi")]
+pub use writer::Gate;
+pub use writer::{GateKind, Wiring};
 
 pub mod fn_env;
 pub mod ir;

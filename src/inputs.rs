@@ -3,16 +3,16 @@
 use std::{collections::HashMap, fs::File, io::Read, str::FromStr};
 
 use ark_ff::{One, Zero};
-use kimchi::o1_utils::FieldHelpers;
 use miette::Diagnostic;
 use num_bigint::BigUint;
 use thiserror::Error;
 
+#[cfg(feature = "kimchi")]
+use crate::backends::kimchi::VestaField;
 use crate::{
-    backends::{kimchi::VestaField, Backend},
-    parser::types::TyKind,
-    type_checker::FullyQualified,
+    backends::Backend, parser::types::TyKind, type_checker::FullyQualified,
     witness::CompiledCircuit,
+    utils::FieldHelpers,
 };
 
 //
@@ -185,6 +185,7 @@ pub trait ExtField /* : PrimeField*/ {
     fn to_dec_string(&self) -> String;
 }
 
+#[cfg(feature = "kimchi")]
 impl ExtField for VestaField {
     fn to_dec_string(&self) -> String {
         let biguint: BigUint = self.to_biguint();
@@ -197,6 +198,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "kimchi")]
     fn test_extfield() {
         let field = VestaField::from(42);
         assert_eq!(field.to_dec_string(), "42");
