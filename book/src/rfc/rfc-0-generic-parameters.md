@@ -94,7 +94,7 @@ The current pipeline of compiling noname code is:
 1. Parse the code into AST
 2. Convert the AST into NAST with naming resolution
 3. Convert the NAST into TAST with type metadata collection and type checking
-4. Circuit synthesizing TAST into an constraint system
+4. Circuit synthesizing TAST into a constraint system
 
 With generic parameters, the current TAST phase can't handle the type checking anymore, because the generic parameters are unknown. For example, it can't type check the array with symbolic size without resolving the values for the generic parameters.
 
@@ -438,7 +438,7 @@ Circuit synthesizer will rely on the monomorphized AST to compile the circuit. T
 ## Alternative approach
 [One alternative approach](https://github.com/zksecurity/noname/pull/136) to the monomorphization described above is to propagate the generic values directly in circuit writer, without the need to add the MAST phase.
 
-The circuit writer walks through the original AST via the `compile_expr` function. This function propagate the values from the main function argument and constants and compute the `VarOrRef` as an result. The `VarOrRef` doesn't return the structure of the types being computed.
+The circuit writer walks through the original AST via the `compile_expr` function. This function propagate the values from the main function argument and constants and compute the `VarOrRef` as a result. The `VarOrRef` doesn't return the structure of the types being computed.
 
 In the process, when it needs to determine the structure of the type behind an expression node, it relies on the `size_of` function to determine the number of vars representing the type. The `size_of` relies on the node id of an expression to look up the type. This is not a problem when the types are concrete.
 

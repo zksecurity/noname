@@ -5,7 +5,7 @@ pub fn is_numeric(s: &str) -> bool {
     s.chars().all(|c| c.is_ascii_digit())
 }
 
-/// Returns true if the given string is an hexadecimal string (0x...)
+/// Returns true if the given string is a hexadecimal string (0x...)
 pub fn is_hexadecimal(s: &str) -> bool {
     let mut s = s.chars();
     let s0 = s.next();

@@ -1002,7 +1002,7 @@ fn monomorphize_expr<B: Backend>(
                 _ => Err(Error::new(
                     "Container Access",
                     ErrorKind::UnexpectedError(
-                        "Attempting to access container when type is not an container",
+                        "Attempting to access container when type is not a container",
                     ),
                     expr.span,
                 ))?,
