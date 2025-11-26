@@ -120,7 +120,7 @@ impl KimchiVesta {
         let (endo_q, _endo_r) = kimchi::poly_commitment::ipa::endos::<OtherCurve>();
 
         let prover_index = kimchi::prover_index::ProverIndex::<Curve, OpeningProof<Curve>>::create(
-            cs, endo_q, srs,
+            cs, endo_q, srs, false,
         );
         let verifier_index = prover_index.verifier_index();
 

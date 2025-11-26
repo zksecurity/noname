@@ -1,14 +1,13 @@
 use ark_ff::PrimeField;
 use std::vec;
 
-use kimchi::{o1_utils::FieldHelpers, turshi::helper::CairoFieldHelpers};
-
 use crate::{
     backends::Backend,
     circuit_writer::{CircuitWriter, VarInfo},
     constants::Span,
     error::{Error, ErrorKind, Result},
     parser::types::GenericParameters,
+    utils::FieldHelpers,
     var::{ConstOrCell, Value, Var},
 };
 
