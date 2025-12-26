@@ -192,8 +192,7 @@ impl TypedFnEnv {
     }
 
     /// Retrieves type information on a variable, given a name.
-    /// If the variable is not in scope, return false.
-    // TODO: return an error no?
+    /// If the variable is not in scope, return `None`.
     pub fn get_type_info(&self, ident: &str) -> Result<Option<&TypeInfo>> {
         if let Some((scope, type_info)) = self.vars.get(ident) {
             if self.is_forbidden(*scope, type_info.clone()) {
