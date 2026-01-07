@@ -16,23 +16,37 @@ use super::{
 //~
 //~ ## Expression
 //~
-//~ Backus–Naur Form (BNF) grammar:
+//~ Backus–Naur Form (BNF) grammar (informal):
 //~
 //~ expr ::=
-//~     | expr { bin_op expr }
-//~     | "-" expr
-//~     | "(" expr ")"
+//~     | "-" expr                         // arithmetic negation
+//~     | "!" expr                         // boolean negation
+//~     | "(" expr ")"                     // parenthesized expression
+//~     | "(" expr "," { expr } ")"        // tuple declaration
+//~     | "[" expr { "," expr } "]"        // array declaration
+//~     | "[" expr ";" expr "]"            // repeated array initialisation
+//~     | "if" expr "{" expr "}" "else" "{" expr "}" // conditional expression
+//~     | ident                            // variable
+//~     | path                             // qualified variable (mod::Name)
+//~     | fn_call                          // free function call
+//~     | method_call                      // method call
+//~     | field_access                     // field access
+//~     | index_access                     // array/tuple index
+//~     | custom_type_init                 // struct-like literal
+//~     | string_literal
 //~     | numeric
-//~     | ident
-//~     | fn_call
-//~     | array_access
-//~ bin_op ::= "+" | "-" | "/" | "*" | "=="
+//~     | expr bin_op expr
+//~
+//~ bin_op ::= "+" | "-" | "/" | "*" | "==" | "!=" | "&&" | "||"
 //~ numeric ::= /[0-9]+/
 //~ ident ::= /[A-Za-z_][A-Za-z_0-9]*/
-//~ fn_call ::= ident "(" expr { "," expr } ")"
-//~ array_access ::= ident "[" expr "]"
+//~ path ::= ident "::" ident
+//~ fn_call ::= [ "unsafe" ] path "(" [ expr { "," expr } ] ")"
+//~ method_call ::= expr "." ident "(" [ expr { "," expr } ] ")"
+//~ field_access ::= expr "." ident
+//~ index_access ::= expr "[" expr "]"
+//~ custom_type_init ::= ident "{" ident ":" expr { "," ident ":" expr } "}"
 //~
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Expr {
     pub node_id: usize,
