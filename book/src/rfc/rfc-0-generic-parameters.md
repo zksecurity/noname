@@ -4,7 +4,7 @@
 This RFC proposes to support const generics in noname. The generic parameters can be resolved from the observed arguments, such as constants, arrays, or structs. This improves reusability and modularity of the code. It is a prerequisite for supporting generic array with symbolic size.
 
 ## Code Examples
-Here is a few previews of how the generic parameters can be used, and what features it would unlock.
+Here are a few previews of how the generic parameters can be used, and what features it would unlock.
 
 Allow functions to create array with symbolic size:
 ```rust
@@ -104,7 +104,7 @@ Below is the diagram of the compiler pipeline with the MAST phase added:
 ![pipeline](/book/src/assets/compiler-pipeline.png)
 
 ## Implementation
-To support the generic syntax as shown in the examples above, we need to make changes to the AST Parser support generic syntax. Furthermore, because the generic parameters can't be resolved at TAST phase, the some type checkings will be less strict and deferred to MAST phase.
+To support the generic syntax as shown in the examples above, we need to make changes to the AST Parser support generic syntax. Furthermore, because the generic parameters can't be resolved at TAST phase, some type checkings will be less strict and deferred to MAST phase.
 
 Here is a list of cases where the type checks can't be done at TAST phase, as they need to resolve the generic values:
 
@@ -172,7 +172,7 @@ fn main(pub xx: Field) {
 ```
 
 
-The newly added phase MAST will be responsible for resolving the generic values from the observed arguments. It includes type checking on the monomorphized types that are bypass in the TAST phase. 
+The newly added phase MAST will be responsible for resolving the generic values from the observed arguments. It includes type checking on the monomorphized types that are bypassed in the TAST phase. 
 
 ### Generic Syntax
 
@@ -184,7 +184,7 @@ For example, with the turbofish, we could do something like:
 fn create_arr<N>(arr: [Field; N + 3]) -> [Field; N + 3] {...}
 ```
 
-This is a rare case where the generic parameter can't be trivially resolved from the observed arguments. To get it work without any advanced inference setups, it would require manually passing the value of `N` to the function via turbofish syntax, such as:
+This is a rare case where the generic parameter can't be trivially resolved from the observed arguments. To get it to work without any advanced inference setups, it would require manually passing the value of `N` to the function via turbofish syntax, such as:
 
 ```rust
 // a is then of type [Field, 6]
@@ -201,7 +201,7 @@ fn create_arr(const LEN: Field) -> [typ; LEN]
 fn last(arr: [typ; LEN]) -> Field
 ```
 
-In the function scope, it might need to determine whether a variable is a generic parameter or not. We rules strings with at least 2 letters, which should be all capitalized, as generic parameters. 
+In the function scope, it might need to determine whether a variable is a generic parameter or not. We rule strings with at least 2 letters, which should be all capitalized, as generic parameters. 
 
 ### AST Parser
 Parser will need to collect the generic identifiers for the following constructions `FunctionDef`. It will add a new `TyKind`, the `GenericSizedArray(type, size)`. The size of `GenericSizedArray` is represented by a `Symbolic` value, which can contain generic parameters or concrete values.
@@ -255,7 +255,7 @@ FunctionDef{
 The TAST use these metadata of generic parameters for type checking the consistency of generic identifiers. In MAST phase, they will be useful for resolving the generic values from the observed arguments.
 
 ### TAST
-The generic values are resolved from the observed arguments. If the generic parameters are declared, they should be used in the function body. We need to check if the generic parameters declared make senses.
+The generic values are resolved from the observed arguments. If the generic parameters are declared, they should be used in the function body. We need to check if the generic parameters declared make sense.
 
 *Type check generic parameters for functions*
 ```rust
@@ -420,7 +420,7 @@ Here is an overview of the monomorphization process:
 
 4. In the function instantiation process, all the AST nodes will be regenerated. This new AST will be stored under the monomorphized function name.
 
-5. After monomorphized a function, it should add the name of the original function to a list that records which function AST to delete at the end. We can't not delete the original function AST immediately, because it might be called at different places.
+5. After monomorphized a function, it should add the name of the original function to a list that records which function AST to delete at the end. We can't delete the original function AST immediately, because it might be called at different places.
 
 6. In each function block scope, it should type check the return types, by comparing the propagated return type and the defined return type. All these types should be in concrete form without generic parameters involved.
 
@@ -433,7 +433,7 @@ All the updates are done to the existing stores in the TAST.
 
 
 ### Circuit Synthesizer
-Circuit synthesizer will rely on the monomorphized AST to compile the circuit. To synthesizer, the workflow will be the same as before, but with the monomorphized AST. It doesn't need to be aware of the newly added support related to generics. The added MAST phase simplifies what needs to be done in the circuit synthesizer to support the generic features, in comparison to the alternative approach described in the following section.
+Circuit synthesizer will rely on the monomorphized AST to compile the circuit. To the synthesizer, the workflow will be the same as before, but with the monomorphized AST. It doesn't need to be aware of the newly added support related to generics. The added MAST phase simplifies what needs to be done in the circuit synthesizer to support the generic features, in comparison to the alternative approach described in the following section.
 
 ## Alternative approach
 [One alternative approach](https://github.com/zksecurity/noname/pull/136) to the monomorphization described above is to propagate the generic values directly in circuit writer, without the need to add the MAST phase.
@@ -450,4 +450,4 @@ For example, when it is computing for the `ExprKind::ArrayAccess`, it can use th
 
 This approach would require a significant refactor of the circuit writer's compilation process. It would require changes to the assumptions from using `VarOrRef` to structured `ComputedExpr`. It would also need to rely on `ComputedExpr` to do some additional checks instead of just relying on types. This would require quite a number of additional assumptions between the `ComputedExpr`, the actual types and generic parameters.
 
-Therefore, we thought the monomorphization approach is more straightforward and easier to maintain in a long run, considering the pipeline of the compiler.
+Therefore, we thought the monomorphization approach is more straightforward and easier to maintain in the long run, considering the pipeline of the compiler.
