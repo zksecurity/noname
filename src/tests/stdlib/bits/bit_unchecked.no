@@ -1,0 +1,7 @@
+use std::bits;
+
+fn main(pub val: Field) -> Bool {
+    let bit = bits::Bit.new_unchecked(val);
+
+    return bit.to_bool();
+}
