@@ -51,7 +51,7 @@ rug = "1.26.1"                                                                  
 circ = { git = "https://github.com/circify/circ", rev = "8140b1369edd5992ede038d2e9e5721510ae7065" }                                # for compiling to circ IR
 circ_fields = { git = "https://github.com/circify/circ", rev = "8140b1369edd5992ede038d2e9e5721510ae7065", subdir = "circ_fields" } # for field types supported by circ
 fxhash = "0.2.1"                                                                                                                    # hash algorithm used by circ
-tokio = { version = "1.41.0", features = ["full"] }
+tokio = { version = "1.43.1", features = ["full"] }
 tower = "0.5.1"
 tower-http = { version = "0.6.1", features = ["trace", "fs"] }
 tracing-subscriber = "0.3.18"
