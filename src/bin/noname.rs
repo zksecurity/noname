@@ -1,10 +1,12 @@
 use clap::Parser as _;
 use miette::Result;
+#[cfg(feature = "cli")]
 use noname::cli::{
     cmd_build, cmd_check, cmd_init, cmd_new, cmd_prove, cmd_run, cmd_test, cmd_verify, CmdBuild,
     CmdCheck, CmdInit, CmdNew, CmdProve, CmdRun, CmdTest, CmdVerify,
 };
 
+#[cfg(feature = "cli")]
 #[derive(clap::Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
@@ -12,6 +14,7 @@ struct Cli {
     command: Commands,
 }
 
+#[cfg(feature = "cli")]
 #[derive(clap::Subcommand)]
 enum Commands {
     /// Create a new noname package
@@ -48,6 +51,7 @@ enum Commands {
     Test(CmdTest),
 }
 
+#[cfg(feature = "cli")]
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -65,4 +69,9 @@ fn main() -> Result<()> {
 
         Commands::Test(args) => cmd_test(args),
     }
+}
+
+#[cfg(not(feature = "cli"))]
+fn main() {
+    panic!("This binary requires the 'cli' feature to be enabled");
 }

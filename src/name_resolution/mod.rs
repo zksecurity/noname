@@ -78,8 +78,9 @@ impl<B: Backend> NAST<B> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "kimchi")]
+    use crate::backends::kimchi::KimchiVesta;
     use crate::{
-        backends::kimchi::KimchiVesta,
         lexer::Token,
         parser::{
             types::{ModulePath, StmtKind},
@@ -104,6 +105,7 @@ mod tests {
     }
 "#;
 
+    #[cfg(feature = "kimchi")]
     #[test]
     fn test_name_res() {
         let tokens = Token::parse(0, CODE).unwrap();
@@ -149,6 +151,7 @@ mod tests {
         };
     }
 
+    #[cfg(feature = "kimchi")]
     #[test]
     fn test_name_res_for_library() {
         let user_repo = UserRepo::new("mimoo/example");
